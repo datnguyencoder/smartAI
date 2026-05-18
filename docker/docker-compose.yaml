@@ -1,0 +1,190 @@
+version: '3.8'
+
+services:
+  # ==========================================
+  # 1. DATABASE: POSTGRESQL 16
+  # ==========================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: smartmart_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-smartmart_db}
+      POSTGRES_USER: ${POSTGRES_USER:-smartmart_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-SuperSecurePassword2026}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - smartmart_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-smartmart_admin} -d ${POSTGRES_DB:-smartmart_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ==========================================
+  # 2. CACHE LAYER: REDIS 7
+  # ==========================================
+  redis:
+    image: redis:7-alpine
+    container_name: smartmart_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - smartmart_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================
+  # 3. MESSAGE BROKER: KAFKA (KRAFT MODE)
+  # ==========================================
+  kafka:
+    image: bitnami/kafka:3.6
+    container_name: smartmart_kafka
+    restart: always
+    environment:
+      # Bitnami Kafka configuration for KRaft (ZooKeeper-less mode)
+      - KAFKA_CFG_NODE_ID=1
+      - KAFKA_CFG_PROCESS_ROLES=broker,controller
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
+      # Listeners configurations
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      # Single-node configuration constraints
+      - KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_CFG_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+      - KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR=1
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    ports:
+      - "9092:9092"
+    networks:
+      - smartmart_network
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server kafka:9092 --list"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+
+  # ==========================================
+  # 4. BUSINESS LOGIC BACKEND: SPRING BOOT
+  # ==========================================
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: smartmart_backend
+    restart: always
+    expose:
+      - "8080"
+    ports:
+      - "8080:8080"
+    environment:
+      # Database connection configurations
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB:-smartmart_db}
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER:-smartmart_admin}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-SuperSecurePassword2026}
+      # Redis Cache configurations
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+      # Kafka configurations
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      # Gemini API integrations
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-AIzaSyYourActualGeminiAPIKeyHere}
+      # Security Configurations
+      - JWT_SECRET=${JWT_SECRET:-9a78a63584828f73b889312c1c38d6f5e8e89f81a7b8e910a11c12d13e14f15a}
+      # Spring configurations
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - smartmart_network
+    healthcheck:
+      # Verify Spring Boot application is healthy using the standard OpenAPI documentation endpoint
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/v3/api-docs"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 25s
+
+  # ==========================================
+  # 5. AI ENGINE: FASTAPI (PYTHON)
+  # ==========================================
+  ai-service:
+    build:
+      context: ../ai-service
+      dockerfile: Dockerfile
+    container_name: smartmart_ai_service
+    restart: always
+    expose:
+      - "8000"
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-smartmart_admin}:${POSTGRES_PASSWORD:-SuperSecurePassword2026}@postgres:5432/${POSTGRES_DB:-smartmart_db}
+      - FASTAPI_ENV=${FASTAPI_ENV:-production}
+    volumes:
+      - ai_models_data:/app/app/saved_models
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - smartmart_network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/ai/health', timeout=5)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ==========================================
+  # 6. FRONTEND WEB APPLICATION: REACT (VITE)
+  # ==========================================
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: smartmart_frontend
+    restart: always
+    ports:
+      - "5173:5173"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - smartmart_network
+
+# ==========================================
+# VOLUMES DECLARATION (PERSISTENT STORAGE)
+# ==========================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  ai_models_data:
+    driver: local
+
+# ==========================================
+# CUSTOM NETWORK DECLARATION (INTERNAL DNS)
+# ==========================================
+networks:
+  smartmart_network:
+    driver: bridge
