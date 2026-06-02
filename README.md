@@ -51,7 +51,7 @@ smartmart-ai/
 │   └── Dockerfile          # Môi trường chạy Python slim bảo mật non-root
 ├── docker/                 # Thư mục điều phối container
 │   └── docker-compose.yaml # Orchestration chạy đồng bộ 6 dịch vụ trên cùng một mạng
-├── docs/                   # Tài liệu phân tích hệ thống chi tiết (01-08)
+├── docs/                   # Tài liệu phân tích hệ thống chi tiết (01-09, gồm chuẩn code BE)
 └── README.md               # Tài liệu hướng dẫn sử dụng tổng quan này
 ```
 

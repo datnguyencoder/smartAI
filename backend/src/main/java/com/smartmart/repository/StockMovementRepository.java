@@ -1,6 +1,6 @@
 package com.smartmart.repository;
 
-import com.smartmart.model.StockMovement;
+import com.smartmart.entity.StockMovement;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

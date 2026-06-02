@@ -78,8 +78,24 @@ smartmart-ai/
 │   ├── requirements.txt    # Danh sách thư viện Python (pandas, scikit-learn, xgboost...)
 │   └── Dockerfile          # Dockerfile đóng gói Python app chạy dưới quyền non-root
 ├── database/               # Thư mục lưu trữ tài liệu thiết kế database, scripts backup dữ liệu
-├── docs/                   # Tài liệu kỹ thuật chi tiết của hệ thống (01-08)
+├── docs/                   # Tài liệu kỹ thuật chi tiết của hệ thống (01-09)
 ├── docker/                 # Chứa cấu hình Docker Compose
 │   └── docker-compose.yaml # Docker Compose file chuẩn hóa toàn bộ hệ thống
 └── README.md               # Hướng dẫn tổng quan về dự án và các lệnh khởi chạy cơ bản
 ```
+
+---
+
+### 6. Mục lục tài liệu kỹ thuật (`docs/`)
+
+| File | Nội dung |
+| :--- | :--- |
+| [01-overview.md](01-overview.md) | Tổng quan dự án |
+| [02-business-rule.md](02-business-rule.md) | Quy tắc nghiệp vụ & RBAC |
+| [03-database-design.md](03-database-design.md) | Thiết kế CSDL |
+| [04-api-specification.md](04-api-specification.md) | Đặc tả REST API |
+| [05-ai-forecasting.md](05-ai-forecasting.md) | ML & Gemini |
+| [06-system-architecture.md](06-system-architecture.md) | Kiến trúc hệ thống |
+| [07-testing-plan.md](07-testing-plan.md) | Kế hoạch kiểm thử |
+| [08-deployment-guide.md](08-deployment-guide.md) | Triển khai Docker |
+| **[09-backend-coding-standards.md](09-backend-coding-standards.md)** | **Chuẩn code Backend (bắt buộc)** |

@@ -1,6 +1,6 @@
 package com.smartmart.security;
 
-import com.smartmart.model.User;
+import com.smartmart.entity.User;
 import com.smartmart.repository.UserRepository;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;

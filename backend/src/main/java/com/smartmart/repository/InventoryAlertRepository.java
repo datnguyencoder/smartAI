@@ -1,6 +1,6 @@
 package com.smartmart.repository;
 
-import com.smartmart.model.InventoryAlert;
+import com.smartmart.entity.InventoryAlert;
 import com.smartmart.enums.AlertStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;

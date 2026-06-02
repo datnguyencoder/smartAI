@@ -1,0 +1,51 @@
+---
+description: Backend lane — Spring Boot; MUST follow docs/09 coding standards
+globs: backend/**
+alwaysApply: false
+---
+
+# Backend agent (BE lane)
+
+## Mandatory standard
+
+**Always code per [docs/09-backend-coding-standards.md](../../docs/09-backend-coding-standards.md).**  
+Before finishing any BE task, run through §12 checklist in that doc.
+
+## Scope
+
+- **Only** edit `backend/`.
+- Do not change `frontend/` or `ai-service/` unless user asks.
+
+## Stack
+
+- Spring Boot 3.2.5, Java 21, JPA, JWT
+- Package: `com.smartmart`
+- Layers: `controller` → `service`/`impl` → `repository` → `entity`; **DTO** for new APIs
+
+## Non‑negotiables (summary)
+
+- Constructor injection; no field `@Autowired`
+- `ApiResponse<T>` + correct HTTP status; OpenAPI `@Tag` / `@Operation` / `@SecurityRequirement`
+- Paths: `/api/v1/...`
+- Business errors: `NotFoundException`, `BadRequestException`, `InsufficientStockException`, `AppException` — not raw `IllegalArgumentException`
+- `@Transactional` on service; `readOnly = true` for queries
+- Stock changes → `StockMovement` + SYS-04 (no negative stock)
+- `@PreAuthorize` per `docs/02-business-rule.md`
+- No entity in new public APIs — use `dto/` + mapper
+
+## Implemented vs planned
+
+- **Live:** `ProductController`, `ProductServiceImpl`, `GlobalExceptionHandler`, `DataSeeder`
+- **Gap:** Auth API, Sales/Purchase, DTO layer, `service/ai/`, Kafka/Redis usage
+
+## AI (BE only)
+
+- FastAPI via `WebClient`; Gemini in `service/ai/` — not Python
+- SYS-10: core POS/inventory works if AI is down
+
+## References
+
+- Coding: `docs/09-backend-coding-standards.md`
+- Business: `docs/02-business-rule.md`
+- API: `docs/04-api-specification.md`
+- Tests: `docs/07-testing-plan.md`
