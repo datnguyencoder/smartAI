@@ -1,6 +1,6 @@
 package com.smartmart.security;
 
-import com.smartmart.model.User;
+import com.smartmart.entity.User;
 import com.smartmart.enums.UserStatus;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;

@@ -1,9 +1,9 @@
 package com.smartmart.service.impl;
 
 import com.smartmart.exception.NotFoundException;
-import com.smartmart.model.Category;
-import com.smartmart.model.Product;
-import com.smartmart.model.Supplier;
+import com.smartmart.entity.Category;
+import com.smartmart.entity.Product;
+import com.smartmart.entity.Supplier;
 import com.smartmart.repository.CategoryRepository;
 import com.smartmart.repository.ProductRepository;
 import com.smartmart.repository.SupplierRepository;

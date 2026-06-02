@@ -1,0 +1,50 @@
+---
+description: AI service lane — FastAPI ML train/forecast only
+globs: ai-service/**
+alwaysApply: false
+---
+
+# AI service agent (AI lane)
+
+## Scope
+
+- **Only** edit files under `ai-service/`.
+- Do not change `frontend/` or `backend/` unless user asks.
+
+## Responsibility
+
+- Stateless **ML inference & training** (XGBoost / scikit-learn per `docs/05-ai-forecasting.md`)
+- **No** business auth, **no** PostgreSQL writes, **no** Gemini — those belong to **backend**
+
+## Target layout
+
+```
+ai-service/
+├── app/
+│   ├── main.py
+│   ├── routers/       # health, train, forecast
+│   ├── schemas/       # Pydantic request/response
+│   ├── services/      # preprocess, train, predict
+│   └── saved_models/  # .joblib artifacts
+├── requirements.txt
+└── Dockerfile         # uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+## Endpoints (internal, port 8000)
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/ai/health` | Liveness (Docker healthcheck) |
+| POST | `/ai/train` | Train from sales-history JSON payload |
+| POST | `/ai/forecast/all` | 30-day forecast for all products |
+| GET | `/ai/model/metrics` | MAE, RMSE, MAPE |
+
+## Contracts
+
+- JSON in/out only; caller is Spring Boot WebClient
+- Spec: `docs/04-api-specification.md`, `docs/05-ai-forecasting.md`
+- Keep handlers fast; heavy work async only if already patterned in repo
+
+## Out of scope for AI agent
+
+- JWT, RBAC, `sales_orders` CRUD, React UI, Gemini chat

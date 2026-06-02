@@ -1,6 +1,6 @@
 package com.smartmart.repository;
 
-import com.smartmart.model.ForecastResult;
+import com.smartmart.entity.ForecastResult;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

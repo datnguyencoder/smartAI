@@ -1,6 +1,6 @@
 package com.smartmart.repository;
 
-import com.smartmart.model.PromotionRecommendation;
+import com.smartmart.entity.PromotionRecommendation;
 import com.smartmart.enums.RecommendationStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
