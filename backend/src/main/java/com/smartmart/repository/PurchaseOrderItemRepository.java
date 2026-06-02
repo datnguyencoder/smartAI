@@ -1,6 +1,6 @@
 package com.smartmart.repository;
 
-import com.smartmart.model.PurchaseOrderItem;
+import com.smartmart.entity.PurchaseOrderItem;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

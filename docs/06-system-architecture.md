@@ -40,22 +40,25 @@ graph TD
 ### 2. Cấu trúc tổ chức mã nguồn (Package Structures)
 
 #### 2.1. Cấu trúc Backend (Spring Boot 3.2.5)
-Mã nguồn Java được tổ chức theo kiến trúc Domain-Driven Design (DDD) thu nhỏ, chia thư mục theo tầng chức năng rõ ràng:
+Mã nguồn Java được tổ chức theo kiến trúc phân tầng (layered), chi tiết chuẩn code tại **[09-backend-coding-standards.md](09-backend-coding-standards.md)**:
 
 ```
 backend/src/main/java/com/smartmart/
-├── config/             # Cấu hình hệ thống (Security, JWT, Redis, Kafka, OpenAPI)
-├── controller/         # Lớp tiếp nhận HTTP Requests, ánh xạ Endpoint và kiểm tra quyền Role
-├── dto/                # Lớp chứa cấu trúc dữ liệu truyền tải (Request/Response Payloads)
-├── entity/             # Các Object ánh xạ trực tiếp sang các bảng PostgreSQL qua JPA Hibernate
-├── exception/          # Quản lý lỗi tập trung (GlobalExceptionHandler, Custom Exceptions)
-├── repository/         # Tầng giao tiếp trực tiếp với Database (Spring Data JPA JpaRepository)
-├── service/            # Tầng chứa lõi logic nghiệp vụ hệ thống (Business Logic)
-│   ├── impl/           # Hiện thực hóa chi tiết các interface Service
-│   └── ai/             # Các dịch vụ kết nối FastAPI và Google Gemini API
-└── event/              # Xử lý sự kiện bất đồng bộ với Apache Kafka
-    ├── producer/       # Các Class có nhiệm vụ bắn Event lên các Topic của Kafka
-    └── consumer/       # Các Class (Listeners) lắng nghe Event từ Kafka để xử lý ngầm
+├── config/             # Security, JWT, Redis, Kafka, OpenAPI, DataSeeder
+├── controller/         # REST — mỏng, ApiResponse, OpenAPI
+├── dto/                # Request/Response (bắt buộc cho API mới)
+├── mapper/             # Entity ↔ DTO
+├── entity/             # JPA entity (ánh xạ PostgreSQL)
+├── repository/         # Spring Data JPA
+├── service/
+│   ├── impl/           # Business logic, @Transactional
+│   └── ai/             # WebClient → FastAPI; Gemini
+├── exception/          # AppException, GlobalExceptionHandler
+├── enums/
+├── security/
+├── constant/
+├── common/             # ApiResponse, PageResponse, BaseEntity
+└── event/              # Kafka producer/consumer (khi triển khai)
 ```
 
 #### 2.2. Cấu trúc AI Service (FastAPI Python)

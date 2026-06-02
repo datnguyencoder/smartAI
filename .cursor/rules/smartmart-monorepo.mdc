@@ -1,0 +1,43 @@
+---
+description: SmartMart monorepo — lane boundaries, contracts, integration order
+alwaysApply: true
+---
+
+# SmartMart AI — Monorepo orchestration
+
+## Agent lanes (one concern per session)
+
+| Lane | Path only | Owns |
+|------|-----------|------|
+| **FE** | `frontend/` | React UI, client API, JWT in browser |
+| **BE** | `backend/` | REST, JPA, transactions, WebClient → AI, Gemini |
+| **AI** | `ai-service/` | FastAPI ML: train, forecast, `/ai/health` |
+
+Do **not** cross lanes in a single task unless user explicitly asks for integration.
+
+## Source of truth
+
+- **Backend coding (mandatory):** `docs/09-backend-coding-standards.md`
+- Business rules: `docs/02-business-rule.md`
+- DB design: `docs/03-database-design.md`
+- API contract: `docs/04-api-specification.md`
+- Implemented today: `GET/POST /api/v1/products` (BE); FE uses **local mock state** in `App.tsx` (no fetch yet)
+
+## API response shape (BE → FE)
+
+```json
+{ "success": true, "message": "...", "data": { } }
+```
+
+Auth header: `Authorization: Bearer <accessToken>`.
+
+## Integration order
+
+1. BE Auth (`/api/v1/auth/**` or per docs) → FE login client
+2. BE Sales/Purchase + stock movements → FE POS/import flows
+3. AI `/ai/health` → BE WebClient → `/ai/train`, `/ai/forecast/all`
+4. BE `/api/ai-insight/*` (Gemini) — **never** in `ai-service/`
+
+## When unsure
+
+Read `AGENTS.md` at repo root. Prefer minimal diffs; match existing stack (React 18, Spring Boot 3.2, Java 21).

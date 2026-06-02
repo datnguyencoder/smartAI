@@ -1,0 +1,39 @@
+---
+description: Frontend lane — React/Vite only, API client, UI state
+globs: frontend/**
+alwaysApply: false
+---
+
+# Frontend agent (FE lane)
+
+## Scope
+
+- **Only** edit files under `frontend/`.
+- Do not change `backend/`, `ai-service/`, or `docs/` unless user asks.
+
+## Stack
+
+- React 18 + TypeScript + Vite + Ant Design + Tailwind + Recharts
+- Entry: `frontend/src/App.tsx` (monolith; prefer new `src/services/`, `src/hooks/` over growing App.tsx when adding API)
+
+## Data rules
+
+- Mock state today: `productsList`, `invoicesList`, `importSlips`, `posCart`, `activePromotions`, `chatHistory`
+- When wiring APIs: map BE DTOs — do not assume `Product.key` === BE `UUID`; use explicit mappers
+- Concept diagram: `frontend/react.MD`
+
+## API client
+
+- Base URL via `import.meta.env.VITE_API_BASE_URL` (default `http://localhost:8080`)
+- Parse `ApiResponse<T>`: `{ success, message, data }`
+- Attach JWT from storage on every request after login
+
+## UI conventions
+
+- Vietnamese labels for user-facing copy (match existing screens)
+- Reuse `frontend/src/components/ui.tsx` (`Card`, `UiButton`, `StatusChip`)
+- Use `cn()` from `frontend/src/lib/utils.ts`
+
+## Out of scope for FE agent
+
+- JPA entities, Flyway, Kafka, Gemini server calls, Python ML training

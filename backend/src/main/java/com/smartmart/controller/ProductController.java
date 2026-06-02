@@ -2,7 +2,7 @@ package com.smartmart.controller;
 
 import com.smartmart.common.response.ApiResponse;
 import com.smartmart.common.response.PageResponse;
-import com.smartmart.model.Product;
+import com.smartmart.entity.Product;
 import com.smartmart.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;

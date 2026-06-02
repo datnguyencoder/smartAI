@@ -1,4 +1,4 @@
-package com.smartmart.model;
+package com.smartmart.entity;
 
 import com.smartmart.common.base.BaseEntity;
 import com.smartmart.enums.MovementType;

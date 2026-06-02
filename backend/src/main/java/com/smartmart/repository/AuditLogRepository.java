@@ -1,6 +1,6 @@
 package com.smartmart.repository;
 
-import com.smartmart.model.AuditLog;
+import com.smartmart.entity.AuditLog;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
