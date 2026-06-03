@@ -1,7 +1,5 @@
 package com.smartmart.entity;
 
-import com.smartmart.common.base.BaseEntity;
-import com.smartmart.enums.ModelType;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -15,22 +13,28 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ModelTrainingHistory extends BaseEntity {
+public class ModelTrainingHistory {
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private ModelType modelType;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-    @Column(nullable = false)
+    @Column(name = "model_type", nullable = false)
+    private String modelType;
+
+    private BigDecimal mae;
+    private BigDecimal rmse;
+    private BigDecimal mape;
+
+    @Column(name = "trained_at", nullable = false)
     private LocalDateTime trainedAt;
 
-    private BigDecimal accuracyMetric;
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;
 
-    @Column(nullable = false)
-    private String status;
-
-    private String filePath;
-
-    @Column(columnDefinition = "TEXT")
-    private String logs;
+    @PrePersist
+    void prePersist() {
+        if (createdAt == null) createdAt = LocalDateTime.now();
+        if (trainedAt == null) trainedAt = LocalDateTime.now();
+    }
 }

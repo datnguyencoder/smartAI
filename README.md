@@ -8,150 +8,126 @@ SmartMart AI là nền tảng quản lý vận hành nội bộ thế hệ mới
 
 *   **⚡ Bán Hàng Tại Quầy (POS):** Giao diện bán hàng siêu tốc bằng phím tắt và quét mã vạch trực quan, tự động đồng bộ hóa kho hàng thời gian thực.
 *   **📦 Quản Lý Kho & Biến Động Tồn (Stock Management):** Giám sát chi tiết từng lô hàng, số lượng tồn kho thực tế, lịch sử dịch chuyển dòng hàng (Stock Movement) và tự động kích hoạt cảnh báo khi hàng sắp hết.
-*   **🔮 Dự Báo Nhu Cầu Bán Hàng (AI Forecasting):** Tích hợp mô hình học máy **XGBoost** và **Random Forest** phân tích dữ liệu lịch sử để dự báo chính xác nhu cầu khách hàng trong **7, 14 và 30 ngày** tới.
+*   **🔮 Dự Báo Nhu Cầu Bán Hàng (AI Forecasting):** Tích hợp công nghệ hiện đại (Polars, Nixtla, Foundation Models/TFT) phân tích dữ liệu lịch sử để dự báo chính xác nhu cầu khách hàng trong **7, 14 và 30 ngày** tới.
 *   **🤖 Gợi Ý Nhập Hàng Tự Động (Smart Reordering):** Tính toán khối lượng đặt hàng tối ưu (Reorder Quantity) dựa trên tốc độ tiêu thụ dự kiến và thời gian giao hàng (Lead Time).
-*   **📅 Cảnh Báo Hạn Sử Dụng (Expiry Risk Alerts):** Theo dõi hạn sử dụng theo từng lô hàng cụ thể, đưa ra cảnh báo rủi ro cận hạn và đề xuất chiến dịch khuyến mãi xả hàng tự động.
-*   **💬 Trợ Lý Ảo Vận Hành (AI Assistant Chatbot):** Tích hợp mô hình ngôn ngữ lớn **Google Gemini API** hỗ trợ người quản trị truy vấn số liệu kinh doanh, tạo nhanh phiếu nhập hàng và phân tích rủi ro bằng ngôn ngữ tự nhiên.
-*   **📊 Báo Cáo Chuyên Sâu (Advanced BI):** Biểu đồ trực quan so sánh doanh thu thực tế và dự báo, phân tích tỷ trọng nhóm hàng và hiệu quả của các gợi ý AI.
+*   **💬 Trợ Lý Ảo Vận Hành (AI Assistant Chatbot):** Tích hợp mô hình ngôn ngữ lớn **Google Gemini API** dưới dạng một AI Agent độc lập, hỗ trợ người quản trị truy vấn số liệu kinh doanh, tạo nhanh phiếu nhập hàng và phân tích rủi ro bằng ngôn ngữ tự nhiên.
+*   **📊 Báo Cáo Chuyên Sâu (Advanced BI):** Biểu đồ trực quan so sánh doanh thu thực tế và dự báo, phân tích tỷ trọng nhóm hàng và phân tích ABC/XYZ.
 
 ---
 
 ## 🛠️ Công Nghệ Sử Dụng (Tech Stack)
 
-| Thành phần | Công nghệ chính | Vai trò |
-| :--- | :--- | :--- |
-| **Frontend** | React 18, TypeScript, Vite, Ant Design, TailwindCSS, Recharts | Giao diện quản trị viên & màn hình bán hàng POS tương tác cao, mượt mà. |
-| **Backend** | Spring Boot 3.2.5, JDK 21, JPA/Hibernate, Flyway Migration, JWT | Trái tim điều phối hệ thống, quản trị nghiệp vụ cốt lõi, bảo mật phân quyền RBAC. |
-| **AI Service** | FastAPI (Python 3.10), Scikit-Learn, Pandas, XGBoost, Google Gemini API | Engine xử lý số liệu học máy, huấn luyện mô hình dự báo và trợ lý ngôn ngữ ảo. |
-| **Database** | PostgreSQL 16 | Hệ quản trị cơ sở dữ liệu quan hệ lưu trữ dữ liệu bền vững, ACID tuyệt đối. |
-| **Cache Layer** | Redis 7 | Tăng tốc truy vấn Dashboard, bộ đệm lưu trữ kết quả dự đoán đắt đỏ của AI. |
-| **Event Broker**| Apache Kafka 3.6 (KRaft mode) | Xử lý hàng đợi sự kiện bất đồng bộ (log doanh số, biến động kho) tăng độ nhạy API. |
+| Thành phần | Công nghệ chính |
+| :--- | :--- |
+| **Frontend** | React 18, TypeScript, Vite, Ant Design, TailwindCSS, Recharts |
+| **Backend** | Spring Boot 3.2, JDK 21, JPA/Hibernate, Flyway Migration, JWT |
+| **AI Service** | FastAPI (Python 3.10), Polars, LangChain (AI Agent), Nixtla/LightGBM |
+| **Database** | PostgreSQL 16 |
+| **Cache Layer** | Redis 7 |
+| **Event Broker**| Apache Kafka 3.7.0 (KRaft mode) |
 
 ---
 
-## 📂 Cấu Trúc Thư Mục Dự Án (Repository Directory Structure)
+## 🐳 Hướng Dẫn Khởi Chạy Toàn Bộ Hệ Thống (Run Full System)
 
-Dự án được thiết lập dưới dạng một **Monorepo** chuẩn hóa, phân tách module rõ ràng để dễ dàng triển khai và tích hợp CI/CD:
+Hệ thống được thiết kế theo kiến trúc Microservices và đóng gói hoàn toàn bằng Docker. Bạn có thể khởi chạy toàn bộ 6 dịch vụ chỉ với vài lệnh đơn giản.
 
-```text
-smartmart-ai/
-├── backend/                # Dịch vụ Backend nghiệp vụ (Spring Boot)
-│   ├── src/main/java/      # Mã nguồn logic phân tầng (Controller, Service, Repository)
-│   ├── src/main/resources/ # File cấu hình application.yml & SQL Flyway migration
-│   ├── pom.xml             # Quản lý dependencies Maven
-│   └── Dockerfile          # Multi-stage build JDK 21
-├── frontend/               # Giao diện người dùng (React + TS + Vite)
-│   ├── src/                # Component, pages, styles, thư viện UI AntD & Tailwind
-│   ├── package.json        # Định nghĩa các scripts khởi chạy (dev, build, preview)
-│   └── Dockerfile          # Đóng gói Node Alpine chạy máy chủ phát triển Vite trực tiếp
-├── ai-service/             # Dịch vụ Trí tuệ nhân tạo (FastAPI Python)
-│   ├── app/                # API suy diễn, router trợ lý Gemini và huấn luyện XGBoost
-│   ├── datasets/           # Dữ liệu CSV lịch sử dùng để train model
-│   ├── requirements.txt    # Các thư viện Python Machine Learning
-│   └── Dockerfile          # Môi trường chạy Python slim bảo mật non-root
-├── docker/                 # Thư mục điều phối container
-│   └── docker-compose.yaml # Orchestration chạy đồng bộ 6 dịch vụ trên cùng một mạng
-├── docs/                   # Tài liệu phân tích hệ thống chi tiết (01-09, gồm chuẩn code BE)
-└── README.md               # Tài liệu hướng dẫn sử dụng tổng quan này
+### 1. Yêu cầu hệ thống (Prerequisites)
+* Đã cài đặt **Docker** và **Docker Compose** (Khuyến nghị dùng Docker Desktop phiên bản mới nhất).
+* Tối thiểu **4GB RAM** khả dụng (Khuyến nghị 8GB+ để chạy mượt mà AI Service và Kafka).
+* Git để clone mã nguồn (nếu chưa có).
+
+### 2. Thiết lập Biến môi trường (Environment Setup)
+Trước khi chạy, bạn cần cấu hình các biến môi trường, đặc biệt là API Key cho Trợ lý ảo Gemini.
+
+Mở Terminal và thực hiện:
+```bash
+# Di chuyển vào thư mục docker
+cd docker
+
+# Tạo file .env từ file mẫu
+cp .env.example .env
 ```
 
----
+Mở file `docker/.env` vừa tạo và điền khóa API của bạn vào biến `GEMINI_API_KEY`:
+```env
+GEMINI_API_KEY=điền-api-key-cua-ban-vao-day
+```
+*(Các cấu hình Database, Redis, JWT Secret mặc định đã được thiết lập sẵn an toàn cho môi trường test).*
 
-## 🐳 Hướng Dẫn Khởi Chạy Nhanh Bằng Docker (Quick Start)
-
-Hệ thống đã được đóng gói tối ưu hóa trong tệp tin Docker Compose, cho phép dựng toàn bộ hạ tầng (database, cache, broker, backend, frontend, AI) chỉ bằng một câu lệnh duy nhất.
-
-### 1. Yêu Cầu Chuẩn Bị (Prerequisites)
-*   Đã cài đặt **Docker** và **Docker Compose** trên máy (khuyến nghị Docker Desktop mới nhất).
-*   Máy chủ chạy Docker có tối thiểu **4GB RAM** khả dụng để vận hành các container.
-
-### 2. Thiết Lập Biến Môi Trường (Environment Variables)
-Sao chép cấu hình mẫu hoặc bổ sung các khóa API (ví dụ: Google Gemini API Key để kích hoạt Trợ lý ảo AI) vào cấu hình môi trường của bạn. 
-
-Các tham số mặc định bảo mật đã được thiết lập sẵn trong [docker-compose.yaml](file:///Users/datdev312/Documents/smartAi/docker/docker-compose.yaml):
-*   `POSTGRES_USER`: `smartmart_admin`
-*   `POSTGRES_PASSWORD`: `SuperSecurePassword2026`
-*   `POSTGRES_DB`: `smartmart_db`
-*   `GEMINI_API_KEY`: *(Thay thế khóa API thực tế của bạn tại biến môi trường này)*
-
-### 3. Lệnh Khởi Chạy
-Tại thư mục gốc của dự án, chạy lệnh Terminal sau để tải ảnh đĩa, tự động build mã nguồn và khởi chạy toàn bộ 6 container ở chế độ nền (detached mode):
+### 3. Build & Khởi chạy hệ thống (Start Services)
+Vẫn đứng tại thư mục `docker` (hoặc đứng tại root directory và chỉ định đường dẫn file compose), chạy lệnh sau để build và start các container ở chế độ nền:
 
 ```bash
+# Nếu đang đứng ở thư mục gốc của dự án:
 docker compose -f docker/docker-compose.yaml up -d --build
 ```
 
-### 4. Kiểm Tra Trạng Thái
-Theo dõi tiến trình khởi tạo và tình trạng sức khỏe (Healthcheck) của các dịch vụ:
+Quá trình build có thể mất từ 2-5 phút trong lần chạy đầu tiên để tải các Docker image (PostgreSQL, Kafka, Redis, Python, Node, JDK) và biên dịch mã nguồn.
 
+### 4. Kiểm tra trạng thái khởi động
+Hệ thống có cơ chế `healthcheck` chặt chẽ, các dịch vụ sẽ tự động đợi nhau khởi động (Database/Kafka/Redis -> AI Service -> Backend -> Frontend).
+Bạn có thể kiểm tra trạng thái bằng lệnh:
 ```bash
 docker compose -f docker/docker-compose.yaml ps
+```
+Đợi đến khi tất cả các dịch vụ đều hiển thị trạng thái `(healthy)`.
+
+---
+
+## 🔌 Danh Sách Cổng Truy Cập (Access Endpoints)
+
+Sau khi hệ thống khởi chạy thành công, truy cập các địa chỉ sau trên trình duyệt hoặc các công cụ test API:
+
+| Ứng dụng | Địa chỉ truy cập (Localhost) | Mô tả |
+| :--- | :--- | :--- |
+| **Frontend Web App** | [http://localhost:5173](http://localhost:5173) | Giao diện cho Quản lý & POS bán hàng |
+| **Backend API (Spring Boot)** | [http://localhost:8080/api](http://localhost:8080/api) | Cổng gọi API chính của hệ thống nghiệp vụ |
+| **Backend Swagger UI** | [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html) | Tài liệu kiểm thử API RESTful của Spring Boot |
+| **AI Service (FastAPI)** | [http://localhost:8000/docs](http://localhost:8000/docs) | Tài liệu & Test API Dự báo, AI Agent (Swagger) |
+| **PostgreSQL** | `localhost:5432` | Cổng Database (Dùng DBeaver/DataGrip để xem data) |
+| **Redis** | `localhost:6379` | Cổng Cache bộ đệm |
+| **Kafka** | `localhost:9092` | Cổng Message Broker |
+
+---
+
+## 🛠️ Quản lý & Gỡ lỗi (Troubleshooting)
+
+### Xem Log của toàn bộ hệ thống:
+```bash
+docker compose -f docker/docker-compose.yaml logs -f
+```
+
+### Xem Log của một dịch vụ cụ thể (VD: backend hoặc ai-service):
+```bash
+docker compose -f docker/docker-compose.yaml logs -f backend
+docker compose -f docker/docker-compose.yaml logs -f ai-service
+```
+
+### Dừng và xóa toàn bộ hệ thống (Xóa data):
+Nếu muốn tắt hệ thống và **xoá sạch dữ liệu** (Database, Cache, Models đã lưu):
+```bash
+docker compose -f docker/docker-compose.yaml down -v
+```
+
+### Dừng hệ thống (Giữ lại data):
+```bash
+docker compose -f docker/docker-compose.yaml down
 ```
 
 ---
 
-## 🔌 Danh Sách Cổng Truy Cập Hệ Thống (Access Endpoints)
+## 📚 Hệ Thống Tài bản liệu Chi Tiết (Deep Technical Documents)
 
-Sau khi Docker khởi chạy thành công, các dịch vụ sẽ mở cổng trên máy tính của bạn như sau:
-
-| Dịch vụ | Địa chỉ truy cập / Cổng | Vai trò |
-| :--- | :--- | :--- |
-| **Ứng dụng Web** | [http://localhost:5173](http://localhost:5173) | Giao diện React (Vite dev server) |
-| **API REST Backend** | [http://localhost:8080/api](http://localhost:8080/api) | Cổng gọi API Spring Boot chính |
-| **Swagger UI (OpenAPI)**| [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html) | Tài liệu tra cứu & chạy thử API Backend |
-| **API AI Service** | [http://localhost:8000/ai/health](http://localhost:8000/ai/health) | Trạng thái hoạt động của FastAPI AI |
-| **Cơ sở dữ liệu** | `localhost:5432` | Cổng kết nối PostgreSQL 16 |
-| **Cache Layer** | `localhost:6379` | Cổng kết nối Redis 7 |
-| **Message Broker** | `localhost:9092` | Cổng kết nối Apache Kafka |
+Tham khảo thêm các tài liệu thiết kế nghiệp vụ và kiến trúc kỹ thuật trong thư mục `docs/`:
+1. `docs/01-overview.md`: Tổng Quan Dự Án & Định Hướng MVP
+2. `docs/02-business-rule.md`: Quy Tắc Nghiệp Vụ & Luồng Vận Hành
+3. `docs/03-database-design.md`: Thiết Kế Cơ Sở Dữ Liệu
+4. `docs/04-api-specification.md`: Đặc Tả API RESTful & Payload Mẫu
+5. `docs/05-ai-forecasting.md`: Chi Tiết Lõi AI & Dự Báo Nhu Cầu
+6. `docs/06-system-architecture.md`: Thiết Kế Kiến Trúc Hệ Thống
+7. `docs/07-testing-plan.md`: Kế Hoạch Kiểm Thử Nghiệp Vụ
+8. `docs/08-deployment-guide.md`: Hướng Dẫn Triển Khai
 
 ---
-
-## 🛠️ Phát Triển Không Dùng Docker (Local Development Guide)
-
-Nếu bạn muốn chạy thử nghiệm từng dịch vụ độc lập trên máy chủ local để phục vụ quá trình debug mã nguồn nhanh:
-
-### Khởi chạy Backend (Spring Boot)
-1. Cài đặt JDK 21 và Maven.
-2. Đảm bảo cổng cơ sở dữ liệu PostgreSQL (`5432`) đang chạy.
-3. Chạy lệnh tại thư mục `/backend`:
-   ```bash
-   mvn clean install
-   mvn spring-boot:run
-   ```
-
-### Khởi chạy Frontend (React + Vite)
-1. Cài đặt Node.js v20 trở lên.
-2. Chạy lệnh tại thư mục `/frontend`:
-   ```bash
-   npm install
-   npm run dev
-   ```
-
-### Khởi chạy AI Service (FastAPI)
-1. Cài đặt Python 3.10 và công cụ tạo virtualenv.
-2. Chạy lệnh tại thư mục `/ai-service`:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # Trên Windows dùng: venv\Scripts\activate
-   pip install -r requirements.txt
-   uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-   ```
-
----
-
-## 📚 Hệ Thống Tài Liệu Chi Tiết (Deep Technical Documents)
-
-Để tra cứu sâu hơn về từng thành phần nghiệp vụ và cấu trúc kỹ thuật của hệ thống, vui lòng tham khảo các tài liệu chuyên ngành được lưu trữ sẵn trong thư mục [docs/](file:///Users/datdev312/Documents/smartAi/docs/):
-
-1.  📖 **[Tổng Quan Dự Án & Định Hướng MVP](file:///Users/datdev312/Documents/smartAi/docs/01-overview.md):** Khái quát bài toán kinh doanh, chân dung người dùng và cấu trúc monorepo tổng thể.
-2.  ⚙️ **[Quy Tắc Nghiệp Vụ & Luồng Vận Hành](file:///Users/datdev312/Documents/smartAi/docs/02-business-rule.md):** Ma trận phân quyền RBAC chi tiết, quy trình POS, quy định nhập hàng, cách tính toán gợi ý tồn kho và công thức AI.
-3.  🗄️ **[Thiết Kế Cơ Sở Dữ Liệu & Scripts DDL](file:///Users/datdev312/Documents/smartAi/docs/03-database-design.md):** Cấu trúc 16 bảng dữ liệu, kiểu dữ liệu thực tế và kịch bản khởi tạo SQL DDL chuẩn hóa.
-4.  🔌 **[Đặc Tả API RESTful & Payload Mẫu](file:///Users/datdev312/Documents/smartAi/docs/04-api-specification.md):** Danh mục API, định dạng JSON phản hồi chung và dữ liệu mẫu truyền nhận giữa các hệ thống.
-5.  🧠 **[Kiến Trúc Dự Báo AI & Tích Hợp Gemini](file:///Users/datdev312/Documents/smartAi/docs/05-ai-forecasting.md):** Phân tích mô hình học máy (XGBoost, Random Forest), đặc trưng chuỗi thời gian và cách kết nối Trợ lý ảo AI.
-6.  🏗️ **[Thiết Kế Kiến Trúc Hệ Thống & Event-Driven](file:///Users/datdev312/Documents/smartAi/docs/06-system-architecture.md):** Sơ đồ liên kết vật lý, luồng truyền tải Kafka Event Topics và cơ chế ghi nhớ bộ đệm Redis.
-7.  🧪 **[Kế Hoạch Kiểm Thử Nghiệp Vụ & Phục Hồi Lỗi](file:///Users/datdev312/Documents/smartAi/docs/07-testing-plan.md):** Kịch bản kiểm thử bảo mật vai trò, giao dịch POS ACID, kiểm tra nhập hàng và cơ chế tự động hạ cấp (fallback) khi dịch vụ AI ngoại tuyến.
-8.  🚢 **[Hướng Dẫn Triển Khai & Khắc Phục Lỗi Docker](file:///Users/datdev312/Documents/smartAi/docs/08-deployment-guide.md):** Cấu hình phần cứng tối thiểu, danh sách biến môi trường chi tiết và quy trình xử lý lỗi kết nối cơ sở dữ liệu.
-
----
-
-*Hệ thống được phát triển bởi đội ngũ kỹ sư SmartMart AI. Mọi đóng góp, báo lỗi xin vui lòng tạo Issue trên hệ thống quản lý mã nguồn.*
+*SmartMart AI - Đưa trí tuệ nhân tạo vào từng quyết định vận hành bán lẻ.*

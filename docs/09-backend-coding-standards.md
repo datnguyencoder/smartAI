@@ -26,13 +26,16 @@ HTTP Request
 | **Repository** | Query, `JpaRepository` | Logic if/else nghiệp vụ |
 | **Entity** | Ánh xạ DB, quan hệ JPA (`entity/`) | Validation phức tạp; trả thẳng cho client (API mới) |
 
-**Package thực tế** (khớp codebase):
+**Package thực tế** (khớp codebase — đã refactor interface + impl):
 
 ```
 com.smartmart/
 ├── config/
 ├── controller/
-├── service/ + service/impl/ + service/ai/
+├── service/          # *Service interfaces
+├── service/impl/     # *ServiceImpl (@Service)
+├── service/ai/       # AI interfaces (Forecast, Gemini, Reorder)
+├── service/ai/impl/  # AI implementations
 ├── repository/
 ├── entity/
 ├── dto/              # request / response — bắt buộc cho API mới
@@ -174,10 +177,22 @@ public class ProductServiceImpl implements ProductService {
 
 ### 6. Exception & ErrorCode
 
-- Mọi exception nghiệp vụ extends `AppException` hoặc các subclass trong `exception/`.
-- `ErrorCode` enum map `HttpStatus` + message mặc định.
+- Mọi exception nghiệp vụ extends `AppException` hoặc các subclass trong `exception/` (`NotFoundException`, `BadRequestException`, `ConflictException`, `InsufficientStockException`, `ForbiddenException`, `UnauthorizedException`).
+- `ErrorCode` enum map `HttpStatus` + message mặc định + tên dùng làm `errorCode` trả về FE.
 - Controller **không** try-catch từng case — để `GlobalExceptionHandler` xử lý tập trung.
-- Validation: `@Valid` trên DTO; field errors qua `MethodArgumentNotValidException`.
+- Validation: `@Valid` trên DTO; field errors qua `MethodArgumentNotValidException` → `errors` map.
+
+**Envelope lỗi (bắt buộc):**
+
+```json
+{ "success": false, "message": "...", "errorCode": "INSUFFICIENT_STOCK", "errors": { "field": "..." }, "timestamp": "..." }
+```
+
+- `success=false` cho **mọi** lỗi (kể cả validation — đã sửa bug cũ trả `true`).
+- `errorCode` = tên hằng trong `ErrorCode` (xem bảng đầy đủ trong [04-api-specification.md](04-api-specification.md)).
+- `data` null khi lỗi; `errors` chỉ với `VALIDATION_FAILED`.
+- Dùng `ApiResponse.error(code, msg)` / `ApiResponse.validationError(msg, errors)`.
+- **Không** `printStackTrace` — dùng SLF4J (`log.warn` cho 4xx, `log.error` cho 5xx).
 
 ---
 

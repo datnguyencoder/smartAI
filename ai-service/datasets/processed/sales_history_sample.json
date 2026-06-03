@@ -1,0 +1,304 @@
+{
+  "sales_history": [
+    {
+      "item_id": 371,
+      "sale_date": "2011-07-01",
+      "quantity": 171.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-07-02",
+      "quantity": 50.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-07-03",
+      "quantity": 86.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-07-04",
+      "quantity": 13.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-07-06",
+      "quantity": 173.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-07-07",
+      "quantity": 564.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-07-08",
+      "quantity": 26.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-07-09",
+      "quantity": 50.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-07-10",
+      "quantity": 186.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-07-11",
+      "quantity": 77.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-07-12",
+      "quantity": 74.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-08-02",
+      "quantity": 58.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-08-03",
+      "quantity": 229.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-08-04",
+      "quantity": 76.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-08-05",
+      "quantity": 78.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-08-06",
+      "quantity": 124.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-08-07",
+      "quantity": 35.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-08-08",
+      "quantity": 51.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-08-09",
+      "quantity": 122.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-08-11",
+      "quantity": 66.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-08-12",
+      "quantity": 51.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-09-01",
+      "quantity": 24.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-09-02",
+      "quantity": 53.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-09-03",
+      "quantity": 97.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-09-05",
+      "quantity": 105.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-09-06",
+      "quantity": 78.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-09-08",
+      "quantity": 144.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-09-09",
+      "quantity": 179.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-09-10",
+      "quantity": 12.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-09-11",
+      "quantity": 4.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-09-12",
+      "quantity": 9.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-10-01",
+      "quantity": 28.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-10-02",
+      "quantity": 26.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-10-03",
+      "quantity": 336.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-10-04",
+      "quantity": 25.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-10-05",
+      "quantity": 97.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-10-06",
+      "quantity": 160.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-10-07",
+      "quantity": 6.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-10-08",
+      "quantity": 36.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-10-10",
+      "quantity": 105.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-10-11",
+      "quantity": 78.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-11-01",
+      "quantity": 169.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-11-02",
+      "quantity": 134.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-11-03",
+      "quantity": 64.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-11-04",
+      "quantity": 131.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-11-05",
+      "quantity": 52.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-11-07",
+      "quantity": 27.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-11-08",
+      "quantity": 27.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-11-09",
+      "quantity": 168.0,
+      "category_id": 1
+    },
+    {
+      "item_id": 371,
+      "sale_date": "2011-11-10",
+      "quantity": 83.0,
+      "category_id": 1
+    }
+  ]
+}

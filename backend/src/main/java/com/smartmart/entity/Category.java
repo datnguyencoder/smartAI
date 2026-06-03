@@ -1,11 +1,8 @@
 package com.smartmart.entity;
 
-import com.smartmart.common.base.BaseEntity;
+import com.smartmart.common.base.LongAuditableEntity;
 import jakarta.persistence.*;
 import lombok.*;
-
-import java.util.ArrayList;
-import java.util.List;
 
 @Entity
 @Table(name = "categories")
@@ -14,14 +11,15 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Category extends BaseEntity {
+public class Category extends LongAuditableEntity {
 
-    @Column(nullable = false, unique = true)
-    private String name;
+    @Column(name = "category_name", nullable = false)
+    private String categoryName;
 
-    private String description;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_id")
+    private Category parent;
 
-    @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private List<Product> products = new ArrayList<>();
+    @Column(name = "is_active", nullable = false)
+    private boolean active = true;
 }

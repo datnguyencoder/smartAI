@@ -1,12 +1,10 @@
 package com.smartmart.entity;
 
-import com.smartmart.common.base.BaseEntity;
-import com.smartmart.enums.RecommendationStatus;
+import com.smartmart.common.base.LongAuditableEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "promotion_recommendations")
@@ -15,28 +13,17 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PromotionRecommendation extends BaseEntity {
+public class PromotionRecommendation extends LongAuditableEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id", nullable = false)
-    private Product product;
+    @JoinColumn(name = "item_id", nullable = false)
+    private Item item;
 
-    @Column(nullable = false)
-    private BigDecimal recommendedDiscount;
+    @Column(name = "discount_percent", nullable = false)
+    private BigDecimal discountPercent;
 
     private String reason;
 
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private RecommendationStatus status;
-
-    private LocalDateTime startDate;
-
-    private LocalDateTime endDate;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "approved_by_id")
-    private User approvedBy;
-
-    private LocalDateTime approvedAt;
+    private String status = "PENDING";
 }

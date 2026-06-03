@@ -38,6 +38,12 @@ Auth header: `Authorization: Bearer <accessToken>`.
 3. AI `/ai/health` → BE WebClient → `/ai/train`, `/ai/forecast/all`
 4. BE `/api/ai-insight/*` (Gemini) — **never** in `ai-service/`
 
+## Git & remote (bắt buộc)
+
+- **Không** `git push`, merge lên remote, hay tạo PR trừ khi user **nói rõ** (push, đẩy lên, tạo PR).
+- Commit local chỉ khi user yêu cầu commit.
+- Classifier: `.cursor/permissions.json`
+
 ## When unsure
 
 Read `AGENTS.md` at repo root. Prefer minimal diffs; match existing stack (React 18, Spring Boot 3.2, Java 21).

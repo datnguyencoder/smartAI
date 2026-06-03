@@ -1,0 +1,20 @@
+# Production / Docker profile: PostgreSQL.
+# Datasource values come from environment (SPRING_DATASOURCE_* set by docker-compose),
+# with localhost fallbacks for running the prod profile on a host machine.
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/smartmart_db}
+    username: ${SPRING_DATASOURCE_USERNAME:smartmart_admin}
+    password: ${SPRING_DATASOURCE_PASSWORD:SuperSecurePassword2026}
+    driver-class-name: org.postgresql.Driver
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    open-in-view: false

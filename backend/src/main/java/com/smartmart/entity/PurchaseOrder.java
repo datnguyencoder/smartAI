@@ -1,6 +1,6 @@
 package com.smartmart.entity;
 
-import com.smartmart.common.base.BaseEntity;
+import com.smartmart.common.base.LongAuditableEntity;
 import com.smartmart.enums.PurchaseStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Entity
 @Table(name = "purchase_orders")
@@ -17,27 +18,31 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PurchaseOrder extends BaseEntity {
-
-    @Column(nullable = false, unique = true)
-    private String orderNumber;
+public class PurchaseOrder extends LongAuditableEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "supplier_id", nullable = false)
     private Supplier supplier;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "location_id", nullable = false)
+    private Location location;
+
+    @Column(name = "created_by")
+    private UUID createdBy;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private PurchaseStatus status;
 
-    @Column(nullable = false)
+    @Column(name = "purchase_date")
+    private LocalDateTime purchaseDate;
+
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
+
+    @Column(name = "total_amount", nullable = false)
     private BigDecimal totalAmount;
-
-    private LocalDateTime expectedDeliveryDate;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
-    private User user;
 
     @OneToMany(mappedBy = "purchaseOrder", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

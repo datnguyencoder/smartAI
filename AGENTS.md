@@ -23,7 +23,7 @@ Use **Cursor Rules** (`.cursor/rules/`) so each session stays in one lane. Rules
 
 - **Path:** `backend/`
 - **Tasks:** controllers, services, transactions, Flyway/Postgres, JWT auth API, WebClient → AI, Gemini insight APIs
-- **Coding standard (bắt buộc):** [`docs/09-backend-coding-standards.md`](docs/09-backend-coding-standards.md)
+- **Coding standard (bắt buộc):** [`docs/09-backend-coding-standards.md`](docs/09-backend-coding-standards.md) — `*Service` interface + `*ServiceImpl` trong `service/impl/`, AI trong `service/ai/`
 - **Docs:** `docs/02-business-rule.md`, `docs/03-database-design.md`, `docs/04-api-specification.md`, `docs/07-testing-plan.md`
 
 ### AI agent
@@ -72,10 +72,16 @@ Lane: BE only (backend/). Task: <mô tả>. Bắt buộc docs/09-backend-coding-
 Lane: AI only (ai-service/). Task: <mô tả>. JSON API only. Không Gemini, không JPA.
 ```
 
+## Git policy
+
+- **Push / PR / merge remote:** chỉ khi bạn nói rõ trong tin nhắn hiện tại.
+- Agent có thể `git status`, `diff`, `commit` local nếu bạn yêu cầu commit — không tự push.
+- Cấu hình classifier: [`.cursor/permissions.json`](.cursor/permissions.json)
+
 ## Repo status (reference)
 
-- FE: mock state in `App.tsx`, no REST calls yet
-- BE: product API + JWT infra; auth/sales/forecast controllers pending
-- AI: Dockerfile only; Python app not scaffolded
+- **BE:** WMS APIs (`/api/v1` items, orders, purchase, inventory, scrap, users, dashboard, forecast, ai-insight); `InventoryLedgerService`; Flyway V1+V2
+- **FE:** Login + POS + purchase + dashboard/forecast API; GSAP animations; `wmsApi` client
+- **AI:** FastAPI `ai-service` — `/ai/health`, `/ai/train`, `/ai/forecast/all`, `/ai/model/metrics`
 
 Update this section when integration milestones land.

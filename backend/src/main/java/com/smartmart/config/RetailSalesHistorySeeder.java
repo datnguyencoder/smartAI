@@ -1,0 +1,216 @@
+package com.smartmart.config;
+
+import com.smartmart.entity.*;
+import com.smartmart.enums.OrderStatus;
+import com.smartmart.enums.PaymentMethod;
+import com.smartmart.repository.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Profile;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.*;
+
+/**
+ * Imports external retail sales (UCI Online Retail / Kaggle-prepared CSV) into {@code orders}
+ * for AI training. Does not adjust inventory — demo/historical data only.
+ */
+@Component
+@Profile({"local", "prod"})
+@org.springframework.core.annotation.Order(2)
+public class RetailSalesHistorySeeder implements CommandLineRunner {
+
+    private static final Logger log = LoggerFactory.getLogger(RetailSalesHistorySeeder.class);
+    private static final String DEFAULT_CSV = "data/retail/uci_online_retail_daily.csv";
+    private static final String ORDER_PREFIX = "RETAIL-";
+
+    private final OrderRepository orderRepository;
+    private final ItemRepository itemRepository;
+    private final CategoryRepository categoryRepository;
+    private final UomRepository uomRepository;
+    private final UserRepository userRepository;
+
+    @Value("${app.seed.retail-sales.enabled:true}")
+    private boolean enabled;
+
+    @Value("${app.seed.retail-sales.csv:" + DEFAULT_CSV + "}")
+    private String csvClasspath;
+
+    public RetailSalesHistorySeeder(
+            OrderRepository orderRepository,
+            ItemRepository itemRepository,
+            CategoryRepository categoryRepository,
+            UomRepository uomRepository,
+            UserRepository userRepository
+    ) {
+        this.orderRepository = orderRepository;
+        this.itemRepository = itemRepository;
+        this.categoryRepository = categoryRepository;
+        this.uomRepository = uomRepository;
+        this.userRepository = userRepository;
+    }
+
+    @Override
+    @Transactional
+    public void run(String... args) {
+        if (!enabled) {
+            return;
+        }
+        if (orderRepository.existsByOrderCodeStartingWith(ORDER_PREFIX)) {
+            log.debug("Retail sales history already seeded, skipping");
+            return;
+        }
+        ClassPathResource resource = new ClassPathResource(csvClasspath);
+        if (!resource.exists()) {
+            log.warn("Retail sales CSV not found on classpath: {}", csvClasspath);
+            return;
+        }
+
+        UUID staffId = userRepository.findByUsername("staff").map(User::getId).orElse(null);
+        Optional<Uom> baseUomOpt = uomRepository.findAll().stream().findFirst();
+        if (baseUomOpt.isEmpty()) {
+            log.warn("Skipping retail sales import — no UOM (DataSeeder not ready)");
+            return;
+        }
+        Uom baseUom = baseUomOpt.get();
+
+        Map<String, Item> itemsByCode = new HashMap<>();
+        Map<String, Category> categoriesByName = new HashMap<>();
+        Map<LocalDate, com.smartmart.entity.Order> ordersByDate = new LinkedHashMap<>();
+
+        int rowCount = 0;
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8))) {
+            String header = reader.readLine();
+            if (header == null) {
+                return;
+            }
+            String line;
+            while ((line = reader.readLine()) != null) {
+                List<String> cols = parseCsvLine(line);
+                if (cols.size() < 6) {
+                    continue;
+                }
+                String externalCode = cols.get(1).trim();
+                String productName = cols.get(2).trim();
+                String categoryName = cols.get(3).trim();
+                LocalDate saleDate = LocalDate.parse(cols.get(4).trim());
+                BigDecimal quantity = new BigDecimal(cols.get(5).trim());
+
+                Item item = itemsByCode.computeIfAbsent(externalCode, code ->
+                        itemRepository.findByItemCode("RETAIL-" + code)
+                                .orElseGet(() -> createRetailItem(code, productName, categoryName, categoriesByName, baseUom)));
+
+                com.smartmart.entity.Order salesOrder = ordersByDate.computeIfAbsent(saleDate, date -> {
+                    com.smartmart.entity.Order o = com.smartmart.entity.Order.builder()
+                            .orderCode(ORDER_PREFIX + date)
+                            .createdBy(staffId)
+                            .customerName("Retail dataset import")
+                            .orderDate(LocalDateTime.of(date, LocalTime.of(12, 0)))
+                            .status(OrderStatus.COMPLETED)
+                            .paymentMethod(PaymentMethod.CASH)
+                            .note("Imported from " + cols.get(0).trim())
+                            .totalAmount(BigDecimal.ZERO)
+                            .build();
+                    return orderRepository.save(o);
+                });
+
+                BigDecimal unitPrice = item.getSellingPrice();
+                BigDecimal subtotal = unitPrice.multiply(quantity).setScale(2, RoundingMode.HALF_UP);
+                OrderItem oi = OrderItem.builder()
+                        .order(salesOrder)
+                        .item(item)
+                        .quantity(quantity)
+                        .unitPrice(unitPrice)
+                        .subtotal(subtotal)
+                        .build();
+                salesOrder.getItems().add(oi);
+                salesOrder.setTotalAmount(salesOrder.getTotalAmount().add(subtotal));
+                rowCount++;
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to import retail sales CSV: " + csvClasspath, e);
+        }
+
+        for (com.smartmart.entity.Order salesOrder : ordersByDate.values()) {
+            orderRepository.save(salesOrder);
+        }
+        log.info("Imported {} retail sales lines into {} orders from {}", rowCount, ordersByDate.size(), csvClasspath);
+    }
+
+    private Item createRetailItem(
+            String externalCode,
+            String productName,
+            String categoryName,
+            Map<String, Category> categoriesByName,
+            Uom baseUom
+    ) {
+        Category category = categoriesByName.computeIfAbsent(categoryName, name ->
+                categoryRepository.findByCategoryName(name)
+                        .orElseGet(() -> categoryRepository.save(
+                                Category.builder().categoryName(name).active(true).build())));
+
+        return itemRepository.save(Item.builder()
+                .itemCode("RETAIL-" + externalCode)
+                .itemName(truncate(productName, 200))
+                .category(category)
+                .baseUom(baseUom)
+                .purchaseUom(baseUom)
+                .costPrice(new BigDecimal("10000"))
+                .sellingPrice(new BigDecimal("15000"))
+                .minimumStock(10)
+                .hasExpiry(false)
+                .active(true)
+                .build());
+    }
+
+    private static String truncate(String value, int max) {
+        if (value.length() <= max) {
+            return value;
+        }
+        return value.substring(0, max - 3) + "...";
+    }
+
+    /** Minimal RFC 4180-style parser for quoted fields. */
+    static List<String> parseCsvLine(String line) {
+        List<String> fields = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        boolean inQuotes = false;
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            if (inQuotes) {
+                if (c == '"') {
+                    if (i + 1 < line.length() && line.charAt(i + 1) == '"') {
+                        current.append('"');
+                        i++;
+                    } else {
+                        inQuotes = false;
+                    }
+                } else {
+                    current.append(c);
+                }
+            } else if (c == '"') {
+                inQuotes = true;
+            } else if (c == ',') {
+                fields.add(current.toString());
+                current.setLength(0);
+            } else {
+                current.append(c);
+            }
+        }
+        fields.add(current.toString());
+        return fields;
+    }
+}

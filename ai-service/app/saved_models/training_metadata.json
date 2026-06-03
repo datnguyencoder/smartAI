@@ -1,0 +1,8 @@
+{
+  "mae": 0.0,
+  "rmse": 0.0,
+  "mape": 0.0,
+  "model_type": "moving_average",
+  "trained_at": "2026-06-02T06:36:31.452696+00:00",
+  "version": "1.0.0"
+}

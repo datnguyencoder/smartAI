@@ -18,7 +18,7 @@ public class OpenApiConfig {
                 .info(new Info()
                         .title("SmartMart API Document")
                         .version("1.0")
-                        .description("API specifications for SmartMart AI-powered warehouse management backend skeleton"))
+                        .description("SmartMart WMS API — Auth, Items, Inventory ledger, Purchase, Orders, Scrap, AI"))
                 .addSecurityItem(new SecurityRequirement().addList(securitySchemeName))
                 .components(new Components()
                         .addSecuritySchemes(securitySchemeName,
