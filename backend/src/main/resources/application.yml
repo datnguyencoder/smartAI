@@ -4,39 +4,19 @@ server:
 spring:
   application:
     name: smartmart-backend
-  
-  # H2 Database configuration for immediate local booting
-  datasource:
-    url: jdbc:h2:mem:smartmartdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    driver-class-name: org.h2.Driver
-    username: sa
-    password: sa
-  
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
-      settings:
-        web-allow-others: true
+  profiles:
+    # local = H2 (dev nhanh). Docker/CI set SPRING_PROFILES_ACTIVE=prod (PostgreSQL).
+    active: ${SPRING_PROFILES_ACTIVE:local}
 
-  jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
-    hibernate:
-      ddl-auto: update
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
-
-  # Redis Configuration
+  # Redis (override host/port theo profile / env)
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
 
-  # Kafka Configuration
+  # Kafka
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     consumer:
       group-id: smartmart-group
       auto-offset-reset: earliest
@@ -48,9 +28,32 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
+# Swagger / springdoc
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
 # Custom Application Configs
 app:
   jwt:
-    # 256-bit key: smartmart-super-secret-key-32-bytes-long-for-jwt-signing
-    secret: smartmart-super-secret-key-32-bytes-long-for-jwt-signing
-    expiration-ms: 86400000 # 24 hours
+    secret: ${JWT_SECRET:smartmart-super-secret-key-32-bytes-long-for-jwt-signing}
+    expiration-ms: ${JWT_EXPIRATION_MS:86400000}        # 24h access token
+    refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000} # 7 days
+  gemini:
+    api-key: ${GEMINI_API_KEY:}
+  ai:
+    base-url: ${AI_SERVICE_URL:http://localhost:8000}
+  seed:
+    retail-sales:
+      enabled: ${SEED_RETAIL_SALES:true}
+      csv: data/retail/uci_online_retail_daily.csv

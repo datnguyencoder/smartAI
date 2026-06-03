@@ -1,0 +1,16 @@
+spring:
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: smartmart-test
+
+app:
+  jwt:
+    secret: test-jwt-secret-key-32-bytes-minimum-length
+    expiration-ms: 86400000
+  ai:
+    base-url: http://localhost:8000
+  gemini:
+    api-key: ""

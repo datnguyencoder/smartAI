@@ -6,19 +6,67 @@
 ### 1. Tổng quan cấu trúc HTTP API
 Hệ thống sử dụng chuẩn kiến trúc **RESTful API** cho việc giao tiếp giữa React Frontend và Spring Boot Backend, kết hợp với các cuộc gọi nội bộ (HTTP Client WebClient) từ Spring Boot sang FastAPI AI Service.
 
+#### Base path & versioning
+Toàn bộ REST API dùng prefix **`/api/v1`** (ví dụ `/api/v1/auth/login`, `/api/v1/products`). Các bảng endpoint bên dưới ghi `/api/...` cho gọn — khi triển khai luôn thêm tiền tố `/v1`.
+
 #### Định dạng phản hồi chuẩn (Standard ApiResponse Wrapper)
 Mọi API phản hồi từ Spring Boot Backend đều được bọc bởi cấu trúc dữ liệu thống nhất:
+
+Thành công:
 
 ```json
 {
   "success": true,
-  "message": "Thông điệp phản hồi từ hệ thống",
-  "data": null
+  "message": "Thành công",
+  "data": { },
+  "timestamp": "2026-06-02T10:00:00"
 }
 ```
 
-*   Trường hợp thành công: Trả về mã HTTP `200 OK` hoặc `201 Created`, thuộc tính `success = true`.
-*   Trường hợp lỗi: Trả về mã HTTP tương ứng (`400 BadRequest`, `401 Unauthorized`, `403 Forbidden`, `404 NotFound`, `500 ServerError`), thuộc tính `success = false`, thông tin chi tiết lỗi nằm trong `message` và không trả về trường `data`.
+Lỗi:
+
+```json
+{
+  "success": false,
+  "message": "Số lượng hàng tồn kho không đủ",
+  "errorCode": "INSUFFICIENT_STOCK",
+  "timestamp": "2026-06-02T10:00:00"
+}
+```
+
+Lỗi validation (`400`) kèm chi tiết theo field:
+
+```json
+{
+  "success": false,
+  "message": "Dữ liệu không hợp lệ",
+  "errorCode": "VALIDATION_FAILED",
+  "errors": { "quantity": "Phải lớn hơn 0", "name": "Không được để trống" },
+  "timestamp": "2026-06-02T10:00:00"
+}
+```
+
+*   Thành công: HTTP `200 OK` / `201 Created`, `success = true`, `data` được điền, `errorCode` = null.
+*   Lỗi: HTTP tương ứng, `success = false`, `data` = null (bỏ khỏi JSON), `message` + `errorCode` mô tả lỗi. Riêng validation có thêm `errors`.
+*   `data`, `errorCode`, `errors` chỉ xuất hiện khi có giá trị (`@JsonInclude(NON_NULL)`).
+
+#### Bảng mã lỗi (errorCode → HTTP)
+
+| errorCode | HTTP | Ý nghĩa |
+| :--- | :---: | :--- |
+| `VALIDATION_FAILED` | 400 | Dữ liệu đầu vào sai (kèm `errors`) |
+| `BAD_REQUEST` | 400 | Yêu cầu không hợp lệ |
+| `INSUFFICIENT_STOCK` | 400 | Tồn kho không đủ để bán |
+| `PRODUCT_EXPIRED` | 400 | Sản phẩm hết hạn |
+| `INVALID_CREDENTIALS` | 401 | Sai email/mật khẩu |
+| `TOKEN_EXPIRED` / `TOKEN_INVALID` | 401 | Token hết hạn / không hợp lệ |
+| `UNAUTHORIZED` | 401 | Chưa xác thực |
+| `ACCOUNT_INACTIVE` | 403 | Tài khoản bị khóa |
+| `FORBIDDEN` | 403 | Không đủ quyền (RBAC) |
+| `NOT_FOUND` | 404 | Không tìm thấy dữ liệu |
+| `CONFLICT` | 409 | Trùng lặp (email, tên danh mục...) |
+| `AI_SERVICE_UNAVAILABLE` | 503 | FastAPI/Gemini lỗi (SYS-10 fallback) |
+| `SYSTEM_ERROR` | 500 | Lỗi không lường trước |
 
 ---
 
@@ -68,14 +116,12 @@ Dành riêng cho vai trò Admin để vận hành nhân sự.
 #### 2.5. Phân hệ Hàng hóa & Sản phẩm (Product API)
 | Method | Endpoint | Quyền truy cập | Mô tả |
 | :--- | :--- | :--- | :--- |
-| **GET** | `/api/products` | Mọi vai trò đã đăng nhập | Xem danh sách sản phẩm (phân trang, lọc theo category, supplier, status). |
-| **POST** | `/api/products` | `ADMIN`, `MANAGER`, `WAREHOUSE` | Tạo mới sản phẩm. |
-| **GET** | `/api/products/{id}` | Mọi vai trò đã đăng nhập | Xem chi tiết thông số và số lượng kho của một sản phẩm. |
-| **PUT** | `/api/products/{id}` | `ADMIN`, `MANAGER`, `WAREHOUSE` | Cập nhật thông tin chi tiết sản phẩm. |
-| **DELETE** | `/api/products/{id}`| `ADMIN`, `MANAGER`, `WAREHOUSE` | Xóa mềm sản phẩm khỏi hệ thống. |
-| **GET** | `/api/products/{id}/stock-movements` | `ADMIN`, `MANAGER`, `WAREHOUSE` | Truy vết biến động kho chi tiết (Stock Movement) của sản phẩm này. |
-| **GET** | `/api/products/{id}/forecast` | `ADMIN`, `MANAGER` | Xem chi tiết dữ liệu dự báo tiêu thụ của riêng sản phẩm này. |
-| **PATCH**| `/api/products/{id}/status` | `ADMIN`, `MANAGER`, `WAREHOUSE` | Đổi trạng thái kinh doanh của sản phẩm (`ACTIVE` / `INACTIVE`). |
+| **GET** | `/api/v1/items` | Đã đăng nhập | Danh sách SKU; `totalAvailableQty` tổng hợp từ `current_inventory`. |
+| **POST** | `/api/v1/items` | `ADMIN`, `MANAGER`, `WAREHOUSE` | Tạo item (không ghi tồn). |
+| **GET** | `/api/v1/items/{id}` | Đã đăng nhập | Chi tiết item + tồn khả dụng. |
+| **GET** | `/api/v1/inventory/logs` | `ADMIN`, `MANAGER`, `WAREHOUSE` | Sổ kho `inventory_logs`. |
+| **GET** | `/api/v1/inventory/near-expiry` | `ADMIN`, `MANAGER`, `WAREHOUSE` | Lô cận hạn. |
+| **GET** | `/api/v1/categories`, `/api/v1/uoms`, `/api/v1/locations`, `/api/v1/suppliers` | Master data WMS. |
 
 #### 2.6. Phân hệ Giao dịch Bán hàng (Sales Order API)
 | Method | Endpoint | Quyền truy cập | Mô tả |

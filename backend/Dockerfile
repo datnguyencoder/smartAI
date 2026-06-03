@@ -18,6 +18,9 @@ RUN mvn package -DskipTests -B
 FROM eclipse-temurin:21-jre-alpine AS runner
 WORKDIR /app
 
+# Healthcheck + optional debugging (wget for compose health probe)
+RUN apk add --no-cache wget
+
 # Create a non-root system user and group for maximum runtime security
 RUN addgroup -S spring && adduser -S spring -G spring
 USER spring:spring

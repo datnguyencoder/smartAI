@@ -2,12 +2,10 @@ package com.smartmart.repository;
 
 import com.smartmart.entity.ForecastResult;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 
 import java.util.List;
-import java.util.UUID;
 
-@Repository
-public interface ForecastResultRepository extends JpaRepository<ForecastResult, UUID> {
-    List<ForecastResult> findByProductId(UUID productId);
+public interface ForecastResultRepository extends JpaRepository<ForecastResult, Long> {
+    List<ForecastResult> findByItemIdOrderByForecastDateDesc(Long itemId);
+    List<ForecastResult> findTop100ByOrderByForecastDateDesc();
 }

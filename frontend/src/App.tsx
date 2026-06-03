@@ -21,7 +21,9 @@ import {
 } from 'antd';
 import * as React from 'react';
 import type { ColumnsType } from 'antd/es/table';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
+import { animateCartBump, animateDrawer, animateModalContent, animatePageIn } from './lib/gsapAnimations';
+import { purchaseToSlip, type ImportSlipRow } from './lib/purchaseMapper';
 import {
   AlertTriangle,
   BarChart3,
@@ -78,7 +80,31 @@ import {
   YAxis,
 } from 'recharts';
 import { Card, CardHeader, StatusChip, UiButton } from './components/ui';
+import { LoginScreen } from './components/LoginScreen';
 import { cn } from './lib/utils';
+import { itemToProduct, type Product } from './lib/itemMapper';
+import {
+  cancelOrder,
+  createItem,
+  createOrder,
+  createPurchaseOrder,
+  fetchCategories,
+  fetchDashboardRevenue,
+  fetchForecastResults,
+  fetchItems,
+  fetchLocations,
+  fetchOrders,
+  fetchPurchaseOrders,
+  fetchReorderRecommendations,
+  fetchSuppliers,
+  fetchUoms,
+  receivePurchaseOrder,
+  runForecast,
+  trainForecast,
+} from './services/wmsApi';
+import type { CategoryDto, LocationDto, SupplierDto, UomDto } from './types/api';
+import { setToken } from './services/apiClient';
+import type { UserDto } from './types/api';
 
 type PageKey =
   | 'dashboard'
@@ -99,19 +125,6 @@ type PageKey =
   | 'reports'
   | 'users'
   | 'settings';
-
-type Product = {
-  key: string;
-  name: string;
-  sku: string;
-  category: string;
-  stock: number;
-  sold: number;
-  price: number;
-  supplier: string;
-  status: 'Còn hàng' | 'Sắp hết' | 'Hết hàng' | 'Nguy cơ';
-  expiry: string;
-};
 
 type NavItem = { key: PageKey; label: string; icon: typeof LayoutDashboard };
 
@@ -136,15 +149,6 @@ const navItems: NavItem[] = [
   { key: 'settings', label: 'Cài đặt hệ thống', icon: Settings },
 ];
 
-const INITIAL_PRODUCTS: Product[] = [
-  { key: 'P001', name: 'Nước ngọt Coca-Cola 330ml', sku: 'COLA-330', category: 'Đồ uống', stock: 452, sold: 1260, price: 12000, supplier: 'Coca-Cola VN', status: 'Còn hàng', expiry: '12/11/2026' },
-  { key: 'P002', name: 'Sữa tươi Vinamilk ít đường', sku: 'MILK-VNM', category: 'Sữa & bơ', stock: 16, sold: 890, price: 34000, supplier: 'Vinamilk', status: 'Sắp hết', expiry: '21/06/2026' },
-  { key: 'P003', name: 'Mì Hảo Hảo tôm chua cay', sku: 'NOOD-HH', category: 'Thực phẩm khô', stock: 0, sold: 2130, price: 4500, supplier: 'Acecook', status: 'Hết hàng', expiry: '14/01/2027' },
-  { key: 'P004', name: 'Bánh Choco Pie hộp 12 cái', sku: 'CHOCO-12', category: 'Bánh kẹo', stock: 72, sold: 410, price: 52000, supplier: 'Orion', status: 'Nguy cơ', expiry: '08/06/2026' },
-  { key: 'P005', name: 'Nước suối Lavie 500ml', sku: 'LAVIE-500', category: 'Đồ uống', stock: 820, sold: 1640, price: 7000, supplier: 'Lavie', status: 'Còn hàng', expiry: '02/12/2026' },
-  { key: 'P006', name: 'Khăn giấy Pulppy 180 tờ', sku: 'PUL-180', category: 'Gia dụng', stock: 38, sold: 320, price: 28000, supplier: 'New Toyo', status: 'Sắp hết', expiry: 'Không áp dụng' },
-];
-
 const salesData = [
   { day: 'T2', revenue: 7.8, forecast: 8.4, orders: 96 },
   { day: 'T3', revenue: 9.2, forecast: 9.8, orders: 118 },
@@ -163,14 +167,22 @@ const categoryData = [
   { name: 'Khác', value: 12, color: '#94a3b8' },
 ];
 
-const INITIAL_INVOICES = [
-  { key: 'HD-1028', customer: 'Khách lẻ', amount: 486000, cashier: 'Nguyễn Văn An', status: 'Đã thanh toán', time: '14:35', subtotal: 450000, discount: 0, vat: 36000, items: [{ name: 'Nước ngọt Coca-Cola 330ml', qty: 25, price: 12000 }, { name: 'Bánh Choco Pie hộp 12 cái', qty: 3, price: 50000 }] },
-  { key: 'HD-1027', customer: 'Trần Thị Lan', amount: 128000, cashier: 'Lê Minh Tuấn', status: 'Đã thanh toán', time: '14:21', subtotal: 118518, discount: 0, vat: 9482, items: [{ name: 'Sữa tươi Vinamilk ít đường', qty: 3, price: 34000 }, { name: 'Nước ngọt Coca-Cola 330ml', qty: 2, price: 12000 }] },
-  { key: 'HD-1026', customer: 'Khách lẻ', amount: 742000, cashier: 'Nguyễn Văn An', status: 'Hoàn một phần', time: '13:58', subtotal: 687037, discount: 0, vat: 54963, items: [{ name: 'Bánh Choco Pie hộp 12 cái', qty: 10, price: 52000 }, { name: 'Sữa tươi Vinamilk ít đường', qty: 5, price: 34000 }] },
-  { key: 'HD-1025', customer: 'Phạm Quang Huy', amount: 93000, cashier: 'Võ Thị Mai', status: 'Đã thanh toán', time: '13:47', subtotal: 86111, discount: 0, vat: 6889, items: [{ name: 'Khăn giấy Pulppy 180 tờ', qty: 3, price: 28000 }, { name: 'Mì Hảo Hảo tôm chua cay', qty: 2, price: 4500 }] },
-];
-
 const money = (value: number) => new Intl.NumberFormat('vi-VN').format(value) + 'đ';
+
+function ordersToInvoices(orders: Awaited<ReturnType<typeof fetchOrders>>) {
+  return orders.map((o) => ({
+    key: o.orderCode,
+    customer: o.customerName,
+    amount: Number(o.totalAmount),
+    cashier: 'Hệ thống',
+    status: o.status === 'CANCELLED' ? 'Đã hủy' : 'Đã thanh toán',
+    time: new Date(o.orderDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+    subtotal: Number(o.totalAmount) / 1.08,
+    discount: 0,
+    vat: Number(o.totalAmount) * 0.08 / 1.08,
+    items: (o.items ?? []).map((i) => ({ name: i.itemName, qty: Number(i.quantity), price: Number(i.unitPrice) })),
+  }));
+}
 
 function statusTone(status: Product['status']) {
   if (status === 'Còn hàng') return 'success';
@@ -179,29 +191,82 @@ function statusTone(status: Product['status']) {
 }
 
 function App() {
+  const [authUser, setAuthUser] = React.useState<UserDto | null>(() => {
+    const raw = localStorage.getItem('smartmart_user');
+    return raw ? (JSON.parse(raw) as UserDto) : null;
+  });
   const [page, setPage] = React.useState<PageKey>('dashboard');
   const [drawerProduct, setDrawerProduct] = React.useState<Product | null>(null);
   const [selectedInvoice, setSelectedInvoice] = React.useState<any | null>(null);
   const [modalOpen, setModalOpen] = React.useState(false);
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
 
-  // Dynamic state declarations
-  const [productsList, setProductsList] = React.useState<Product[]>(INITIAL_PRODUCTS);
-  const [invoicesList, setInvoicesList] = React.useState<any[]>(INITIAL_INVOICES);
-  
-  const [importSlips, setImportSlips] = React.useState<any[]>([
-    { key: 'PN-204', supplier: 'Vinamilk', amount: 18200000, status: 'Chờ duyệt', time: 'Hôm nay' },
-    { key: 'PN-203', supplier: 'Acecook', amount: 9400000, status: 'Đã nhận', time: 'Hôm qua' },
-    { key: 'PN-202', supplier: 'Lavie', amount: 12600000, status: 'Đang giao', time: '16/05/2026' }
+  const [productsList, setProductsList] = React.useState<Product[]>([]);
+  const [invoicesList, setInvoicesList] = React.useState<any[]>([]);
+  const [importSlips, setImportSlips] = React.useState<ImportSlipRow[]>([]);
+  const [categories, setCategories] = React.useState<CategoryDto[]>([]);
+  const [suppliers, setSuppliers] = React.useState<SupplierDto[]>([]);
+  const [locations, setLocations] = React.useState<LocationDto[]>([]);
+  const [uoms, setUoms] = React.useState<UomDto[]>([]);
+  const [catalogLoading, setCatalogLoading] = React.useState(false);
+  const [activePromotions, setActivePromotions] = React.useState<Record<string, number>>({});
+  const [chatHistory, setChatHistory] = React.useState<
+    Array<{ sender: 'user' | 'ai'; text: string; action?: { label: string; page: PageKey } }>
+  >([
+    {
+      sender: 'ai',
+      text: 'Chào bạn! Tôi là trợ lý vận hành AI. Bạn cần tôi phân tích hàng tồn kho, lập chiến dịch khuyến mãi giảm giá hay lên phiếu nhập hàng giúp không?',
+    },
   ]);
-
-  const [activePromotions, setActivePromotions] = React.useState<Record<string, number>>({}); // maps Product Key -> discount %
-  
-  const [chatHistory, setChatHistory] = React.useState<Array<{ sender: 'user' | 'ai'; text: string; action?: { label: string; page: PageKey } }>>([
-    { sender: 'ai', text: 'Chào bạn! Tôi là trợ lý vận hành AI. Bạn cần tôi phân tích hàng tồn kho, lập chiến dịch khuyến mãi giảm giá hay lên phiếu nhập hàng giúp không? Hãy thử hỏi tôi: "Hàng nào sắp hết hạn?" hoặc "Sản phẩm nào cần nhập thêm?".' }
-  ]);
-  
   const [posCart, setPosCart] = React.useState<Array<{ product: Product; quantity: number }>>([]);
+  const pageContentRef = React.useRef<HTMLDivElement>(null);
+  const cartPanelRef = React.useRef<HTMLDivElement>(null);
+
+  const reloadCatalog = React.useCallback(async () => {
+    setCatalogLoading(true);
+    try {
+      const [items, orders, purchases, cats, sups, locs, uomList] = await Promise.all([
+        fetchItems(),
+        fetchOrders(),
+        fetchPurchaseOrders().catch(() => []),
+        fetchCategories(),
+        fetchSuppliers(),
+        fetchLocations(),
+        fetchUoms().catch(() => []),
+      ]);
+      setProductsList(items.map(itemToProduct));
+      setInvoicesList(ordersToInvoices(orders));
+      setImportSlips(purchases.map(purchaseToSlip));
+      setCategories(cats);
+      setSuppliers(sups);
+      setLocations(locs);
+      setUoms(uomList);
+    } catch (e) {
+      antdMessage.error(e instanceof Error ? e.message : 'Không tải được dữ liệu API');
+    } finally {
+      setCatalogLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (authUser && localStorage.getItem('smartmart_token')) {
+      reloadCatalog();
+    }
+  }, [authUser, reloadCatalog]);
+
+  React.useLayoutEffect(() => {
+    if (authUser) animatePageIn(pageContentRef.current);
+  }, [page, authUser]);
+
+  if (!authUser || !localStorage.getItem('smartmart_token')) {
+    return (
+      <LoginScreen
+        onSuccess={(user) => {
+          setAuthUser(user);
+        }}
+      />
+    );
+  }
 
   const pageMeta = pageTitles[page];
 
@@ -232,33 +297,30 @@ function App() {
             setModalOpen={setModalOpen}
             openMobileNav={() => setMobileNavOpen(true)}
           />
-          <motion.div
-            key={page}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.28 }}
-            className="mx-auto max-w-[1220px] px-4 py-5 sm:px-6"
-          >
+          <div ref={pageContentRef} className="mx-auto max-w-[1220px] px-4 py-5 sm:px-6">
             <PageRenderer
               page={page}
               openProduct={setDrawerProduct}
               openModal={() => setModalOpen(true)}
               setPage={setPage}
               productsList={productsList}
-              setProductsList={setProductsList}
               invoicesList={invoicesList}
-              setInvoicesList={setInvoicesList}
               importSlips={importSlips}
-              setImportSlips={setImportSlips}
+              categories={categories}
+              suppliers={suppliers}
+              locations={locations}
               activePromotions={activePromotions}
               setActivePromotions={setActivePromotions}
               chatHistory={chatHistory}
               setChatHistory={setChatHistory}
               posCart={posCart}
               setPosCart={setPosCart}
+              cartPanelRef={cartPanelRef}
               setSelectedInvoice={setSelectedInvoice}
+              reloadCatalog={reloadCatalog}
+              catalogLoading={catalogLoading}
             />
-          </motion.div>
+          </div>
         </main>
         <ProductDrawer product={drawerProduct} onClose={() => setDrawerProduct(null)} />
         <InvoiceDrawer invoice={selectedInvoice} onClose={() => setSelectedInvoice(null)} />
@@ -266,8 +328,9 @@ function App() {
           open={modalOpen}
           onCancel={() => setModalOpen(false)}
           page={page}
-          productsList={productsList}
-          setProductsList={setProductsList}
+          categories={categories}
+          uoms={uoms}
+          onCreated={reloadCatalog}
         />
       </div>
     </ConfigProvider>
@@ -451,36 +514,42 @@ function PageRenderer({
   openModal,
   setPage,
   productsList,
-  setProductsList,
   invoicesList,
-  setInvoicesList,
   importSlips,
-  setImportSlips,
+  categories,
+  suppliers,
+  locations,
   activePromotions,
   setActivePromotions,
   chatHistory,
   setChatHistory,
   posCart,
   setPosCart,
+  cartPanelRef,
   setSelectedInvoice,
+  reloadCatalog,
+  catalogLoading,
 }: {
   page: PageKey;
   openProduct: (product: Product) => void;
   openModal: () => void;
   setPage: (page: PageKey) => void;
   productsList: Product[];
-  setProductsList: React.Dispatch<React.SetStateAction<Product[]>>;
   invoicesList: any[];
-  setInvoicesList: React.Dispatch<React.SetStateAction<any[]>>;
-  importSlips: any[];
-  setImportSlips: React.Dispatch<React.SetStateAction<any[]>>;
+  importSlips: ImportSlipRow[];
+  categories: CategoryDto[];
+  suppliers: SupplierDto[];
+  locations: LocationDto[];
   activePromotions: Record<string, number>;
   setActivePromotions: React.Dispatch<React.SetStateAction<Record<string, number>>>;
   chatHistory: any[];
   setChatHistory: React.Dispatch<React.SetStateAction<any[]>>;
   posCart: any[];
   setPosCart: React.Dispatch<React.SetStateAction<any[]>>;
+  cartPanelRef: React.RefObject<HTMLDivElement>;
   setSelectedInvoice: (invoice: any) => void;
+  reloadCatalog: () => Promise<void>;
+  catalogLoading: boolean;
 }) {
   if (page === 'dashboard') {
     return <Dashboard openProduct={openProduct} setPage={setPage} productsList={productsList} invoicesList={invoicesList} />;
@@ -489,13 +558,13 @@ function PageRenderer({
     return (
       <PosPage
         productsList={productsList}
-        setProductsList={setProductsList}
         posCart={posCart}
         setPosCart={setPosCart}
-        invoicesList={invoicesList}
-        setInvoicesList={setInvoicesList}
         activePromotions={activePromotions}
         setPage={setPage}
+        reloadCatalog={reloadCatalog}
+        catalogLoading={catalogLoading}
+        cartPanelRef={cartPanelRef}
       />
     );
   }
@@ -503,19 +572,27 @@ function PageRenderer({
     return <ProductsPage openProduct={openProduct} openModal={openModal} productsList={productsList} activePromotions={activePromotions} />;
   }
   if (page === 'categories') {
-    return <CategoriesPage productsList={productsList} />;
+    return <CategoriesPage categories={categories} productsList={productsList} />;
   }
   if (page === 'suppliers') {
-    return <SuppliersPage productsList={productsList} />;
+    return <SuppliersPage suppliers={suppliers} productsList={productsList} />;
   }
   if (page === 'invoices') {
     return <InvoicesPage invoicesList={invoicesList} setSelectedInvoice={setSelectedInvoice} />;
   }
   if (page === 'import-create') {
-    return <ImportCreatePage productsList={productsList} importSlips={importSlips} setImportSlips={setImportSlips} setPage={setPage} />;
+    return (
+      <ImportCreatePage
+        productsList={productsList}
+        suppliers={suppliers}
+        locations={locations}
+        setPage={setPage}
+        reloadCatalog={reloadCatalog}
+      />
+    );
   }
   if (page === 'import-slips') {
-    return <ImportSlipsPage importSlips={importSlips} />;
+    return <ImportSlipsPage importSlips={importSlips} reloadCatalog={reloadCatalog} />;
   }
   if (page === 'inventory') {
     return <InventoryPage openProduct={openProduct} productsList={productsList} />;
@@ -542,9 +619,6 @@ function PageRenderer({
         chatHistory={chatHistory}
         setChatHistory={setChatHistory}
         setPage={setPage}
-        setImportSlips={setImportSlips}
-        setActivePromotions={setActivePromotions}
-        importSlips={importSlips}
       />
     );
   }
@@ -662,16 +736,23 @@ function KpiGrid({ productsList, invoicesList }: { productsList: Product[]; invo
   );
 }
 
-function RevenueCard({ invoicesList }: { invoicesList: any[] }) {
-  // Sum today's active POS invoices to show updates to CN dynamically
-  const todayPOSRevenue = invoicesList.reduce((sum, inv) => sum + inv.amount, 0);
-  const salesDataWithPOS = salesData.map(d => {
-    if (d.day === 'CN') {
-      // 14.9 is base forecast CN, let's scale additional POS revenue to millions format
-      return { ...d, revenue: parseFloat((14.9 + todayPOSRevenue / 1000000).toFixed(2)) };
-    }
-    return d;
-  });
+function RevenueCard({ invoicesList: _invoicesList }: { invoicesList: any[] }) {
+  const [chartData, setChartData] = React.useState(salesData);
+  React.useEffect(() => {
+    fetchDashboardRevenue()
+      .then((rows) => {
+        const labels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+        setChartData(
+          rows.slice(-7).map((r, i) => ({
+            day: labels[i] ?? r.day.slice(5),
+            revenue: Number(r.revenue) / 1_000_000,
+            forecast: Number(r.revenue) / 1_000_000 * 1.05,
+            orders: 0,
+          }))
+        );
+      })
+      .catch(() => setChartData(salesData));
+  }, []);
 
   return (
     <Card className="chart-card overflow-hidden hover:shadow-xl transition-all duration-300">
@@ -682,7 +763,7 @@ function RevenueCard({ invoicesList }: { invoicesList: any[] }) {
       />
       <div className="h-[310px] px-3 pb-5">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={salesDataWithPOS} margin={{ top: 14, right: 18, bottom: 6, left: 0 }}>
+          <ComposedChart data={chartData} margin={{ top: 14, right: 18, bottom: 6, left: 0 }}>
             <defs>
               <linearGradient id="forecastArea" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
@@ -909,24 +990,31 @@ function ProductsPage({
   );
 }
 
-function CategoriesPage({ productsList }: { productsList: Product[] }) {
-  const categories = Array.from(new Set(productsList.map(p => p.category)));
+function CategoriesPage({ categories, productsList }: { categories: CategoryDto[]; productsList: Product[] }) {
+  const rows =
+    categories.length > 0
+      ? categories
+      : Array.from(new Set(productsList.map((p) => p.category))).map((name, i) => ({
+          id: i,
+          categoryName: name,
+          active: true,
+        }));
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
       <Card>
         <CardHeader title="Danh mục hàng hóa" />
         <div className="grid gap-3 px-5 pb-5 md:grid-cols-2">
-          {categories.map((cat, idx) => {
-            const count = productsList.filter(p => p.category === cat).length;
+          {rows.map((cat, idx) => {
+            const count = productsList.filter((p) => p.category === cat.categoryName).length;
             return (
-              <motion.div whileHover={{ y: -3 }} className="rounded-xl border border-line bg-slate-50 p-4" key={cat}>
+              <motion.div whileHover={{ y: -3 }} className="rounded-xl border border-line bg-slate-50 p-4" key={cat.id}>
                 <div className="mb-4 flex items-center justify-between">
                   <div className="grid h-10 w-10 place-items-center rounded-lg bg-emerald-50 text-primary">
                     <Tags size={18} />
                   </div>
-                  <StatusChip tone="success">Đang bán</StatusChip>
+                  <StatusChip tone={cat.active ? 'success' : 'warning'}>{cat.active ? 'Đang bán' : 'Ngưng'}</StatusChip>
                 </div>
-                <strong className="text-ink text-base">{cat}</strong>
+                <strong className="text-ink text-base">{cat.categoryName}</strong>
                 <p className="mt-1 text-sm text-muted">{count} sản phẩm đang bày bán · Biên lợi nhuận {15 + idx}%</p>
               </motion.div>
             );
@@ -938,40 +1026,27 @@ function CategoriesPage({ productsList }: { productsList: Product[] }) {
   );
 }
 
-function SuppliersPage({ productsList }: { productsList: Product[] }) {
-  const suppliersList = [
-    { name: 'Vinamilk', contact: 'Đại lý Sữa miền Nam', email: 'sales@vinamilk.com.vn', sla: '98%', debt: 12400000 },
-    { name: 'Coca-Cola VN', contact: 'Đại lý Nước ngọt Coca', email: 'coke@cocacola.com', sla: '95%', debt: 8200000 },
-    { name: 'Acecook', contact: 'Phân phối Mì ăn liền', email: 'ace@cook.vn', sla: '92%', debt: 0 },
-    { name: 'Orion Food', contact: 'Nhà phân phối Orion', email: 'contact@orion.com.vn', sla: '96%', debt: 4500000 },
-    { name: 'Lavie', contact: 'Nước khoáng Lavie', email: 'info@laviewater.co', sla: '97%', debt: 1500000 },
-    { name: 'New Toyo', contact: 'Gia dụng Pulppy', email: 'sales@newtoyo.com', sla: '94%', debt: 0 },
-  ];
-
+function SuppliersPage({ suppliers, productsList }: { suppliers: SupplierDto[]; productsList: Product[] }) {
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
       <Card>
         <CardHeader title="Nhà cung cấp đối tác" />
         <div className="grid gap-3 px-5 pb-5 md:grid-cols-2">
-          {suppliersList.map((sup) => {
-            const count = productsList.filter(p => p.supplier === sup.name).length;
-            return (
-              <motion.div whileHover={{ y: -3 }} className="rounded-xl border border-line bg-slate-50 p-4" key={sup.name}>
-                <div className="mb-4 flex items-center justify-between">
-                  <div className="grid h-10 w-10 place-items-center rounded-lg bg-indigo-50 text-indigo">
-                    <Truck size={18} />
-                  </div>
-                  <Tag color="cyan">SLA {sup.sla}</Tag>
+          {suppliers.map((sup) => (
+            <motion.div whileHover={{ y: -3 }} className="rounded-xl border border-line bg-slate-50 p-4" key={sup.id}>
+              <div className="mb-4 flex items-center justify-between">
+                <div className="grid h-10 w-10 place-items-center rounded-lg bg-indigo-50 text-indigo">
+                  <Truck size={18} />
                 </div>
-                <strong className="text-ink text-base">{sup.name}</strong>
-                <p className="text-xs text-muted mt-0.5">{sup.contact} · {sup.email}</p>
-                <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2 text-xs">
-                  <span className="text-slate-500">{count} mặt hàng cung cấp</span>
-                  <span className="font-semibold text-red-600">Nợ: {money(sup.debt)}</span>
-                </div>
-              </motion.div>
-            );
-          })}
+                <StatusChip tone={sup.active ? 'success' : 'warning'}>{sup.active ? 'Hoạt động' : 'Ngưng'}</StatusChip>
+              </div>
+              <strong className="text-ink text-base">{sup.supplierName}</strong>
+              <p className="text-xs text-muted mt-0.5">{sup.contactPerson ?? '—'} · {sup.phone ?? '—'}</p>
+              <div className="mt-3 border-t border-slate-100 pt-2 text-xs text-slate-500">
+                {productsList.length} SKU trong hệ thống
+              </div>
+            </motion.div>
+          ))}
         </div>
       </Card>
       <AiSummary setPage={() => {}} />
@@ -981,22 +1056,22 @@ function SuppliersPage({ productsList }: { productsList: Product[] }) {
 
 function PosPage({
   productsList,
-  setProductsList,
   posCart,
   setPosCart,
-  invoicesList,
-  setInvoicesList,
   activePromotions,
   setPage,
+  reloadCatalog,
+  catalogLoading,
+  cartPanelRef,
 }: {
   productsList: Product[];
-  setProductsList: React.Dispatch<React.SetStateAction<Product[]>>;
   posCart: Array<{ product: Product; quantity: number }>;
   setPosCart: React.Dispatch<React.SetStateAction<Array<{ product: Product; quantity: number }>>>;
-  invoicesList: any[];
-  setInvoicesList: React.Dispatch<React.SetStateAction<any[]>>;
   activePromotions: Record<string, number>;
   setPage: (page: PageKey) => void;
+  reloadCatalog: () => Promise<void>;
+  catalogLoading: boolean;
+  cartPanelRef: React.RefObject<HTMLDivElement>;
 }) {
   const [searchQuery, setSearchQuery] = React.useState('');
   const [selectedCategory, setSelectedCategory] = React.useState('Tất cả');
@@ -1004,6 +1079,10 @@ function PosPage({
   const [appliedPromo, setAppliedPromo] = React.useState<string>('Không có');
   const [receiptOpen, setReceiptOpen] = React.useState(false);
   const [lastInvoice, setLastInvoice] = React.useState<any | null>(null);
+  const receiptRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    if (receiptOpen) animateModalContent(receiptRef.current);
+  }, [receiptOpen]);
 
   // Filter products based on search and category
   const filteredProducts = productsList.filter(p => {
@@ -1029,6 +1108,7 @@ function PosPage({
     } else {
       setPosCart([...posCart, { product, quantity: 1 }]);
     }
+    animateCartBump(cartPanelRef.current);
   };
 
   const updateQuantity = (productKey: string, delta: number) => {
@@ -1062,55 +1142,49 @@ function PosPage({
   const vat = (subtotal - promoDiscount) * 0.08;
   const total = subtotal - promoDiscount + vat;
 
-  const handleCheckout = () => {
+  const [checkoutLoading, setCheckoutLoading] = React.useState(false);
+
+  const handleCheckout = async () => {
     if (posCart.length === 0) {
       antdMessage.warning('Giỏ hàng trống! Hãy quét chọn sản phẩm.');
       return;
     }
-
-    // Deduct stock and increment sold in products state
-    const updatedProducts = productsList.map(prod => {
-      const cartItem = posCart.find(item => item.product.key === prod.key);
-      if (cartItem) {
-        const newStock = Math.max(0, prod.stock - cartItem.quantity);
-        return {
-          ...prod,
-          stock: newStock,
-          sold: prod.sold + cartItem.quantity,
-          status: newStock === 0 ? 'Hết hàng' : newStock <= 20 ? 'Sắp hết' : 'Còn hàng' as any
-        };
-      }
-      return prod;
-    });
-    setProductsList(updatedProducts);
-
-    // Create invoice record
-    const invoiceId = `HD-${1000 + invoicesList.length + 29}`;
-    const now = new Date();
-    const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-    
-    const newInvoice = {
-      key: invoiceId,
-      customer: selectedCustomer,
-      amount: Math.round(total),
-      cashier: 'Lê Minh Tuấn',
-      status: 'Đã thanh toán',
-      time: timeStr,
-      items: posCart.map(item => ({
-        name: item.product.name,
-        qty: item.quantity,
-        price: getProductPrice(item.product)
-      })),
-      subtotal: Math.round(subtotal),
-      discount: Math.round(promoDiscount),
-      vat: Math.round(vat),
-    };
-
-    setInvoicesList([newInvoice, ...invoicesList]);
-    setLastInvoice(newInvoice);
-    setReceiptOpen(true);
-    setPosCart([]);
-    antdMessage.success('Thanh toán đơn hàng thành công!');
+    setCheckoutLoading(true);
+    try {
+      const order = await createOrder({
+        customerName: selectedCustomer,
+        paymentMethod: 'CASH',
+        items: posCart.map((item) => ({
+          itemId: Number(item.product.key),
+          quantity: item.quantity,
+        })),
+      });
+      await reloadCatalog();
+      const newInvoice = {
+        key: order.orderCode,
+        customer: order.customerName,
+        amount: Math.round(Number(order.totalAmount)),
+        cashier: 'Hệ thống',
+        status: 'Đã thanh toán',
+        time: new Date(order.orderDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+        items: posCart.map((item) => ({
+          name: item.product.name,
+          qty: item.quantity,
+          price: getProductPrice(item.product),
+        })),
+        subtotal: Math.round(subtotal),
+        discount: Math.round(promoDiscount),
+        vat: Math.round(vat),
+      };
+      setLastInvoice(newInvoice);
+      setReceiptOpen(true);
+      setPosCart([]);
+      antdMessage.success('Thanh toán đơn hàng thành công!');
+    } catch (e) {
+      antdMessage.error(e instanceof Error ? e.message : 'Thanh toán thất bại');
+    } finally {
+      setCheckoutLoading(false);
+    }
   };
 
   return (
@@ -1118,7 +1192,7 @@ function PosPage({
       <Card>
         <div className="p-4 border-b border-line flex flex-wrap items-center justify-between gap-3 bg-white rounded-t-2xl">
           <div>
-            <h2 className="text-lg font-bold text-ink">Danh sách sản phẩm bán</h2>
+            <h2 className="text-lg font-bold text-ink">Danh sách sản phẩm bán {catalogLoading ? '(đang tải…)' : ''}</h2>
             <p className="text-xs text-slate-400">Click chọn sản phẩm để thêm nhanh vào giỏ hàng POS.</p>
           </div>
           <div className="flex gap-2">
@@ -1174,6 +1248,7 @@ function PosPage({
         </div>
       </Card>
       
+      <div ref={cartPanelRef}>
       <Card className="flex flex-col h-fit">
         <CardHeader title="Giỏ hàng hiện tại" action={<Tag color="green" className="font-bold">{posCart.length} dòng hàng</Tag>} />
         <div className="space-y-3 px-5 pb-2 flex-1 max-h-[380px] overflow-y-auto scrollbar-thin">
@@ -1254,11 +1329,12 @@ function PosPage({
             </div>
           </div>
           
-          <UiButton className="w-full h-11" variant="primary" onClick={handleCheckout}>
-            Xác nhận thanh toán
+          <UiButton className="w-full h-11" variant="primary" onClick={handleCheckout} disabled={checkoutLoading}>
+            {checkoutLoading ? 'Đang xử lý…' : 'Xác nhận thanh toán'}
           </UiButton>
         </div>
       </Card>
+      </div>
       
       {/* Dynamic invoice checkout receipt modal */}
       <Modal
@@ -1274,7 +1350,7 @@ function PosPage({
         title="Hóa đơn thanh toán (POS)"
       >
         {lastInvoice && (
-          <div className="border border-slate-200 rounded-xl p-5 bg-white space-y-4 font-mono text-xs">
+          <div ref={receiptRef} className="border border-slate-200 rounded-xl p-5 bg-white space-y-4 font-mono text-xs">
             <div className="text-center border-b border-dashed border-slate-200 pb-3">
               <h3 className="text-base font-bold text-slate-800">SMARTMART AI</h3>
               <p className="text-slate-400 mt-1">Siêu Thị Mini Vận Hành Thông Minh</p>
@@ -1338,60 +1414,88 @@ function InvoicesPage({ invoicesList, setSelectedInvoice }: { invoicesList: any[
 
 function ImportCreatePage({
   productsList,
-  importSlips,
-  setImportSlips,
+  suppliers,
+  locations,
   setPage,
+  reloadCatalog,
 }: {
   productsList: Product[];
-  importSlips: any[];
-  setImportSlips: React.Dispatch<React.SetStateAction<any[]>>;
+  suppliers: SupplierDto[];
+  locations: LocationDto[];
   setPage: (page: PageKey) => void;
+  reloadCatalog: () => Promise<void>;
 }) {
   const [form] = Form.useForm();
-  
-  const handleCreateSlip = (values: any) => {
-    const slipId = `PN-${200 + importSlips.length + 5}`;
-    const newSlip = {
-      key: slipId,
-      supplier: values.supplier || 'Chưa chọn',
-      amount: Math.round((values.price || 24000) * (values.quantity || 100)),
-      status: 'Chờ duyệt',
-      time: 'Hôm nay',
-    };
-    
-    setImportSlips([newSlip, ...importSlips]);
-    antdMessage.success(`Tạo phiếu nhập ${slipId} thành công!`);
-    form.resetFields();
-    setPage('import-slips');
+  const [submitting, setSubmitting] = React.useState(false);
+  const defaultLocation = locations.find((l) => l.locationName.includes('Kho bán')) ?? locations[0];
+
+  const handleCreateSlip = async (values: {
+    supplierId: number;
+    locationId: number;
+    itemId: number;
+    quantity: number;
+    price: number;
+  }) => {
+    setSubmitting(true);
+    try {
+      const po = await createPurchaseOrder({
+        supplierId: values.supplierId,
+        locationId: values.locationId,
+        items: [{ itemId: values.itemId, orderedQty: values.quantity, unitPrice: values.price }],
+      });
+      await reloadCatalog();
+      antdMessage.success(`Tạo phiếu nhập PN-${po.id} thành công!`);
+      form.resetFields();
+      setPage('import-slips');
+    } catch (e) {
+      antdMessage.error(e instanceof Error ? e.message : 'Tạo phiếu nhập thất bại (cần quyền kho: warehouse/admin)');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
       <Card>
         <CardHeader title="Thông tin lập phiếu nhập hàng" />
-        <Form layout="vertical" form={form} onFinish={handleCreateSlip} className="px-5 pb-5">
+        <Form
+          layout="vertical"
+          form={form}
+          onFinish={handleCreateSlip}
+          className="px-5 pb-5"
+          initialValues={{ locationId: defaultLocation?.id, quantity: 50, price: 25000 }}
+        >
           <div className="grid gap-4 md:grid-cols-2">
-            <Form.Item name="supplier" label="Nhà cung cấp đối tác" rules={[{ required: true, message: 'Vui lòng chọn nhà cung cấp' }]}>
-              <Select placeholder="Chọn nhà cung cấp" options={[{ value: 'Vinamilk', label: 'Vinamilk' }, { value: 'Coca-Cola Việt Nam', label: 'Coca-Cola Việt Nam' }, { value: 'Acecook', label: 'Acecook' }]} />
-            </Form.Item>
-            <Form.Item name="deliveryDate" label="Ngày giao dự kiến">
-              <DatePicker className="w-full" />
-            </Form.Item>
-            <Form.Item name="productName" label="Sản phẩm cần nhập" rules={[{ required: true, message: 'Nhập tên hoặc SKU sản phẩm' }]}>
+            <Form.Item name="supplierId" label="Nhà cung cấp" rules={[{ required: true }]}>
               <Select
-                placeholder="Chọn sản phẩm"
-                options={productsList.map(p => ({ value: p.name, label: `${p.name} (Tồn: ${p.stock})` }))}
+                placeholder="Chọn nhà cung cấp"
+                options={suppliers.map((s) => ({ value: s.id, label: s.supplierName }))}
               />
             </Form.Item>
-            <Form.Item name="quantity" label="Số lượng nhập" rules={[{ required: true, message: 'Nhập số lượng nhập' }]}>
-              <InputNumber className="w-full" min={1} defaultValue={100} />
+            <Form.Item name="locationId" label="Kho nhận" rules={[{ required: true }]}>
+              <Select
+                placeholder="Chọn kho"
+                options={locations.map((l) => ({ value: l.id, label: l.locationName }))}
+              />
             </Form.Item>
-            <Form.Item name="price" label="Đơn giá mua dự kiến (VNĐ)">
-              <InputNumber className="w-full" min={1000} defaultValue={25000} />
+            <Form.Item name="itemId" label="Sản phẩm" rules={[{ required: true }]}>
+              <Select
+                placeholder="Chọn sản phẩm"
+                options={productsList.map((p) => ({
+                  value: Number(p.key),
+                  label: `${p.name} (Tồn: ${p.stock})`,
+                }))}
+              />
+            </Form.Item>
+            <Form.Item name="quantity" label="Số lượng đặt" rules={[{ required: true }]}>
+              <InputNumber className="w-full" min={1} />
+            </Form.Item>
+            <Form.Item name="price" label="Đơn giá nhập (VNĐ)" rules={[{ required: true }]}>
+              <InputNumber className="w-full" min={1000} />
             </Form.Item>
           </div>
-          <Button type="primary" htmlType="submit" icon={<Plus size={16} />} className="mt-2">
-            Thêm vào phiếu và Lưu phiếu
+          <Button type="primary" htmlType="submit" loading={submitting} icon={<Plus size={16} />} className="mt-2">
+            Lưu phiếu nhập
           </Button>
         </Form>
       </Card>
@@ -1400,19 +1504,107 @@ function ImportCreatePage({
   );
 }
 
-function ImportSlipsPage({ importSlips }: { importSlips: any[] }) {
+function ImportSlipsPage({
+  importSlips,
+  reloadCatalog,
+}: {
+  importSlips: ImportSlipRow[];
+  reloadCatalog: () => Promise<void>;
+}) {
+  const [receiving, setReceiving] = React.useState<ImportSlipRow | null>(null);
+  const [receiveLoading, setReceiveLoading] = React.useState(false);
+  const receiptRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (receiving) animateModalContent(receiptRef.current);
+  }, [receiving]);
+
+  const handleReceiveAll = async (slip: ImportSlipRow) => {
+    setReceiveLoading(true);
+    try {
+      const lines = (slip.items ?? [])
+        .filter((i) => Number(i.orderedQty) > Number(i.receivedQty))
+        .map((i) => ({
+          purchaseItemId: i.id,
+          receiveQty: Number(i.orderedQty) - Number(i.receivedQty),
+        }));
+      if (lines.length === 0) {
+        antdMessage.warning('Phiếu đã nhận đủ hàng');
+        return;
+      }
+      await receivePurchaseOrder(slip.id, lines);
+      await reloadCatalog();
+      antdMessage.success('Nhận hàng vào kho thành công');
+      setReceiving(null);
+    } catch (e) {
+      antdMessage.error(e instanceof Error ? e.message : 'Nhận hàng thất bại');
+    } finally {
+      setReceiveLoading(false);
+    }
+  };
+
   const columns = [
     { title: 'Mã phiếu', dataIndex: 'key' },
     { title: 'Nhà cung cấp', dataIndex: 'supplier' },
-    { title: 'Tổng giá trị nhập', dataIndex: 'amount', render: (v: number) => money(v) },
-    { title: 'Thời gian', dataIndex: 'time' },
-    { title: 'Trạng thái', dataIndex: 'status', render: (v: string) => <StatusChip tone={v.includes('duyệt') ? 'warning' : 'success'}>{v}</StatusChip> }
+    { title: 'Kho', dataIndex: 'locationName' },
+    { title: 'Tổng giá trị', dataIndex: 'amount', render: (v: number) => money(v) },
+    { title: 'Ngày', dataIndex: 'time' },
+    {
+      title: 'Trạng thái',
+      dataIndex: 'status',
+      render: (v: string) => (
+        <StatusChip tone={v.includes('Chờ') || v.includes('phần') ? 'warning' : 'success'}>{v}</StatusChip>
+      ),
+    },
+    {
+      title: 'Hành động',
+      render: (_: unknown, row: ImportSlipRow) =>
+        row.canReceive ? (
+          <Button size="small" type="primary" onClick={() => setReceiving(row)}>
+            Nhận hàng
+          </Button>
+        ) : (
+          <span className="text-xs text-slate-400">—</span>
+        ),
+    },
   ];
+
   return (
-    <Card className="overflow-hidden">
-      <CardHeader title="Danh sách phiếu nhập hàng" />
-      <Table columns={columns} dataSource={importSlips} pagination={{ pageSize: 8 }} rowKey="key" />
-    </Card>
+    <>
+      <Card className="overflow-hidden">
+        <CardHeader title="Danh sách phiếu nhập hàng" />
+        <Table columns={columns} dataSource={importSlips} pagination={{ pageSize: 8 }} rowKey="key" />
+      </Card>
+      <Modal
+        open={Boolean(receiving)}
+        onCancel={() => setReceiving(null)}
+        title={`Nhận hàng — ${receiving?.key}`}
+        footer={[
+          <Button key="cancel" onClick={() => setReceiving(null)}>
+            Đóng
+          </Button>,
+          <Button
+            key="ok"
+            type="primary"
+            loading={receiveLoading}
+            onClick={() => receiving && handleReceiveAll(receiving)}
+          >
+            Nhận đủ số lượng còn lại
+          </Button>,
+        ]}
+      >
+        <div ref={receiptRef} className="space-y-2 text-sm">
+          {(receiving?.items ?? []).map((i) => (
+            <div key={i.id} className="flex justify-between border-b border-slate-100 py-2">
+              <span>{i.itemName}</span>
+              <span>
+                Đặt {i.orderedQty} · Đã nhận {i.receivedQty}
+              </span>
+            </div>
+          ))}
+        </div>
+      </Modal>
+    </>
   );
 }
 
@@ -1450,10 +1642,60 @@ function InventoryAlertsPage({ productsList, setPage }: { productsList: Product[
 }
 
 function AiForecastPage({ productsList, invoicesList }: { productsList: Product[]; invoicesList: any[] }) {
+  const [loading, setLoading] = React.useState(false);
+  const [results, setResults] = React.useState<Record<string, unknown>[]>([]);
+
+  const handleTrain = async () => {
+    setLoading(true);
+    try {
+      await trainForecast();
+      antdMessage.success('Huấn luyện mô hình thành công');
+    } catch (e) {
+      antdMessage.error(e instanceof Error ? e.message : 'Huấn luyện thất bại');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRun = async () => {
+    setLoading(true);
+    try {
+      await runForecast();
+      const r = await fetchForecastResults();
+      setResults(r);
+      antdMessage.success('Dự báo hoàn tất');
+    } catch (e) {
+      antdMessage.error(e instanceof Error ? e.message : 'Dự báo thất bại — kiểm tra ai-service');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        <Button type="primary" loading={loading} onClick={handleTrain}>Huấn luyện AI</Button>
+        <Button loading={loading} onClick={handleRun}>Chạy dự báo</Button>
+      </div>
+      {results.length > 0 && (
+        <Card>
+          <CardHeader title="Kết quả dự báo theo SKU" description={`${results.length} sản phẩm`} />
+          <Table
+            size="small"
+            pagination={false}
+            dataSource={results.map((r, i) => ({ ...r, key: i }))}
+            columns={[
+              { title: 'Sản phẩm', dataIndex: 'itemName' },
+              { title: '7 ngày', dataIndex: 'pred7d' },
+              { title: '14 ngày', dataIndex: 'pred14d' },
+              { title: '30 ngày', dataIndex: 'pred30d' },
+            ]}
+          />
+        </Card>
+      )}
     <div className="grid gap-4 xl:grid-cols-[1.4fr_0.8fr]">
       <Card className="hover:shadow-xl transition-all duration-300">
-        <CardHeader title="Dự báo doanh thu & đơn hàng từ AI" description="Mô hình học sâu kết hợp doanh số lịch sử, thời tiết và lịch sự kiện." />
+        <CardHeader title="Dự báo doanh thu & đơn hàng từ AI" description="Mô hình ML (FastAPI) — train/run qua backend." />
         <div className="h-[360px] px-3 pb-5">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={salesData} margin={{ top: 14, right: 18, bottom: 6, left: 0 }}>
@@ -1479,11 +1721,27 @@ function AiForecastPage({ productsList, invoicesList }: { productsList: Product[
       </Card>
       <AiSummary setPage={() => {}} />
     </div>
+    </div>
   );
 }
 
 function PurchaseSuggestionsPage({ productsList, setPage }: { productsList: Product[]; setPage: (page: PageKey) => void }) {
-  const suggestions = productsList.filter((p) => p.stock <= 40);
+  const [recs, setRecs] = React.useState<Record<string, unknown>[]>([]);
+  React.useEffect(() => {
+    fetchReorderRecommendations().then(setRecs).catch(() => setRecs([]));
+  }, []);
+  const suggestions = recs.length > 0
+    ? recs.map((r) => ({
+        key: String(r.itemId),
+        name: String(r.itemName),
+        stock: Number(r.currentAvailable),
+        sold: Number(r.predictedDemand7d),
+        suggested: Number(r.suggestedQty),
+        risk: String(r.riskLevel),
+      }))
+    : productsList.filter((p) => p.stock <= 40).map((p) => ({
+        key: p.key, name: p.name, stock: p.stock, sold: p.sold, suggested: 80, risk: 'MEDIUM',
+      }));
   return (
     <Card className="overflow-hidden">
       <div className="p-4 border-b border-slate-100 flex items-center justify-between">
@@ -1598,17 +1856,11 @@ function AssistantPage({
   chatHistory,
   setChatHistory,
   setPage,
-  setImportSlips,
-  setActivePromotions,
-  importSlips,
 }: {
   productsList: Product[];
   chatHistory: Array<{ sender: 'user' | 'ai'; text: string; action?: { label: string; page: PageKey } }>;
   setChatHistory: React.Dispatch<React.SetStateAction<Array<{ sender: 'user' | 'ai'; text: string; action?: { label: string; page: PageKey } }>>>;
   setPage: (page: PageKey) => void;
-  setImportSlips: React.Dispatch<React.SetStateAction<any[]>>;
-  setActivePromotions: React.Dispatch<React.SetStateAction<Record<string, number>>>;
-  importSlips: any[];
 }) {
   const [typedMessage, setTypedMessage] = React.useState('');
   const chatEndRef = React.useRef<HTMLDivElement>(null);
@@ -1804,10 +2056,14 @@ function SimpleManagementPage({ title, rows, icon: Icon }: { title: string; rows
 }
 
 function ProductDrawer({ product, onClose }: { product: Product | null; onClose: () => void }) {
+  const bodyRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    if (product) animateDrawer(bodyRef.current, true);
+  }, [product]);
   return (
     <Drawer open={Boolean(product)} onClose={onClose} title="Chi tiết sản phẩm" width={440}>
       {product ? (
-        <div className="space-y-5">
+        <div ref={bodyRef} className="space-y-5">
           <div className="rounded-2xl bg-slate-50 p-5">
             <h2 className="text-xl font-semibold">{product.name}</h2>
             <p className="text-sm text-muted">{product.sku} · {product.category}</p>
@@ -1829,10 +2085,14 @@ function ProductDrawer({ product, onClose }: { product: Product | null; onClose:
 }
 
 function InvoiceDrawer({ invoice, onClose }: { invoice: any | null; onClose: () => void }) {
+  const bodyRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    if (invoice) animateDrawer(bodyRef.current, true);
+  }, [invoice]);
   return (
     <Drawer open={Boolean(invoice)} onClose={onClose} title="Chi tiết hóa đơn bán hàng" width={450}>
       {invoice ? (
-        <div className="space-y-5">
+        <div ref={bodyRef} className="space-y-5">
           <div className="border border-slate-100 rounded-2xl p-5 bg-slate-50 space-y-4">
             <div className="flex justify-between border-b border-slate-200 pb-2">
               <strong className="text-slate-800 text-lg">{invoice.key}</strong>
@@ -1895,39 +2155,56 @@ function CreateModal({
   open,
   onCancel,
   page,
-  productsList,
-  setProductsList,
+  categories,
+  uoms,
+  onCreated,
 }: {
   open: boolean;
   onCancel: () => void;
   page: PageKey;
-  productsList: Product[];
-  setProductsList: React.Dispatch<React.SetStateAction<Product[]>>;
+  categories: CategoryDto[];
+  uoms: UomDto[];
+  onCreated: () => Promise<void>;
 }) {
   const [form] = Form.useForm();
+  const [saving, setSaving] = React.useState(false);
+  const baseUom = uoms.find((u) => u.uomName === 'Cái') ?? uoms[0];
 
-  const handleFinish = (values: any) => {
+  const handleFinish = async (values: {
+    name: string;
+    sku: string;
+    categoryId?: number;
+    price: number;
+    costPrice: number;
+    hasExpiry?: boolean;
+  }) => {
     if (page === 'products') {
-      const newProductKey = `P00${productsList.length + 1}`;
-      const newProduct: Product = {
-        key: newProductKey,
-        name: values.name,
-        sku: values.sku || `SKU-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
-        category: values.category || 'Chưa phân loại',
-        stock: values.stock || 0,
-        sold: 0,
-        price: values.price || 0,
-        supplier: values.supplier || 'Không có',
-        status: (values.stock === 0 ? 'Hết hàng' : values.stock <= 20 ? 'Sắp hết' : 'Còn hàng') as any,
-        expiry: values.expiry || 'Không áp dụng',
-      };
-      
-      setProductsList([newProduct, ...productsList]);
-      antdMessage.success(`Thêm mới sản phẩm ${values.name} thành công!`);
+      if (!baseUom) {
+        antdMessage.error('Chưa có đơn vị tính (UOM) trên hệ thống');
+        return;
+      }
+      setSaving(true);
+      try {
+        await createItem({
+          itemCode: values.sku || `SKU-${Date.now()}`,
+          itemName: values.name,
+          categoryId: values.categoryId,
+          baseUomId: baseUom.id,
+          costPrice: values.costPrice ?? values.price * 0.8,
+          sellingPrice: values.price,
+          minimumStock: 10,
+          hasExpiry: Boolean(values.hasExpiry),
+        });
+        await onCreated();
+        antdMessage.success(`Thêm sản phẩm ${values.name} thành công`);
+      } catch (e) {
+        antdMessage.error(e instanceof Error ? e.message : 'Tạo sản phẩm thất bại');
+      } finally {
+        setSaving(false);
+      }
     } else {
       antdMessage.success('Tạo thành công tác vụ vận hành mới!');
     }
-    
     form.resetFields();
     onCancel();
   };
@@ -1939,6 +2216,7 @@ function CreateModal({
       title={page === 'products' ? 'Thêm mới Sản phẩm vào hệ thống' : `Tạo nhanh - ${pageTitles[page].title}`}
       okText="Tạo"
       cancelText="Hủy"
+      confirmLoading={saving}
       onOk={() => form.submit()}
     >
       <Form layout="vertical" form={form} onFinish={handleFinish}>
@@ -1948,29 +2226,28 @@ function CreateModal({
               <Input placeholder="Nhập tên sản phẩm (Ví dụ: Trà sữa đóng chai)" />
             </Form.Item>
             <div className="grid grid-cols-2 gap-3">
-              <Form.Item name="sku" label="SKU sản phẩm">
+              <Form.Item name="sku" label="Mã SKU" rules={[{ required: true }]}>
                 <Input placeholder="Ví dụ: MILK-BOT-500" />
               </Form.Item>
-              <Form.Item name="category" label="Danh mục">
-                <Select placeholder="Chọn danh mục" options={[{ value: 'Đồ uống', label: 'Đồ uống' }, { value: 'Sữa & bơ', label: 'Sữa & bơ' }, { value: 'Thực phẩm khô', label: 'Thực phẩm khô' }, { value: 'Bánh kẹo', label: 'Bánh kẹo' }, { value: 'Gia dụng', label: 'Gia dụng' }]} />
+              <Form.Item name="categoryId" label="Danh mục">
+                <Select
+                  placeholder="Chọn danh mục"
+                  options={categories.map((c) => ({ value: c.id, label: c.categoryName }))}
+                />
               </Form.Item>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Form.Item name="stock" label="Số lượng tồn ban đầu" rules={[{ required: true, message: 'Nhập số lượng tồn' }]}>
-                <InputNumber className="w-full" min={0} defaultValue={100} />
+              <Form.Item name="costPrice" label="Giá vốn (VNĐ)">
+                <InputNumber className="w-full" min={0} />
               </Form.Item>
-              <Form.Item name="price" label="Đơn giá bán ra (VNĐ)" rules={[{ required: true, message: 'Nhập đơn giá bán' }]}>
-                <InputNumber className="w-full" min={0} defaultValue={15000} />
-              </Form.Item>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Form.Item name="supplier" label="Nhà cung cấp">
-                <Select placeholder="Chọn đối tác" options={[{ value: 'Vinamilk', label: 'Vinamilk' }, { value: 'Coca-Cola VN', label: 'Coca-Cola VN' }, { value: 'Acecook', label: 'Acecook' }]} />
-              </Form.Item>
-              <Form.Item name="expiry" label="Hạn sử dụng">
-                <Input placeholder="Ví dụ: 12/12/2026 hoặc Không áp dụng" />
+              <Form.Item name="price" label="Giá bán (VNĐ)" rules={[{ required: true }]}>
+                <InputNumber className="w-full" min={0} />
               </Form.Item>
             </div>
+            <Form.Item name="hasExpiry" label="Có hạn dùng" valuePropName="checked">
+              <Switch />
+            </Form.Item>
+            <p className="text-xs text-slate-400">Tồn kho chỉ tăng qua phiếu nhập — không nhập tồn thủ công.</p>
           </div>
         ) : (
           <>

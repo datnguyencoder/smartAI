@@ -1,6 +1,5 @@
 package com.smartmart.entity;
 
-import com.smartmart.common.base.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -13,19 +12,33 @@ import java.math.BigDecimal;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PurchaseOrderItem extends BaseEntity {
+public class PurchaseOrderItem {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "purchase_order_id", nullable = false)
+    @JoinColumn(name = "purchase_id", nullable = false)
     private PurchaseOrder purchaseOrder;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id", nullable = false)
-    private Product product;
+    @JoinColumn(name = "item_id", nullable = false)
+    private Item item;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "lot_id")
+    private ItemLot lot;
+
+    @Column(name = "ordered_qty", nullable = false)
+    private BigDecimal orderedQty;
+
+    @Column(name = "received_qty", nullable = false)
+    private BigDecimal receivedQty;
+
+    @Column(name = "unit_price", nullable = false)
+    private BigDecimal unitPrice;
 
     @Column(nullable = false)
-    private Integer quantity;
-
-    @Column(nullable = false)
-    private BigDecimal costPrice;
+    private BigDecimal subtotal;
 }

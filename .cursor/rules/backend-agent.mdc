@@ -35,8 +35,9 @@ Before finishing any BE task, run through §12 checklist in that doc.
 
 ## Implemented vs planned
 
-- **Live:** `ProductController`, `ProductServiceImpl`, `GlobalExceptionHandler`, `DataSeeder`
-- **Gap:** Auth API, Sales/Purchase, DTO layer, `service/ai/`, Kafka/Redis usage
+- **Live:** WMS APIs (`/api/v1/*`), tất cả `*Service` interface + `*ServiceImpl`, `service/ai/*`, JWT, Flyway, Docker stack
+- **Pattern:** Controller inject interface; logic trong `service/impl/` hoặc `service/ai/impl/`
+- **Gap:** mapper MapStruct, forecast BE↔AI payload alignment, full Gemini, RBAC IT đầy đủ
 
 ## AI (BE only)
 

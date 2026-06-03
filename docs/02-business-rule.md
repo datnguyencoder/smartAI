@@ -31,7 +31,7 @@
 *   **SYS-01: Tính nhất quán dữ liệu (PostgreSQL Source of Truth):** PostgreSQL là nguồn dữ liệu chính xác và duy nhất của hệ thống. Mọi giao dịch tài chính và số liệu tồn kho phải được ghi nhận thành công vào PostgreSQL trước khi cập nhật các thành phần khác.
 *   **SYS-02: Bộ nhớ đệm phi tập trung (Redis Cache):** Redis chỉ dùng để tăng tốc độ truy vấn (đọc dữ liệu) đối với Dashboard, danh sách sản phẩm hoạt động và kết quả dự báo của AI. Tuyệt đối không lưu dữ liệu gốc duy nhất trên Redis. Nếu Redis gặp sự cố, hệ thống tự động truy vấn trực tiếp vào PostgreSQL.
 *   **SYS-03: Xử lý bất đồng bộ (Kafka Event Broker):** Kafka được dùng để xử lý các tác vụ thứ cấp sau giao dịch (như tính toán cảnh báo tồn kho, xóa cache Redis, ghi nhật ký hệ thống - audit log) nhằm giảm thiểu thời gian xử lý đồng bộ trên luồng chính.
-*   **SYS-04: Ràng buộc tồn kho thực tế:** Lượng tồn kho thực tế của sản phẩm (`currentStock`) không bao giờ được phép nhỏ hơn 0 trong bất kỳ tình huống giao dịch thông thường nào.
+*   **SYS-04: Ràng buộc tồn kho thực tế:** Tồn khả dụng (`current_inventory.quantity - reserved_quantity`) không được âm sau giao dịch hợp lệ.
 *   **SYS-05: Bảo toàn lịch sử dữ liệu (Soft Delete):** Không thực hiện xóa vật lý (Hard Delete) đối với các danh mục, sản phẩm, nhà cung cấp hoặc hóa đơn đã phát sinh giao dịch lịch sử. Sử dụng trạng thái `INACTIVE` hoặc xóa mềm bằng cờ để bảo toàn tính toàn vẹn của báo cáo tài chính.
 *   **SYS-06: Đảm bảo giao dịch ACID:** Toàn bộ quá trình tạo hóa đơn bán lẻ hoặc phiếu nhập kho phải được thực hiện trong một Transaction cơ sở dữ liệu duy nhất.
 *   **SYS-07: Rollback tự động khi lỗi:** Nếu bất kỳ bước nào trong Transaction bị lỗi (ví dụ: trừ kho lỗi, không lưu được chi tiết hóa đơn), toàn bộ Transaction phải được rollback ngay lập tức để tránh tình trạng sai lệch dữ liệu.
@@ -62,7 +62,7 @@
 #### 3.4. Sản phẩm & Hàng hóa (Product Rules)
 *   **PRO-01:** Mã sản phẩm (`productCode`) phải là duy nhất (hệ thống tự sinh theo định dạng `SP000000` hoặc quét trực tiếp từ Barcode của nhà sản xuất).
 *   **PRO-02:** Giá bán lẻ niêm yết (`sellingPrice`) bắt buộc phải lớn hơn hoặc bằng giá nhập kho gần nhất (`importPrice`).
-*   **PRO-03:** Không được sửa đổi trực tiếp cột số lượng tồn kho thực tế (`currentStock`) thông qua các API cập nhật thông tin sản phẩm thông thường. Số lượng tồn kho chỉ được thay đổi thông qua các phiếu giao dịch kho hợp lệ (Hóa đơn bán lẻ, Phiếu nhập kho, Phiếu kiểm kê điều chỉnh).
+*   **PRO-03:** Không PATCH tồn trên `items`. Mọi thay đổi tồn chỉ qua `InventoryLedgerService` (bán, nhập, hủy) → `current_inventory` + `inventory_logs`.
 *   **PRO-04:** Sản phẩm cận date hoặc đã hết hạn sử dụng theo lô phải tự động chuyển sang trạng thái hạn chế bán hoặc ngưng bán để đảm bảo sức khỏe người tiêu dùng.
 
 ---
@@ -81,12 +81,12 @@ sequenceDiagram
 
     Staff->>FE: Quét barcode / Tìm sản phẩm & Nhập số lượng
     FE->>FE: Validate Client (Số lượng > 0)
-    FE->>BE: POST /api/sales-orders (Payload items)
+    FE->>BE: POST /api/v1/orders (Payload items)
     
     activate BE
     BE->>DB: Bắt đầu Transaction
     BE->>DB: Kiểm tra sản phẩm (Tồn tại, ACTIVE, Chưa hết hạn)
-    BE->>DB: Kiểm tra tồn kho thực tế (currentStock >= quantity)
+    BE->>Led: allocateFefo + kiểm tra available >= quantity
     
     alt Kho không đủ hàng
         BE->>DB: Rollback Transaction
@@ -94,9 +94,8 @@ sequenceDiagram
         FE-->>Staff: Hiển thị lỗi "Không đủ tồn kho"
     else Kho đủ hàng
         BE->>DB: Tính toán subtotal & totalAmount
-        BE->>DB: Lưu SalesOrder & SalesOrderItems
-        BE->>DB: Trừ currentStock sản phẩm
-        BE->>DB: Ghi nhận StockMovement (Type: SALE)
+        BE->>DB: Lưu orders & order_items
+        BE->>Led: applyMovement OUT (SALE) → current_inventory + inventory_logs
         BE->>DB: Commit Transaction
         
         BE->>Kafka: Publish Event "sales-order-created"

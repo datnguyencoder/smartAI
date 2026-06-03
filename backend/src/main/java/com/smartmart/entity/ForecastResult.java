@@ -1,7 +1,5 @@
 package com.smartmart.entity;
 
-import com.smartmart.common.base.BaseEntity;
-import com.smartmart.enums.ModelType;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -15,24 +13,47 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ForecastResult extends BaseEntity {
+public class ForecastResult {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id", nullable = false)
-    private Product product;
+    @JoinColumn(name = "item_id", nullable = false)
+    private Item item;
 
-    @Column(nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "model_training_id")
+    private ModelTrainingHistory modelTraining;
+
+    @Column(name = "forecast_date", nullable = false)
     private LocalDateTime forecastDate;
 
-    @Column(nullable = false)
+    @Column(name = "predicted_quantity", nullable = false)
     private BigDecimal predictedQuantity;
 
+    @Column(name = "confidence_level")
     private BigDecimal confidenceLevel;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private ModelType modelType;
+    @Column(name = "horizon_days")
+    private Integer horizonDays;
 
-    @Column(columnDefinition = "TEXT")
-    private String parametersUsed;
+    @Column(name = "predicted_qty_7d")
+    private BigDecimal predictedQty7d;
+
+    @Column(name = "predicted_qty_14d")
+    private BigDecimal predictedQty14d;
+
+    @Column(name = "predicted_qty_30d")
+    private BigDecimal predictedQty30d;
+
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;
+
+    @PrePersist
+    void prePersist() {
+        if (createdAt == null) createdAt = LocalDateTime.now();
+        if (forecastDate == null) forecastDate = LocalDateTime.now();
+    }
 }

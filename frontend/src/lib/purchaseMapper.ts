@@ -1,0 +1,38 @@
+import type { PurchaseOrderDto } from '../types/api';
+
+const statusLabel: Record<string, string> = {
+  PENDING: 'Chờ nhận',
+  PARTIALLY_RECEIVED: 'Nhận một phần',
+  COMPLETED: 'Đã nhận',
+  CANCELLED: 'Đã hủy',
+};
+
+export type ImportSlipRow = {
+  key: string;
+  id: number;
+  supplier: string;
+  amount: number;
+  status: string;
+  statusRaw: string;
+  time: string;
+  locationName: string;
+  items: PurchaseOrderDto['items'];
+  canReceive: boolean;
+};
+
+export function purchaseToSlip(po: PurchaseOrderDto): ImportSlipRow {
+  const d = po.purchaseDate ? new Date(po.purchaseDate) : new Date();
+  const canReceive = po.status === 'PENDING' || po.status === 'PARTIALLY_RECEIVED';
+  return {
+    key: `PN-${po.id}`,
+    id: po.id,
+    supplier: po.supplierName,
+    amount: Math.round(Number(po.totalAmount)),
+    status: statusLabel[po.status] ?? po.status,
+    statusRaw: po.status,
+    time: d.toLocaleDateString('vi-VN'),
+    locationName: po.locationName,
+    items: po.items ?? [],
+    canReceive,
+  };
+}

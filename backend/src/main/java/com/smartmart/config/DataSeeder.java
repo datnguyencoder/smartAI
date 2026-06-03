@@ -1,164 +1,100 @@
 package com.smartmart.config;
 
-import com.smartmart.enums.ProductStatus;
+import com.smartmart.entity.*;
 import com.smartmart.enums.Role;
 import com.smartmart.enums.UserStatus;
-import com.smartmart.entity.Category;
-import com.smartmart.entity.Product;
-import com.smartmart.entity.Supplier;
-import com.smartmart.entity.User;
-import com.smartmart.repository.CategoryRepository;
-import com.smartmart.repository.ProductRepository;
-import com.smartmart.repository.SupplierRepository;
-import com.smartmart.repository.UserRepository;
+import com.smartmart.repository.*;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 @Component
+@Profile({"local", "prod"})
+@Order(1)
 public class DataSeeder implements CommandLineRunner {
 
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
+    private final UomRepository uomRepository;
     private final SupplierRepository supplierRepository;
-    private final ProductRepository productRepository;
+    private final LocationRepository locationRepository;
+    private final ItemRepository itemRepository;
+    private final ItemLotRepository itemLotRepository;
+    private final CurrentInventoryRepository currentInventoryRepository;
     private final PasswordEncoder passwordEncoder;
 
     public DataSeeder(
             UserRepository userRepository,
             CategoryRepository categoryRepository,
+            UomRepository uomRepository,
             SupplierRepository supplierRepository,
-            ProductRepository productRepository,
+            LocationRepository locationRepository,
+            ItemRepository itemRepository,
+            ItemLotRepository itemLotRepository,
+            CurrentInventoryRepository currentInventoryRepository,
             PasswordEncoder passwordEncoder
     ) {
         this.userRepository = userRepository;
         this.categoryRepository = categoryRepository;
+        this.uomRepository = uomRepository;
         this.supplierRepository = supplierRepository;
-        this.productRepository = productRepository;
+        this.locationRepository = locationRepository;
+        this.itemRepository = itemRepository;
+        this.itemLotRepository = itemLotRepository;
+        this.currentInventoryRepository = currentInventoryRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
     @Override
-    public void run(String... args) throws Exception {
+    @Transactional
+    public void run(String... args) {
         if (userRepository.count() == 0) {
             seedUsers();
         }
-        if (categoryRepository.count() == 0) {
-            seedCategories();
-        }
-        if (supplierRepository.count() == 0) {
-            seedSuppliers();
-        }
-        if (productRepository.count() == 0 && categoryRepository.count() > 0 && supplierRepository.count() > 0) {
-            seedProducts();
+        if (uomRepository.count() == 0) {
+            seedMasterAndInventory();
         }
     }
 
     private void seedUsers() {
-        User admin = User.builder()
-                .username("admin")
-                .password(passwordEncoder.encode("admin123"))
-                .email("admin@smartmart.com")
-                .fullName("Quản trị viên Hệ thống")
-                .role(Role.ROLE_ADMIN)
-                .status(UserStatus.ACTIVE)
-                .build();
-
-        User staff = User.builder()
-                .username("staff")
-                .password(passwordEncoder.encode("staff123"))
-                .email("staff@smartmart.com")
-                .fullName("Nhân viên Bán hàng")
-                .role(Role.ROLE_STAFF)
-                .status(UserStatus.ACTIVE)
-                .build();
-
-        userRepository.saveAll(List.of(admin, staff));
+        userRepository.saveAll(List.of(
+                User.builder().username("admin").password(passwordEncoder.encode("admin123"))
+                        .email("admin@smartmart.com").fullName("Quản trị viên").role(Role.ROLE_ADMIN).status(UserStatus.ACTIVE).build(),
+                User.builder().username("staff").password(passwordEncoder.encode("staff123"))
+                        .email("staff@smartmart.com").fullName("Thu ngân").role(Role.ROLE_STAFF).status(UserStatus.ACTIVE).build(),
+                User.builder().username("warehouse").password(passwordEncoder.encode("warehouse123"))
+                        .email("warehouse@smartmart.com").fullName("Nhân viên kho").role(Role.ROLE_WAREHOUSE).status(UserStatus.ACTIVE).build()
+        ));
     }
 
-    private void seedCategories() {
-        Category electronics = Category.builder()
-                .name("Đồ điện tử")
-                .description("Điện thoại, máy tính, phụ kiện công nghệ")
-                .build();
+    private void seedMasterAndInventory() {
+        Uom cai = uomRepository.save(Uom.builder().uomName("Cái").conversionRatio(BigDecimal.ONE).baseUnit(true).build());
+        Uom thung = uomRepository.save(Uom.builder().uomName("Thùng").conversionRatio(new BigDecimal("24")).baseUnit(false).category("Đóng gói").build());
 
-        Category food = Category.builder()
-                .name("Thực phẩm")
-                .description("Đồ ăn, thức uống, thực phẩm đóng hộp và tươi sống")
-                .build();
+        Category doUong = categoryRepository.save(Category.builder().categoryName("Đồ uống").active(true).build());
+        Supplier vinamilk = supplierRepository.save(Supplier.builder().supplierName("Vinamilk").phone("1900").active(true).build());
+        Location khoBan = locationRepository.save(Location.builder().locationName("Kho bán").locationType("STORE").active(true).build());
 
-        Category household = Category.builder()
-                .name("Đồ gia dụng")
-                .description("Thiết bị nhà bếp, đồ dùng gia đình")
-                .build();
+        Item sua = itemRepository.save(Item.builder().itemCode("MILK-VNM-1L").itemName("Sữa Vinamilk 1L")
+                .category(doUong).baseUom(cai).purchaseUom(thung).costPrice(new BigDecimal("25000"))
+                .sellingPrice(new BigDecimal("32000")).minimumStock(20).hasExpiry(true).active(true).build());
+        Item nuoc = itemRepository.save(Item.builder().itemCode("LAVIE-500").itemName("Nước Lavie 500ml")
+                .category(doUong).baseUom(cai).purchaseUom(cai).costPrice(new BigDecimal("5000"))
+                .sellingPrice(new BigDecimal("7000")).minimumStock(50).hasExpiry(false).active(true).build());
 
-        categoryRepository.saveAll(List.of(electronics, food, household));
-    }
+        ItemLot lotSua = itemLotRepository.save(ItemLot.builder().item(sua).lotNumber("LOT-MILK-001")
+                .expiryDate(LocalDate.now().plusMonths(3)).build());
 
-    private void seedSuppliers() {
-        Supplier electronicsSupplier = Supplier.builder()
-                .name("Công ty Cổ phần Bán lẻ Điện máy Việt Nam")
-                .contactName("Nguyễn Văn A")
-                .email("contact@dienmay.com")
-                .phone("0987654321")
-                .address("123 Đường Lớn, Hà Nội")
-                .build();
-
-        Supplier foodSupplier = Supplier.builder()
-                .name("Nhà phân phối Thực phẩm Sạch Toàn Quốc")
-                .contactName("Trần Thị B")
-                .email("sales@thucphamsach.com")
-                .phone("0912345678")
-                .address("456 Đường Sạch, TP. Hồ Chí Minh")
-                .build();
-
-        supplierRepository.saveAll(List.of(electronicsSupplier, foodSupplier));
-    }
-
-    private void seedProducts() {
-        Category electronics = categoryRepository.findByName("Đồ điện tử").orElse(null);
-        Category food = categoryRepository.findByName("Thực phẩm").orElse(null);
-
-        Supplier elecSupplier = supplierRepository.findByName("Công ty Cổ phần Bán lẻ Điện máy Việt Nam").orElse(null);
-        Supplier fdSupplier = supplierRepository.findByName("Nhà phân phối Thực phẩm Sạch Toàn Quốc").orElse(null);
-
-        if (electronics != null && elecSupplier != null) {
-            Product iphone = Product.builder()
-                    .code("PROD-IP15")
-                    .name("Điện thoại iPhone 15 Pro Max")
-                    .description("Apple iPhone 15 Pro Max 256GB chính hãng")
-                    .price(new BigDecimal("34990000"))
-                    .costPrice(new BigDecimal("29000000"))
-                    .quantity(50)
-                    .minimumStock(10)
-                    .maximumStock(100)
-                    .sku("SKU-IPHONE15PM-256")
-                    .status(ProductStatus.ACTIVE)
-                    .category(electronics)
-                    .supplier(elecSupplier)
-                    .build();
-            productRepository.save(iphone);
-        }
-
-        if (food != null && fdSupplier != null) {
-            Product milk = Product.builder()
-                    .code("PROD-MILK")
-                    .name("Sữa tươi tiệt trùng Vinamilk")
-                    .description("Sữa tươi tiệt trùng Vinamilk ít đường 1L")
-                    .price(new BigDecimal("32000"))
-                    .costPrice(new BigDecimal("25000"))
-                    .quantity(500)
-                    .minimumStock(50)
-                    .maximumStock(1000)
-                    .sku("SKU-VINAMILK-1L")
-                    .status(ProductStatus.ACTIVE)
-                    .category(food)
-                    .supplier(fdSupplier)
-                    .build();
-            productRepository.save(milk);
-        }
+        currentInventoryRepository.save(CurrentInventory.builder().item(sua).location(khoBan).lot(lotSua)
+                .quantity(new BigDecimal("120")).reservedQuantity(BigDecimal.ZERO).build());
+        currentInventoryRepository.save(CurrentInventory.builder().item(nuoc).location(khoBan).lot(null)
+                .quantity(new BigDecimal("500")).reservedQuantity(BigDecimal.ZERO).build());
     }
 }

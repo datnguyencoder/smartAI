@@ -1,0 +1,33 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "SmartMart API Document",
+    "version": "1.0",
+    "description": "Export reference — live spec at GET /v3/api-docs when backend is running."
+  },
+  "servers": [{ "url": "http://localhost:8080" }],
+  "tags": [
+    { "name": "Auth" },
+    { "name": "Items" },
+    { "name": "Categories" },
+    { "name": "UOMs" },
+    { "name": "Locations" },
+    { "name": "Suppliers" },
+    { "name": "Inventory" },
+    { "name": "Orders" },
+    { "name": "Purchase" },
+    { "name": "Scrap" }
+  ],
+  "paths": {
+    "/api/v1/auth/login": { "post": { "tags": ["Auth"], "summary": "Login" } },
+    "/api/v1/items": { "get": { "tags": ["Items"], "summary": "List items" } },
+    "/api/v1/orders": { "post": { "tags": ["Orders"], "summary": "Create POS order" } },
+    "/api/v1/inventory": { "get": { "tags": ["Inventory"], "summary": "Current stock" } }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    }
+  },
+  "security": [{ "bearerAuth": [] }]
+}

@@ -1,0 +1,17 @@
+{
+  "autoRun": {
+    "allow_instructions": [
+      "Allow read-only git: status, diff, log, branch -a, show, fetch (no push), rev-parse, merge-base.",
+      "Allow local git write only when the user explicitly asked to commit: git add, git commit (no push).",
+      "Allow build and test in this repo: ./mvnw compile or test, npm run dev/build, tsc -b.",
+      "Allow docker compose commands for local development under docker/."
+    ],
+    "block_instructions": [
+      "Block all git push, git push -u, and any command that publishes commits to a remote (origin, upstream) unless the user's current message explicitly says to push (e.g. push, đẩy lên, push lên remote).",
+      "Block git push --force and force push to main, master, or any branch.",
+      "Block git merge or checkout that updates remote tracking branches without an explicit user request to push afterward.",
+      "Block changing global or local git config (git config).",
+      "Block rm -rf, sudo, or destructive commands outside the project workspace."
+    ]
+  }
+}
