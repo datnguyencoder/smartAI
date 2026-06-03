@@ -1,0 +1,10 @@
+---
+description: Không thêm attribution Cursor vào commit/PR
+alwaysApply: true
+---
+
+# Git — không attribution Cursor
+
+- **Không** thêm `Co-authored-by: Cursor`, `Made-with: Cursor`, `cursoragent@cursor.com`, hay trailer Cursor vào commit message hoặc PR.
+- Commit chỉ dùng tên/email của user; agent **không** `git commit` trừ khi user yêu cầu rõ.
+- Nếu user yêu cầu commit: message không chứa dòng co-author Cursor.
