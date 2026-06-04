@@ -99,3 +99,6 @@ smartmart-ai/
 | [07-testing-plan.md](07-testing-plan.md) | Kế hoạch kiểm thử |
 | [08-deployment-guide.md](08-deployment-guide.md) | Triển khai Docker |
 | **[09-backend-coding-standards.md](09-backend-coding-standards.md)** | **Chuẩn code Backend (bắt buộc)** |
+| [10-frontend-coding-standards.md](10-frontend-coding-standards.md) | Chuẩn code Frontend |
+| [11-team-onboarding.md](11-team-onboarding.md) | Onboarding & Docker |
+| [12-kaggle-retail-datasets.md](12-kaggle-retail-datasets.md) | Dataset retail cho AI |

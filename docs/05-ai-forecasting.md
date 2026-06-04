@@ -46,7 +46,7 @@ Giúp làm mịn dữ liệu nhiễu và nắm bắt xu hướng tăng trưởng
 *   `day_of_month`: Ngày trong tháng (Giá trị từ 1 đến 31 - giúp mô hình học hành vi mua sắm tăng cao vào ngày nhận lương đầu/cuối tháng).
 *   `month`: Tháng trong năm (Giá trị từ 1 đến 12 - nắm bắt tính mùa vụ dài hạn như đồ uống lạnh mùa hè, bánh kẹo Tết).
 *   `is_weekend`: Cờ nhị phân (0 hoặc 1) xác định ngày cuối tuần (Thứ 7 & Chủ nhật).
-*   `is_holiday`: Cờ nhị phân xác định ngày lễ quốc gia (30/4, 1/5, Quốc khánh, Tết...).
+*   `is_holiday`: Cờ nhị phân ngày lễ VN cố định (01-01, 30/4, 01/5, 02/9) — **đã triển khai** trong `ai-service/app/services/preprocess.py`.
 
 #### 2.4. Nhóm đặc trưng danh mục (Categorical Embeddings)
 *   `category_id`: Định danh danh mục sản phẩm (giúp mô hình học được hành vi chung của cả nhóm hàng hóa, ví dụ: nhóm Sữa tươi thường có vòng đời ngắn hơn nhóm Đồ gia dụng).

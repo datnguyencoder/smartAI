@@ -24,12 +24,18 @@ class MetricsResponse(BaseModel):
     trained_at: datetime | None = None
 
 
+class DailyForecastPoint(BaseModel):
+    date: str
+    predicted_qty: float
+
+
 class ItemForecast(BaseModel):
     item_id: int
     predicted_qty_7d: float
     predicted_qty_14d: float
     predicted_qty_30d: float
     model_type: str
+    daily_series: list[DailyForecastPoint] = []
 
 
 class ForecastAllResponse(BaseModel):

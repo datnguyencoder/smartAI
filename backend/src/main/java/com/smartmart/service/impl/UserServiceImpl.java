@@ -9,6 +9,7 @@ import com.smartmart.exception.BadRequestException;
 import com.smartmart.exception.ConflictException;
 import com.smartmart.exception.NotFoundException;
 import com.smartmart.repository.UserRepository;
+import com.smartmart.service.AuditLogService;
 import com.smartmart.service.AuthService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -24,11 +25,18 @@ public class UserServiceImpl implements com.smartmart.service.UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthService authService;
+    private final AuditLogService auditLogService;
 
-    public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, AuthService authService) {
+    public UserServiceImpl(
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder,
+            AuthService authService,
+            AuditLogService auditLogService
+    ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authService = authService;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional(readOnly = true)
@@ -61,7 +69,9 @@ public class UserServiceImpl implements com.smartmart.service.UserService {
                 .role(req.getRole())
                 .status(UserStatus.ACTIVE)
                 .build();
-        return authService.toUserResponse(userRepository.save(user));
+        User saved = userRepository.save(user);
+        auditLogService.log("USER_CREATE", "Tạo user: " + saved.getUsername());
+        return authService.toUserResponse(saved);
     }
 
     @Override
@@ -88,5 +98,6 @@ public class UserServiceImpl implements com.smartmart.service.UserService {
         }
         user.setStatus(UserStatus.INACTIVE);
         userRepository.save(user);
+        auditLogService.log("USER_DEACTIVATE", "Khóa user: " + user.getUsername());
     }
 }

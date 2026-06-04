@@ -31,6 +31,7 @@ public class AiInsightController {
     }
 
     @PostMapping("/chat")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     @Operation(summary = "Chat trợ lý AI")
     public ResponseEntity<ApiResponse<String>> chat(@RequestBody Map<String, String> body) {
         return ResponseEntity.ok(ApiResponse.success(geminiInsightService.chat(body.getOrDefault("message", ""))));

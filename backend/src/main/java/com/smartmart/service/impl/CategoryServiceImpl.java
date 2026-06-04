@@ -5,6 +5,7 @@ import com.smartmart.dto.response.CategoryResponse;
 import com.smartmart.entity.Category;
 import com.smartmart.exception.NotFoundException;
 import com.smartmart.repository.CategoryRepository;
+import com.smartmart.util.ItemImageUrls;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +34,7 @@ public class CategoryServiceImpl implements com.smartmart.service.CategoryServic
                 .categoryName(req.getCategoryName())
                 .parent(parent)
                 .active(true)
+                .imageUrl(ItemImageUrls.DEFAULT_CATEGORY)
                 .build();
         return toResponse(categoryRepository.save(category));
     }
@@ -43,6 +45,7 @@ public class CategoryServiceImpl implements com.smartmart.service.CategoryServic
                 .categoryName(c.getCategoryName())
                 .parentId(c.getParent() != null ? c.getParent().getId() : null)
                 .active(c.isActive())
+                .imageUrl(ItemImageUrls.resolveCategory(c))
                 .build();
     }
 }

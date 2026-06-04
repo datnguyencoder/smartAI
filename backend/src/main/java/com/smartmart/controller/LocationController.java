@@ -5,6 +5,7 @@ import com.smartmart.dto.request.CreateLocationRequest;
 import com.smartmart.dto.response.LocationResponse;
 import com.smartmart.service.LocationService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -17,6 +18,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/locations")
 @Tag(name = "Locations", description = "Kho / vị trí")
+@SecurityRequirement(name = "bearerAuth")
 public class LocationController {
 
     private final LocationService locationService;

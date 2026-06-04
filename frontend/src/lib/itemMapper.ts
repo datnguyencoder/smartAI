@@ -11,6 +11,7 @@ export type Product = {
   supplier: string;
   status: 'Còn hàng' | 'Sắp hết' | 'Hết hàng' | 'Nguy cơ';
   expiry: string;
+  imageUrl?: string;
 };
 
 export function itemToProduct(item: ItemDto): Product {
@@ -25,10 +26,20 @@ export function itemToProduct(item: ItemDto): Product {
     sku: item.itemCode,
     category: item.categoryName ?? 'Khác',
     stock: qty,
-    sold: 0,
+    sold: Number(item.soldQty ?? 0),
     price: Number(item.sellingPrice),
+    imageUrl: item.imageUrl,
     supplier: '-',
     status,
     expiry: item.hasExpiry ? '-' : 'Không áp dụng',
   };
 }
+
+export function statusTone(status: Product['status']): 'success' | 'warning' | 'danger' {
+  if (status === 'Còn hàng') return 'success';
+  if (status === 'Sắp hết') return 'warning';
+  return 'danger';
+}
+
+export const formatMoney = (value: number) =>
+  new Intl.NumberFormat('vi-VN').format(value) + 'đ';

@@ -99,6 +99,7 @@ services:
       - JWT_SECRET=${JWT_SECRET:-9a78a63584828f73b889312c1c38d6f5e8e89f81a7b8e910a11c12d13e14f15a}
       # Spring configurations
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
+      - SPRING_CACHE_TYPE=simple
       # AI service (Docker internal DNS)
       - AI_SERVICE_URL=http://ai-service:8000
     depends_on:

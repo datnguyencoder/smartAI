@@ -20,6 +20,7 @@ import {
   message as antdMessage,
 } from 'antd';
 import * as React from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import type { ColumnsType } from 'antd/es/table';
 import { motion } from 'framer-motion';
 import { animateCartBump, animateDrawer, animateModalContent, animatePageIn } from './lib/gsapAnimations';
@@ -81,12 +82,22 @@ import {
 } from 'recharts';
 import { Card, CardHeader, StatusChip, UiButton } from './components/ui';
 import { LoginScreen } from './components/LoginScreen';
+import { ProductDrawer } from './components/ProductDrawer';
+import { ProductsTable } from './components/products/ProductsTable';
+import { ProductThumbnail } from './components/ProductThumbnail';
+import { CreateProductModal } from './components/CreateProductModal';
 import { cn } from './lib/utils';
-import { itemToProduct, type Product } from './lib/itemMapper';
+import { itemToProduct, formatMoney, statusTone, type Product } from './lib/itemMapper';
+import type { PageKey } from './types/pages';
 import {
-  cancelOrder,
-  createItem,
+  aiChat,
   createOrder,
+  fetchDashboardSummary,
+  fetchInventory,
+  fetchInventoryAlerts,
+  fetchNearExpiry,
+  fetchUsers,
+  fetchItemByBarcode,
   createPurchaseOrder,
   fetchCategories,
   fetchDashboardRevenue,
@@ -98,33 +109,21 @@ import {
   fetchReorderRecommendations,
   fetchSuppliers,
   fetchUoms,
+  updateItem,
   receivePurchaseOrder,
   runForecast,
   trainForecast,
 } from './services/wmsApi';
-import type { CategoryDto, LocationDto, SupplierDto, UomDto } from './types/api';
-import { setToken } from './services/apiClient';
-import type { UserDto } from './types/api';
-
-type PageKey =
-  | 'dashboard'
-  | 'products'
-  | 'categories'
-  | 'suppliers'
-  | 'pos'
-  | 'invoices'
-  | 'import-create'
-  | 'import-slips'
-  | 'inventory'
-  | 'inventory-alerts'
-  | 'ai-forecast'
-  | 'purchase-suggestions'
-  | 'expiry-risk'
-  | 'promotions'
-  | 'ai-assistant'
-  | 'reports'
-  | 'users'
-  | 'settings';
+import type { CategoryDto, DashboardSummaryDto, InventoryAlertDto, LocationDto, SupplierDto, UomDto, UserDto } from './types/api';
+import { useAuth } from './contexts/AuthContext';
+import { pageFromPath, pathFromPage } from './lib/pageRoutes';
+import {
+  allowedPages,
+  canAccessPage,
+  canQuickCreate,
+  defaultPageForRole,
+  roleLabel,
+} from './lib/permissions';
 
 type NavItem = { key: PageKey; label: string; icon: typeof LayoutDashboard };
 
@@ -167,7 +166,7 @@ const categoryData = [
   { name: 'Khác', value: 12, color: '#94a3b8' },
 ];
 
-const money = (value: number) => new Intl.NumberFormat('vi-VN').format(value) + 'đ';
+const money = formatMoney;
 
 function ordersToInvoices(orders: Awaited<ReturnType<typeof fetchOrders>>) {
   return orders.map((o) => ({
@@ -184,18 +183,23 @@ function ordersToInvoices(orders: Awaited<ReturnType<typeof fetchOrders>>) {
   }));
 }
 
-function statusTone(status: Product['status']) {
-  if (status === 'Còn hàng') return 'success';
-  if (status === 'Sắp hết') return 'warning';
-  return 'danger';
-}
-
 function App() {
-  const [authUser, setAuthUser] = React.useState<UserDto | null>(() => {
-    const raw = localStorage.getItem('smartmart_user');
-    return raw ? (JSON.parse(raw) as UserDto) : null;
-  });
-  const [page, setPage] = React.useState<PageKey>('dashboard');
+  const { authUser, sessionReady, logout: authLogout } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [page, setPageState] = React.useState<PageKey>(() =>
+    pageFromPath(window.location.pathname) || 'dashboard'
+  );
+  const setPage = React.useCallback(
+    (p: PageKey) => {
+      setPageState(p);
+      navigate(pathFromPage(p));
+    },
+    [navigate]
+  );
+  React.useEffect(() => {
+    setPageState(pageFromPath(location.pathname));
+  }, [location.pathname]);
   const [drawerProduct, setDrawerProduct] = React.useState<Product | null>(null);
   const [selectedInvoice, setSelectedInvoice] = React.useState<any | null>(null);
   const [modalOpen, setModalOpen] = React.useState(false);
@@ -221,6 +225,27 @@ function App() {
   const [posCart, setPosCart] = React.useState<Array<{ product: Product; quantity: number }>>([]);
   const pageContentRef = React.useRef<HTMLDivElement>(null);
   const cartPanelRef = React.useRef<HTMLDivElement>(null);
+
+  const handleLogout = React.useCallback(async () => {
+    await authLogout();
+    setPosCart([]);
+    setPage('dashboard');
+    antdMessage.success('Đã đăng xuất');
+  }, [authLogout, setPage]);
+
+  const visibleNavItems = React.useMemo(
+    () => navItems.filter((item) => canAccessPage(authUser?.role, item.key)),
+    [authUser?.role]
+  );
+
+  React.useEffect(() => {
+    if (!authUser) return;
+    if (!canAccessPage(authUser.role, page)) {
+      const fallback = defaultPageForRole(authUser.role);
+      setPage(fallback);
+      antdMessage.warning('Bạn không có quyền truy cập mục này');
+    }
+  }, [authUser, page]);
 
   const reloadCatalog = React.useCallback(async () => {
     setCatalogLoading(true);
@@ -258,11 +283,15 @@ function App() {
     if (authUser) animatePageIn(pageContentRef.current);
   }, [page, authUser]);
 
+  if (!sessionReady) {
+    return <div className="min-h-screen grid place-items-center text-slate-500">Đang tải…</div>;
+  }
+
   if (!authUser || !localStorage.getItem('smartmart_token')) {
     return (
       <LoginScreen
-        onSuccess={(user) => {
-          setAuthUser(user);
+        onSuccess={() => {
+          reloadCatalog();
         }}
       />
     );
@@ -288,18 +317,34 @@ function App() {
       }}
     >
       <div className="min-h-screen bg-[#f8fafc] text-ink">
-        <Sidebar page={page} setPage={setPage} />
-        <MobileNav open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} page={page} setPage={setPage} />
+        <Sidebar
+          page={page}
+          setPage={setPage}
+          navItems={visibleNavItems}
+          authUser={authUser}
+          onLogout={handleLogout}
+        />
+        <MobileNav
+          open={mobileNavOpen}
+          onClose={() => setMobileNavOpen(false)}
+          page={page}
+          setPage={setPage}
+          navItems={visibleNavItems}
+          onLogout={handleLogout}
+        />
         <main className="min-h-screen md:pl-[260px]">
           <Topbar
             title={pageMeta.title}
             description={pageMeta.description}
+            authUser={authUser}
+            page={page}
             setModalOpen={setModalOpen}
             openMobileNav={() => setMobileNavOpen(true)}
           />
           <div ref={pageContentRef} className="mx-auto max-w-[1220px] px-4 py-5 sm:px-6">
             <PageRenderer
               page={page}
+              authUser={authUser}
               openProduct={setDrawerProduct}
               openModal={() => setModalOpen(true)}
               setPage={setPage}
@@ -322,9 +367,13 @@ function App() {
             />
           </div>
         </main>
-        <ProductDrawer product={drawerProduct} onClose={() => setDrawerProduct(null)} />
+        <ProductDrawer
+          product={drawerProduct}
+          onClose={() => setDrawerProduct(null)}
+          onUpdated={reloadCatalog}
+        />
         <InvoiceDrawer invoice={selectedInvoice} onClose={() => setSelectedInvoice(null)} />
-        <CreateModal
+        <CreateProductModal
           open={modalOpen}
           onCancel={() => setModalOpen(false)}
           page={page}
@@ -358,7 +407,19 @@ const pageTitles: Record<PageKey, { title: string; description: string }> = {
   settings: { title: 'Cài đặt hệ thống', description: 'Cấu hình cửa hàng, AI, cảnh báo và tích hợp.' },
 };
 
-function Sidebar({ page, setPage }: { page: PageKey; setPage: (page: PageKey) => void }) {
+function Sidebar({
+  page,
+  setPage,
+  navItems: items,
+  authUser,
+  onLogout,
+}: {
+  page: PageKey;
+  setPage: (page: PageKey) => void;
+  navItems: NavItem[];
+  authUser: UserDto;
+  onLogout: () => void;
+}) {
   return (
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-[260px] flex-col border-r border-slate-800 bg-navy py-4 md:flex">
       <div className="mb-7 flex items-center gap-3 px-6">
@@ -371,7 +432,7 @@ function Sidebar({ page, setPage }: { page: PageKey; setPage: (page: PageKey) =>
         </div>
       </div>
       <nav className="flex-1 overflow-y-auto px-2 scrollbar-thin">
-        {navItems.map((item) => {
+        {items.map((item) => {
           const Icon = item.icon;
           const active = page === item.key;
           return (
@@ -402,7 +463,14 @@ function Sidebar({ page, setPage }: { page: PageKey; setPage: (page: PageKey) =>
         <UiButton variant="secondary" className="mb-4 w-full bg-indigo">
           <Sparkles size={16} /> Nâng cấp AI Pro
         </UiButton>
-        <button className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-sm text-slate-300 hover:bg-slate-700">
+        <p className="mb-2 px-2 text-xs text-slate-400 truncate">
+          {authUser.fullName ?? authUser.username} · {roleLabel(authUser.role)}
+        </p>
+        <button
+          type="button"
+          className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-sm text-slate-300 hover:bg-slate-700 hover:text-white"
+          onClick={onLogout}
+        >
           <LogOut size={16} /> Đăng xuất
         </button>
       </div>
@@ -415,11 +483,15 @@ function MobileNav({
   onClose,
   page,
   setPage,
+  navItems: items,
+  onLogout,
 }: {
   open: boolean;
   onClose: () => void;
   page: PageKey;
   setPage: (page: PageKey) => void;
+  navItems: NavItem[];
+  onLogout: () => void;
 }) {
   return (
     <Drawer open={open} onClose={onClose} placement="left" width={300} className="mobile-nav-drawer" styles={{ body: { padding: 0 } }}>
@@ -434,7 +506,7 @@ function MobileNav({
           </div>
         </div>
         <nav className="px-2">
-          {navItems.map((item) => {
+          {items.map((item) => {
             const Icon = item.icon;
             const active = page === item.key;
             return (
@@ -464,6 +536,18 @@ function MobileNav({
             );
           })}
         </nav>
+        <div className="mt-4 px-4">
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-300 hover:bg-slate-800"
+            onClick={() => {
+              onLogout();
+              onClose();
+            }}
+          >
+            <LogOut size={16} /> Đăng xuất
+          </button>
+        </div>
       </div>
     </Drawer>
   );
@@ -472,14 +556,19 @@ function MobileNav({
 function Topbar({
   title,
   description,
+  authUser,
+  page,
   setModalOpen,
   openMobileNav,
 }: {
   title: string;
   description: string;
+  authUser: UserDto;
+  page: PageKey;
   setModalOpen: (open: boolean) => void;
   openMobileNav: () => void;
 }) {
+  const showQuickCreate = canQuickCreate(authUser.role, page);
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-[#f8fafc]/88 backdrop-blur">
       <div className="mx-auto flex max-w-[1220px] items-center justify-between gap-4 px-4 py-4 sm:px-6">
@@ -496,13 +585,18 @@ function Topbar({
           <Badge dot>
             <Button icon={<Bell size={16} />} />
           </Badge>
-          <Button type="primary" icon={<Plus size={16} />} onClick={() => setModalOpen(true)}>
-            Tạo nhanh
-          </Button>
+          {showQuickCreate && (
+            <Button type="primary" icon={<Plus size={16} />} onClick={() => setModalOpen(true)}>
+              Tạo nhanh
+            </Button>
+          )}
+          <span className="text-xs font-medium text-muted hidden xl:inline">{roleLabel(authUser.role)}</span>
         </div>
-        <Button className="lg:hidden" type="primary" icon={<Plus size={16} />} onClick={() => setModalOpen(true)}>
-          Tạo
-        </Button>
+        {showQuickCreate && (
+          <Button className="lg:hidden" type="primary" icon={<Plus size={16} />} onClick={() => setModalOpen(true)}>
+            Tạo
+          </Button>
+        )}
       </div>
     </header>
   );
@@ -510,6 +604,7 @@ function Topbar({
 
 function PageRenderer({
   page,
+  authUser,
   openProduct,
   openModal,
   setPage,
@@ -531,6 +626,7 @@ function PageRenderer({
   catalogLoading,
 }: {
   page: PageKey;
+  authUser: UserDto;
   openProduct: (product: Product) => void;
   openModal: () => void;
   setPage: (page: PageKey) => void;
@@ -551,6 +647,17 @@ function PageRenderer({
   reloadCatalog: () => Promise<void>;
   catalogLoading: boolean;
 }) {
+  if (!canAccessPage(authUser.role, page)) {
+    return (
+      <Card>
+        <CardHeader title="Không có quyền truy cập" description="Liên hệ quản trị để được cấp quyền." />
+        <p className="px-5 pb-5 text-sm text-muted">
+          Vai trò hiện tại: {roleLabel(authUser.role)}. Các mục được phép:{' '}
+          {allowedPages(authUser.role).join(', ')}.
+        </p>
+      </Card>
+    );
+  }
   if (page === 'dashboard') {
     return <Dashboard openProduct={openProduct} setPage={setPage} productsList={productsList} invoicesList={invoicesList} />;
   }
@@ -655,7 +762,7 @@ function Dashboard({
           Chạy dự báo AI
         </Button>
       </div>
-      <KpiGrid productsList={productsList} invoicesList={invoicesList} />
+      <KpiGrid productsList={productsList} invoicesList={invoicesList} useApiSummary />
       <div className="grid gap-4 xl:grid-cols-[1.45fr_0.85fr]">
         <RevenueCard invoicesList={invoicesList} />
         <AiSummary setPage={setPage} />
@@ -669,20 +776,47 @@ function Dashboard({
   );
 }
 
-function KpiGrid({ productsList, invoicesList }: { productsList: Product[]; invoicesList: any[] }) {
-  // Sum today's real invoices
-  const todayRevenue = invoicesList.reduce((sum, inv) => sum + inv.amount, 0);
-  const todayOrders = invoicesList.length;
-  
-  const lowStockCount = productsList.filter(p => p.stock > 0 && p.stock <= 40).length;
-  const outOfStockCount = productsList.filter(p => p.stock === 0).length;
+function KpiGrid({
+  productsList,
+  invoicesList,
+  useApiSummary,
+}: {
+  productsList: Product[];
+  invoicesList: any[];
+  useApiSummary?: boolean;
+}) {
+  const [summary, setSummary] = React.useState<DashboardSummaryDto | null>(null);
+  React.useEffect(() => {
+    if (!useApiSummary) return;
+    fetchDashboardSummary()
+      .then(setSummary)
+      .catch(() => setSummary(null));
+  }, [useApiSummary, invoicesList.length]);
+
+  const todayRevenue =
+    typeof summary?.todayRevenue === 'number'
+      ? summary.todayRevenue
+      : invoicesList.reduce((sum, inv) => sum + inv.amount, 0);
+  const todayOrders =
+    typeof summary?.todayOrders === 'number' ? summary.todayOrders : invoicesList.length;
+  const lowStockCount =
+    typeof summary?.lowStockCount === 'number'
+      ? summary.lowStockCount
+      : productsList.filter((p) => p.stock > 0 && p.stock <= 40).length;
+  const outOfStockCount = productsList.filter((p) => p.stock === 0).length;
 
   const items = [
-    { label: 'Doanh thu thực tế', value: money(todayRevenue), delta: '+20.2%', icon: ChartNoAxesCombined, tone: 'emerald' },
-    { label: 'Đơn hàng hôm nay', value: todayOrders.toString(), delta: '+4.7%', icon: ShoppingCart, tone: 'indigo' },
+    { label: 'Doanh thu thực tế', value: money(todayRevenue), delta: 'Hôm nay', icon: ChartNoAxesCombined, tone: 'emerald' },
+    { label: 'Đơn hàng hôm nay', value: todayOrders.toString(), delta: 'Hôm nay', icon: ShoppingCart, tone: 'indigo' },
     { label: 'Sắp hết hàng', value: lowStockCount.toString(), delta: 'Cần nhập', icon: AlertTriangle, tone: 'amber' },
     { label: 'Hết hàng (Nguy cơ)', value: outOfStockCount.toString(), delta: 'Ưu tiên', icon: Gauge, tone: 'red' },
-    { label: 'Độ chính xác AI', value: '88.5%', delta: '+3.1%', icon: BrainCircuit, tone: 'ai' },
+    {
+      label: 'Cảnh báo tồn',
+      value: String(summary?.activeAlerts ?? lowStockCount + outOfStockCount),
+      delta: 'Chưa xử lý',
+      icon: BrainCircuit,
+      tone: 'ai',
+    },
   ];
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
@@ -866,23 +1000,6 @@ function AiSummary({ setPage }: { setPage: (page: PageKey) => void }) {
           Xem gợi ý nhập hàng
         </UiButton>
       </div>
-    </Card>
-  );
-}
-
-function ProductsTable({ title, rows, openProduct }: { title: string; rows: Product[]; openProduct: (product: Product) => void }) {
-  const columns: ColumnsType<Product> = [
-    { title: 'Sản phẩm', dataIndex: 'name', render: (v, row) => <button className="text-left font-semibold text-ink hover:text-primary transition" onClick={() => openProduct(row)}>{v}</button> },
-    { title: 'Danh mục', dataIndex: 'category' },
-    { title: 'Đã bán', dataIndex: 'sold', sorter: (a, b) => a.sold - b.sold },
-    { title: 'Tồn', dataIndex: 'stock' },
-    { title: 'Doanh thu', dataIndex: 'price', render: (_, row) => money(row.price * row.sold) },
-    { title: 'Trạng thái', dataIndex: 'status', render: (v) => <StatusChip tone={statusTone(v)}>{v}</StatusChip> },
-  ];
-  return (
-    <Card className="overflow-hidden">
-      <CardHeader title={title} />
-      <Table<Product> columns={columns} dataSource={rows} pagination={false} size="middle" rowKey="key" />
     </Card>
   );
 }
@@ -1215,6 +1332,26 @@ function PosPage({
             placeholder="Tìm theo tên sản phẩm, SKU hoặc quét mã vạch..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={async (e) => {
+              if (e.key !== 'Enter' || !searchQuery.trim()) return;
+              e.preventDefault();
+              const q = searchQuery.trim();
+              const local = productsList.find(
+                (p) => p.sku.toLowerCase() === q.toLowerCase() || p.key === q
+              );
+              if (local) {
+                handleAddToCart(local);
+                setSearchQuery('');
+                return;
+              }
+              try {
+                const item = await fetchItemByBarcode(q);
+                handleAddToCart(itemToProduct(item));
+                setSearchQuery('');
+              } catch {
+                antdMessage.warning(`Không tìm thấy sản phẩm với mã: ${q}`);
+              }
+            }}
           />
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 max-h-[500px] overflow-y-auto pr-1 scrollbar-thin">
             {filteredProducts.map((product) => {
@@ -1224,22 +1361,27 @@ function PosPage({
               return (
                 <button
                   className={cn(
-                    'rounded-xl border border-line bg-slate-50 p-4 text-left transition hover:border-emerald hover:bg-emerald-50/50 flex flex-col justify-between h-[156px] relative overflow-hidden',
+                    'rounded-xl border border-line bg-white p-3 text-left transition hover:border-emerald hover:bg-emerald-50/50 flex flex-col h-[200px] relative overflow-hidden',
                     product.stock === 0 && 'opacity-60 cursor-not-allowed bg-slate-100/50'
                   )}
                   key={product.key}
                   onClick={() => handleAddToCart(product)}
                 >
-                  <div>
-                    <div className="flex items-start justify-between gap-2">
-                      <strong className="text-sm font-bold text-ink line-clamp-2 leading-snug">{product.name}</strong>
-                      {discount > 0 && <Tag color="volcano" className="mr-0 font-bold">-{discount}%</Tag>}
-                    </div>
-                    <p className="mt-1 text-xs text-slate-400 font-medium">{product.sku} · Tồn {product.stock}</p>
+                  <div className="flex justify-center py-1">
+                    <ProductThumbnail name={product.name} imageUrl={product.imageUrl} size={72} />
                   </div>
-                  <div className="mt-3 flex items-baseline gap-2">
-                    <span className="font-extrabold text-primary text-base">{money(curPrice)}</span>
-                    {discount > 0 && <span className="text-xs text-slate-400 line-through">{money(originalPrice)}</span>}
+                  <div className="flex-1 flex flex-col justify-between mt-2">
+                    <div>
+                      <div className="flex items-start justify-between gap-2">
+                        <strong className="text-sm font-bold text-ink line-clamp-2 leading-snug">{product.name}</strong>
+                        {discount > 0 && <Tag color="volcano" className="mr-0 font-bold shrink-0">-{discount}%</Tag>}
+                      </div>
+                      <p className="mt-1 text-xs text-slate-400 font-medium">{product.sku} · Tồn {product.stock}</p>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="font-extrabold text-primary text-base">{money(curPrice)}</span>
+                      {discount > 0 && <span className="text-xs text-slate-400 line-through">{money(originalPrice)}</span>}
+                    </div>
                   </div>
                 </button>
               );
@@ -1256,6 +1398,7 @@ function PosPage({
             const discPrice = getProductPrice(item.product);
             return (
               <div className="flex items-center justify-between rounded-xl bg-slate-50 p-3 border border-slate-100 hover:border-slate-200 transition" key={item.product.key}>
+                <ProductThumbnail name={item.product.name} imageUrl={item.product.imageUrl} size={36} className="mr-2 shrink-0" />
                 <div className="min-w-0 flex-1 pr-3">
                   <strong className="text-sm font-semibold text-ink line-clamp-1">{item.product.name}</strong>
                   <p className="text-xs text-slate-400 mt-0.5">{money(discPrice)}</p>
@@ -1336,7 +1479,6 @@ function PosPage({
       </Card>
       </div>
       
-      {/* Dynamic invoice checkout receipt modal */}
       <Modal
         open={receiptOpen}
         onCancel={() => setReceiptOpen(false)}
@@ -1609,28 +1751,62 @@ function ImportSlipsPage({
 }
 
 function InventoryPage({ openProduct, productsList }: { openProduct: (product: Product) => void; productsList: Product[] }) {
+  const [rows, setRows] = React.useState(productsList);
+  const [loading, setLoading] = React.useState(true);
+  React.useEffect(() => {
+    setLoading(true);
+    fetchInventory()
+      .then((inv) => {
+        const mapped: Product[] = inv.map((row) => {
+          const stock = Math.round(Number(row.availableQuantity));
+          return {
+            key: String(row.itemId),
+            sku: row.itemCode,
+            name: row.itemName,
+            category: row.locationName,
+            price: 0,
+            stock,
+            sold: 0,
+            supplier: '-',
+            status: stock === 0 ? 'Hết hàng' : stock <= 40 ? 'Sắp hết' : 'Còn hàng',
+            expiry: row.expiryDate ?? 'Không áp dụng',
+          };
+        });
+        setRows(mapped.length ? mapped : productsList);
+      })
+      .catch(() => setRows(productsList))
+      .finally(() => setLoading(false));
+  }, [productsList]);
   return (
     <div className="space-y-4">
-      <KpiGrid productsList={productsList} invoicesList={[]} />
-      <ProductsTable title="Tồn kho theo sản phẩm" rows={productsList} openProduct={openProduct} />
+      {loading && <p className="text-sm text-muted">Đang tải tồn kho từ API…</p>}
+      <ProductsTable title="Tồn kho theo vị trí / lô" rows={rows} openProduct={openProduct} />
     </div>
   );
 }
 
-function InventoryAlertsPage({ productsList, setPage }: { productsList: Product[]; setPage: (page: PageKey) => void }) {
+function InventoryAlertsPage({ setPage }: { productsList: Product[]; setPage: (page: PageKey) => void }) {
+  const [alerts, setAlerts] = React.useState<InventoryAlertDto[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  React.useEffect(() => {
+    fetchInventoryAlerts()
+      .then(setAlerts)
+      .catch(() => setAlerts([]))
+      .finally(() => setLoading(false));
+  }, []);
+  if (loading) return <p className="text-sm text-muted">Đang tải cảnh báo…</p>;
+  if (!alerts.length) return <p className="text-sm text-muted">Không có cảnh báo chưa xử lý.</p>;
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {productsList.filter((p) => p.stock <= 40).map((product) => (
-        <Card className="p-5 flex flex-col justify-between h-[210px] relative overflow-hidden" key={product.key}>
+      {alerts.map((alert) => (
+        <Card className="p-5 flex flex-col justify-between min-h-[210px] relative overflow-hidden" key={alert.id}>
           <div>
             <div className="mb-3 flex items-center justify-between">
-              <AlertTriangle className={product.stock === 0 ? 'text-red-600' : 'text-amber-500'} />
-              <StatusChip tone={product.stock === 0 ? 'danger' : 'warning'}>
-                {product.stock === 0 ? 'Hết hàng' : 'Sắp hết'}
-              </StatusChip>
+              <AlertTriangle className={alert.severity === 'CRITICAL' ? 'text-red-600' : 'text-amber-500'} />
+              <StatusChip tone={alert.severity === 'CRITICAL' ? 'danger' : 'warning'}>{alert.alertType}</StatusChip>
             </div>
-            <h3 className="font-semibold text-base line-clamp-1">{product.name}</h3>
-            <p className="mt-2 text-sm text-slate-500 font-medium">Tồn hiện tại: <span className="font-bold">{product.stock}</span>. AI đề xuất khẩn trương nhập thêm.</p>
+            <h3 className="font-semibold text-base line-clamp-1">{alert.itemName}</h3>
+            <p className="mt-2 text-sm text-slate-500 font-medium">{alert.message}</p>
           </div>
           <Button className="w-full mt-3" type="primary" onClick={() => setPage('import-create')}>
             Tạo phiếu nhập đối tác
@@ -1771,7 +1947,26 @@ function PurchaseSuggestionsPage({ productsList, setPage }: { productsList: Prod
 }
 
 function ExpiryRiskPage({ productsList, setActivePromotions, setPage }: { productsList: Product[]; setActivePromotions: React.Dispatch<React.SetStateAction<Record<string, number>>>; setPage: (page: PageKey) => void }) {
-  const items = productsList.filter((p) => p.expiry !== 'Không áp dụng');
+  const [items, setItems] = React.useState<Product[]>(productsList.filter((p) => p.expiry !== 'Không áp dụng'));
+  React.useEffect(() => {
+    fetchNearExpiry()
+      .then((rows) => {
+        const mapped: Product[] = rows.map((row) => ({
+          key: String(row.itemId),
+          sku: row.itemCode,
+          name: row.itemName,
+          category: row.locationName,
+          price: 0,
+          stock: Math.round(Number(row.availableQuantity)),
+          sold: 0,
+          supplier: '-',
+          status: 'Nguy cơ' as const,
+          expiry: row.expiryDate ?? '—',
+        }));
+        if (mapped.length) setItems(mapped);
+      })
+      .catch(() => undefined);
+  }, [productsList]);
   return <RiskCards title="Rủi ro hạn sử dụng" icon={CalendarClock} items={items} setActivePromotions={setActivePromotions} setPage={setPage} />;
 }
 
@@ -1877,29 +2072,26 @@ function AssistantPage({
     setChatHistory(newHistory);
     setTypedMessage('');
 
-    // Simulate AI response
-    setTimeout(() => {
-      let aiText = '';
-      let action: any = undefined;
-      const lower = userMsg.toLowerCase();
-
-      if (lower.includes('hết hàng') || lower.includes('tồn kho')) {
-        const outStock = productsList.filter(p => p.stock === 0);
-        const lowStock = productsList.filter(p => p.stock > 0 && p.stock <= 40);
-        aiText = `Hệ thống ghi nhận có ${outStock.length} sản phẩm đã Hết hàng hoàn toàn (${outStock.map(o=>o.name).join(', ')}) và ${lowStock.length} mặt hàng sắp Hết hàng. Bạn nên tạo phiếu nhập hàng sớm!`;
-        action = { label: 'Tạo phiếu nhập', page: 'import-create' };
-      } else if (lower.includes('doanh thu') || lower.includes('bán chạy')) {
-        aiText = 'Doanh thu hôm nay đang tăng trưởng tốt nhờ sức mua mạnh từ ngành hàng Đồ uống & Sữa. Biểu đồ cấu cơ doanh số chỉ ra Coca-Cola là sản phẩm mang lại lợi nhuận cao nhất trong 7 ngày qua.';
-        action = { label: 'Xem báo cáo', page: 'reports' };
-      } else if (lower.includes('khuyến mãi') || lower.includes('giảm giá')) {
-        aiText = 'Mì Hảo Hảo hiện đang có nguy cơ tồn kho cao. AI đề xuất chạy chương trình Flash Sale giảm giá 15% cho dòng Bánh kẹo & Mì gói để giải quyết lượng tồn cận hạn.';
-        action = { label: 'Thiết lập KM', page: 'promotions' };
-      } else {
-        aiText = 'Tôi đã rà soát hệ thống. Mọi luồng vận hành tại SmartMart đang hoạt động ổn định. Để kiểm soát chặt chẽ, bạn có thể thực hiện kiểm kê kho định kỳ hoặc hỏi tôi cụ thể hơn nhé!';
-      }
-
-      setChatHistory([...newHistory, { sender: 'ai' as const, text: aiText, action }]);
-    }, 850);
+    aiChat(userMsg)
+      .then((aiText) => {
+        const lower = userMsg.toLowerCase();
+        let action: { label: string; page: PageKey } | undefined;
+        if (lower.includes('nhập') || lower.includes('tồn')) {
+          action = { label: 'Tạo phiếu nhập', page: 'import-create' };
+        } else if (lower.includes('báo cáo') || lower.includes('doanh thu')) {
+          action = { label: 'Xem báo cáo', page: 'reports' };
+        }
+        setChatHistory([...newHistory, { sender: 'ai' as const, text: aiText, action }]);
+      })
+      .catch(() => {
+        setChatHistory([
+          ...newHistory,
+          {
+            sender: 'ai' as const,
+            text: 'Không kết nối được trợ lý AI. Vui lòng thử lại hoặc kiểm tra quyền ADMIN/MANAGER.',
+          },
+        ]);
+      });
   };
 
   return (
@@ -2008,7 +2200,22 @@ function ReportsPage({ productsList, invoicesList }: { productsList: Product[]; 
 }
 
 function UsersPage() {
-  return <SimpleManagementPage title="Người dùng hệ thống" icon={UsersRound} rows={['Admin Demo', 'Thu ngân ca sáng', 'Quản lý kho', 'Kế toán', 'Quản lý cửa hàng', 'AI Auditor']} />;
+  const [users, setUsers] = React.useState<UserDto[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  React.useEffect(() => {
+    fetchUsers()
+      .then(setUsers)
+      .catch(() => setUsers([]))
+      .finally(() => setLoading(false));
+  }, []);
+  if (loading) return <p className="text-sm text-muted">Đang tải người dùng…</p>;
+  return (
+    <SimpleManagementPage
+      title="Người dùng hệ thống"
+      icon={UsersRound}
+      rows={users.map((u) => `${u.fullName ?? u.username} (${u.role})`)}
+    />
+  );
 }
 
 function SettingsPage() {
@@ -2052,35 +2259,6 @@ function SimpleManagementPage({ title, rows, icon: Icon }: { title: string; rows
       </Card>
       <AiSummary setPage={() => {}} />
     </div>
-  );
-}
-
-function ProductDrawer({ product, onClose }: { product: Product | null; onClose: () => void }) {
-  const bodyRef = React.useRef<HTMLDivElement>(null);
-  React.useEffect(() => {
-    if (product) animateDrawer(bodyRef.current, true);
-  }, [product]);
-  return (
-    <Drawer open={Boolean(product)} onClose={onClose} title="Chi tiết sản phẩm" width={440}>
-      {product ? (
-        <div ref={bodyRef} className="space-y-5">
-          <div className="rounded-2xl bg-slate-50 p-5">
-            <h2 className="text-xl font-semibold">{product.name}</h2>
-            <p className="text-sm text-muted">{product.sku} · {product.category}</p>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Statistic title="Tồn kho" value={product.stock} />
-            <Statistic title="Đã bán" value={product.sold} />
-            <Statistic title="Giá bán" value={product.price} formatter={(v) => money(Number(v))} />
-            <Statistic title="Hạn dùng" value={product.expiry} />
-          </div>
-          <Progress percent={Math.min(100, Math.round((product.stock / 900) * 100))} strokeColor="#006c49" />
-          <Button type="primary" block onClick={() => antdMessage.success('Đã lưu hành động xử lý hàng tồn.')}>
-            Tạo hành động xử lý tồn kho
-          </Button>
-        </div>
-      ) : null}
-    </Drawer>
   );
 }
 
@@ -2148,122 +2326,6 @@ function InvoiceDrawer({ invoice, onClose }: { invoice: any | null; onClose: () 
         </div>
       ) : null}
     </Drawer>
-  );
-}
-
-function CreateModal({
-  open,
-  onCancel,
-  page,
-  categories,
-  uoms,
-  onCreated,
-}: {
-  open: boolean;
-  onCancel: () => void;
-  page: PageKey;
-  categories: CategoryDto[];
-  uoms: UomDto[];
-  onCreated: () => Promise<void>;
-}) {
-  const [form] = Form.useForm();
-  const [saving, setSaving] = React.useState(false);
-  const baseUom = uoms.find((u) => u.uomName === 'Cái') ?? uoms[0];
-
-  const handleFinish = async (values: {
-    name: string;
-    sku: string;
-    categoryId?: number;
-    price: number;
-    costPrice: number;
-    hasExpiry?: boolean;
-  }) => {
-    if (page === 'products') {
-      if (!baseUom) {
-        antdMessage.error('Chưa có đơn vị tính (UOM) trên hệ thống');
-        return;
-      }
-      setSaving(true);
-      try {
-        await createItem({
-          itemCode: values.sku || `SKU-${Date.now()}`,
-          itemName: values.name,
-          categoryId: values.categoryId,
-          baseUomId: baseUom.id,
-          costPrice: values.costPrice ?? values.price * 0.8,
-          sellingPrice: values.price,
-          minimumStock: 10,
-          hasExpiry: Boolean(values.hasExpiry),
-        });
-        await onCreated();
-        antdMessage.success(`Thêm sản phẩm ${values.name} thành công`);
-      } catch (e) {
-        antdMessage.error(e instanceof Error ? e.message : 'Tạo sản phẩm thất bại');
-      } finally {
-        setSaving(false);
-      }
-    } else {
-      antdMessage.success('Tạo thành công tác vụ vận hành mới!');
-    }
-    form.resetFields();
-    onCancel();
-  };
-
-  return (
-    <Modal
-      open={open}
-      onCancel={onCancel}
-      title={page === 'products' ? 'Thêm mới Sản phẩm vào hệ thống' : `Tạo nhanh - ${pageTitles[page].title}`}
-      okText="Tạo"
-      cancelText="Hủy"
-      confirmLoading={saving}
-      onOk={() => form.submit()}
-    >
-      <Form layout="vertical" form={form} onFinish={handleFinish}>
-        {page === 'products' ? (
-          <div className="space-y-1">
-            <Form.Item name="name" label="Tên sản phẩm" rules={[{ required: true, message: 'Vui lòng nhập tên sản phẩm' }]}>
-              <Input placeholder="Nhập tên sản phẩm (Ví dụ: Trà sữa đóng chai)" />
-            </Form.Item>
-            <div className="grid grid-cols-2 gap-3">
-              <Form.Item name="sku" label="Mã SKU" rules={[{ required: true }]}>
-                <Input placeholder="Ví dụ: MILK-BOT-500" />
-              </Form.Item>
-              <Form.Item name="categoryId" label="Danh mục">
-                <Select
-                  placeholder="Chọn danh mục"
-                  options={categories.map((c) => ({ value: c.id, label: c.categoryName }))}
-                />
-              </Form.Item>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Form.Item name="costPrice" label="Giá vốn (VNĐ)">
-                <InputNumber className="w-full" min={0} />
-              </Form.Item>
-              <Form.Item name="price" label="Giá bán (VNĐ)" rules={[{ required: true }]}>
-                <InputNumber className="w-full" min={0} />
-              </Form.Item>
-            </div>
-            <Form.Item name="hasExpiry" label="Có hạn dùng" valuePropName="checked">
-              <Switch />
-            </Form.Item>
-            <p className="text-xs text-slate-400">Tồn kho chỉ tăng qua phiếu nhập — không nhập tồn thủ công.</p>
-          </div>
-        ) : (
-          <>
-            <Form.Item name="name" label="Tên mục" rules={[{ required: true, message: 'Nhập tên...' }]}>
-              <Input placeholder="Nhập tên..." />
-            </Form.Item>
-            <Form.Item name="type" label="Loại tác vụ">
-              <Select defaultValue="manual" options={[{ value: 'manual', label: 'Thủ công' }, { value: 'ai', label: 'Đề xuất bởi AI' }]} />
-            </Form.Item>
-            <Form.Item name="notes" label="Ghi chú">
-              <Input.TextArea rows={4} placeholder="Ghi chú vận hành..." />
-            </Form.Item>
-          </>
-        )}
-      </Form>
-    </Modal>
   );
 }
 

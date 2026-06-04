@@ -43,8 +43,11 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    @Operation(summary = "Đăng xuất (client xóa token)")
-    public ResponseEntity<ApiResponse<Void>> logout() {
+    @Operation(summary = "Đăng xuất — vô hiệu hóa token hiện tại")
+    public ResponseEntity<ApiResponse<Void>> logout(
+            @RequestHeader(value = "Authorization", required = false) String authorization
+    ) {
+        authService.logout(authorization);
         return ResponseEntity.ok(ApiResponse.success("Đăng xuất thành công", null));
     }
 }

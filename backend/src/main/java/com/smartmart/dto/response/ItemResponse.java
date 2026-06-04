@@ -22,4 +22,6 @@ public class ItemResponse {
     private boolean hasExpiry;
     private boolean active;
     private BigDecimal totalAvailableQty;
+    private BigDecimal soldQty;
+    private String imageUrl;
 }

@@ -9,10 +9,13 @@ import com.smartmart.exception.UnauthorizedException;
 import com.smartmart.exception.ErrorCode;
 import com.smartmart.exception.NotFoundException;
 import com.smartmart.repository.UserRepository;
+import com.smartmart.service.AuditLogService;
 import com.smartmart.security.CustomUserDetails;
 import com.smartmart.security.JwtTokenProvider;
 import com.smartmart.security.SecurityUtils;
+import com.smartmart.security.TokenBlacklistService;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -24,15 +27,21 @@ public class AuthServiceImpl implements com.smartmart.service.AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
+    private final TokenBlacklistService tokenBlacklistService;
+    private final AuditLogService auditLogService;
 
     public AuthServiceImpl(
             AuthenticationManager authenticationManager,
             JwtTokenProvider jwtTokenProvider,
-            UserRepository userRepository
+            UserRepository userRepository,
+            TokenBlacklistService tokenBlacklistService,
+            AuditLogService auditLogService
     ) {
         this.authenticationManager = authenticationManager;
         this.jwtTokenProvider = jwtTokenProvider;
         this.userRepository = userRepository;
+        this.tokenBlacklistService = tokenBlacklistService;
+        this.auditLogService = auditLogService;
     }
 
     @Override
@@ -46,6 +55,7 @@ public class AuthServiceImpl implements com.smartmart.service.AuthService {
                 throw new UnauthorizedException(ErrorCode.ACCOUNT_INACTIVE, ErrorCode.ACCOUNT_INACTIVE.getMessage());
             }
             String token = jwtTokenProvider.generateToken(auth);
+            auditLogService.log("AUTH_LOGIN", "Đăng nhập: " + request.getUsername());
             return AuthResponse.builder()
                     .accessToken(token)
                     .tokenType("Bearer")
@@ -78,6 +88,18 @@ public class AuthServiceImpl implements com.smartmart.service.AuthService {
                 .tokenType("Bearer")
                 .user(toUserResponse(user))
                 .build();
+    }
+
+    // Thu hồi JWT (blacklist) và xóa phiên SecurityContext
+    // Thu hồi JWT (blacklist) và xóa phiên SecurityContext
+    @Override
+    public void logout(String bearerToken) {
+        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+            String token = bearerToken.substring(7);
+            tokenBlacklistService.blacklist(token, jwtTokenProvider.remainingValidityMs(token));
+            auditLogService.log("AUTH_LOGOUT", "Đăng xuất JWT");
+        }
+        SecurityContextHolder.clearContext();
     }
 
     @Override

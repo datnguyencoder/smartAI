@@ -70,7 +70,8 @@ com.smartmart/
 | Biến | camelCase | `categoryId`, `orderItems` |
 
 - Message lỗi / success cho user: **tiếng Việt**, rõ ràng.
-- Log / comment kỹ thuật: tiếng Anh ngắn gọn khi cần.
+- Comment logic quan trọng: dùng `//` một dòng (không `/** */` / Javadoc); chỉ ghi hàm/luồng nghiệp vụ then chốt (auth, tồn kho, POS, RBAC).
+- Log kỹ thuật: tiếng Anh ngắn gọn khi cần.
 
 ---
 

@@ -1,24 +1,21 @@
 import { Button, Card, Form, Input, Typography, message } from 'antd';
 import * as React from 'react';
 import { Store } from 'lucide-react';
-import { login } from '../services/wmsApi';
-import { setToken } from '../services/apiClient';
-import type { UserDto } from '../types/api';
+import { useAuth } from '../contexts/AuthContext';
 
 type Props = {
-  onSuccess: (user: UserDto) => void;
+  onSuccess: () => void;
 };
 
 export function LoginScreen({ onSuccess }: Props) {
   const [loading, setLoading] = React.useState(false);
+  const { login } = useAuth();
 
   const handleFinish = async (values: { username: string; password: string }) => {
     setLoading(true);
     try {
-      const auth = await login(values.username, values.password);
-      setToken(auth.accessToken);
-      localStorage.setItem('smartmart_user', JSON.stringify(auth.user));
-      onSuccess(auth.user);
+      await login(values.username, values.password);
+      onSuccess();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Đăng nhập thất bại';
       message.error(msg);

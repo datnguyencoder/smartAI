@@ -53,6 +53,7 @@ class PosIntegrationTest {
         JsonNode arr = objectMapper.readTree(items.getResponse().getContentAsString()).path("data");
         assertThat(arr.isArray()).isTrue();
         assertThat(arr.size()).isPositive();
+        assertThat(arr.get(0).path("imageUrl").asText()).isNotBlank();
         itemId = arr.get(0).path("id").asLong();
     }
 

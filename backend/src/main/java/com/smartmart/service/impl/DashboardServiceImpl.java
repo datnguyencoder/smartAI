@@ -4,6 +4,7 @@ import com.smartmart.service.ai.ForecastOrchestrationService;
 import com.smartmart.enums.OrderStatus;
 import com.smartmart.repository.CurrentInventoryRepository;
 import com.smartmart.repository.OrderRepository;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +32,7 @@ public class DashboardServiceImpl implements com.smartmart.service.DashboardServ
     }
 
     @Override
+    @Cacheable("dashboardSummary")
     public Map<String, Object> summary() {
         LocalDateTime todayStart = LocalDate.now().atStartOfDay();
         List<com.smartmart.entity.Order> todayOrders = orderRepository.findCompletedSince(
@@ -50,6 +52,7 @@ public class DashboardServiceImpl implements com.smartmart.service.DashboardServ
     }
 
     @Override
+    @Cacheable("dashboardRevenue")
     public List<Map<String, Object>> revenue7d() {
         LocalDateTime since = LocalDateTime.now().minusDays(7);
         List<com.smartmart.entity.Order> orders = orderRepository.findCompletedSince(OrderStatus.COMPLETED, since);

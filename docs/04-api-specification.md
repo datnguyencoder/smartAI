@@ -7,7 +7,9 @@
 Hệ thống sử dụng chuẩn kiến trúc **RESTful API** cho việc giao tiếp giữa React Frontend và Spring Boot Backend, kết hợp với các cuộc gọi nội bộ (HTTP Client WebClient) từ Spring Boot sang FastAPI AI Service.
 
 #### Base path & versioning
-Toàn bộ REST API dùng prefix **`/api/v1`** (ví dụ `/api/v1/auth/login`, `/api/v1/products`). Các bảng endpoint bên dưới ghi `/api/...` cho gọn — khi triển khai luôn thêm tiền tố `/v1`.
+Toàn bộ REST API dùng prefix **`/api/v1`** (ví dụ `/api/v1/auth/login`, `/api/v1/items`). Các bảng endpoint bên dưới ghi `/api/...` cho gọn — khi triển khai luôn thêm tiền tố `/v1`.
+
+**Ánh xạ triển khai hiện tại (2026):** Bán lẻ = `POST/GET /api/v1/orders` (không dùng `/api/sales-orders`). Đăng nhập body: `username` + `password` (không dùng `email`). Refresh: `POST /api/v1/auth/refresh`. Cảnh báo tồn: `GET /api/v1/inventory-alerts`, `PATCH /api/v1/inventory-alerts/{id}/resolve`.
 
 #### Định dạng phản hồi chuẩn (Standard ApiResponse Wrapper)
 Mọi API phản hồi từ Spring Boot Backend đều được bọc bởi cấu trúc dữ liệu thống nhất:
@@ -116,9 +118,11 @@ Dành riêng cho vai trò Admin để vận hành nhân sự.
 #### 2.5. Phân hệ Hàng hóa & Sản phẩm (Product API)
 | Method | Endpoint | Quyền truy cập | Mô tả |
 | :--- | :--- | :--- | :--- |
-| **GET** | `/api/v1/items` | Đã đăng nhập | Danh sách SKU; `totalAvailableQty` tổng hợp từ `current_inventory`. |
-| **POST** | `/api/v1/items` | `ADMIN`, `MANAGER`, `WAREHOUSE` | Tạo item (không ghi tồn). |
+| **GET** | `/api/v1/items` | Đã đăng nhập | Danh sách SKU; `totalAvailableQty`, `soldQty`, `imageUrl` (resolve placeholder nếu thiếu). Query: `q`, `barcode`, `page`+`size` (phân trang). |
+| **POST** | `/api/v1/items` | `ADMIN`, `MANAGER`, `WAREHOUSE` | Tạo item (không ghi tồn). Body có thể gồm `imageUrl`. |
+| **PUT** | `/api/v1/items/{id}` | `ADMIN`, `MANAGER`, `WAREHOUSE` | Cập nhật item (giá, ảnh, danh mục…). |
 | **GET** | `/api/v1/items/{id}` | Đã đăng nhập | Chi tiết item + tồn khả dụng. |
+| **GET** | `/media/**` | Công khai | Ảnh tĩnh SKU/danh mục (classpath `static/media`). |
 | **GET** | `/api/v1/inventory/logs` | `ADMIN`, `MANAGER`, `WAREHOUSE` | Sổ kho `inventory_logs`. |
 | **GET** | `/api/v1/inventory/near-expiry` | `ADMIN`, `MANAGER`, `WAREHOUSE` | Lô cận hạn. |
 | **GET** | `/api/v1/categories`, `/api/v1/uoms`, `/api/v1/locations`, `/api/v1/suppliers` | Master data WMS. |

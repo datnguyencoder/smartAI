@@ -18,8 +18,21 @@ FEATURE_COLUMNS = [
     "day_of_month",
     "month",
     "is_weekend",
+    "is_holiday",
     "category_id",
 ]
+
+# Ngày lễ cố định Việt Nam (MM-DD) — mở rộng theo năm khi cần
+_VN_HOLIDAY_MD = {
+    "01-01",
+    "04-30",
+    "05-01",
+    "09-02",
+}
+
+
+def is_vietnam_holiday(d: date) -> bool:
+    return d.strftime("%m-%d") in _VN_HOLIDAY_MD
 
 MIN_ML_HISTORY_DAYS = 30
 MA_WINDOW = 7
@@ -93,6 +106,7 @@ def build_features(frame: pd.DataFrame) -> pd.DataFrame:
     working["day_of_month"] = working["sale_date"].dt.day
     working["month"] = working["sale_date"].dt.month
     working["is_weekend"] = working["day_of_week"].isin([5, 6]).astype(int)
+    working["is_holiday"] = working["sale_date"].apply(lambda ts: int(is_vietnam_holiday(ts.date())))
 
     working[FEATURE_COLUMNS] = working[FEATURE_COLUMNS].fillna(0.0)
     working["rolling_std_7"] = working["rolling_std_7"].fillna(0.0)

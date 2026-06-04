@@ -1,8 +1,9 @@
 package com.smartmart.controller;
 
 import com.smartmart.common.response.ApiResponse;
-import com.smartmart.entity.CurrentInventory;
-import com.smartmart.entity.InventoryLog;
+import com.smartmart.dto.response.InventoryLogResponse;
+import com.smartmart.dto.response.InventoryResponse;
+import com.smartmart.mapper.WmsResponseMapper;
 import com.smartmart.service.InventoryQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -30,28 +31,35 @@ public class InventoryController {
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
     @Operation(summary = "Tồn kho hiện tại")
-    public ResponseEntity<ApiResponse<List<CurrentInventory>>> list() {
-        return ResponseEntity.ok(ApiResponse.success(inventoryQueryService.listAll()));
+    public ResponseEntity<ApiResponse<List<InventoryResponse>>> list() {
+        return ResponseEntity.ok(ApiResponse.success(
+                WmsResponseMapper.toInventoryResponses(inventoryQueryService.listAll())));
     }
 
     @GetMapping("/low-stock")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
     @Operation(summary = "Sản phẩm sắp hết hàng")
-    public ResponseEntity<ApiResponse<List<CurrentInventory>>> lowStock() {
-        return ResponseEntity.ok(ApiResponse.success(inventoryQueryService.lowStock()));
+    public ResponseEntity<ApiResponse<List<InventoryResponse>>> lowStock() {
+        return ResponseEntity.ok(ApiResponse.success(
+                WmsResponseMapper.toInventoryResponses(inventoryQueryService.lowStock())));
     }
 
     @GetMapping("/near-expiry")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
     @Operation(summary = "Sản phẩm cận hạn")
-    public ResponseEntity<ApiResponse<List<CurrentInventory>>> nearExpiry() {
-        return ResponseEntity.ok(ApiResponse.success(inventoryQueryService.nearExpiry()));
+    public ResponseEntity<ApiResponse<List<InventoryResponse>>> nearExpiry() {
+        return ResponseEntity.ok(ApiResponse.success(
+                WmsResponseMapper.toInventoryResponses(inventoryQueryService.nearExpiry())));
     }
 
     @GetMapping("/logs")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
     @Operation(summary = "Nhật ký biến động kho")
-    public ResponseEntity<ApiResponse<Page<InventoryLog>>> logs(
+    public ResponseEntity<ApiResponse<Page<InventoryLogResponse>>> logs(
             @RequestParam(required = false) Long itemId,
             Pageable pageable
     ) {
-        return ResponseEntity.ok(ApiResponse.success(inventoryQueryService.logs(itemId, pageable)));
+        return ResponseEntity.ok(ApiResponse.success(
+                WmsResponseMapper.toInventoryLogPage(inventoryQueryService.logs(itemId, pageable))));
     }
 }

@@ -19,6 +19,7 @@ import com.smartmart.repository.LocationRepository;
 import com.smartmart.repository.PurchaseOrderRepository;
 import com.smartmart.repository.SupplierRepository;
 import com.smartmart.security.SecurityUtils;
+import com.smartmart.service.AuditLogService;
 import com.smartmart.service.InventoryLedgerService;
 import com.smartmart.service.ItemService;
 import com.smartmart.service.PurchaseOrderService;
@@ -40,6 +41,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     private final ItemService itemService;
     private final InventoryLedgerService inventoryLedgerService;
     private final PurchaseEventPublisher purchaseEventPublisher;
+    private final AuditLogService auditLogService;
 
     public PurchaseOrderServiceImpl(
             PurchaseOrderRepository purchaseOrderRepository,
@@ -47,7 +49,8 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             LocationRepository locationRepository,
             ItemService itemService,
             InventoryLedgerService inventoryLedgerService,
-            PurchaseEventPublisher purchaseEventPublisher
+            PurchaseEventPublisher purchaseEventPublisher,
+            AuditLogService auditLogService
     ) {
         this.purchaseOrderRepository = purchaseOrderRepository;
         this.supplierRepository = supplierRepository;
@@ -55,6 +58,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         this.itemService = itemService;
         this.inventoryLedgerService = inventoryLedgerService;
         this.purchaseEventPublisher = purchaseEventPublisher;
+        this.auditLogService = auditLogService;
     }
 
     @Override
@@ -156,6 +160,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
 
         PurchaseOrder saved = purchaseOrderRepository.save(po);
         purchaseEventPublisher.publishPurchaseReceived(saved.getId());
+        auditLogService.log("PURCHASE_RECEIVE", "Nhận hàng phiếu #" + saved.getId());
         return toResponse(purchaseOrderRepository.findByIdWithDetails(saved.getId()).orElse(saved));
     }
 

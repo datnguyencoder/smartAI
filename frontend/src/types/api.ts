@@ -28,8 +28,19 @@ export type ItemDto = {
   sellingPrice: number;
   minimumStock: number;
   totalAvailableQty?: number;
+  soldQty?: number;
   hasExpiry: boolean;
   active: boolean;
+  imageUrl?: string;
+};
+
+export type PageResponseDto<T> = {
+  content: T[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  last: boolean;
 };
 
 export type OrderDto = {
@@ -43,7 +54,7 @@ export type OrderDto = {
   items?: Array<{ itemName: string; quantity: number; unitPrice: number }>;
 };
 
-export type CategoryDto = { id: number; categoryName: string; active: boolean };
+export type CategoryDto = { id: number; categoryName: string; active: boolean; imageUrl?: string };
 export type SupplierDto = {
   id: number;
   supplierName: string;
@@ -63,6 +74,43 @@ export type PurchaseOrderItemDto = {
   unitPrice: number;
   subtotal: number;
 };
+
+export type InventoryItemDto = {
+  id: number;
+  itemId: number;
+  itemCode: string;
+  itemName: string;
+  locationId: number;
+  locationName: string;
+  lotId?: number;
+  lotNumber?: string;
+  expiryDate?: string;
+  quantity: number;
+  reservedQuantity: number;
+  availableQuantity: number;
+};
+
+export type InventoryAlertDto = {
+  id: number;
+  itemId: number;
+  itemCode: string;
+  itemName: string;
+  alertType: string;
+  severity: string;
+  message: string;
+  resolved: boolean;
+  createdAt: string;
+};
+
+export type DashboardSummaryDto = {
+  todayRevenue?: number;
+  todayOrders?: number;
+  lowStockCount?: number;
+  activeAlerts?: number;
+  [key: string]: unknown;
+};
+
+export type ForecastResultDto = Record<string, unknown>;
 
 export type PurchaseOrderDto = {
   id: number;

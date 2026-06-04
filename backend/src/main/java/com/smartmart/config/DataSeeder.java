@@ -4,6 +4,7 @@ import com.smartmart.entity.*;
 import com.smartmart.enums.Role;
 import com.smartmart.enums.UserStatus;
 import com.smartmart.repository.*;
+import com.smartmart.util.ItemImageUrls;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.context.annotation.Profile;
@@ -78,16 +79,22 @@ public class DataSeeder implements CommandLineRunner {
         Uom cai = uomRepository.save(Uom.builder().uomName("Cái").conversionRatio(BigDecimal.ONE).baseUnit(true).build());
         Uom thung = uomRepository.save(Uom.builder().uomName("Thùng").conversionRatio(new BigDecimal("24")).baseUnit(false).category("Đóng gói").build());
 
-        Category doUong = categoryRepository.save(Category.builder().categoryName("Đồ uống").active(true).build());
+        Category doUong = categoryRepository.save(Category.builder()
+                .categoryName("Đồ uống")
+                .active(true)
+                .imageUrl("/media/categories/do-uong.svg")
+                .build());
         Supplier vinamilk = supplierRepository.save(Supplier.builder().supplierName("Vinamilk").phone("1900").active(true).build());
         Location khoBan = locationRepository.save(Location.builder().locationName("Kho bán").locationType("STORE").active(true).build());
 
         Item sua = itemRepository.save(Item.builder().itemCode("MILK-VNM-1L").itemName("Sữa Vinamilk 1L")
                 .category(doUong).baseUom(cai).purchaseUom(thung).costPrice(new BigDecimal("25000"))
-                .sellingPrice(new BigDecimal("32000")).minimumStock(20).hasExpiry(true).active(true).build());
+                .sellingPrice(new BigDecimal("32000")).minimumStock(20).hasExpiry(true).active(true)
+                .imageUrl("/media/items/milk-vnm-1l.svg").build());
         Item nuoc = itemRepository.save(Item.builder().itemCode("LAVIE-500").itemName("Nước Lavie 500ml")
                 .category(doUong).baseUom(cai).purchaseUom(cai).costPrice(new BigDecimal("5000"))
-                .sellingPrice(new BigDecimal("7000")).minimumStock(50).hasExpiry(false).active(true).build());
+                .sellingPrice(new BigDecimal("7000")).minimumStock(50).hasExpiry(false).active(true)
+                .imageUrl("/media/items/lavie-500.svg").build());
 
         ItemLot lotSua = itemLotRepository.save(ItemLot.builder().item(sua).lotNumber("LOT-MILK-001")
                 .expiryDate(LocalDate.now().plusMonths(3)).build());
