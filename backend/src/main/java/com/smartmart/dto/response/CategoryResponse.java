@@ -10,4 +10,5 @@ public class CategoryResponse {
     private String categoryName;
     private Long parentId;
     private boolean active;
+    private String imageUrl;
 }

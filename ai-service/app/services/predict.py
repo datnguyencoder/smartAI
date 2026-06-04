@@ -121,7 +121,15 @@ def forecast_all_items(items: list[dict]) -> list[dict]:
             recent_sales=recent_sales,
             bundle=bundle,
         )
-
+        history = preprocess.extend_history_with_sales(item_id, category_id, recent_sales)
+        start = history["sale_date"].max() if not history.empty else pd.Timestamp.today()
+        daily_series = [
+            {
+                "date": (start + timedelta(days=i + 1)).strftime("%Y-%m-%d"),
+                "predicted_qty": round(float(qty), 4),
+            }
+            for i, qty in enumerate(daily[:30])
+        ]
         forecasts.append(
             {
                 "item_id": item_id,
@@ -129,6 +137,7 @@ def forecast_all_items(items: list[dict]) -> list[dict]:
                 "predicted_qty_14d": _sum_horizon(daily, 14),
                 "predicted_qty_30d": _sum_horizon(daily, 30),
                 "model_type": model_type,
+                "daily_series": daily_series,
             }
         )
 

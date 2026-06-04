@@ -5,6 +5,7 @@ import com.smartmart.dto.request.CreateSupplierRequest;
 import com.smartmart.dto.response.SupplierResponse;
 import com.smartmart.service.SupplierService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -17,6 +18,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/suppliers")
 @Tag(name = "Suppliers", description = "Nhà cung cấp")
+@SecurityRequirement(name = "bearerAuth")
 public class SupplierController {
 
     private final SupplierService supplierService;
@@ -32,7 +34,7 @@ public class SupplierController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
     @Operation(summary = "Tạo nhà cung cấp")
     public ResponseEntity<ApiResponse<SupplierResponse>> create(@Valid @RequestBody CreateSupplierRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)

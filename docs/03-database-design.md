@@ -59,7 +59,12 @@ Migration Flyway: `backend/src/main/resources/db/migration/V1__wms_baseline.sql`
 | base_uom_id, purchase_uom_id | BIGINT FK | Quy đổi qua `uoms.conversion_ratio` |
 | cost_price, selling_price | DECIMAL | |
 | minimum_stock | INT | Ngưỡng cảnh báo |
+| image_url | VARCHAR(512) | URL ảnh đại diện (`/media/items/{sku}.svg` hoặc upload) |
 | **Không** lưu tồn trên row này | | |
+
+### categories — bổ sung
+
+| image_url | VARCHAR(512) | Icon danh mục (`/media/categories/*.svg`) |
 
 ### current_inventory
 

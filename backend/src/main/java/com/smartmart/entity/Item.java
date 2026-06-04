@@ -50,4 +50,7 @@ public class Item extends LongAuditableEntity {
 
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
+
+    @Column(name = "image_url", length = 512)
+    private String imageUrl;
 }

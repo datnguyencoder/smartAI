@@ -64,6 +64,7 @@
 *   **PRO-02:** Giá bán lẻ niêm yết (`sellingPrice`) bắt buộc phải lớn hơn hoặc bằng giá nhập kho gần nhất (`importPrice`).
 *   **PRO-03:** Không PATCH tồn trên `items`. Mọi thay đổi tồn chỉ qua `InventoryLedgerService` (bán, nhập, hủy) → `current_inventory` + `inventory_logs`.
 *   **PRO-04:** Sản phẩm cận date hoặc đã hết hạn sử dụng theo lô phải tự động chuyển sang trạng thái hạn chế bán hoặc ngưng bán để đảm bảo sức khỏe người tiêu dùng.
+*   **PRO-05:** Mọi item `ACTIVE` phải có `imageUrl` (ảnh thật hoặc placeholder theo danh mục/SKU). API luôn trả `imageUrl` đã resolve; POS và danh sách hàng hiển thị thumbnail, không chỉ tên.
 
 ---
 

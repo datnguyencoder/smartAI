@@ -2,12 +2,17 @@ import { apiRequest } from './apiClient';
 import type {
   AuthDto,
   CategoryDto,
+  DashboardSummaryDto,
+  InventoryAlertDto,
+  InventoryItemDto,
   ItemDto,
   LocationDto,
   OrderDto,
+  PageResponseDto,
   PurchaseOrderDto,
   SupplierDto,
   UomDto,
+  UserDto,
 } from '../types/api';
 
 export function login(username: string, password: string) {
@@ -18,9 +23,43 @@ export function login(username: string, password: string) {
   );
 }
 
+export function logout() {
+  return apiRequest<void>('/api/v1/auth/logout', { method: 'POST' });
+}
+
+export function fetchMe() {
+  return apiRequest<UserDto>('/api/v1/auth/me');
+}
+
+export function refreshAuth() {
+  return apiRequest<AuthDto>('/api/v1/auth/refresh', { method: 'POST' });
+}
+
+export function fetchUsers() {
+  return apiRequest<UserDto[]>('/api/v1/users');
+}
+
+export function fetchInventoryAlerts() {
+  return apiRequest<InventoryAlertDto[]>('/api/v1/inventory-alerts');
+}
+
+export function resolveInventoryAlert(id: number) {
+  return apiRequest<InventoryAlertDto>(`/api/v1/inventory-alerts/${id}/resolve`, { method: 'PATCH' });
+}
+
 export function fetchItems(search?: string) {
   const q = search ? `?q=${encodeURIComponent(search)}` : '';
   return apiRequest<ItemDto[]>(`/api/v1/items${q}`);
+}
+
+export function fetchItemsPaged(page = 0, size = 50, search?: string) {
+  const params = new URLSearchParams({ page: String(page), size: String(size) });
+  if (search) params.set('q', search);
+  return apiRequest<PageResponseDto<ItemDto>>(`/api/v1/items?${params}`);
+}
+
+export function fetchItemByBarcode(barcode: string) {
+  return apiRequest<ItemDto>(`/api/v1/items?barcode=${encodeURIComponent(barcode.trim())}`);
 }
 
 export function createItem(payload: {
@@ -33,9 +72,28 @@ export function createItem(payload: {
   sellingPrice: number;
   minimumStock?: number;
   hasExpiry?: boolean;
+  imageUrl?: string;
 }) {
   return apiRequest<ItemDto>('/api/v1/items', {
     method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateItem(
+  id: number,
+  payload: {
+    itemName?: string;
+    categoryId?: number;
+    costPrice?: number;
+    sellingPrice?: number;
+    minimumStock?: number;
+    hasExpiry?: boolean;
+    imageUrl?: string;
+  }
+) {
+  return apiRequest<ItemDto>(`/api/v1/items/${id}`, {
+    method: 'PUT',
     body: JSON.stringify(payload),
   });
 }
@@ -105,11 +163,11 @@ export function cancelPurchaseOrder(purchaseId: number) {
 }
 
 export function fetchInventory() {
-  return apiRequest<unknown[]>('/api/v1/inventory');
+  return apiRequest<InventoryItemDto[]>('/api/v1/inventory');
 }
 
 export function fetchNearExpiry() {
-  return apiRequest<unknown[]>('/api/v1/inventory/near-expiry');
+  return apiRequest<InventoryItemDto[]>('/api/v1/inventory/near-expiry');
 }
 
 export function createScrapOrder(payload: {
@@ -127,7 +185,7 @@ export function completeScrapOrder(id: number) {
 }
 
 export function fetchDashboardSummary() {
-  return apiRequest<Record<string, unknown>>('/api/v1/dashboard/summary');
+  return apiRequest<DashboardSummaryDto>('/api/v1/dashboard/summary');
 }
 
 export function fetchDashboardRevenue() {

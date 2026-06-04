@@ -10,11 +10,15 @@ import com.smartmart.enums.OrderStatus;
 import com.smartmart.enums.ReferenceType;
 import com.smartmart.event.OrderEventPublisher;
 import com.smartmart.exception.BadRequestException;
+import com.smartmart.exception.ForbiddenException;
 import com.smartmart.repository.LocationRepository;
 import com.smartmart.repository.OrderRepository;
 import com.smartmart.security.SecurityUtils;
+import com.smartmart.service.AuditLogService;
+import com.smartmart.service.InventoryAlertService;
 import com.smartmart.service.InventoryLedgerService;
 import com.smartmart.service.ItemService;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,22 +39,30 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
     private final LocationRepository locationRepository;
     private final InventoryLedgerService inventoryLedgerService;
     private final OrderEventPublisher orderEventPublisher;
+    private final InventoryAlertService inventoryAlertService;
+    private final AuditLogService auditLogService;
 
     public OrderServiceImpl(
             OrderRepository orderRepository,
             ItemService itemService,
             LocationRepository locationRepository,
             InventoryLedgerService inventoryLedgerService,
-            OrderEventPublisher orderEventPublisher
+            OrderEventPublisher orderEventPublisher,
+            InventoryAlertService inventoryAlertService,
+            AuditLogService auditLogService
     ) {
         this.orderRepository = orderRepository;
         this.itemService = itemService;
         this.locationRepository = locationRepository;
         this.inventoryLedgerService = inventoryLedgerService;
         this.orderEventPublisher = orderEventPublisher;
+        this.inventoryAlertService = inventoryAlertService;
+        this.auditLogService = auditLogService;
     }
 
+    // POS: tạo hóa đơn, FEFO trừ tồn, publish event cảnh báo tồn
     @Override
+    @CacheEvict(value = {"items", "itemsPage", "dashboardSummary", "dashboardRevenue"}, allEntries = true)
     public OrderResponse create(CreateOrderRequest request) {
         Location location = locationRepository.findByLocationName(DEFAULT_LOCATION)
                 .orElseThrow(() -> new BadRequestException("Chưa cấu hình kho mặc định: " + DEFAULT_LOCATION));
@@ -112,6 +124,8 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
 
         // Update reference id on logs would need second pass — acceptable for MVP
         orderEventPublisher.publishOrderCreated(saved.getId(), saved.getOrderCode());
+        saved.getItems().forEach(oi -> inventoryAlertService.evaluateStockAfterSale(oi.getItem().getId()));
+        auditLogService.log("ORDER_CREATE", "Hóa đơn " + saved.getOrderCode());
 
         return toResponse(saved);
     }
@@ -119,14 +133,36 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
     @Override
     @Transactional(readOnly = true)
     public List<OrderResponse> listAll() {
-        return orderRepository.findAll().stream().map(this::toResponse).toList();
+        boolean staffOnly = SecurityUtils.hasRole("STAFF")
+                && !SecurityUtils.hasAnyRole("ADMIN", "MANAGER");
+        if (staffOnly) {
+            UUID userId = SecurityUtils.getCurrentUserId()
+                    .orElseThrow(() -> new ForbiddenException("Không xác định được người dùng"));
+            return orderRepository.findByCreatedByWithItems(userId).stream().map(this::toResponse).toList();
+        }
+        return orderRepository.findAllWithItems().stream().map(this::toResponse).toList();
     }
 
     @Override
     @Transactional(readOnly = true)
     public OrderResponse getById(Long id) {
-        return orderRepository.findById(id).map(this::toResponse)
+        Order order = orderRepository.findByIdWithItems(id)
                 .orElseThrow(() -> new com.smartmart.exception.NotFoundException("Không tìm thấy hóa đơn"));
+        assertStaffCanAccessOrder(order);
+        return toResponse(order);
+    }
+
+    private void assertStaffCanAccessOrder(Order order) {
+        boolean staffOnly = SecurityUtils.hasRole("STAFF")
+                && !SecurityUtils.hasAnyRole("ADMIN", "MANAGER");
+        if (!staffOnly) {
+            return;
+        }
+        UUID userId = SecurityUtils.getCurrentUserId()
+                .orElseThrow(() -> new ForbiddenException("Không xác định được người dùng"));
+        if (order.getCreatedBy() == null || !order.getCreatedBy().equals(userId)) {
+            throw new ForbiddenException("Bạn không có quyền xem hóa đơn này");
+        }
     }
 
     @Override

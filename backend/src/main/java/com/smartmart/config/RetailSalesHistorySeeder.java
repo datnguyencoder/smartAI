@@ -4,6 +4,7 @@ import com.smartmart.entity.*;
 import com.smartmart.enums.OrderStatus;
 import com.smartmart.enums.PaymentMethod;
 import com.smartmart.repository.*;
+import com.smartmart.util.ItemImageUrls;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,10 +24,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
 
-/**
- * Imports external retail sales (UCI Online Retail / Kaggle-prepared CSV) into {@code orders}
- * for AI training. Does not adjust inventory — demo/historical data only.
- */
+// Seed lịch sử bán UCI vào orders (không trừ tồn) — phục vụ train AI
 @Component
 @Profile({"local", "prod"})
 @org.springframework.core.annotation.Order(2)
@@ -160,10 +158,15 @@ public class RetailSalesHistorySeeder implements CommandLineRunner {
         Category category = categoriesByName.computeIfAbsent(categoryName, name ->
                 categoryRepository.findByCategoryName(name)
                         .orElseGet(() -> categoryRepository.save(
-                                Category.builder().categoryName(name).active(true).build())));
+                                Category.builder()
+                                        .categoryName(name)
+                                        .active(true)
+                                        .imageUrl("/media/categories/retail.svg")
+                                        .build())));
 
+        String itemCode = "RETAIL-" + externalCode;
         return itemRepository.save(Item.builder()
-                .itemCode("RETAIL-" + externalCode)
+                .itemCode(itemCode)
                 .itemName(truncate(productName, 200))
                 .category(category)
                 .baseUom(baseUom)
@@ -173,6 +176,7 @@ public class RetailSalesHistorySeeder implements CommandLineRunner {
                 .minimumStock(10)
                 .hasExpiry(false)
                 .active(true)
+                .imageUrl(ItemImageUrls.defaultItemPath(itemCode))
                 .build());
     }
 
@@ -183,7 +187,6 @@ public class RetailSalesHistorySeeder implements CommandLineRunner {
         return value.substring(0, max - 3) + "...";
     }
 
-    /** Minimal RFC 4180-style parser for quoted fields. */
     static List<String> parseCsvLine(String line) {
         List<String> fields = new ArrayList<>();
         StringBuilder current = new StringBuilder();

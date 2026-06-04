@@ -5,6 +5,7 @@ import com.smartmart.dto.request.CreateUomRequest;
 import com.smartmart.dto.response.UomResponse;
 import com.smartmart.service.UomService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -17,6 +18,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/uoms")
 @Tag(name = "UOMs", description = "Đơn vị tính")
+@SecurityRequirement(name = "bearerAuth")
 public class UomController {
 
     private final UomService uomService;

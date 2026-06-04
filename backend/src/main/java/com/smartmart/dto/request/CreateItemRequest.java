@@ -29,4 +29,5 @@ public class CreateItemRequest {
     private BigDecimal sellingPrice;
     private Integer minimumStock = 0;
     private boolean hasExpiry;
+    private String imageUrl;
 }

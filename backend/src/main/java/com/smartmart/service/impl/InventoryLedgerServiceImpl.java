@@ -34,9 +34,7 @@ public class InventoryLedgerServiceImpl implements com.smartmart.service.Invento
         this.itemLotRepository = itemLotRepository;
     }
 
-    /**
-     * Apply quantity change (positive = IN, negative = OUT) for item/location/lot.
-     */
+    // Cập nhật tồn (+ nhập / − xuất), ghi inventory_log, chặn âm tồn
     @Transactional
     public void applyMovement(
             Item item,
@@ -86,10 +84,7 @@ public class InventoryLedgerServiceImpl implements com.smartmart.service.Invento
         inventoryLogRepository.save(log);
     }
 
-    /**
-     * FEFO allocation for sales: pick lots earliest expiry first.
-     * Returns list of (lot, qty) allocations in base UOM.
-     */
+    // Xuất bán: phân bổ lô FEFO (hạn dùng sớm trước), rồi tồn không lô
     @Transactional(readOnly = true)
     public List<LotAllocation> allocateFefo(Item item, Location location, BigDecimal quantityNeeded) {
         List<LotAllocation> allocations = new ArrayList<>();

@@ -47,12 +47,14 @@ public class PurchaseOrderController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
     @Operation(summary = "Danh sách phiếu nhập")
     public ResponseEntity<ApiResponse<List<PurchaseOrderResponse>>> list() {
         return ResponseEntity.ok(ApiResponse.success(purchaseOrderService.listAll()));
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
     @Operation(summary = "Chi tiết phiếu nhập")
     public ResponseEntity<ApiResponse<PurchaseOrderResponse>> get(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(purchaseOrderService.getById(id)));

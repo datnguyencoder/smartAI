@@ -7,11 +7,7 @@ import lombok.*;
 import java.time.LocalDateTime;
 import java.util.Map;
 
-/**
- * Standard response envelope for every REST endpoint.
- * Success: success=true, data filled, errorCode/errors null.
- * Error: success=false, data null, errorCode set, errors only for validation.
- */
+// Envelope REST chuẩn: success + data, hoặc errorCode (+ errors khi validation)
 @Getter
 @Setter
 @Builder

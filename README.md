@@ -8,9 +8,9 @@ SmartMart AI là nền tảng quản lý vận hành nội bộ thế hệ mới
 
 *   **⚡ Bán Hàng Tại Quầy (POS):** Giao diện bán hàng siêu tốc bằng phím tắt và quét mã vạch trực quan, tự động đồng bộ hóa kho hàng thời gian thực.
 *   **📦 Quản Lý Kho & Biến Động Tồn (Stock Management):** Giám sát chi tiết từng lô hàng, số lượng tồn kho thực tế, lịch sử dịch chuyển dòng hàng (Stock Movement) và tự động kích hoạt cảnh báo khi hàng sắp hết.
-*   **🔮 Dự Báo Nhu Cầu Bán Hàng (AI Forecasting):** Tích hợp công nghệ hiện đại (Polars, Nixtla, Foundation Models/TFT) phân tích dữ liệu lịch sử để dự báo chính xác nhu cầu khách hàng trong **7, 14 và 30 ngày** tới.
+*   **🔮 Dự Báo Nhu Cầu Bán Hàng (AI Forecasting):** FastAPI + scikit-learn / XGBoost phân tích lịch sử bán để dự báo **7, 14 và 30 ngày** (kèm chuỗi theo ngày).
 *   **🤖 Gợi Ý Nhập Hàng Tự Động (Smart Reordering):** Tính toán khối lượng đặt hàng tối ưu (Reorder Quantity) dựa trên tốc độ tiêu thụ dự kiến và thời gian giao hàng (Lead Time).
-*   **💬 Trợ Lý Ảo Vận Hành (AI Assistant Chatbot):** Tích hợp mô hình ngôn ngữ lớn **Google Gemini API** dưới dạng một AI Agent độc lập, hỗ trợ người quản trị truy vấn số liệu kinh doanh, tạo nhanh phiếu nhập hàng và phân tích rủi ro bằng ngôn ngữ tự nhiên.
+*   **💬 Trợ Lý Ảo Vận Hành (AI Assistant):** Gemini qua Spring Boot (`/api/v1/ai-insight/*`); ML forecasting chạy trên `ai-service` port 8000.
 *   **📊 Báo Cáo Chuyên Sâu (Advanced BI):** Biểu đồ trực quan so sánh doanh thu thực tế và dự báo, phân tích tỷ trọng nhóm hàng và phân tích ABC/XYZ.
 
 ---
@@ -21,7 +21,7 @@ SmartMart AI là nền tảng quản lý vận hành nội bộ thế hệ mới
 | :--- | :--- |
 | **Frontend** | React 18, TypeScript, Vite, Ant Design, TailwindCSS, Recharts |
 | **Backend** | Spring Boot 3.2, JDK 21, JPA/Hibernate, Flyway Migration, JWT |
-| **AI Service** | FastAPI (Python 3.10), Polars, LangChain (AI Agent), Nixtla/LightGBM |
+| **AI Service** | FastAPI (Python 3.10+), pandas, scikit-learn, XGBoost, joblib |
 | **Database** | PostgreSQL 16 |
 | **Cache Layer** | Redis 7 |
 | **Event Broker**| Apache Kafka 3.7.0 (KRaft mode) |

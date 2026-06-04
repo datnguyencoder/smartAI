@@ -2,9 +2,11 @@ package com.smartmart.controller;
 
 import com.smartmart.common.response.ApiResponse;
 import com.smartmart.dto.request.CreateScrapOrderRequest;
-import com.smartmart.entity.ScrapOrder;
+import com.smartmart.dto.response.ScrapOrderResponse;
+import com.smartmart.mapper.WmsResponseMapper;
 import com.smartmart.service.ScrapOrderService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -17,6 +19,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/scrap-orders")
 @Tag(name = "Scrap", description = "Phiếu hủy hàng")
+@SecurityRequirement(name = "bearerAuth")
 public class ScrapOrderController {
 
     private final ScrapOrderService scrapOrderService;
@@ -28,23 +31,26 @@ public class ScrapOrderController {
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
     @Operation(summary = "Danh sách phiếu hủy")
-    public ResponseEntity<ApiResponse<List<ScrapOrder>>> list() {
-        return ResponseEntity.ok(ApiResponse.success(scrapOrderService.listAll()));
+    public ResponseEntity<ApiResponse<List<ScrapOrderResponse>>> list() {
+        return ResponseEntity.ok(ApiResponse.success(
+                WmsResponseMapper.toScrapOrderResponses(scrapOrderService.listAll())));
     }
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
     @Operation(summary = "Tạo phiếu hủy (nháp)")
-    public ResponseEntity<ApiResponse<ScrapOrder>> create(@Valid @RequestBody CreateScrapOrderRequest request) {
+    public ResponseEntity<ApiResponse<ScrapOrderResponse>> create(@Valid @RequestBody CreateScrapOrderRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Tạo phiếu hủy thành công", scrapOrderService.create(request)));
+                .body(ApiResponse.success("Tạo phiếu hủy thành công",
+                        WmsResponseMapper.toScrapOrderResponse(scrapOrderService.create(request))));
     }
 
     @PostMapping("/{id}/complete")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
     @Operation(summary = "Hoàn tất phiếu hủy — trừ tồn qua ledger")
-    public ResponseEntity<ApiResponse<ScrapOrder>> complete(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<ScrapOrderResponse>> complete(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success("Hoàn tất hủy hàng",
-                scrapOrderService.complete(scrapOrderService.findById(id))));
+                WmsResponseMapper.toScrapOrderResponse(
+                        scrapOrderService.complete(scrapOrderService.findById(id)))));
     }
 }

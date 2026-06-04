@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
     Optional<Order> findByOrderCode(String orderCode);
@@ -36,4 +37,29 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         ORDER BY sale_date
         """, nativeQuery = true)
     List<Object[]> aggregateDailySalesSince(LocalDateTime since);
+
+    @Query("""
+        SELECT o FROM Order o
+        LEFT JOIN FETCH o.items oi
+        LEFT JOIN FETCH oi.item
+        WHERE o.id = :id
+        """)
+    Optional<Order> findByIdWithItems(Long id);
+
+    @Query("""
+        SELECT o FROM Order o
+        LEFT JOIN FETCH o.items oi
+        LEFT JOIN FETCH oi.item
+        ORDER BY o.orderDate DESC
+        """)
+    List<Order> findAllWithItems();
+
+    @Query("""
+        SELECT o FROM Order o
+        LEFT JOIN FETCH o.items oi
+        LEFT JOIN FETCH oi.item
+        WHERE o.createdBy = :createdBy
+        ORDER BY o.orderDate DESC
+        """)
+    List<Order> findByCreatedByWithItems(UUID createdBy);
 }

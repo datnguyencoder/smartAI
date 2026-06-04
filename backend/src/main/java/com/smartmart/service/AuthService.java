@@ -13,5 +13,7 @@ public interface AuthService {
 
     UserResponse me();
 
+    void logout(String bearerToken);
+
     UserResponse toUserResponse(User user);
 }

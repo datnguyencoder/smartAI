@@ -19,9 +19,7 @@ public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    /**
-     * Mọi exception nghiệp vụ kế thừa AppException → map ErrorCode chuẩn.
-     */
+    // AppException → HTTP status + errorCode theo enum ErrorCode
     @ExceptionHandler(AppException.class)
     public ResponseEntity<ApiResponse<Void>> handleAppException(AppException ex) {
         ErrorCode code = ex.getErrorCode();
@@ -34,9 +32,7 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(code.name(), ex.getMessage()));
     }
 
-    /**
-     * Lỗi validation @Valid → 400, success=false, kèm map field errors.
-     */
+    // @Valid thất bại → 400 + map lỗi theo field
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handleValidation(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();
@@ -47,9 +43,7 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.validationError(ErrorCode.VALIDATION_FAILED.getMessage(), errors));
     }
 
-    /**
-     * IllegalArgument do code nội bộ → coi như BAD_REQUEST chuẩn (không leak stack).
-     */
+    // Lỗi tham số nội bộ → 400, không trả stack trace
     @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})
     public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(RuntimeException ex) {
         log.warn("Bad request: {}", ex.getMessage());

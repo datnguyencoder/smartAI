@@ -1,0 +1,91 @@
+import type { PageKey } from '../types/pages';
+
+export type AppRole = 'ROLE_ADMIN' | 'ROLE_MANAGER' | 'ROLE_STAFF' | 'ROLE_WAREHOUSE' | string;
+
+const ALL_PAGES: PageKey[] = [
+  'dashboard',
+  'products',
+  'categories',
+  'suppliers',
+  'pos',
+  'invoices',
+  'import-create',
+  'import-slips',
+  'inventory',
+  'inventory-alerts',
+  'ai-forecast',
+  'purchase-suggestions',
+  'expiry-risk',
+  'promotions',
+  'ai-assistant',
+  'reports',
+  'users',
+  'settings',
+];
+
+// Ma trận trang theo role (docs/02-business-rule)
+const ROLE_PAGES: Record<string, PageKey[]> = {
+  ROLE_ADMIN: ALL_PAGES,
+  ROLE_MANAGER: ALL_PAGES.filter((p) => p !== 'users' && p !== 'settings'),
+  ROLE_STAFF: ['dashboard', 'products', 'pos', 'invoices', 'inventory-alerts'],
+  ROLE_WAREHOUSE: [
+    'products',
+    'categories',
+    'suppliers',
+    'import-create',
+    'import-slips',
+    'inventory',
+    'inventory-alerts',
+    'purchase-suggestions',
+    'expiry-risk',
+  ],
+};
+
+const QUICK_CREATE_PAGES: Partial<Record<PageKey, string[]>> = {
+  products: ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_WAREHOUSE'],
+  categories: ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_WAREHOUSE'],
+  suppliers: ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_WAREHOUSE'],
+  'import-create': ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_WAREHOUSE'],
+};
+
+export function normalizeRole(role?: string): string {
+  if (!role) return 'ROLE_STAFF';
+  return role.startsWith('ROLE_') ? role : `ROLE_${role}`;
+}
+
+export function allowedPages(role?: string): PageKey[] {
+  const key = normalizeRole(role);
+  return ROLE_PAGES[key] ?? ROLE_PAGES.ROLE_STAFF;
+}
+
+export function canAccessPage(role: string | undefined, page: PageKey): boolean {
+  return allowedPages(role).includes(page);
+}
+
+export function defaultPageForRole(role?: string): PageKey {
+  const pages = allowedPages(role);
+  const r = normalizeRole(role);
+  if (r === 'ROLE_STAFF' && pages.includes('pos')) return 'pos';
+  if (r === 'ROLE_WAREHOUSE' && pages.includes('inventory')) return 'inventory';
+  if (pages.includes('dashboard')) return 'dashboard';
+  return pages[0] ?? 'pos';
+}
+
+export function canQuickCreate(role: string | undefined, page: PageKey): boolean {
+  const allowed = QUICK_CREATE_PAGES[page];
+  if (!allowed) return false;
+  return allowed.includes(normalizeRole(role));
+}
+
+export function roleLabel(role?: string): string {
+  switch (normalizeRole(role)) {
+    case 'ROLE_ADMIN':
+      return 'Quản trị';
+    case 'ROLE_MANAGER':
+      return 'Quản lý';
+    case 'ROLE_WAREHOUSE':
+      return 'Kho';
+    default:
+      return 'Thu ngân';
+  }
+}
