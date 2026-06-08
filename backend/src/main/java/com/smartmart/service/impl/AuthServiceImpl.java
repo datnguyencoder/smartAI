@@ -1,6 +1,7 @@
 package com.smartmart.service.impl;
 
 import com.smartmart.dto.request.LoginRequest;
+import com.smartmart.dto.request.RefreshTokenRequest;
 import com.smartmart.dto.response.AuthResponse;
 import com.smartmart.dto.response.UserResponse;
 import com.smartmart.entity.User;
@@ -54,10 +55,12 @@ public class AuthServiceImpl implements com.smartmart.service.AuthService {
             if (details.getUser().getStatus() != UserStatus.ACTIVE) {
                 throw new UnauthorizedException(ErrorCode.ACCOUNT_INACTIVE, ErrorCode.ACCOUNT_INACTIVE.getMessage());
             }
-            String token = jwtTokenProvider.generateToken(auth);
+            String accessToken = jwtTokenProvider.generateAccessToken(auth);
+            String refreshToken = jwtTokenProvider.generateRefreshToken(auth);
             auditLogService.log("AUTH_LOGIN", "Đăng nhập: " + request.getUsername());
             return AuthResponse.builder()
-                    .accessToken(token)
+                    .accessToken(accessToken)
+                    .refreshToken(refreshToken)
                     .tokenType("Bearer")
                     .user(toUserResponse(details.getUser()))
                     .build();
@@ -66,32 +69,89 @@ public class AuthServiceImpl implements com.smartmart.service.AuthService {
         }
     }
 
-    @Override
-    public AuthResponse refresh(String bearerToken) {
-        if (bearerToken == null || !bearerToken.startsWith("Bearer ")) {
-            throw new UnauthorizedException(ErrorCode.TOKEN_INVALID, "Token không hợp lệ");
-        }
-        String token = bearerToken.substring(7);
-        if (!jwtTokenProvider.validateToken(token)) {
-            throw new UnauthorizedException(ErrorCode.TOKEN_EXPIRED, ErrorCode.TOKEN_EXPIRED.getMessage());
-        }
-        String username = jwtTokenProvider.getUsernameFromJwt(token);
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng"));
-        if (user.getStatus() != UserStatus.ACTIVE) {
-            throw new UnauthorizedException(ErrorCode.ACCOUNT_INACTIVE, ErrorCode.ACCOUNT_INACTIVE.getMessage());
-        }
-        Authentication auth = new UsernamePasswordAuthenticationToken(
-                new CustomUserDetails(user), null, new CustomUserDetails(user).getAuthorities());
-        return AuthResponse.builder()
-                .accessToken(jwtTokenProvider.generateToken(auth))
-                .tokenType("Bearer")
-                .user(toUserResponse(user))
-                .build();
-    }
+//    @Override
+//    public AuthResponse refresh(String bearerToken) {
+//        if (bearerToken == null || !bearerToken.startsWith("Bearer ")) {
+//            throw new UnauthorizedException(ErrorCode.TOKEN_INVALID, "Token không hợp lệ");
+//        }
+//        String token = bearerToken.substring(7);
+//        if (!jwtTokenProvider.validateToken(token)) {
+//            throw new UnauthorizedException(ErrorCode.TOKEN_EXPIRED, ErrorCode.TOKEN_EXPIRED.getMessage());
+//        }
+//        String username = jwtTokenProvider.getUsernameFromJwt(token);
+//        User user = userRepository.findByUsername(username)
+//                .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng"));
+//        if (user.getStatus() != UserStatus.ACTIVE) {
+//            throw new UnauthorizedException(ErrorCode.ACCOUNT_INACTIVE, ErrorCode.ACCOUNT_INACTIVE.getMessage());
+//        }
+//        Authentication auth = new UsernamePasswordAuthenticationToken(
+//                new CustomUserDetails(user), null, new CustomUserDetails(user).getAuthorities());
+//        return AuthResponse.builder()
+//                .accessToken(jwtTokenProvider.generateToken(auth))
+//                .tokenType("Bearer")
+//                .user(toUserResponse(user))
+//                .build();
+//    }
 
     // Thu hồi JWT (blacklist) và xóa phiên SecurityContext
     // Thu hồi JWT (blacklist) và xóa phiên SecurityContext
+
+    @Override
+    public AuthResponse refresh(RefreshTokenRequest request) {
+        String refreshToken = request.getRefreshToken();
+
+        if(jwtTokenProvider.isTokenExpired(refreshToken)){
+            throw new UnauthorizedException(
+                    ErrorCode.REFRESH_TOKEN_EXPIRED,
+                    ErrorCode.REFRESH_TOKEN_EXPIRED.getMessage()
+            );
+        }
+        if(!jwtTokenProvider.validateToken(refreshToken) ){
+            throw new UnauthorizedException(
+                    ErrorCode.REFRESH_TOKEN_INVALID,
+                    ErrorCode.REFRESH_TOKEN_INVALID.getMessage()
+            );
+        }
+
+        if(!jwtTokenProvider.isRefreshToken(refreshToken)){
+            throw new UnauthorizedException(
+                    ErrorCode.REFRESH_TOKEN_INVALID,
+                    ErrorCode.REFRESH_TOKEN_INVALID.getMessage()
+            );
+        }
+        String username = jwtTokenProvider.getUsernameFromJwt(refreshToken);
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(()-> new UnauthorizedException(
+                        ErrorCode.REFRESH_TOKEN_INVALID,
+                        ErrorCode.REFRESH_TOKEN_INVALID.getMessage()
+                ));
+
+        if(user.getStatus() != UserStatus.ACTIVE){
+            throw new UnauthorizedException(
+                    ErrorCode.ACCOUNT_INACTIVE,
+                    ErrorCode.ACCOUNT_INACTIVE.getMessage()
+            );
+        }
+        CustomUserDetails userDetails = new CustomUserDetails(user);
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                userDetails,
+                null,
+                userDetails.getAuthorities()
+        );
+
+        String newAccessToken = jwtTokenProvider.generateAccessToken(auth);
+        return AuthResponse.builder()
+                .accessToken(newAccessToken)
+                .refreshToken(refreshToken)
+                .tokenType("Bearer")
+                .user(toUserResponse(user))
+                .build();
+
+    }
+
+
     @Override
     public void logout(String bearerToken) {
         if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
