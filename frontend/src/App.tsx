@@ -3,6 +3,7 @@ import {
   Badge,
   Button,
   ConfigProvider,
+  App as AntdApp,
   DatePicker,
   Drawer,
   Form,
@@ -79,6 +80,7 @@ import {
   Tooltip as ChartTooltip,
   XAxis,
   YAxis,
+  Label,
 } from 'recharts';
 import { Card, CardHeader, StatusChip, UiButton } from './components/ui';
 import { LoginScreen } from './components/LoginScreen';
@@ -86,6 +88,8 @@ import { ProductDrawer } from './components/ProductDrawer';
 import { ProductsTable } from './components/products/ProductsTable';
 import { ProductThumbnail } from './components/ProductThumbnail';
 import { CreateProductModal } from './components/CreateProductModal';
+import ImportCreatePage from './pages/ImportCreatePage';
+import ImportSlipsPage from './pages/ImportSlipsPage';
 import { cn } from './lib/utils';
 import { itemToProduct, formatMoney, statusTone, type Product } from './lib/itemMapper';
 import type { PageKey } from './types/pages';
@@ -105,16 +109,30 @@ import {
   fetchItems,
   fetchLocations,
   fetchOrders,
-  fetchPurchaseOrders,
   fetchReorderRecommendations,
   fetchSuppliers,
   fetchUoms,
   updateItem,
   receivePurchaseOrder,
+  cancelPurchaseOrder,
+  fetchPurchaseOrdersPaged,
   runForecast,
   trainForecast,
+  createUser,
+  updateUser,
+  lockUser,
+  softDeleteUser,
 } from './services/wmsApi';
-import type { CategoryDto, DashboardSummaryDto, InventoryAlertDto, LocationDto, SupplierDto, UomDto, UserDto } from './types/api';
+import type { 
+  CategoryDto,
+  DashboardSummaryDto,
+  InventoryAlertDto,
+  LocationDto,
+  Role,
+  SupplierDto,
+  UomDto,
+  UserDto,
+  UserStatus, } from './types/api';
 import { useAuth } from './contexts/AuthContext';
 import { pageFromPath, pathFromPage } from './lib/pageRoutes';
 import {
@@ -206,10 +224,10 @@ function App() {
   const [selectedInvoice, setSelectedInvoice] = React.useState<any | null>(null);
   const [modalOpen, setModalOpen] = React.useState(false);
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
+  const [globalSearch, setGlobalSearch] = React.useState('');
 
   const [productsList, setProductsList] = React.useState<Product[]>([]);
   const [invoicesList, setInvoicesList] = React.useState<any[]>([]);
-  const [importSlips, setImportSlips] = React.useState<ImportSlipRow[]>([]);
   const [categories, setCategories] = React.useState<CategoryDto[]>([]);
   const [suppliers, setSuppliers] = React.useState<SupplierDto[]>([]);
   const [locations, setLocations] = React.useState<LocationDto[]>([]);
@@ -263,58 +281,29 @@ function App() {
   const reloadCatalog = React.useCallback(async () => {
     if (!authUser) return;
     setCatalogLoading(true);
-    const role = normalizeRole(authUser.role);
-    const ordersTask = canFetchOrders(role) ? fetchOrders() : Promise.resolve([]);
-
-    const settled = await Promise.allSettled([
-      fetchItems(),
-      ordersTask,
-      fetchPurchaseOrders(),
-      fetchCategories(),
-      fetchSuppliers(),
-      fetchLocations(),
-      fetchUoms(),
-    ]);
-
-    const itemsResult = settled[0];
-    const items =
-      itemsResult.status === 'fulfilled'
-        ? itemsResult.value
-        : ([] as Awaited<ReturnType<typeof fetchItems>>);
-    const ordersResult = settled[1];
-    const orders =
-      ordersResult.status === 'fulfilled'
-        ? ordersResult.value
-        : ([] as Awaited<ReturnType<typeof fetchOrders>>);
-    const purchasesResult = settled[2];
-    const purchases =
-      purchasesResult.status === 'fulfilled'
-        ? purchasesResult.value
-        : ([] as Awaited<ReturnType<typeof fetchPurchaseOrders>>);
-    const catsResult = settled[3];
-    const cats = catsResult.status === 'fulfilled' ? catsResult.value : ([] as CategoryDto[]);
-    const supsResult = settled[4];
-    const sups = supsResult.status === 'fulfilled' ? supsResult.value : ([] as SupplierDto[]);
-    const locsResult = settled[5];
-    const locs = locsResult.status === 'fulfilled' ? locsResult.value : ([] as LocationDto[]);
-    const uomResult = settled[6];
-    const uomList = uomResult.status === 'fulfilled' ? uomResult.value : ([] as UomDto[]);
-
-    setProductsList(items.map(itemToProduct));
-    setInvoicesList(ordersToInvoices(orders));
-    setImportSlips(purchases.map(purchaseToSlip));
-    setCategories(cats);
-    setSuppliers(sups);
-    setLocations(locs);
-    setUoms(uomList);
-
-    if (itemsResult.status === 'rejected') {
-      const reason = itemsResult.reason;
-      antdMessage.error(reason instanceof Error ? reason.message : 'Không tải được danh sách sản phẩm');
+    try {
+      const [items, orders, purchases, cats, sups, locs, uomList] = await Promise.all([
+        fetchItems(),
+        fetchOrders(),
+        fetchPurchaseOrders().catch(() => []),
+        fetchCategories(),
+        fetchSuppliers(),
+        fetchLocations(),
+        fetchUoms().catch(() => []),
+      ]);
+      setProductsList(items.map(itemToProduct));
+      setInvoicesList(ordersToInvoices(orders));
+      setImportSlips(purchases.map(purchaseToSlip));
+      setCategories(cats);
+      setSuppliers(sups);
+      setLocations(locs);
+      setUoms(uomList);
+    } catch (e) {
+      antdMessage.error(e instanceof Error ? e.message : 'Không tải được dữ liệu API');
+    } finally {
+      setCatalogLoading(false);
     }
-
-    setCatalogLoading(false);
-  }, [authUser]);
+  }, []);
 
   React.useEffect(() => {
     if (!authUser) {
@@ -359,11 +348,11 @@ function App() {
           Button: { controlHeight: 40, fontWeight: 600 },
           Table: { headerBg: '#f8fafc', headerColor: '#64748b', rowHoverBg: '#f8fffc' },
           Input: { controlHeight: 40 },
-          Select: { controlHeight: 40 },
         },
       }}
     >
-      <div className="min-h-screen bg-[#f8fafc] text-ink">
+      <AntdApp>
+        <div className="min-h-screen bg-[#f8fafc] text-ink">
         <Sidebar
           page={page}
           setPage={setPage}
@@ -387,6 +376,8 @@ function App() {
             page={page}
             setModalOpen={setModalOpen}
             openMobileNav={() => setMobileNavOpen(true)}
+            globalSearch={globalSearch}
+            setGlobalSearch={setGlobalSearch}
           />
           <div ref={pageContentRef} className="mx-auto max-w-[1220px] px-4 py-5 sm:px-6">
             <PageRenderer
@@ -395,9 +386,9 @@ function App() {
               openProduct={setDrawerProduct}
               openModal={() => setModalOpen(true)}
               setPage={setPage}
+              globalSearch={globalSearch}
               productsList={productsList}
               invoicesList={invoicesList}
-              importSlips={importSlips}
               categories={categories}
               suppliers={suppliers}
               locations={locations}
@@ -420,15 +411,16 @@ function App() {
           onUpdated={reloadCatalog}
         />
         <InvoiceDrawer invoice={selectedInvoice} onClose={() => setSelectedInvoice(null)} />
-        <CreateProductModal
-          open={modalOpen}
-          onCancel={() => setModalOpen(false)}
-          page={page}
-          categories={categories}
-          uoms={uoms}
-          onCreated={reloadCatalog}
-        />
-      </div>
+          <CreateProductModal
+            open={modalOpen}
+            onCancel={() => setModalOpen(false)}
+            page={page}
+            categories={categories}
+            uoms={uoms}
+            onCreated={reloadCatalog}
+          />
+        </div>
+      </AntdApp>
     </ConfigProvider>
   );
 }
@@ -607,6 +599,8 @@ function Topbar({
   page,
   setModalOpen,
   openMobileNav,
+  globalSearch,
+  setGlobalSearch,
 }: {
   title: string;
   description: string;
@@ -614,6 +608,8 @@ function Topbar({
   page: PageKey;
   setModalOpen: (open: boolean) => void;
   openMobileNav: () => void;
+  globalSearch: string;
+  setGlobalSearch: (val: string) => void;
 }) {
   const showQuickCreate = canQuickCreate(authUser.role, page);
   return (
@@ -628,7 +624,13 @@ function Topbar({
           <p className="text-sm text-muted">{description}</p>
         </div>
         <div className="hidden min-w-[480px] items-center justify-end gap-3 lg:flex">
-          <Input prefix={<Search size={16} />} placeholder="Tìm kiếm sản phẩm, hóa đơn, cảnh báo..." />
+          <Input 
+            prefix={<Search size={16} />} 
+            placeholder="Tìm kiếm sản phẩm, hóa đơn, cảnh báo..." 
+            value={globalSearch}
+            onChange={(e) => setGlobalSearch(e.target.value)}
+            allowClear
+          />
           <Badge dot>
             <Button icon={<Bell size={16} />} />
           </Badge>
@@ -655,9 +657,9 @@ function PageRenderer({
   openProduct,
   openModal,
   setPage,
+  globalSearch,
   productsList,
   invoicesList,
-  importSlips,
   categories,
   suppliers,
   locations,
@@ -677,9 +679,9 @@ function PageRenderer({
   openProduct: (product: Product) => void;
   openModal: () => void;
   setPage: (page: PageKey) => void;
+  globalSearch: string;
   productsList: Product[];
   invoicesList: any[];
-  importSlips: ImportSlipRow[];
   categories: CategoryDto[];
   suppliers: SupplierDto[];
   locations: LocationDto[];
@@ -742,11 +744,12 @@ function PageRenderer({
         locations={locations}
         setPage={setPage}
         reloadCatalog={reloadCatalog}
+        catalogLoading={catalogLoading}
       />
     );
   }
   if (page === 'import-slips') {
-    return <ImportSlipsPage importSlips={importSlips} reloadCatalog={reloadCatalog} />;
+    return <ImportSlipsPage reloadCatalog={reloadCatalog} globalSearch={globalSearch} />;
   }
   if (page === 'inventory') {
     return <InventoryPage openProduct={openProduct} productsList={productsList} />;
@@ -1021,7 +1024,7 @@ function SmartTooltip({ active, payload, label }: { active?: boolean; payload?: 
   );
 }
 
-function AiSummary({ setPage }: { setPage: (page: PageKey) => void }) {
+export function AiSummary({ setPage }: { setPage: (page: PageKey) => void }) {
   const insights = [
     ['Cần nhập hàng', '12', 'warning'],
     ['Nguy cơ hết hàng', '7', 'danger'],
@@ -1601,201 +1604,7 @@ function InvoicesPage({ invoicesList, setSelectedInvoice }: { invoicesList: any[
   );
 }
 
-function ImportCreatePage({
-  productsList,
-  suppliers,
-  locations,
-  setPage,
-  reloadCatalog,
-}: {
-  productsList: Product[];
-  suppliers: SupplierDto[];
-  locations: LocationDto[];
-  setPage: (page: PageKey) => void;
-  reloadCatalog: () => Promise<void>;
-}) {
-  const [form] = Form.useForm();
-  const [submitting, setSubmitting] = React.useState(false);
-  const defaultLocation = locations.find((l) => l.locationName.includes('Kho bán')) ?? locations[0];
 
-  const handleCreateSlip = async (values: {
-    supplierId: number;
-    locationId: number;
-    itemId: number;
-    quantity: number;
-    price: number;
-  }) => {
-    setSubmitting(true);
-    try {
-      const po = await createPurchaseOrder({
-        supplierId: values.supplierId,
-        locationId: values.locationId,
-        items: [{ itemId: values.itemId, orderedQty: values.quantity, unitPrice: values.price }],
-      });
-      await reloadCatalog();
-      antdMessage.success(`Tạo phiếu nhập PN-${po.id} thành công!`);
-      form.resetFields();
-      setPage('import-slips');
-    } catch (e) {
-      antdMessage.error(e instanceof Error ? e.message : 'Tạo phiếu nhập thất bại (cần quyền kho: warehouse/admin)');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
-      <Card>
-        <CardHeader title="Thông tin lập phiếu nhập hàng" />
-        <Form
-          layout="vertical"
-          form={form}
-          onFinish={handleCreateSlip}
-          className="px-5 pb-5"
-          initialValues={{ locationId: defaultLocation?.id, quantity: 50, price: 25000 }}
-        >
-          <div className="grid gap-4 md:grid-cols-2">
-            <Form.Item name="supplierId" label="Nhà cung cấp" rules={[{ required: true }]}>
-              <Select
-                placeholder="Chọn nhà cung cấp"
-                options={suppliers.map((s) => ({ value: s.id, label: s.supplierName }))}
-              />
-            </Form.Item>
-            <Form.Item name="locationId" label="Kho nhận" rules={[{ required: true }]}>
-              <Select
-                placeholder="Chọn kho"
-                options={locations.map((l) => ({ value: l.id, label: l.locationName }))}
-              />
-            </Form.Item>
-            <Form.Item name="itemId" label="Sản phẩm" rules={[{ required: true }]}>
-              <Select
-                placeholder="Chọn sản phẩm"
-                options={productsList.map((p) => ({
-                  value: Number(p.key),
-                  label: `${p.name} (Tồn: ${p.stock})`,
-                }))}
-              />
-            </Form.Item>
-            <Form.Item name="quantity" label="Số lượng đặt" rules={[{ required: true }]}>
-              <InputNumber className="w-full" min={1} />
-            </Form.Item>
-            <Form.Item name="price" label="Đơn giá nhập (VNĐ)" rules={[{ required: true }]}>
-              <InputNumber className="w-full" min={1000} />
-            </Form.Item>
-          </div>
-          <Button type="primary" htmlType="submit" loading={submitting} icon={<Plus size={16} />} className="mt-2">
-            Lưu phiếu nhập
-          </Button>
-        </Form>
-      </Card>
-      <AiSummary setPage={setPage} />
-    </div>
-  );
-}
-
-function ImportSlipsPage({
-  importSlips,
-  reloadCatalog,
-}: {
-  importSlips: ImportSlipRow[];
-  reloadCatalog: () => Promise<void>;
-}) {
-  const [receiving, setReceiving] = React.useState<ImportSlipRow | null>(null);
-  const [receiveLoading, setReceiveLoading] = React.useState(false);
-  const receiptRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    if (receiving) animateModalContent(receiptRef.current);
-  }, [receiving]);
-
-  const handleReceiveAll = async (slip: ImportSlipRow) => {
-    setReceiveLoading(true);
-    try {
-      const lines = (slip.items ?? [])
-        .filter((i) => Number(i.orderedQty) > Number(i.receivedQty))
-        .map((i) => ({
-          purchaseItemId: i.id,
-          receiveQty: Number(i.orderedQty) - Number(i.receivedQty),
-        }));
-      if (lines.length === 0) {
-        antdMessage.warning('Phiếu đã nhận đủ hàng');
-        return;
-      }
-      await receivePurchaseOrder(slip.id, lines);
-      await reloadCatalog();
-      antdMessage.success('Nhận hàng vào kho thành công');
-      setReceiving(null);
-    } catch (e) {
-      antdMessage.error(e instanceof Error ? e.message : 'Nhận hàng thất bại');
-    } finally {
-      setReceiveLoading(false);
-    }
-  };
-
-  const columns = [
-    { title: 'Mã phiếu', dataIndex: 'key' },
-    { title: 'Nhà cung cấp', dataIndex: 'supplier' },
-    { title: 'Kho', dataIndex: 'locationName' },
-    { title: 'Tổng giá trị', dataIndex: 'amount', render: (v: number) => money(v) },
-    { title: 'Ngày', dataIndex: 'time' },
-    {
-      title: 'Trạng thái',
-      dataIndex: 'status',
-      render: (v: string) => (
-        <StatusChip tone={v.includes('Chờ') || v.includes('phần') ? 'warning' : 'success'}>{v}</StatusChip>
-      ),
-    },
-    {
-      title: 'Hành động',
-      render: (_: unknown, row: ImportSlipRow) =>
-        row.canReceive ? (
-          <Button size="small" type="primary" onClick={() => setReceiving(row)}>
-            Nhận hàng
-          </Button>
-        ) : (
-          <span className="text-xs text-slate-400">—</span>
-        ),
-    },
-  ];
-
-  return (
-    <>
-      <Card className="overflow-hidden">
-        <CardHeader title="Danh sách phiếu nhập hàng" />
-        <Table columns={columns} dataSource={importSlips} pagination={{ pageSize: 8 }} rowKey="key" />
-      </Card>
-      <Modal
-        open={Boolean(receiving)}
-        onCancel={() => setReceiving(null)}
-        title={`Nhận hàng — ${receiving?.key}`}
-        footer={[
-          <Button key="cancel" onClick={() => setReceiving(null)}>
-            Đóng
-          </Button>,
-          <Button
-            key="ok"
-            type="primary"
-            loading={receiveLoading}
-            onClick={() => receiving && handleReceiveAll(receiving)}
-          >
-            Nhận đủ số lượng còn lại
-          </Button>,
-        ]}
-      >
-        <div ref={receiptRef} className="space-y-2 text-sm">
-          {(receiving?.items ?? []).map((i) => (
-            <div key={i.id} className="flex justify-between border-b border-slate-100 py-2">
-              <span>{i.itemName}</span>
-              <span>
-                Đặt {i.orderedQty} · Đã nhận {i.receivedQty}
-              </span>
-            </div>
-          ))}
-        </div>
-      </Modal>
-    </>
-  );
-}
 
 function InventoryPage({ openProduct, productsList }: { openProduct: (product: Product) => void; productsList: Product[] }) {
   const [rows, setRows] = React.useState(productsList);
@@ -1812,6 +1621,7 @@ function InventoryPage({ openProduct, productsList }: { openProduct: (product: P
             name: row.itemName,
             category: row.locationName,
             price: 0,
+            cost: 0,
             stock,
             sold: 0,
             supplier: '-',
@@ -2004,6 +1814,7 @@ function ExpiryRiskPage({ productsList, setActivePromotions, setPage }: { produc
           name: row.itemName,
           category: row.locationName,
           price: 0,
+          cost: 0,
           stock: Math.round(Number(row.availableQuantity)),
           sold: 0,
           supplier: '-',
@@ -2245,23 +2056,212 @@ function ReportsPage({ productsList, invoicesList }: { productsList: Product[]; 
     </div>
   );
 }
-
+const userFormValidateMessages = {
+  required: 'Vui lòng nhập ${label}',
+  types: {
+    email: '${label} không đúng định dạng',
+  },
+  string: {
+    min: '${label} phải có ít nhất ${min} ký tự',
+    max: '${label} không được vượt quá ${max} ký tự',
+  },
+};
 function UsersPage() {
   const [users, setUsers] = React.useState<UserDto[]>([]);
   const [loading, setLoading] = React.useState(true);
-  React.useEffect(() => {
+  const [modalOpen, setModalOpen] = React.useState(false);
+  const [editingUser, setEditingUser] = React.useState<UserDto | null>(null);
+  const [form] = Form.useForm();
+
+  const loadUsers = React.useCallback(() => {
+    setLoading(true);
     fetchUsers()
       .then(setUsers)
-      .catch(() => setUsers([]))
+      .catch((e) => antdMessage.error(e instanceof Error ? e.message : 'Không tải được danh sách người dùng'))
       .finally(() => setLoading(false));
   }, []);
-  if (loading) return <p className="text-sm text-muted">Đang tải người dùng…</p>;
+
+  React.useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
+
+  const openCreate = () => {
+    setEditingUser(null);
+    form.resetFields();
+    form.setFieldsValue({ role: 'ROLE_STAFF'});
+    setModalOpen(true);
+  };
+
+  const openEdit = (user: UserDto) => {
+    setEditingUser(user);
+    form.setFieldsValue(user);
+    setModalOpen(true);
+  };
+
+  const handleSubmit = async () => {
+    const values = await form.validateFields();
+    try {
+      if (editingUser) {
+        const fullName = values.fullName?.trim();
+        const email = values.email?.trim();
+
+        await updateUser(editingUser.id, {
+          fullName: fullName || undefined,
+          email: email || undefined,
+          role: values.role || undefined,
+        });
+        antdMessage.success('Cập nhật người dùng thành công');
+      } else {
+        await createUser({
+          username: values.username.trim(),
+          password: values.password,
+          email: values.email.trim(),
+          fullName: values.fullName?.trim() || undefined,
+          role: values.role ,
+        });
+        antdMessage.success('Tạo người dùng thành công');
+      }
+      setModalOpen(false);
+      loadUsers();
+    } catch (e) {
+      antdMessage.error(e instanceof Error ? e.message : 'Thao tác thất bại');
+    }
+  };
+
+  const statusTag = (status: UserStatus) => {
+    if (status === 'ACTIVE') return <Tag color="green">ACTIVE</Tag>;
+    if (status === 'LOCKED') return <Tag color="orange">LOCKED</Tag>;
+    return <Tag color="red">INACTIVE</Tag>;
+  };
+
+  const roleText = (role: Role) => {
+  switch (role) {
+    case 'ROLE_ADMIN':
+      return 'ADMIN';
+    case 'ROLE_MANAGER':
+      return 'QUẢN LÝ';
+    case 'ROLE_STAFF':
+      return 'THU NGÂN';
+    case 'ROLE_WAREHOUSE':
+      return 'KHO';
+    case 'ROLE_ANALYST':
+      return 'PHÂN TÍCH';
+  }
+  };
+  const columns: ColumnsType<UserDto> = [
+    { title: 'Tên đăng nhập', dataIndex: 'username' },
+    { title: 'Họ tên', dataIndex: 'fullName' },
+    { title: 'Email', dataIndex: 'email' },
+    { title: 'Vai trò', dataIndex: 'role', render: roleText },
+    { title: 'Trạng thái', dataIndex: 'status', render: statusTag },
+    {
+      title: 'Thao tác',
+      render: (_, user) => (
+        <div className="flex gap-2">
+          <Button size="small" onClick={() => openEdit(user)}>Sửa</Button>
+          <Button
+            size="small"
+            danger
+            disabled={user.status === 'LOCKED' || user.status === 'INACTIVE'}
+            onClick={() => {
+              Modal.confirm({
+                title: 'Khóa tài khoản?',
+                content: `Bạn muốn khóa ${user.username}?`,
+                onOk: async () => {
+                  await lockUser(user.id);
+                  antdMessage.success('Khóa tài khoản thành công');
+                  loadUsers();
+                },
+              });
+            }}
+          >
+            Khóa
+          </Button>
+          <Button
+            size="small"
+            danger
+            disabled={user.status !== 'LOCKED'}
+            onClick={() => {
+              Modal.confirm({
+                title: 'Xóa mềm tài khoản?',
+                content: 'Backend yêu cầu tài khoản phải LOCKED trước khi chuyển sang INACTIVE.',
+                onOk: async () => {
+                  await softDeleteUser(user.id);
+                  antdMessage.success('Xóa mềm thành công');
+                  loadUsers();
+                },
+              });
+            }}
+          >
+            Xóa mềm
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
-    <SimpleManagementPage
-      title="Người dùng hệ thống"
-      icon={UsersRound}
-      rows={users.map((u) => `${u.fullName ?? u.username} (${u.role})`)}
-    />
+    <Card>
+      <CardHeader
+        title="Người dùng hệ thống"
+        description="Admin tạo tài khoản, cập nhật vai trò, khóa và xóa mềm nhân sự."
+        action={<Button type="primary" icon={<Plus size={16} />} onClick={openCreate}>Tạo mới</Button>}
+      />
+
+      <div className="px-5 pb-5">
+        <Table rowKey="id" loading={loading} dataSource={users} columns={columns} />
+      </div>
+
+      <Modal
+        open={modalOpen}
+        title={editingUser ? 'Cập nhật người dùng' : 'Tạo người dùng'}
+        onCancel={() => setModalOpen(false)}
+        onOk={handleSubmit}
+        okText={editingUser ? 'Cập nhật' : 'Tạo mới'}
+        cancelText="Hủy"
+      >
+        <Form form={form} layout="vertical" validateMessages={userFormValidateMessages}>
+          {!editingUser && (
+            <>
+              <Form.Item name="username" label="Tên đăng nhập" messageVariables={{label : 'tên đăng nhập'}} rules={[{ required: true }, {min: 4}, { max: 50 }, { pattern: /^[a-zA-Z0-9_.]+$/, message: 'Tên đăng nhập chỉ được chứa chữ, số và gạch dưới hoặc dấu chấm' }]}>
+                <Input />
+              </Form.Item>
+              <Form.Item name="password" label="Mật khẩu" messageVariables={{label : 'mật khẩu'}} rules={[{ required: true }, { min: 6 }]}>
+                <Input.Password />
+              </Form.Item>
+            </>
+          )}
+
+          <Form.Item name="fullName" label="Họ tên" messageVariables={{label : 'họ tên'}} rules={[{ max: 100 }]}>
+            <Input />
+          </Form.Item>
+
+          <Form.Item
+            name="email"
+            label="Email"
+            messageVariables={{ label: 'email' }}
+            rules={[
+              ...(!editingUser ? [{ required: true }] : []),
+              { type: 'email' },
+            ]}
+          >
+            <Input />
+          </Form.Item>
+
+          <Form.Item name="role" label="Vai trò" messageVariables={{label : 'vai trò'}} rules={[{ required: true }]}>
+            <Select
+              options={[
+                { value: 'ROLE_ADMIN' satisfies Role, label: 'Admin' },
+                { value: 'ROLE_MANAGER' satisfies Role, label: 'Quản lý' },
+                { value: 'ROLE_STAFF' satisfies Role, label: 'Thu ngân' },
+                { value: 'ROLE_WAREHOUSE' satisfies Role, label: 'Kho' },
+                { value: 'ROLE_ANALYST' satisfies Role, label: 'Phân tích' },
+              ]}
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </Card>
   );
 }
 

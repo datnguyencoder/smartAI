@@ -6,6 +6,8 @@ spring:
     name: smartmart-backend
   profiles:
     # local = H2 (dev nhanh). Docker/CI set SPRING_PROFILES_ACTIVE=prod (PostgreSQL).
+    # active: ${SPRING_PROFILES_ACTIVE:local}
+    # default to prod (PostgreSQL in Docker).
     active: ${SPRING_PROFILES_ACTIVE:local}
 
   # Redis (override host/port theo profile / env)

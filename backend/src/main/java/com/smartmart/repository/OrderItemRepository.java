@@ -16,4 +16,6 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
         GROUP BY oi.item.id
         """)
     List<Object[]> aggregateSoldByItem();
+
+    boolean existsByItemId(Long itemId);
 }

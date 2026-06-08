@@ -1,3 +1,11 @@
+export type UserStatus = 'ACTIVE' | 'LOCKED' | 'INACTIVE';
+export type Role =
+  | 'ROLE_ADMIN'
+  | 'ROLE_MANAGER'
+  | 'ROLE_STAFF'
+  | 'ROLE_WAREHOUSE'
+  | 'ROLE_ANALYST';
+
 export type ApiEnvelope<T> = {
   success: boolean;
   message?: string;
@@ -11,11 +19,13 @@ export type UserDto = {
   username: string;
   email: string;
   fullName?: string;
-  role: string;
+  role: Role;
+  status: UserStatus;
 };
 
 export type AuthDto = {
   accessToken: string;
+  refreshToken: string;
   tokenType: string;
   user: UserDto;
 };
@@ -25,6 +35,7 @@ export type ItemDto = {
   itemCode: string;
   itemName: string;
   categoryName?: string;
+  costPrice: number;
   sellingPrice: number;
   minimumStock: number;
   totalAvailableQty?: number;
@@ -32,6 +43,10 @@ export type ItemDto = {
   hasExpiry: boolean;
   active: boolean;
   imageUrl?: string;
+  baseUomId?: number;
+  baseUomName?: string;
+  purchaseUomId?: number;
+  purchaseUomName?: string;
 };
 
 export type PageResponseDto<T> = {
@@ -123,4 +138,18 @@ export type PurchaseOrderDto = {
   completedAt?: string;
   totalAmount: number;
   items: PurchaseOrderItemDto[];
+};
+
+export type CreateUserPayload = {
+  username: string;
+  password: string;
+  email: string;
+  fullName?: string;
+  role: Role;
+};
+
+export type UpdateUserPayload = {
+  fullName?: string;
+  email?: string;
+  role?: Role;
 };
