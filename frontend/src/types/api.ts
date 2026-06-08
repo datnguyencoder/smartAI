@@ -4,8 +4,7 @@ export type Role =
   | 'ROLE_MANAGER'
   | 'ROLE_STAFF'
   | 'ROLE_WAREHOUSE'
-  | 'ROLE_ANALYST'
-  | string;
+  | 'ROLE_ANALYST';
 
 export type ApiEnvelope<T> = {
   success: boolean;
@@ -148,5 +147,4 @@ export type UpdateUserPayload = {
   fullName?: string;
   email?: string;
   role?: Role;
-  status?: UserStatus;
 };
