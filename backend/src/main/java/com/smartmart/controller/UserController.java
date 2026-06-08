@@ -64,4 +64,11 @@ public class UserController {
         userService.deactivate(id);
         return ResponseEntity.ok(ApiResponse.success("Khóa tài khoản thành công", null));
     }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Xóa mềm tài khoản nhân viên")
+    public ResponseEntity<ApiResponse<Void>> softDelete(@PathVariable UUID id) {
+        userService.softDelete(id);
+        return ResponseEntity.ok(ApiResponse.success("Xóa mềm tài khoản thành công", null));
+    }
 }
