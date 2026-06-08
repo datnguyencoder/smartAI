@@ -99,3 +99,15 @@ export async function apiRequest<T>(
   }
   return body.data as T;
 }
+
+/** Role-restricted endpoints (e.g. orders for WAREHOUSE) — skip without failing the whole batch. */
+export async function ignoreForbidden<T>(promise: Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await promise;
+  } catch (e) {
+    if (e instanceof ApiClientError && e.status === 403) {
+      return fallback;
+    }
+    throw e;
+  }
+}

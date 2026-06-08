@@ -120,8 +120,10 @@ import { pageFromPath, pathFromPage } from './lib/pageRoutes';
 import {
   allowedPages,
   canAccessPage,
+  canFetchOrders,
   canQuickCreate,
   defaultPageForRole,
+  normalizeRole,
   roleLabel,
 } from './lib/permissions';
 
@@ -226,12 +228,23 @@ function App() {
   const pageContentRef = React.useRef<HTMLDivElement>(null);
   const cartPanelRef = React.useRef<HTMLDivElement>(null);
 
+  const clearCatalog = React.useCallback(() => {
+    setProductsList([]);
+    setInvoicesList([]);
+    setImportSlips([]);
+    setCategories([]);
+    setSuppliers([]);
+    setLocations([]);
+    setUoms([]);
+  }, []);
+
   const handleLogout = React.useCallback(async () => {
     await authLogout();
     setPosCart([]);
+    clearCatalog();
     setPage('dashboard');
     antdMessage.success('Đã đăng xuất');
-  }, [authLogout, setPage]);
+  }, [authLogout, clearCatalog, setPage]);
 
   const visibleNavItems = React.useMemo(
     () => navItems.filter((item) => canAccessPage(authUser?.role, item.key)),
@@ -248,36 +261,70 @@ function App() {
   }, [authUser, page]);
 
   const reloadCatalog = React.useCallback(async () => {
+    if (!authUser) return;
     setCatalogLoading(true);
-    try {
-      const [items, orders, purchases, cats, sups, locs, uomList] = await Promise.all([
-        fetchItems(),
-        fetchOrders(),
-        fetchPurchaseOrders().catch(() => []),
-        fetchCategories(),
-        fetchSuppliers(),
-        fetchLocations(),
-        fetchUoms().catch(() => []),
-      ]);
-      setProductsList(items.map(itemToProduct));
-      setInvoicesList(ordersToInvoices(orders));
-      setImportSlips(purchases.map(purchaseToSlip));
-      setCategories(cats);
-      setSuppliers(sups);
-      setLocations(locs);
-      setUoms(uomList);
-    } catch (e) {
-      antdMessage.error(e instanceof Error ? e.message : 'Không tải được dữ liệu API');
-    } finally {
-      setCatalogLoading(false);
+    const role = normalizeRole(authUser.role);
+    const ordersTask = canFetchOrders(role) ? fetchOrders() : Promise.resolve([]);
+
+    const settled = await Promise.allSettled([
+      fetchItems(),
+      ordersTask,
+      fetchPurchaseOrders(),
+      fetchCategories(),
+      fetchSuppliers(),
+      fetchLocations(),
+      fetchUoms(),
+    ]);
+
+    const itemsResult = settled[0];
+    const items =
+      itemsResult.status === 'fulfilled'
+        ? itemsResult.value
+        : ([] as Awaited<ReturnType<typeof fetchItems>>);
+    const ordersResult = settled[1];
+    const orders =
+      ordersResult.status === 'fulfilled'
+        ? ordersResult.value
+        : ([] as Awaited<ReturnType<typeof fetchOrders>>);
+    const purchasesResult = settled[2];
+    const purchases =
+      purchasesResult.status === 'fulfilled'
+        ? purchasesResult.value
+        : ([] as Awaited<ReturnType<typeof fetchPurchaseOrders>>);
+    const catsResult = settled[3];
+    const cats = catsResult.status === 'fulfilled' ? catsResult.value : ([] as CategoryDto[]);
+    const supsResult = settled[4];
+    const sups = supsResult.status === 'fulfilled' ? supsResult.value : ([] as SupplierDto[]);
+    const locsResult = settled[5];
+    const locs = locsResult.status === 'fulfilled' ? locsResult.value : ([] as LocationDto[]);
+    const uomResult = settled[6];
+    const uomList = uomResult.status === 'fulfilled' ? uomResult.value : ([] as UomDto[]);
+
+    setProductsList(items.map(itemToProduct));
+    setInvoicesList(ordersToInvoices(orders));
+    setImportSlips(purchases.map(purchaseToSlip));
+    setCategories(cats);
+    setSuppliers(sups);
+    setLocations(locs);
+    setUoms(uomList);
+
+    if (itemsResult.status === 'rejected') {
+      const reason = itemsResult.reason;
+      antdMessage.error(reason instanceof Error ? reason.message : 'Không tải được danh sách sản phẩm');
     }
-  }, []);
+
+    setCatalogLoading(false);
+  }, [authUser]);
 
   React.useEffect(() => {
-    if (authUser && localStorage.getItem('smartmart_token')) {
+    if (!authUser) {
+      clearCatalog();
+      return;
+    }
+    if (localStorage.getItem('smartmart_token')) {
       reloadCatalog();
     }
-  }, [authUser, reloadCatalog]);
+  }, [authUser, reloadCatalog, clearCatalog]);
 
   React.useLayoutEffect(() => {
     if (authUser) animatePageIn(pageContentRef.current);
