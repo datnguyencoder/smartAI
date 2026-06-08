@@ -87,16 +87,22 @@ export default function ImportCreatePage({
           <div className="grid gap-4 md:grid-cols-2">
             <Form.Item name="supplierId" label="Nhà cung cấp" rules={[{ required: true, message: 'Bắt buộc' }]}>
               <Select
+                virtual={false}
                 placeholder="Chọn nhà cung cấp"
                 notFoundContent="Không có nhà cung cấp"
                 options={suppliers.map((s) => ({ value: s.id, label: s.supplierName }))}
+                getPopupContainer={() => document.body}
+                dropdownStyle={{ zIndex: 99999, minWidth: 200 }}
               />
             </Form.Item>
             <Form.Item name="locationId" label="Kho nhận" rules={[{ required: true, message: 'Bắt buộc' }]}>
               <Select
+                virtual={false}
                 placeholder="Chọn kho"
                 notFoundContent="Không có kho lưu trữ"
                 options={locations.map((l) => ({ value: l.id, label: l.locationName }))}
+                getPopupContainer={() => document.body}
+                dropdownStyle={{ zIndex: 99999, minWidth: 200 }}
               />
             </Form.Item>
           </div>
@@ -115,6 +121,7 @@ export default function ImportCreatePage({
                       className="mb-0 flex-1"
                     >
                       <Select
+                        virtual={false}
                         placeholder="Chọn sản phẩm"
                         notFoundContent="Không có sản phẩm"
                         options={productsList.map((p) => ({
@@ -123,6 +130,8 @@ export default function ImportCreatePage({
                         }))}
                         showSearch
                         optionFilterProp="label"
+                        getPopupContainer={() => document.body}
+                        dropdownStyle={{ zIndex: 99999, minWidth: 300 }}
                         onChange={(val) => {
                           const product = productsList.find((p) => p.key === val);
                           if (product) {
