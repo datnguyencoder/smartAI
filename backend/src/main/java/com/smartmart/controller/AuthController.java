@@ -2,6 +2,7 @@ package com.smartmart.controller;
 
 import com.smartmart.common.response.ApiResponse;
 import com.smartmart.dto.request.LoginRequest;
+import com.smartmart.dto.request.RefreshTokenRequest;
 import com.smartmart.dto.response.AuthResponse;
 import com.smartmart.dto.response.UserResponse;
 import com.smartmart.service.AuthService;
@@ -37,9 +38,9 @@ public class AuthController {
     @PostMapping("/refresh")
     @Operation(summary = "Làm mới access token")
     public ResponseEntity<ApiResponse<AuthResponse>> refresh(
-            @RequestHeader(value = "Authorization", required = false) String authorization
+            @Valid @RequestBody RefreshTokenRequest request
     ) {
-        return ResponseEntity.ok(ApiResponse.success("Làm mới token thành công", authService.refresh(authorization)));
+        return ResponseEntity.ok(ApiResponse.success("Làm mới token thành công", authService.refresh(request)));
     }
 
     @PostMapping("/logout")
