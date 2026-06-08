@@ -79,6 +79,7 @@ import {
   Tooltip as ChartTooltip,
   XAxis,
   YAxis,
+  Label,
 } from 'recharts';
 import { Card, CardHeader, StatusChip, UiButton } from './components/ui';
 import { LoginScreen } from './components/LoginScreen';
@@ -2243,7 +2244,7 @@ function UsersPage() {
   const openCreate = () => {
     setEditingUser(null);
     form.resetFields();
-    form.setFieldsValue({ role: 'ROLE_STAFF', status: 'ACTIVE' });
+    form.setFieldsValue({ role: 'ROLE_STAFF'});
     setModalOpen(true);
   };
 
@@ -2257,20 +2258,22 @@ function UsersPage() {
     const values = await form.validateFields();
     try {
       if (editingUser) {
+        const fullName = values.fullName?.trim();
+        const email = values.email?.trim();
+
         await updateUser(editingUser.id, {
-          fullName: values.fullName,
-          email: values.email,
-          role: values.role,
-          status: values.status,
+          fullName: fullName || undefined,
+          email: email || undefined,
+          role: values.role || undefined,
         });
         antdMessage.success('Cập nhật người dùng thành công');
       } else {
         await createUser({
-          username: values.username,
+          username: values.username.trim(),
           password: values.password,
-          email: values.email,
-          fullName: values.fullName,
-          role: values.role,
+          email: values.email.trim(),
+          fullName: values.fullName?.trim() || undefined,
+          role: values.role ,
         });
         antdMessage.success('Tạo người dùng thành công');
       }
@@ -2287,11 +2290,25 @@ function UsersPage() {
     return <Tag color="red">INACTIVE</Tag>;
   };
 
+  const roleText = (role: Role) => {
+  switch (role) {
+    case 'ROLE_ADMIN':
+      return 'ADMIN';
+    case 'ROLE_MANAGER':
+      return 'QUẢN LÝ';
+    case 'ROLE_STAFF':
+      return 'THU NGÂN';
+    case 'ROLE_WAREHOUSE':
+      return 'KHO';
+    case 'ROLE_ANALYST':
+      return 'PHÂN TÍCH';
+  }
+  };
   const columns: ColumnsType<UserDto> = [
     { title: 'Tên đăng nhập', dataIndex: 'username' },
     { title: 'Họ tên', dataIndex: 'fullName' },
     { title: 'Email', dataIndex: 'email' },
-    { title: 'Vai trò', dataIndex: 'role' },
+    { title: 'Vai trò', dataIndex: 'role', render: roleText },
     { title: 'Trạng thái', dataIndex: 'status', render: statusTag },
     {
       title: 'Thao tác',
@@ -2362,24 +2379,32 @@ function UsersPage() {
         <Form form={form} layout="vertical" validateMessages={userFormValidateMessages}>
           {!editingUser && (
             <>
-              <Form.Item name="username" label="Tên đăng nhập" rules={[{ required: true }]}>
+              <Form.Item name="username" label="Tên đăng nhập" messageVariables={{label : 'tên đăng nhập'}} rules={[{ required: true }, {min: 4}, { max: 50 }, { pattern: /^[a-zA-Z0-9_.]+$/, message: 'Tên đăng nhập chỉ được chứa chữ, số và gạch dưới hoặc dấu chấm' }]}>
                 <Input />
               </Form.Item>
-              <Form.Item name="password" label="Mật khẩu" rules={[{ required: true }, { min: 6 }]}>
+              <Form.Item name="password" label="Mật khẩu" messageVariables={{label : 'mật khẩu'}} rules={[{ required: true }, { min: 6 }]}>
                 <Input.Password />
               </Form.Item>
             </>
           )}
 
-          <Form.Item name="fullName" label="Họ tên">
+          <Form.Item name="fullName" label="Họ tên" messageVariables={{label : 'họ tên'}} rules={[{ max: 100 }]}>
             <Input />
           </Form.Item>
 
-          <Form.Item name="email" label="Email" rules={[{ required: true }, { type: 'email' }]}>
+          <Form.Item
+            name="email"
+            label="Email"
+            messageVariables={{ label: 'email' }}
+            rules={[
+              ...(!editingUser ? [{ required: true }] : []),
+              { type: 'email' },
+            ]}
+          >
             <Input />
           </Form.Item>
 
-          <Form.Item name="role" label="Vai trò" rules={[{ required: true }]}>
+          <Form.Item name="role" label="Vai trò" messageVariables={{label : 'vai trò'}} rules={[{ required: true }]}>
             <Select
               options={[
                 { value: 'ROLE_ADMIN' satisfies Role, label: 'Admin' },
@@ -2390,18 +2415,6 @@ function UsersPage() {
               ]}
             />
           </Form.Item>
-
-          {editingUser && (
-            <Form.Item name="status" label="Trạng thái">
-              <Select
-                options={[
-                  { value: 'ACTIVE' satisfies UserStatus, label: 'ACTIVE' },
-                  { value: 'LOCKED' satisfies UserStatus, label: 'LOCKED' },
-                  { value: 'INACTIVE' satisfies UserStatus, label: 'INACTIVE' },
-                ]}
-              />
-            </Form.Item>
-          )}
         </Form>
       </Modal>
     </Card>
