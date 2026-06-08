@@ -113,8 +113,21 @@ import {
   receivePurchaseOrder,
   runForecast,
   trainForecast,
+  createUser,
+  updateUser,
+  lockUser,
+  softDeleteUser,
 } from './services/wmsApi';
-import type { CategoryDto, DashboardSummaryDto, InventoryAlertDto, LocationDto, SupplierDto, UomDto, UserDto } from './types/api';
+import type { 
+  CategoryDto,
+  DashboardSummaryDto,
+  InventoryAlertDto,
+  LocationDto,
+  Role,
+  SupplierDto,
+  UomDto,
+  UserDto,
+  UserStatus, } from './types/api';
 import { useAuth } from './contexts/AuthContext';
 import { pageFromPath, pathFromPage } from './lib/pageRoutes';
 import {
@@ -2198,23 +2211,200 @@ function ReportsPage({ productsList, invoicesList }: { productsList: Product[]; 
     </div>
   );
 }
-
+const userFormValidateMessages = {
+  required: 'Vui lòng nhập ${label}',
+  types: {
+    email: '${label} không đúng định dạng',
+  },
+  string: {
+    min: '${label} phải có ít nhất ${min} ký tự',
+    max: '${label} không được vượt quá ${max} ký tự',
+  },
+};
 function UsersPage() {
   const [users, setUsers] = React.useState<UserDto[]>([]);
   const [loading, setLoading] = React.useState(true);
-  React.useEffect(() => {
+  const [modalOpen, setModalOpen] = React.useState(false);
+  const [editingUser, setEditingUser] = React.useState<UserDto | null>(null);
+  const [form] = Form.useForm();
+
+  const loadUsers = React.useCallback(() => {
+    setLoading(true);
     fetchUsers()
       .then(setUsers)
-      .catch(() => setUsers([]))
+      .catch((e) => antdMessage.error(e instanceof Error ? e.message : 'Không tải được danh sách người dùng'))
       .finally(() => setLoading(false));
   }, []);
-  if (loading) return <p className="text-sm text-muted">Đang tải người dùng…</p>;
+
+  React.useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
+
+  const openCreate = () => {
+    setEditingUser(null);
+    form.resetFields();
+    form.setFieldsValue({ role: 'ROLE_STAFF', status: 'ACTIVE' });
+    setModalOpen(true);
+  };
+
+  const openEdit = (user: UserDto) => {
+    setEditingUser(user);
+    form.setFieldsValue(user);
+    setModalOpen(true);
+  };
+
+  const handleSubmit = async () => {
+    const values = await form.validateFields();
+    try {
+      if (editingUser) {
+        await updateUser(editingUser.id, {
+          fullName: values.fullName,
+          email: values.email,
+          role: values.role,
+          status: values.status,
+        });
+        antdMessage.success('Cập nhật người dùng thành công');
+      } else {
+        await createUser({
+          username: values.username,
+          password: values.password,
+          email: values.email,
+          fullName: values.fullName,
+          role: values.role,
+        });
+        antdMessage.success('Tạo người dùng thành công');
+      }
+      setModalOpen(false);
+      loadUsers();
+    } catch (e) {
+      antdMessage.error(e instanceof Error ? e.message : 'Thao tác thất bại');
+    }
+  };
+
+  const statusTag = (status: UserStatus) => {
+    if (status === 'ACTIVE') return <Tag color="green">ACTIVE</Tag>;
+    if (status === 'LOCKED') return <Tag color="orange">LOCKED</Tag>;
+    return <Tag color="red">INACTIVE</Tag>;
+  };
+
+  const columns: ColumnsType<UserDto> = [
+    { title: 'Tên đăng nhập', dataIndex: 'username' },
+    { title: 'Họ tên', dataIndex: 'fullName' },
+    { title: 'Email', dataIndex: 'email' },
+    { title: 'Vai trò', dataIndex: 'role' },
+    { title: 'Trạng thái', dataIndex: 'status', render: statusTag },
+    {
+      title: 'Thao tác',
+      render: (_, user) => (
+        <div className="flex gap-2">
+          <Button size="small" onClick={() => openEdit(user)}>Sửa</Button>
+          <Button
+            size="small"
+            danger
+            disabled={user.status === 'LOCKED' || user.status === 'INACTIVE'}
+            onClick={() => {
+              Modal.confirm({
+                title: 'Khóa tài khoản?',
+                content: `Bạn muốn khóa ${user.username}?`,
+                onOk: async () => {
+                  await lockUser(user.id);
+                  antdMessage.success('Khóa tài khoản thành công');
+                  loadUsers();
+                },
+              });
+            }}
+          >
+            Khóa
+          </Button>
+          <Button
+            size="small"
+            danger
+            disabled={user.status !== 'LOCKED'}
+            onClick={() => {
+              Modal.confirm({
+                title: 'Xóa mềm tài khoản?',
+                content: 'Backend yêu cầu tài khoản phải LOCKED trước khi chuyển sang INACTIVE.',
+                onOk: async () => {
+                  await softDeleteUser(user.id);
+                  antdMessage.success('Xóa mềm thành công');
+                  loadUsers();
+                },
+              });
+            }}
+          >
+            Xóa mềm
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
-    <SimpleManagementPage
-      title="Người dùng hệ thống"
-      icon={UsersRound}
-      rows={users.map((u) => `${u.fullName ?? u.username} (${u.role})`)}
-    />
+    <Card>
+      <CardHeader
+        title="Người dùng hệ thống"
+        description="Admin tạo tài khoản, cập nhật vai trò, khóa và xóa mềm nhân sự."
+        action={<Button type="primary" icon={<Plus size={16} />} onClick={openCreate}>Tạo mới</Button>}
+      />
+
+      <div className="px-5 pb-5">
+        <Table rowKey="id" loading={loading} dataSource={users} columns={columns} />
+      </div>
+
+      <Modal
+        open={modalOpen}
+        title={editingUser ? 'Cập nhật người dùng' : 'Tạo người dùng'}
+        onCancel={() => setModalOpen(false)}
+        onOk={handleSubmit}
+        okText={editingUser ? 'Cập nhật' : 'Tạo mới'}
+        cancelText="Hủy"
+      >
+        <Form form={form} layout="vertical" validateMessages={userFormValidateMessages}>
+          {!editingUser && (
+            <>
+              <Form.Item name="username" label="Tên đăng nhập" rules={[{ required: true }]}>
+                <Input />
+              </Form.Item>
+              <Form.Item name="password" label="Mật khẩu" rules={[{ required: true }, { min: 6 }]}>
+                <Input.Password />
+              </Form.Item>
+            </>
+          )}
+
+          <Form.Item name="fullName" label="Họ tên">
+            <Input />
+          </Form.Item>
+
+          <Form.Item name="email" label="Email" rules={[{ required: true }, { type: 'email' }]}>
+            <Input />
+          </Form.Item>
+
+          <Form.Item name="role" label="Vai trò" rules={[{ required: true }]}>
+            <Select
+              options={[
+                { value: 'ROLE_ADMIN' satisfies Role, label: 'Admin' },
+                { value: 'ROLE_MANAGER' satisfies Role, label: 'Quản lý' },
+                { value: 'ROLE_STAFF' satisfies Role, label: 'Thu ngân' },
+                { value: 'ROLE_WAREHOUSE' satisfies Role, label: 'Kho' },
+                { value: 'ROLE_ANALYST' satisfies Role, label: 'Phân tích' },
+              ]}
+            />
+          </Form.Item>
+
+          {editingUser && (
+            <Form.Item name="status" label="Trạng thái">
+              <Select
+                options={[
+                  { value: 'ACTIVE' satisfies UserStatus, label: 'ACTIVE' },
+                  { value: 'LOCKED' satisfies UserStatus, label: 'LOCKED' },
+                  { value: 'INACTIVE' satisfies UserStatus, label: 'INACTIVE' },
+                ]}
+              />
+            </Form.Item>
+          )}
+        </Form>
+      </Modal>
+    </Card>
   );
 }
 
