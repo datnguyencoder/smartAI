@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.util.List;
 import java.math.BigDecimal;
@@ -62,4 +63,42 @@ public interface CurrentInventoryRepository extends JpaRepository<CurrentInvento
         WHERE l.expiryDate IS NOT NULL AND l.expiryDate <= :deadline
         """)
     List<CurrentInventory> findNearExpiry(@Param("deadline") LocalDate deadline);
+
+    @Query(value = """
+        SELECT i.id as item_id,
+               i.item_code,
+               i.item_name,
+               c.category_name,
+               COALESCE(inv.total_stock, 0) as current_stock,
+               COALESCE(mov.purchased, 0) as total_purchased,
+               COALESCE(mov.sold, 0) as total_sold,
+               COALESCE(mov.scrapped, 0) as total_scrapped,
+               COALESCE(mov.shrinkage, 0) as shrinkage,
+               lot.nearest_expiry
+        FROM items i
+        LEFT JOIN categories c ON c.id = i.category_id
+        LEFT JOIN (
+            SELECT item_id, SUM(quantity) as total_stock
+            FROM current_inventory
+            GROUP BY item_id
+        ) inv ON inv.item_id = i.id
+        LEFT JOIN (
+            SELECT il.item_id,
+                   COALESCE(SUM(il.quantity_change) FILTER (WHERE il.action_type = 'PURCHASE_RECEIVE'), 0) as purchased,
+                   COALESCE(-SUM(il.quantity_change) FILTER (WHERE il.action_type IN ('SALE', 'SALE_CANCEL')), 0) as sold,
+                   COALESCE(-SUM(il.quantity_change) FILTER (WHERE il.action_type = 'SCRAP'), 0) as scrapped,
+                   COALESCE(-SUM(il.quantity_change) FILTER (WHERE il.action_type = 'ADJUSTMENT'), 0) as shrinkage
+            FROM inventory_logs il
+            WHERE il.created_at >= :from AND il.created_at < :to
+            GROUP BY il.item_id
+        ) mov ON mov.item_id = i.id
+        LEFT JOIN (
+            SELECT item_id, MIN(expiry_date) as nearest_expiry
+            FROM item_lots
+            WHERE expiry_date >= CURRENT_DATE
+            GROUP BY item_id
+        ) lot ON lot.item_id = i.id
+        ORDER BY i.item_name
+        """, nativeQuery = true)
+    List<Object[]> reportInventoryDetails(LocalDateTime from, LocalDateTime to);
 }
