@@ -255,7 +255,7 @@ function App() {
     try {
       const [items, orders, cats, sups, locs, uomList] = await Promise.all([
         fetchItems().catch(() => []),
-        fetchOrders().catch(() => []),
+        (authUser && canAccessPage(authUser.role, 'invoices')) ? fetchOrders().catch(() => []) : Promise.resolve([]),
         fetchCategories().catch(() => []),
         fetchSuppliers().catch(() => []),
         fetchLocations().catch(() => []),
@@ -273,7 +273,7 @@ function App() {
     } finally {
       setCatalogLoading(false);
     }
-  }, []);
+  }, [authUser]);
 
   React.useEffect(() => {
     if (authUser && localStorage.getItem('smartmart_token')) {
@@ -314,7 +314,6 @@ function App() {
           Button: { controlHeight: 40, fontWeight: 600 },
           Table: { headerBg: '#f8fafc', headerColor: '#64748b', rowHoverBg: '#f8fffc' },
           Input: { controlHeight: 40 },
-          Select: { controlHeight: 40 },
         },
       }}
     >
