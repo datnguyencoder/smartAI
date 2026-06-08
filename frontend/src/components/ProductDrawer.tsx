@@ -1,10 +1,11 @@
-import { Button, Drawer, Form, InputNumber, Progress, Statistic } from 'antd';
+import { Button, Drawer, Form, InputNumber, Progress, Statistic, Table } from 'antd';
 import * as React from 'react';
 import { message as antdMessage } from 'antd';
 import { animateDrawer } from '../lib/gsapAnimations';
 import { formatMoney, type Product } from '../lib/itemMapper';
 import { ProductThumbnail } from './ProductThumbnail';
-import { updateItem } from '../services/wmsApi';
+import { updateItem, fetchInventory } from '../services/wmsApi';
+import type { InventoryItemDto } from '../types/api';
 
 type Props = {
   product: Product | null;
@@ -16,11 +17,23 @@ export function ProductDrawer({ product, onClose, onUpdated }: Props) {
   const bodyRef = React.useRef<HTMLDivElement>(null);
   const [saving, setSaving] = React.useState(false);
   const [price, setPrice] = React.useState<number | null>(null);
+  const [lots, setLots] = React.useState<InventoryItemDto[]>([]);
+  const [loadingLots, setLoadingLots] = React.useState(false);
 
   React.useEffect(() => {
     if (product) {
       animateDrawer(bodyRef.current, true);
       setPrice(product.price);
+      
+      setLoadingLots(true);
+      fetchInventory()
+        .then(data => {
+          setLots(data.filter(inv => String(inv.itemId) === product.key));
+        })
+        .catch(() => setLots([]))
+        .finally(() => setLoadingLots(false));
+    } else {
+      setLots([]);
     }
   }, [product]);
 
@@ -60,8 +73,9 @@ export function ProductDrawer({ product, onClose, onUpdated }: Props) {
           <div className="grid grid-cols-2 gap-3">
             <Statistic title="Tồn kho" value={product.stock} />
             <Statistic title="Đã bán" value={product.sold} />
+            <Statistic title="Giá nhập" value={product.cost} formatter={(v) => formatMoney(Number(v))} />
             <Statistic title="Giá bán" value={product.price} formatter={(v) => formatMoney(Number(v))} />
-            <Statistic title="Hạn dùng" value={product.expiry} />
+            <Statistic title="Hạn dùng" value={product.expiry} className="col-span-2" />
           </div>
           <Progress percent={Math.min(100, Math.round((product.stock / 900) * 100))} strokeColor="#006c49" />
           <Form layout="vertical">
@@ -69,9 +83,33 @@ export function ProductDrawer({ product, onClose, onUpdated }: Props) {
               <InputNumber className="w-full" min={0} value={price ?? undefined} onChange={(v) => setPrice(v ?? null)} />
             </Form.Item>
           </Form>
-          <Button type="primary" block loading={saving} onClick={handleSave}>
+          <Button type="primary" className="!bg-[#006c49]" block loading={saving} onClick={handleSave}>
             Lưu giá bán
           </Button>
+
+          <div className="pt-6 mt-6 border-t border-slate-200">
+            <h3 className="font-semibold text-base mb-3 text-slate-800">Chi tiết tồn kho theo lô</h3>
+            <Table
+              dataSource={lots}
+              loading={loadingLots}
+              rowKey={(r) => r.id}
+              pagination={false}
+              size="small"
+              columns={[
+                { title: 'Kho', dataIndex: 'locationName' },
+                { 
+                  title: 'Lô / HSD', 
+                  render: (_, r) => (
+                    <div className="text-xs">
+                      <div className="font-medium text-slate-700">{r.lotNumber || '-'}</div>
+                      <div className="text-slate-400">{r.expiryDate || 'Không có HSD'}</div>
+                    </div>
+                  ) 
+                },
+                { title: 'SL', dataIndex: 'quantity', align: 'right' },
+              ]}
+            />
+          </div>
         </div>
       ) : null}
     </Drawer>

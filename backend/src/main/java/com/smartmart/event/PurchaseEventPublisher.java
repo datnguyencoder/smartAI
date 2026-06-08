@@ -18,12 +18,30 @@ public class PurchaseEventPublisher {
         this.kafkaTemplate = kafkaTemplate;
     }
 
+    public void publishPurchaseCreated(Long purchaseId) {
+        try {
+            kafkaTemplate.send(KafkaTopicConstant.PURCHASE_ORDERS, String.valueOf(purchaseId),
+                    Map.of("purchaseId", purchaseId, "event", "PURCHASE_CREATED"));
+        } catch (Exception ex) {
+            log.warn("Kafka publish failed for purchase created {}: {}", purchaseId, ex.getMessage());
+        }
+    }
+
     public void publishPurchaseReceived(Long purchaseId) {
         try {
             kafkaTemplate.send(KafkaTopicConstant.PURCHASE_ORDERS, String.valueOf(purchaseId),
                     Map.of("purchaseId", purchaseId, "event", "PURCHASE_RECEIVED"));
         } catch (Exception ex) {
             log.warn("Kafka publish failed for purchase {}: {}", purchaseId, ex.getMessage());
+        }
+    }
+
+    public void publishPurchaseCancelled(Long purchaseId) {
+        try {
+            kafkaTemplate.send(KafkaTopicConstant.PURCHASE_ORDERS, String.valueOf(purchaseId),
+                    Map.of("purchaseId", purchaseId, "event", "PURCHASE_CANCELLED"));
+        } catch (Exception ex) {
+            log.warn("Kafka publish failed for purchase cancelled {}: {}", purchaseId, ex.getMessage());
         }
     }
 }

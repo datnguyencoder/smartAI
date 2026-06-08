@@ -7,7 +7,7 @@ import java.util.List;
 
 public interface LocationService {
 
-    List<LocationResponse> listAll();
+    List<LocationResponse> listAll(String q, String type, Boolean active);
 
     LocationResponse create(CreateLocationRequest req);
 }

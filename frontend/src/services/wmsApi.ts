@@ -1,4 +1,4 @@
-import { apiRequest } from './apiClient';
+import { apiRequest, ApiClientError, setToken } from './apiClient';
 import type {
   AuthDto,
   CategoryDto,
@@ -17,12 +17,17 @@ import type {
   UpdateUserPayload,
 } from '../types/api';
 
-export function login(username: string, password: string) {
-  return apiRequest<AuthDto>(
+export async function login(username: string, password: string) {
+  const data = await apiRequest<AuthDto>(
     '/api/v1/auth/login',
     { method: 'POST', body: JSON.stringify({ username, password }) },
     false
   );
+  // Save JWT token for subsequent requests
+  if (data?.accessToken) {
+    setToken(data.accessToken);
+  }
+  return data;
 }
 
 export function logout() {
@@ -137,8 +142,16 @@ export function createOrder(payload: {
   });
 }
 
-export function fetchOrders() {
-  return apiRequest<OrderDto[]>('/api/v1/orders');
+export async function fetchOrders() {
+  try {
+    return await apiRequest<OrderDto[]>('/api/v1/orders');
+  } catch (e: any) {
+    // Nếu không có quyền (403), trả về mảng rỗng để UI không báo lỗi
+    if (e instanceof ApiClientError && e.status === 403) {
+      return [] as OrderDto[];
+    }
+    throw e;
+  }
 }
 
 export function fetchCategories() {
@@ -160,7 +173,7 @@ export function fetchUoms() {
 export function createPurchaseOrder(payload: {
   supplierId: number;
   locationId: number;
-  items: { itemId: number; orderedQty: number; unitPrice: number }[];
+  items: { itemId: number; quantity: number; unitPrice: number; expiryDate?: string }[];
 }) {
   return apiRequest<PurchaseOrderDto>('/api/v1/purchase-orders', {
     method: 'POST',
@@ -168,17 +181,16 @@ export function createPurchaseOrder(payload: {
   });
 }
 
-export function fetchPurchaseOrders() {
-  return apiRequest<PurchaseOrderDto[]>('/api/v1/purchase-orders');
+export function fetchPurchaseOrdersPaged(page = 0, size = 10, status?: string, keyword?: string) {
+  const params = new URLSearchParams({ page: String(page), size: String(size) });
+  if (status && status !== 'ALL') params.set('status', status);
+  if (keyword) params.set('search', keyword);
+  return apiRequest<PageResponseDto<PurchaseOrderDto>>(`/api/v1/purchase-orders?${params}`);
 }
 
-export function receivePurchaseOrder(
-  purchaseId: number,
-  lines: { purchaseItemId: number; receiveQty: number; lotNumber?: string; expiryDate?: string }[]
-) {
+export function receivePurchaseOrder(purchaseId: number) {
   return apiRequest<PurchaseOrderDto>(`/api/v1/purchase-orders/${purchaseId}/receive`, {
     method: 'POST',
-    body: JSON.stringify({ lines }),
   });
 }
 
@@ -189,6 +201,18 @@ export function cancelOrder(orderId: number) {
 export function cancelPurchaseOrder(purchaseId: number) {
   return apiRequest<PurchaseOrderDto>(`/api/v1/purchase-orders/${purchaseId}/cancel`, { method: 'POST' });
 }
+
+// --------- Purchase Order APIs (new) ---------
+// Get list of all purchase orders (no pagination)
+export function fetchPurchaseOrders() {
+  return apiRequest<PurchaseOrderDto[]>('/api/v1/purchase-orders');
+}
+
+// Get purchase order detail by ID
+export function fetchPurchaseOrderById(purchaseId: number) {
+  return apiRequest<PurchaseOrderDto>(`/api/v1/purchase-orders/${purchaseId}`);
+}
+
 
 export function fetchInventory() {
   return apiRequest<InventoryItemDto[]>('/api/v1/inventory');

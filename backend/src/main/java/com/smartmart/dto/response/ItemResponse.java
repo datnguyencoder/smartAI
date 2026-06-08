@@ -24,4 +24,8 @@ public class ItemResponse {
     private BigDecimal totalAvailableQty;
     private BigDecimal soldQty;
     private String imageUrl;
+    private Long baseUomId;
+    private String baseUomName;
+    private Long purchaseUomId;
+    private String purchaseUomName;
 }

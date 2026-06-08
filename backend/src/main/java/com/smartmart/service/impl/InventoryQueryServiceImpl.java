@@ -33,6 +33,11 @@ public class InventoryQueryServiceImpl implements com.smartmart.service.Inventor
     }
 
     @Override
+    public Page<CurrentInventory> listAllPaginated(Pageable pageable) {
+        return currentInventoryRepository.findAll(pageable);
+    }
+
+    @Override
     public List<CurrentInventory> lowStock() {
         return currentInventoryRepository.findLowStock();
     }

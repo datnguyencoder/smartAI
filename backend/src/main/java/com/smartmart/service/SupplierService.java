@@ -7,7 +7,7 @@ import java.util.List;
 
 public interface SupplierService {
 
-    List<SupplierResponse> listAll();
+    List<SupplierResponse> listAll(String q, Boolean active);
 
     SupplierResponse create(CreateSupplierRequest req);
 }
