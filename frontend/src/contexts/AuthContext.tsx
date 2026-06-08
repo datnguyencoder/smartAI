@@ -15,11 +15,12 @@ const AuthContext = React.createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authUser, setAuthUser] = React.useState<UserDto | null>(() => loadStoredUser());
-  const [sessionReady, setSessionReady] = React.useState(() => !localStorage.getItem('smartmart_token'));
+  const [sessionReady, setSessionReady] = React.useState(() => !localStorage.getItem('smartmart_token') && !localStorage.getItem('smartmart_refresh_token'));
 
   React.useEffect(() => {
     const token = localStorage.getItem('smartmart_token');
-    if (!token) {
+    const refreshToken = localStorage.getItem('smartmart_refresh_token');
+    if (!token && !refreshToken) {
       setSessionReady(true);
       return;
     }
@@ -38,10 +39,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = React.useCallback(async (username: string, password: string) => {
     const auth = await loginApi(username, password);
-    const cleanUser = { ...auth.user, role: auth.user.role?.replace('ROLE_', '') || auth.user.role };
-    persistSession(cleanUser, auth.accessToken);
-    setAuthUser(cleanUser);
-    return cleanUser;
+    persistSession(auth.user, auth.accessToken, auth.refreshToken);
+    setAuthUser(auth.user);
+    return auth.user;
   }, []);
 
   const logout = React.useCallback(async () => {

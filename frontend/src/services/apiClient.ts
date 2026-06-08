@@ -19,34 +19,58 @@ function getToken(): string | null {
   return localStorage.getItem('smartmart_token');
 }
 
+function getRefreshToken(): string | null {
+  return localStorage.getItem('smartmart_refresh_token');
+}
+
+
 export function setToken(token: string | null) {
   if (token) localStorage.setItem('smartmart_token', token);
   else localStorage.removeItem('smartmart_token');
 }
 
+export function setRefreshToken(token: string | null) {
+  if (token) localStorage.setItem('smartmart_refresh_token', token);
+  else localStorage.removeItem('smartmart_refresh_token');
+}
+
+export function setAuthTokens(accessToken: string, refreshToken: string) {
+  setToken(accessToken);
+  setRefreshToken(refreshToken);
+}
+
+export function clearAuthTokens() {
+  setToken(null);
+  setRefreshToken(null);
+}
+
 let refreshInFlight: Promise<string | null> | null = null;
 
 async function tryRefreshToken(): Promise<string | null> {
-  const current = getToken();
-  if (!current) return null;
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return null;
+
   if (!refreshInFlight) {
     refreshInFlight = (async () => {
       try {
         const res = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${current}`,
-          },
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken }),
         });
+
         const body = (await res.json().catch(() => ({}))) as ApiEnvelope<AuthDto>;
+
         if (!res.ok || body.success === false || !body.data?.accessToken) {
           return null;
         }
-        setToken(body.data.accessToken);
+
+        setAuthTokens(body.data.accessToken, body.data.refreshToken ?? refreshToken);
+
         if (body.data.user) {
           localStorage.setItem('smartmart_user', JSON.stringify(body.data.user));
         }
+
         return body.data.accessToken;
       } catch {
         return null;
@@ -59,7 +83,7 @@ async function tryRefreshToken(): Promise<string | null> {
 }
 
 function clearSession() {
-  setToken(null);
+  clearAuthTokens();
   localStorage.removeItem('smartmart_user');
 }
 
@@ -99,3 +123,5 @@ export async function apiRequest<T>(
   }
   return body.data as T;
 }
+
+
