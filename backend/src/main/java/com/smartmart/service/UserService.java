@@ -18,4 +18,6 @@ public interface UserService {
     UserResponse update(UUID id, UpdateUserRequest req);
 
     void deactivate(UUID id);
+
+    void softDelete(UUID id);
 }

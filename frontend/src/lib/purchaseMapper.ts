@@ -2,7 +2,6 @@ import type { PurchaseOrderDto } from '../types/api';
 
 const statusLabel: Record<string, string> = {
   PENDING: 'Chờ nhận',
-  PARTIALLY_RECEIVED: 'Nhận một phần',
   COMPLETED: 'Đã nhận',
   CANCELLED: 'Đã hủy',
 };

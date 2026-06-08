@@ -10,6 +10,14 @@ import java.util.Optional;
 public interface ItemLotRepository extends JpaRepository<ItemLot, Long> {
     Optional<ItemLot> findByItemIdAndLotNumber(Long itemId, String lotNumber);
 
+    Optional<ItemLot> findByItemAndLotNumber(com.smartmart.entity.Item item, String lotNumber);
+
+    List<ItemLot> findByItemId(Long itemId);
+
+    List<ItemLot> findByLotNumberContainingIgnoreCase(String lotNumber);
+
+    List<ItemLot> findByItemIdAndLotNumberContainingIgnoreCase(Long itemId, String lotNumber);
+
     @Query("""
         SELECT l FROM ItemLot l
         WHERE l.item.id = :itemId

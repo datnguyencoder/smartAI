@@ -1,15 +1,15 @@
-import { setToken } from '../services/apiClient';
+import { clearAuthTokens, setAuthTokens } from '../services/apiClient';
 import type { UserDto } from '../types/api';
 
 const USER_KEY = 'smartmart_user';
 
-export function persistSession(user: UserDto, accessToken: string) {
-  setToken(accessToken);
+export function persistSession(user: UserDto, accessToken: string, refreshToken: string) {
+  setAuthTokens(accessToken, refreshToken);
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
 export function clearSession() {
-  setToken(null);
+  clearAuthTokens();
   localStorage.removeItem(USER_KEY);
 }
 

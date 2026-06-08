@@ -9,6 +9,8 @@ import lombok.Getter;
 @Schema(description = "Token đăng nhập")
 public class AuthResponse {
     private String accessToken;
-    private String tokenType;
+    @Builder.Default
+    private String tokenType = "Bearer";
     private UserResponse user;
+    private String refreshToken;
 }

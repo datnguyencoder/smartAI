@@ -8,9 +8,8 @@ import org.springframework.data.domain.Pageable;
 import java.util.List;
 
 public interface InventoryQueryService {
-
     List<CurrentInventory> listAll();
-
+    Page<CurrentInventory> listAllPaginated(Pageable pageable);
     List<CurrentInventory> lowStock();
 
     List<CurrentInventory> nearExpiry();

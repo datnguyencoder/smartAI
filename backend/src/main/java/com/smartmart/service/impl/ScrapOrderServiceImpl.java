@@ -73,6 +73,7 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
     }
 
     @Override
+    @org.springframework.cache.annotation.CacheEvict(value = {"items", "itemsPage", "dashboardSummary", "dashboardRevenue"}, allEntries = true)
     public ScrapOrder complete(ScrapOrder scrap) {
         if (scrap.getStatus() == ScrapStatus.COMPLETED) {
             throw new BadRequestException("Phiếu hủy đã hoàn tất");

@@ -2,18 +2,22 @@ package com.smartmart.controller;
 
 import com.smartmart.common.response.ApiResponse;
 import com.smartmart.dto.request.CreatePurchaseOrderRequest;
-import com.smartmart.dto.request.ReceivePurchaseRequest;
 import com.smartmart.dto.response.PurchaseOrderResponse;
+import com.smartmart.enums.PurchaseStatus;
 import com.smartmart.service.PurchaseOrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -31,7 +35,8 @@ public class PurchaseOrderController {
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
     @Operation(summary = "Tạo phiếu nhập")
-    public ResponseEntity<ApiResponse<PurchaseOrderResponse>> create(@Valid @RequestBody CreatePurchaseOrderRequest request) {
+    public ResponseEntity<ApiResponse<PurchaseOrderResponse>> create(
+            @Valid @RequestBody CreatePurchaseOrderRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Tạo phiếu nhập thành công", purchaseOrderService.create(request)));
     }
@@ -39,18 +44,21 @@ public class PurchaseOrderController {
     @PostMapping("/{id}/receive")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
     @Operation(summary = "Nhận hàng vào kho")
-    public ResponseEntity<ApiResponse<PurchaseOrderResponse>> receive(
-            @PathVariable Long id,
-            @Valid @RequestBody ReceivePurchaseRequest request
-    ) {
-        return ResponseEntity.ok(ApiResponse.success("Nhận hàng thành công", purchaseOrderService.receive(id, request)));
+    public ResponseEntity<ApiResponse<PurchaseOrderResponse>> receive(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success("Nhận hàng thành công", purchaseOrderService.receive(id)));
     }
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
     @Operation(summary = "Danh sách phiếu nhập")
-    public ResponseEntity<ApiResponse<List<PurchaseOrderResponse>>> list() {
-        return ResponseEntity.ok(ApiResponse.success(purchaseOrderService.listAll()));
+    public ResponseEntity<ApiResponse<Page<PurchaseOrderResponse>>> list(
+            @RequestParam(required = false) Long supplierId,
+            @RequestParam(required = false) PurchaseStatus status,
+            @RequestParam(required = false) LocalDate fromDate,
+            @RequestParam(required = false) LocalDate toDate,
+            @ParameterObject Pageable pageable) {
+        Page<PurchaseOrderResponse> page = purchaseOrderService.list(supplierId, status, fromDate, toDate, pageable);
+        return ResponseEntity.ok(ApiResponse.success(page));
     }
 
     @GetMapping("/{id}")
