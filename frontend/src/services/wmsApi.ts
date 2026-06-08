@@ -13,6 +13,8 @@ import type {
   SupplierDto,
   UomDto,
   UserDto,
+  CreateUserPayload,
+  UpdateUserPayload,
 } from '../types/api';
 
 export function login(username: string, password: string) {
@@ -31,12 +33,38 @@ export function fetchMe() {
   return apiRequest<UserDto>('/api/v1/auth/me');
 }
 
-export function refreshAuth() {
-  return apiRequest<AuthDto>('/api/v1/auth/refresh', { method: 'POST' });
+export function refreshAuth(refreshToken: string) {
+  return apiRequest<AuthDto>('/api/v1/auth/refresh', { method: 'POST', body: JSON.stringify({ refreshToken }) }, false);
 }
 
 export function fetchUsers() {
   return apiRequest<UserDto[]>('/api/v1/users');
+}
+
+export function createUser(payload: CreateUserPayload) {
+  return apiRequest<UserDto>('/api/v1/users', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateUser(id: string, payload: UpdateUserPayload) {
+  return apiRequest<UserDto>(`/api/v1/users/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function lockUser(id: string) {
+  return apiRequest<void>(`/api/v1/users/${id}/deactivate`, {
+    method: 'POST',
+  });
+}
+
+export function softDeleteUser(id: string) {
+  return apiRequest<void>(`/api/v1/users/${id}`, {
+    method: 'DELETE',
+  });
 }
 
 export function fetchInventoryAlerts() {

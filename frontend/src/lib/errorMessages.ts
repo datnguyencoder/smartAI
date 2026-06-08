@@ -8,6 +8,15 @@ export function mapErrorCode(code?: string, fallback?: string): string {
     AI_SERVICE_UNAVAILABLE: 'Dịch vụ AI tạm thời không khả dụng — thao tác kho vẫn bình thường',
     FORBIDDEN: 'Bạn không có quyền thực hiện thao tác này',
     INVALID_CREDENTIALS: 'Tên đăng nhập hoặc mật khẩu không đúng',
+    UNAUTHORIZED: 'Bạn cần đăng nhập để tiếp tục',
+    ACCOUNT_INACTIVE: 'Tài khoản không hoạt động hoặc đã bị khóa',
+    REFRESH_TOKEN_INVALID: 'Phiên đăng nhập không hợp lệ, vui lòng đăng nhập lại',
+    REFRESH_TOKEN_EXPIRED: 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại',
+    USERNAME_ALREADY_EXISTS: 'Tên đăng nhập đã tồn tại',
+    EMAIL_ALREADY_EXISTS: 'Email đã tồn tại',
+    DEFAULT_ADMIN_CANNOT_BE_DEACTIVATED: 'Không thể khóa tài khoản admin mặc định',
+    USER_MUST_BE_LOCKED_BEFORE_INACTIVE: 'Tài khoản phải bị khóa trước khi chuyển sang không hoạt động',
+    VALIDATION_FAILED: 'Dữ liệu không hợp lệ',
   };
   if (code && map[code]) return map[code];
   return fallback ?? 'Đã xảy ra lỗi';
