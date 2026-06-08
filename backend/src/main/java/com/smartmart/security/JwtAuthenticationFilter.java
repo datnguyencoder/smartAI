@@ -47,7 +47,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             // Token logout / hết hạn → không gắn Authentication (API trả 401)
             boolean blacklisted = tokenBlacklistService.isBlacklisted(jwt);
-            if (StringUtils.hasText(jwt) && !blacklisted && tokenProvider.validateToken(jwt)) {
+            if (StringUtils.hasText(jwt) && !blacklisted && tokenProvider.validateToken(jwt) && !tokenProvider.isRefreshToken(jwt)) {
                 String username = tokenProvider.getUsernameFromJwt(jwt);
 
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
