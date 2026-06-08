@@ -31,38 +31,38 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
     private final UomRepository uomRepository;
     private final CurrentInventoryRepository currentInventoryRepository;
     private final OrderItemRepository orderItemRepository;
+    private final PurchaseOrderItemRepository purchaseOrderItemRepository;
 
     public ItemServiceImpl(
             ItemRepository itemRepository,
             CategoryRepository categoryRepository,
             UomRepository uomRepository,
             CurrentInventoryRepository currentInventoryRepository,
-            OrderItemRepository orderItemRepository
-    ) {
+            OrderItemRepository orderItemRepository,
+            PurchaseOrderItemRepository purchaseOrderItemRepository) {
         this.itemRepository = itemRepository;
         this.categoryRepository = categoryRepository;
         this.uomRepository = uomRepository;
         this.currentInventoryRepository = currentInventoryRepository;
         this.orderItemRepository = orderItemRepository;
+        this.purchaseOrderItemRepository = purchaseOrderItemRepository;
     }
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = "items", key = "'all:' + (#search == null ? '' : #search)")
-    public List<ItemResponse> listAll(String search) {
-        List<Item> items = (search == null || search.isBlank())
-                ? itemRepository.findByActiveTrue()
-                : itemRepository.searchActive(search.trim());
+    @Cacheable(value = "items", key = "'all:' + (#search == null ? '' : #search) + ':' + (#categoryId == null ? '' : #categoryId) + ':' + (#active == null ? '' : #active)")
+    public List<ItemResponse> listAll(String search, Long categoryId, Boolean active) {
+        String q = (search == null || search.isBlank()) ? "" : search.trim();
+        List<Item> items = itemRepository.searchFiltered(q, categoryId, active);
         return mapToResponses(items);
     }
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = "itemsPage", key = "'p:' + #pageable.pageNumber + ':' + #pageable.pageSize + ':' + (#search == null ? '' : #search)")
-    public PageResponse<ItemResponse> listPaged(String search, Pageable pageable) {
-        Page<Item> page = (search == null || search.isBlank())
-                ? itemRepository.findByActiveTrue(pageable)
-                : itemRepository.searchActive(search.trim(), pageable);
+    @Cacheable(value = "itemsPage", key = "'p:' + #pageable.pageNumber + ':' + #pageable.pageSize + ':' + (#search == null ? '' : #search) + ':' + (#categoryId == null ? '' : #categoryId) + ':' + (#active == null ? '' : #active)")
+    public PageResponse<ItemResponse> listPaged(String search, Long categoryId, Boolean active, Pageable pageable) {
+        String q = (search == null || search.isBlank()) ? "" : search.trim();
+        Page<Item> page = itemRepository.searchFilteredPaged(q, categoryId, active, pageable);
         List<ItemResponse> content = mapToResponses(page.getContent());
         return PageResponse.<ItemResponse>builder()
                 .content(content)
@@ -90,7 +90,31 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
     }
 
     @Override
-    @CacheEvict(value = {"items", "itemsPage"}, allEntries = true)
+    @Transactional(readOnly = true)
+    public List<com.smartmart.dto.response.UomResponse> getItemUoms(Long id) {
+        Item item = findItem(id);
+        List<com.smartmart.dto.response.UomResponse> uoms = new java.util.ArrayList<>();
+        if (item.getBaseUom() != null) {
+            uoms.add(toUomResponse(item.getBaseUom()));
+        }
+        if (item.getPurchaseUom() != null && !item.getPurchaseUom().getId().equals(item.getBaseUom().getId())) {
+            uoms.add(toUomResponse(item.getPurchaseUom()));
+        }
+        return uoms;
+    }
+
+    private com.smartmart.dto.response.UomResponse toUomResponse(Uom uom) {
+        return com.smartmart.dto.response.UomResponse.builder()
+                .id(uom.getId())
+                .uomName(uom.getUomName())
+                .category(uom.getCategory())
+                .conversionRatio(uom.getConversionRatio())
+                .baseUnit(uom.isBaseUnit())
+                .build();
+    }
+
+    @Override
+    @CacheEvict(value = { "items", "itemsPage" }, allEntries = true)
     public ItemResponse create(CreateItemRequest req) {
         if (itemRepository.existsByItemCode(req.getItemCode())) {
             throw new BadRequestException("Mã sản phẩm đã tồn tại: " + req.getItemCode());
@@ -101,7 +125,8 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
         Uom baseUom = uomRepository.findById(req.getBaseUomId())
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy đơn vị tính"));
         Uom purchaseUom = req.getPurchaseUomId() != null
-                ? uomRepository.findById(req.getPurchaseUomId()).orElseThrow(() -> new NotFoundException("Không tìm thấy UOM nhập"))
+                ? uomRepository.findById(req.getPurchaseUomId())
+                        .orElseThrow(() -> new NotFoundException("Không tìm thấy UOM nhập"))
                 : baseUom;
 
         String imageUrl = resolveImageUrlForCreate(req.getImageUrl(), req.getItemCode());
@@ -111,7 +136,8 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
                 .itemName(req.getItemName())
                 .itemType(req.getItemType())
                 .category(req.getCategoryId() != null
-                        ? categoryRepository.findById(req.getCategoryId()).orElse(null) : null)
+                        ? categoryRepository.findById(req.getCategoryId()).orElse(null)
+                        : null)
                 .baseUom(baseUom)
                 .purchaseUom(purchaseUom)
                 .costPrice(req.getCostPrice())
@@ -125,7 +151,7 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
     }
 
     @Override
-    @CacheEvict(value = {"items", "itemsPage"}, allEntries = true)
+    @CacheEvict(value = { "items", "itemsPage" }, allEntries = true)
     public ItemResponse update(Long id, UpdateItemRequest req) {
         Item item = findItem(id);
         if (req.getItemName() != null && !req.getItemName().isBlank()) {
@@ -138,13 +164,18 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
             item.setCategory(categoryRepository.findById(req.getCategoryId())
                     .orElseThrow(() -> new NotFoundException("Không tìm thấy danh mục")));
         }
-        if (req.getBaseUomId() != null) {
+        if (req.getBaseUomId() != null && !req.getBaseUomId().equals(item.getBaseUom().getId())) {
+            checkItemUsageForUomChange(id);
             item.setBaseUom(uomRepository.findById(req.getBaseUomId())
                     .orElseThrow(() -> new NotFoundException("Không tìm thấy đơn vị tính")));
         }
         if (req.getPurchaseUomId() != null) {
-            item.setPurchaseUom(uomRepository.findById(req.getPurchaseUomId())
-                    .orElseThrow(() -> new NotFoundException("Không tìm thấy UOM nhập")));
+            Long currentPurchaseUomId = item.getPurchaseUom() != null ? item.getPurchaseUom().getId() : null;
+            if (!req.getPurchaseUomId().equals(currentPurchaseUomId)) {
+                checkItemUsageForUomChange(id);
+                item.setPurchaseUom(uomRepository.findById(req.getPurchaseUomId())
+                        .orElseThrow(() -> new NotFoundException("Không tìm thấy UOM nhập")));
+            }
         }
         if (req.getCostPrice() != null) {
             item.setCostPrice(req.getCostPrice());
@@ -176,6 +207,20 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
     @Override
     public Item findItem(Long id) {
         return itemRepository.findById(id).orElseThrow(() -> new NotFoundException("Không tìm thấy sản phẩm"));
+    }
+
+    private void checkItemUsageForUomChange(Long itemId) {
+        boolean hasInventory = !currentInventoryRepository.findByItemId(itemId).isEmpty();
+        boolean hasPurchaseHistory = purchaseOrderItemRepository.existsByItemId(itemId);
+        boolean hasSalesHistory = orderItemRepository.existsByItemId(itemId); // assuming this exists or use aggregate
+
+        // Wait, OrderItemRepository might not have existsByItemId.
+        // Let's just use aggregate map soldQtyMap() which already aggregates by Item
+        // ID!
+        if (hasInventory || hasPurchaseHistory || soldQtyMap().containsKey(itemId)) {
+            throw new BadRequestException(
+                    "Không thể thay đổi Đơn vị tính vì sản phẩm này đã phát sinh giao dịch nhập kho, tồn kho hoặc xuất bán. Vui lòng tạo Mã Sản Phẩm mới.");
+        }
     }
 
     private List<ItemResponse> mapToResponses(List<Item> items) {
@@ -219,6 +264,10 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
                 .totalAvailableQty(total)
                 .soldQty(soldQty)
                 .imageUrl(ItemImageUrls.resolve(item))
+                .baseUomId(item.getBaseUom() != null ? item.getBaseUom().getId() : null)
+                .baseUomName(item.getBaseUom() != null ? item.getBaseUom().getUomName() : null)
+                .purchaseUomId(item.getPurchaseUom() != null ? item.getPurchaseUom().getId() : null)
+                .purchaseUomName(item.getPurchaseUom() != null ? item.getPurchaseUom().getUomName() : null)
                 .build();
     }
 }

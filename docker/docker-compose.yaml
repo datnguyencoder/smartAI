@@ -1,4 +1,4 @@
-services:
+﻿services:
   # ==========================================
   # 1. DATABASE: POSTGRESQL 16
   # ==========================================
@@ -17,7 +17,7 @@ services:
     networks:
       - smartmart_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-smartmart_admin} -d ${POSTGRES_DB:-smartmart_db}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-smartmart_admin} -d ${POSTGRES_DB:-smartmart_db}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -37,7 +37,7 @@ services:
     networks:
       - smartmart_network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -67,7 +67,7 @@ services:
     networks:
       - smartmart_network
     healthcheck:
-      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092"]
+      test: [ "CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092" ]
       interval: 15s
       timeout: 10s
       retries: 8
@@ -115,7 +115,7 @@ services:
       - smartmart_network
     healthcheck:
       # Verify Spring Boot application is healthy using the standard OpenAPI documentation endpoint
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/v3/api-docs"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/v3/api-docs" ]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -145,7 +145,7 @@ services:
     networks:
       - smartmart_network
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/ai/health', timeout=5)"]
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/ai/health', timeout=5)" ]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -185,3 +185,4 @@ volumes:
 networks:
   smartmart_network:
     driver: bridge
+

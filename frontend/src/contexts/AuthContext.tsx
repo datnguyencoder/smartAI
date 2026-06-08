@@ -25,8 +25,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     fetchMe()
       .then((user) => {
-        setAuthUser(user);
-        localStorage.setItem('smartmart_user', JSON.stringify(user));
+        const cleanUser = { ...user, role: user.role?.replace('ROLE_', '') || user.role };
+        setAuthUser(cleanUser);
+        localStorage.setItem('smartmart_user', JSON.stringify(cleanUser));
       })
       .catch(() => {
         clearSession();
@@ -37,9 +38,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = React.useCallback(async (username: string, password: string) => {
     const auth = await loginApi(username, password);
-    persistSession(auth.user, auth.accessToken);
-    setAuthUser(auth.user);
-    return auth.user;
+    const cleanUser = { ...auth.user, role: auth.user.role?.replace('ROLE_', '') || auth.user.role };
+    persistSession(cleanUser, auth.accessToken);
+    setAuthUser(cleanUser);
+    return cleanUser;
   }, []);
 
   const logout = React.useCallback(async () => {

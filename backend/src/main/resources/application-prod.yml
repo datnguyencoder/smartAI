@@ -3,7 +3,8 @@
 # with localhost fallbacks for running the prod profile on a host machine.
 spring:
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/smartmart_db}
+    # url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/smartmart_db}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/smartmart_db?useUnicode=true&characterEncoding=UTF-8}
     username: ${SPRING_DATASOURCE_USERNAME:smartmart_admin}
     password: ${SPRING_DATASOURCE_PASSWORD:SuperSecurePassword2026}
     driver-class-name: org.postgresql.Driver

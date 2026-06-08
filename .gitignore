@@ -78,3 +78,6 @@ ai-service/app/saved_models/*.joblib
 coverage/
 test-results/
 *.hprof
+
+# --- Documentation ---
+docs/doc_threads_backend/

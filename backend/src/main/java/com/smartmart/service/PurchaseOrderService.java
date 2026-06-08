@@ -1,18 +1,19 @@
 package com.smartmart.service;
 
 import com.smartmart.dto.request.CreatePurchaseOrderRequest;
-import com.smartmart.dto.request.ReceivePurchaseRequest;
 import com.smartmart.dto.response.PurchaseOrderResponse;
+import com.smartmart.enums.PurchaseStatus;
 
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import java.time.LocalDate;
 
 public interface PurchaseOrderService {
-
     PurchaseOrderResponse create(CreatePurchaseOrderRequest request);
 
-    PurchaseOrderResponse receive(Long purchaseId, ReceivePurchaseRequest request);
+    PurchaseOrderResponse receive(Long purchaseId);
 
-    List<PurchaseOrderResponse> listAll();
+    Page<PurchaseOrderResponse> list(Long supplierId, PurchaseStatus status, LocalDate fromDate, LocalDate toDate, Pageable pageable);
 
     PurchaseOrderResponse getById(Long id);
 

@@ -8,6 +8,7 @@ export type Product = {
   stock: number;
   sold: number;
   price: number;
+  cost: number;
   supplier: string;
   status: 'Còn hàng' | 'Sắp hết' | 'Hết hàng' | 'Nguy cơ';
   expiry: string;
@@ -28,6 +29,7 @@ export function itemToProduct(item: ItemDto): Product {
     stock: qty,
     sold: Number(item.soldQty ?? 0),
     price: Number(item.sellingPrice),
+    cost: Number(item.costPrice ?? 0),
     imageUrl: item.imageUrl,
     supplier: '-',
     status,

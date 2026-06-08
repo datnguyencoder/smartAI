@@ -21,8 +21,9 @@ public class SupplierServiceImpl implements com.smartmart.service.SupplierServic
 
     @Transactional(readOnly = true)
     @Override
-    public List<SupplierResponse> listAll() {
-        return supplierRepository.findAll().stream().map(this::toResponse).toList();
+    public List<SupplierResponse> listAll(String q, Boolean active) {
+        String searchQuery = (q == null) ? "" : q;
+        return supplierRepository.findFiltered(searchQuery, active).stream().map(this::toResponse).toList();
     }
 
     @Override

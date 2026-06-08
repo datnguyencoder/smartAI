@@ -29,8 +29,10 @@ public class SupplierController {
 
     @GetMapping
     @Operation(summary = "Danh sách nhà cung cấp")
-    public ResponseEntity<ApiResponse<List<SupplierResponse>>> list() {
-        return ResponseEntity.ok(ApiResponse.success(supplierService.listAll()));
+    public ResponseEntity<ApiResponse<List<SupplierResponse>>> list(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) Boolean active) {
+        return ResponseEntity.ok(ApiResponse.success(supplierService.listAll(q, active)));
     }
 
     @PostMapping
