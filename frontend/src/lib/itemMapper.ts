@@ -13,6 +13,7 @@ export type Product = {
   status: 'Còn hàng' | 'Sắp hết' | 'Hết hàng' | 'Nguy cơ';
   expiry: string;
   imageUrl?: string;
+  purchaseRatio: number;
 };
 
 export function itemToProduct(item: ItemDto): Product {
@@ -21,6 +22,15 @@ export function itemToProduct(item: ItemDto): Product {
   let status: Product['status'] = 'Còn hàng';
   if (qty === 0) status = 'Hết hàng';
   else if (qty <= min) status = 'Sắp hết';
+
+  let purchaseRatio = 1;
+  if (item.purchaseUomName) {
+    const match = item.purchaseUomName.match(/\((\d+)/);
+    if (match) {
+      purchaseRatio = parseInt(match[1], 10);
+    }
+  }
+
   return {
     key: String(item.id),
     name: item.itemName,
@@ -34,6 +44,7 @@ export function itemToProduct(item: ItemDto): Product {
     supplier: '-',
     status,
     expiry: item.hasExpiry ? '-' : 'Không áp dụng',
+    purchaseRatio,
   };
 }
 

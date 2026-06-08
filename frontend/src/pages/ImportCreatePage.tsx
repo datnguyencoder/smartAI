@@ -26,13 +26,14 @@ export default function ImportCreatePage({
 }) {
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = React.useState(false);
+  const itemsWatch = Form.useWatch('items', form);
 
   const defaultLocation = locations.length > 0 ? (locations.find((l) => l.locationName?.includes('Kho bán')) ?? locations[0]) : null;
 
   const handleCreateSlip = async (values: {
     supplierId: number;
     locationId: number;
-    items: { itemId: number; quantity: number; price: number }[];
+    items: { itemId: number; quantity: number; price: number; expiryDate?: string }[];
   }) => {
     if (!values.items || values.items.length === 0) {
       antdMessage.error('Vui lòng chọn ít nhất 1 sản phẩm');
@@ -43,7 +44,12 @@ export default function ImportCreatePage({
       const po = await createPurchaseOrder({
         supplierId: values.supplierId,
         locationId: values.locationId,
-        items: values.items.map((i: any) => ({ itemId: Number(i.itemId), quantity: Number(i.quantity), unitPrice: Number(i.price) })),
+        items: values.items.map((i: any) => ({
+          itemId: Number(i.itemId),
+          quantity: Number(i.quantity),
+          unitPrice: Number(i.price),
+          expiryDate: i.expiryDate || undefined,
+        })),
       });
       await reloadCatalog();
       antdMessage.success(`Tạo phiếu nhập PN-${po.id} thành công!`);
@@ -86,24 +92,28 @@ export default function ImportCreatePage({
         >
           <div className="grid gap-4 md:grid-cols-2">
             <Form.Item name="supplierId" label="Nhà cung cấp" rules={[{ required: true, message: 'Bắt buộc' }]}>
-              <Select
-                virtual={false}
-                placeholder="Chọn nhà cung cấp"
-                notFoundContent="Không có nhà cung cấp"
-                options={suppliers.map((s) => ({ value: s.id, label: s.supplierName }))}
-                getPopupContainer={() => document.body}
-                dropdownStyle={{ zIndex: 99999, minWidth: 200 }}
-              />
+              <select
+                className="w-full h-10 px-3 border border-[#d9d9d9] rounded-lg focus:outline-none focus:border-[#006c49] focus:ring-1 focus:ring-[#006c49]"
+                onChange={(e) => form.setFieldsValue({ supplierId: Number(e.target.value) })}
+                defaultValue={form.getFieldValue('supplierId') || ''}
+              >
+                <option value="" disabled>Chọn nhà cung cấp</option>
+                {suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>{s.supplierName}</option>
+                ))}
+              </select>
             </Form.Item>
             <Form.Item name="locationId" label="Kho nhận" rules={[{ required: true, message: 'Bắt buộc' }]}>
-              <Select
-                virtual={false}
-                placeholder="Chọn kho"
-                notFoundContent="Không có kho lưu trữ"
-                options={locations.map((l) => ({ value: l.id, label: l.locationName }))}
-                getPopupContainer={() => document.body}
-                dropdownStyle={{ zIndex: 99999, minWidth: 200 }}
-              />
+              <select
+                className="w-full h-10 px-3 border border-[#d9d9d9] rounded-lg focus:outline-none focus:border-[#006c49] focus:ring-1 focus:ring-[#006c49]"
+                onChange={(e) => form.setFieldsValue({ locationId: Number(e.target.value) })}
+                defaultValue={defaultLocation?.id || ''}
+              >
+                <option value="" disabled>Chọn kho</option>
+                {locations.map((l) => (
+                  <option key={l.id} value={l.id}>{l.locationName}</option>
+                ))}
+              </select>
             </Form.Item>
           </div>
 
@@ -112,7 +122,7 @@ export default function ImportCreatePage({
             {(fields, { add, remove }) => (
               <>
                 {fields.map(({ key, name, ...restField }) => (
-                  <div key={key} className="flex gap-3 items-end mb-4 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                  <div key={key} className="flex flex-wrap md:flex-nowrap gap-3 items-end mb-4 bg-slate-50 p-3 rounded-lg border border-slate-100">
                     <Form.Item
                       {...restField}
                       name={[name, 'itemId']}
@@ -120,27 +130,24 @@ export default function ImportCreatePage({
                       rules={[{ required: true, message: 'Bắt buộc' }]}
                       className="mb-0 flex-1"
                     >
-                      <Select
-                        virtual={false}
-                        placeholder="Chọn sản phẩm"
-                        notFoundContent="Không có sản phẩm"
-                        options={productsList.map((p) => ({
-                          value: p.key,
-                          label: `${p.name} (Tồn: ${p.stock})`,
-                        }))}
-                        showSearch
-                        optionFilterProp="label"
-                        getPopupContainer={() => document.body}
-                        dropdownStyle={{ zIndex: 99999, minWidth: 300 }}
-                        onChange={(val) => {
+                      <select
+                        className="w-full h-10 px-3 border border-[#d9d9d9] rounded-lg focus:outline-none focus:border-[#006c49] focus:ring-1 focus:ring-[#006c49] text-sm"
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          form.setFieldValue(['items', name, 'itemId'], val);
                           const product = productsList.find((p) => p.key === val);
                           if (product) {
-                            const currentItems = form.getFieldValue('items') || [];
-                            currentItems[name] = { ...currentItems[name], price: product.cost };
-                            form.setFieldsValue({ items: currentItems });
+                            const calculatedPrice = product.cost * (product.purchaseRatio || 1);
+                            form.setFieldValue(['items', name, 'price'], Number(calculatedPrice.toFixed(2)));
                           }
                         }}
-                      />
+                        defaultValue=""
+                      >
+                        <option value="" disabled>Chọn sản phẩm</option>
+                        {productsList.map((p) => (
+                          <option key={p.key} value={p.key}>{p.name} (Tồn: {p.stock})</option>
+                        ))}
+                      </select>
                     </Form.Item>
                     <Form.Item
                       {...restField}
@@ -156,12 +163,23 @@ export default function ImportCreatePage({
                       name={[name, 'price']}
                       label="Đơn giá nhập"
                       rules={[{ required: true, message: 'Bắt buộc' }]}
-                      className="mb-0 w-36"
+                      className="mb-0 w-full md:w-36"
                     >
                       <InputNumber className="w-full" min={1} />
                     </Form.Item>
+                    <Form.Item
+                      {...restField}
+                      name={[name, 'expiryDate']}
+                      label="Hạn sử dụng"
+                      className="mb-0 w-full md:w-40"
+                    >
+                      <input
+                        type="date"
+                        className="w-full h-10 px-3 border border-[#d9d9d9] rounded-lg focus:outline-none focus:border-[#006c49] focus:ring-1 focus:ring-[#006c49] text-sm"
+                      />
+                    </Form.Item>
                     {fields.length > 1 && (
-                      <Button danger type="text" icon={<Trash2 size={18} />} onClick={() => remove(name)} className="mb-0" />
+                      <Button danger type="text" icon={<Trash2 size={18} />} onClick={() => remove(name)} className="mb-0 w-full md:w-auto" />
                     )}
                   </div>
                 ))}
@@ -177,13 +195,11 @@ export default function ImportCreatePage({
           <div className="mb-6 p-4 bg-emerald-50 text-emerald-900 rounded-lg flex justify-between items-center font-medium">
             <span className="text-base">Tổng tiền phiếu nhập:</span>
             <span className="text-xl font-bold">
-              <Form.Item noStyle dependencies={['items']}>
-                {() => {
-                  const items = form.getFieldValue('items') || [];
-                  const total = items.reduce((acc: number, item: any) => acc + (Number(item?.quantity || 0) * Number(item?.price || 0)), 0);
-                  return money(total);
-                }}
-              </Form.Item>
+              {(() => {
+                const currentItems = form.getFieldValue('items') || [];
+                const total = currentItems.reduce((acc: number, item: any) => acc + (Number(item?.quantity || 0) * Number(item?.price || 0)), 0);
+                return money(total);
+              })()}
             </span>
           </div>
 

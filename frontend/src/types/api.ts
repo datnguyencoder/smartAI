@@ -44,6 +44,10 @@ export type ItemDto = {
   hasExpiry: boolean;
   active: boolean;
   imageUrl?: string;
+  baseUomId?: number;
+  baseUomName?: string;
+  purchaseUomId?: number;
+  purchaseUomName?: string;
 };
 
 export type PageResponseDto<T> = {

@@ -98,35 +98,22 @@ export default function ImportSlipsPage({
     {
       title: 'Hành động',
       render: (_: unknown, row: ImportSlipRow) => {
-        const items: MenuProps['items'] = [
-          {
-            key: 'detail',
-            label: 'Chi tiết',
-            onClick: () => setViewingDetails(row),
-          },
-        ];
-
-        if (row.canReceive) {
-          items.push(
-            {
-              key: 'receive',
-              label: 'Nhận hàng',
-              onClick: () => setReceiving(row),
-            },
-            {
-              key: 'cancel',
-              label: <span className="text-red-500">Hủy</span>,
-              onClick: () => setCanceling(row),
-            }
-          );
-        }
-
         return (
-          <Dropdown menu={{ items }} trigger={['click']}>
-            <Button size="small">
-              Hành động <DownOutlined />
+          <div className="flex flex-wrap gap-2 items-center">
+            <Button size="small" onClick={() => setViewingDetails(row)}>
+              Chi tiết
             </Button>
-          </Dropdown>
+            {row.canReceive && (
+              <>
+                <Button size="small" type="primary" className="!bg-[#006c49]" onClick={() => setReceiving(row)}>
+                  Nhận hàng
+                </Button>
+                <Button size="small" danger onClick={() => setCanceling(row)}>
+                  Hủy
+                </Button>
+              </>
+            )}
+          </div>
         );
       },
     },
@@ -200,10 +187,11 @@ export default function ImportSlipsPage({
           <Button
             key="ok"
             type="primary"
+            className="!bg-[#006c49]"
             loading={receiveLoading}
             onClick={() => receiving && handleReceiveAll(receiving)}
           >
-            Nhận đủ số lượng còn lại
+            Nhận
           </Button>,
         ]}
       >

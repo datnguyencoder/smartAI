@@ -3,6 +3,7 @@ import {
   Badge,
   Button,
   ConfigProvider,
+  App as AntdApp,
   DatePicker,
   Drawer,
   Form,
@@ -266,15 +267,33 @@ function App() {
   const reloadCatalog = React.useCallback(async () => {
     setCatalogLoading(true);
     try {
-      const [items, orders, cats, sups, locs, uomList] = await Promise.all([
+      const [items, orders, cats, sups, locs, uomList, inventoryList] = await Promise.all([
         fetchItems().catch(() => []),
         (authUser && canAccessPage(authUser.role, 'invoices')) ? fetchOrders().catch(() => []) : Promise.resolve([]),
         fetchCategories().catch(() => []),
         fetchSuppliers().catch(() => []),
         fetchLocations().catch(() => []),
         fetchUoms().catch(() => []),
+        fetchInventory().catch(() => []),
       ]);
-      setProductsList((Array.isArray(items) ? items : []).map(itemToProduct));
+
+      const stockMap: Record<number, number> = {};
+      if (Array.isArray(inventoryList)) {
+        inventoryList.forEach(inv => {
+          stockMap[inv.itemId] = (stockMap[inv.itemId] || 0) + Number(inv.quantity);
+        });
+      }
+
+      setProductsList((Array.isArray(items) ? items : []).map(item => {
+        const prod = itemToProduct(item);
+        if (stockMap[item.id] !== undefined) {
+          prod.stock = Math.round(stockMap[item.id]);
+          if (prod.stock === 0) prod.status = 'Hết hàng';
+          else if (prod.stock <= (item.minimumStock ?? 0)) prod.status = 'Sắp hết';
+          else prod.status = 'Còn hàng';
+        }
+        return prod;
+      }));
       setInvoicesList(ordersToInvoices(Array.isArray(orders) ? orders : []));
       setCategories(Array.isArray(cats) ? cats : []);
       setSuppliers(Array.isArray(sups) ? sups : []);
@@ -330,7 +349,8 @@ function App() {
         },
       }}
     >
-      <div className="min-h-screen bg-[#f8fafc] text-ink">
+      <AntdApp>
+        <div className="min-h-screen bg-[#f8fafc] text-ink">
         <Sidebar
           page={page}
           setPage={setPage}
@@ -389,15 +409,16 @@ function App() {
           onUpdated={reloadCatalog}
         />
         <InvoiceDrawer invoice={selectedInvoice} onClose={() => setSelectedInvoice(null)} />
-        <CreateProductModal
-          open={modalOpen}
-          onCancel={() => setModalOpen(false)}
-          page={page}
-          categories={categories}
-          uoms={uoms}
-          onCreated={reloadCatalog}
-        />
-      </div>
+          <CreateProductModal
+            open={modalOpen}
+            onCancel={() => setModalOpen(false)}
+            page={page}
+            categories={categories}
+            uoms={uoms}
+            onCreated={reloadCatalog}
+          />
+        </div>
+      </AntdApp>
     </ConfigProvider>
   );
 }
