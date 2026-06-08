@@ -22,8 +22,9 @@ public class LocationServiceImpl implements com.smartmart.service.LocationServic
 
     @Transactional(readOnly = true)
     @Override
-    public List<LocationResponse> listAll() {
-        return locationRepository.findAll().stream().map(this::toResponse).toList();
+    public List<LocationResponse> listAll(String q, String type, Boolean active) {
+        String searchQuery = (q == null) ? "" : q;
+        return locationRepository.findFiltered(searchQuery, type, active).stream().map(this::toResponse).toList();
     }
 
     @Override

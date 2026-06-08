@@ -15,4 +15,7 @@ public class PurchaseOrderItemResponse {
     private BigDecimal receivedQty;
     private BigDecimal unitPrice;
     private BigDecimal subtotal;
+    private String uomName;
+    private String lotCode;
+    private java.time.LocalDate expiryDate;
 }

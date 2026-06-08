@@ -166,6 +166,7 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
     }
 
     @Override
+    @CacheEvict(value = {"items", "itemsPage", "dashboardSummary", "dashboardRevenue"}, allEntries = true)
     public OrderResponse cancel(Long id) {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new com.smartmart.exception.NotFoundException("Không tìm thấy hóa đơn"));
