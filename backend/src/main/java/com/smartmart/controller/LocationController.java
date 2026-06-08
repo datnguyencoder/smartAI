@@ -29,8 +29,11 @@ public class LocationController {
 
     @GetMapping
     @Operation(summary = "Danh sách kho")
-    public ResponseEntity<ApiResponse<List<LocationResponse>>> list() {
-        return ResponseEntity.ok(ApiResponse.success(locationService.listAll()));
+    public ResponseEntity<ApiResponse<List<LocationResponse>>> list(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) Boolean active) {
+        return ResponseEntity.ok(ApiResponse.success(locationService.listAll(q, type, active)));
     }
 
     @PostMapping

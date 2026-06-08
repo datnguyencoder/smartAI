@@ -10,13 +10,33 @@ import java.util.List;
 import java.math.BigDecimal;
 import java.util.Optional;
 
+import org.springframework.data.jpa.repository.EntityGraph;
+
 public interface CurrentInventoryRepository extends JpaRepository<CurrentInventory, Long> {
+
+    @Override
+    @EntityGraph(attributePaths = {"item", "location", "lot"})
+    List<CurrentInventory> findAll();
+
+    @Query("SELECT ci FROM CurrentInventory ci " +
+           "WHERE (:itemId IS NULL OR ci.item.id = :itemId) " +
+           "AND (:locationId IS NULL OR ci.location.id = :locationId) " +
+           "AND (:lotId IS NULL OR ci.lot.id = :lotId)")
+    @EntityGraph(attributePaths = {"item", "location", "lot"})
+    List<CurrentInventory> findFiltered(@Param("itemId") Long itemId, @Param("locationId") Long locationId, @Param("lotId") Long lotId);
 
     @Query("""
         SELECT COALESCE(SUM(ci.quantity - ci.reservedQuantity), 0)
         FROM CurrentInventory ci WHERE ci.item.id = :itemId
         """)
     Optional<BigDecimal> sumAvailableByItemId(Long itemId);
+
+    @Query("""
+        SELECT COALESCE(SUM(ci.quantity), 0)
+        FROM CurrentInventory ci WHERE ci.item.id = :itemId
+        """)
+    BigDecimal sumQuantityByItemId(Long itemId);
+
 
     @Query("""
         SELECT ci FROM CurrentInventory ci

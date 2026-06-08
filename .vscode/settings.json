@@ -1,4 +1,6 @@
 {
   "cursor.commitAttribution": false,
-  "cursor.prAttribution": false
+  "cursor.prAttribution": false,
+  "java.configuration.updateBuildConfiguration": "interactive",
+  "java.compile.nullAnalysis.mode": "automatic"
 }

@@ -36,8 +36,7 @@ public class AuthServiceImpl implements com.smartmart.service.AuthService {
             JwtTokenProvider jwtTokenProvider,
             UserRepository userRepository,
             TokenBlacklistService tokenBlacklistService,
-            AuditLogService auditLogService
-    ) {
+            AuditLogService auditLogService) {
         this.authenticationManager = authenticationManager;
         this.jwtTokenProvider = jwtTokenProvider;
         this.userRepository = userRepository;
@@ -49,8 +48,7 @@ public class AuthServiceImpl implements com.smartmart.service.AuthService {
     public AuthResponse login(LoginRequest request) {
         try {
             Authentication auth = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
-            );
+                    new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword()));
             CustomUserDetails details = (CustomUserDetails) auth.getPrincipal();
             if (details.getUser().getStatus() != UserStatus.ACTIVE) {
                 throw new UnauthorizedException(ErrorCode.ACCOUNT_INACTIVE, ErrorCode.ACCOUNT_INACTIVE.getMessage());
@@ -179,7 +177,7 @@ public class AuthServiceImpl implements com.smartmart.service.AuthService {
                 .username(user.getUsername())
                 .email(user.getEmail())
                 .fullName(user.getFullName())
-                .role(user.getRole())
+                .role(user.getRole() != null ? user.getRole().name().replace("ROLE_", "") : null)
                 .status(user.getStatus())
                 .build();
     }

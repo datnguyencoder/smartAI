@@ -35,6 +35,8 @@ public class ItemController {
     public ResponseEntity<ApiResponse<?>> list(
             @RequestParam(required = false) String q,
             @RequestParam(required = false) String barcode,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) Boolean active,
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size
     ) {
@@ -44,16 +46,22 @@ public class ItemController {
         if (page != null) {
             int pageSize = size != null && size > 0 ? Math.min(size, 200) : 50;
             Pageable pageable = org.springframework.data.domain.PageRequest.of(Math.max(page, 0), pageSize);
-            PageResponse<ItemResponse> result = itemService.listPaged(q, pageable);
+            PageResponse<ItemResponse> result = itemService.listPaged(q, categoryId, active, pageable);
             return ResponseEntity.ok(ApiResponse.success(result));
         }
-        return ResponseEntity.ok(ApiResponse.success(itemService.listAll(q)));
+        return ResponseEntity.ok(ApiResponse.success(itemService.listAll(q, categoryId, active)));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Chi tiết sản phẩm")
     public ResponseEntity<ApiResponse<ItemResponse>> get(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(itemService.getById(id)));
+    }
+
+    @GetMapping("/{id}/uoms")
+    @Operation(summary = "Danh sách đơn vị tính của sản phẩm (Base & Purchase)")
+    public ResponseEntity<ApiResponse<List<com.smartmart.dto.response.UomResponse>>> getItemUoms(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(itemService.getItemUoms(id)));
     }
 
     @PostMapping

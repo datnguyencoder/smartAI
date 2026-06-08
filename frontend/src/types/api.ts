@@ -35,6 +35,7 @@ export type ItemDto = {
   itemCode: string;
   itemName: string;
   categoryName?: string;
+  costPrice: number;
   sellingPrice: number;
   minimumStock: number;
   totalAvailableQty?: number;
@@ -42,6 +43,10 @@ export type ItemDto = {
   hasExpiry: boolean;
   active: boolean;
   imageUrl?: string;
+  baseUomId?: number;
+  baseUomName?: string;
+  purchaseUomId?: number;
+  purchaseUomName?: string;
 };
 
 export type PageResponseDto<T> = {
