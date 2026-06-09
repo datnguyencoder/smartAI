@@ -1,5 +1,6 @@
 import { apiRequest, ApiClientError, setToken } from './apiClient';
 import type {
+  AuditLogDto,
   AuthDto,
   CategoryDto,
   DashboardSummaryDto,
@@ -78,6 +79,10 @@ export function fetchInventoryAlerts() {
 
 export function resolveInventoryAlert(id: number) {
   return apiRequest<InventoryAlertDto>(`/api/v1/inventory-alerts/${id}/resolve`, { method: 'PATCH' });
+}
+
+export function fetchRecentAuditLogs(limit = 20) {
+  return apiRequest<AuditLogDto[]>(`/api/v1/audit-logs/recent?limit=${limit}`);
 }
 
 export function fetchItems(search?: string) {

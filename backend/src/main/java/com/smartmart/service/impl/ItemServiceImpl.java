@@ -9,6 +9,7 @@ import com.smartmart.entity.Uom;
 import com.smartmart.exception.BadRequestException;
 import com.smartmart.exception.NotFoundException;
 import com.smartmart.repository.*;
+import com.smartmart.service.AuditLogService;
 import com.smartmart.util.ItemImageUrls;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -32,6 +33,7 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
     private final CurrentInventoryRepository currentInventoryRepository;
     private final OrderItemRepository orderItemRepository;
     private final PurchaseOrderItemRepository purchaseOrderItemRepository;
+    private final AuditLogService auditLogService;
 
     public ItemServiceImpl(
             ItemRepository itemRepository,
@@ -39,13 +41,15 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
             UomRepository uomRepository,
             CurrentInventoryRepository currentInventoryRepository,
             OrderItemRepository orderItemRepository,
-            PurchaseOrderItemRepository purchaseOrderItemRepository) {
+            PurchaseOrderItemRepository purchaseOrderItemRepository,
+            AuditLogService auditLogService) {
         this.itemRepository = itemRepository;
         this.categoryRepository = categoryRepository;
         this.uomRepository = uomRepository;
         this.currentInventoryRepository = currentInventoryRepository;
         this.orderItemRepository = orderItemRepository;
         this.purchaseOrderItemRepository = purchaseOrderItemRepository;
+        this.auditLogService = auditLogService;
     }
 
     @Override
@@ -147,7 +151,9 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
                 .active(true)
                 .imageUrl(imageUrl)
                 .build();
-        return toResponse(itemRepository.save(item), BigDecimal.ZERO);
+        Item saved = itemRepository.save(item);
+        auditLogService.log("ITEM_CREATE", "Tạo sản phẩm " + saved.getItemCode() + " - " + saved.getItemName());
+        return toResponse(saved, BigDecimal.ZERO);
     }
 
     @Override
@@ -201,7 +207,9 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
                     : req.getImageUrl().trim());
         }
         BigDecimal sold = soldQtyMap().getOrDefault(id, BigDecimal.ZERO);
-        return toResponse(itemRepository.save(item), sold);
+        Item saved = itemRepository.save(item);
+        auditLogService.log("ITEM_UPDATE", "Cập nhật sản phẩm " + saved.getItemCode() + " - " + saved.getItemName());
+        return toResponse(saved, sold);
     }
 
     @Override

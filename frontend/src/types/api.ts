@@ -117,6 +117,14 @@ export type InventoryAlertDto = {
   createdAt: string;
 };
 
+export type AuditLogDto = {
+  id: string;
+  action: string;
+  detail?: string;
+  username: string;
+  createdAt: string;
+};
+
 export type DashboardSummaryDto = {
   todayRevenue?: number;
   todayOrders?: number;
