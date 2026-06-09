@@ -194,7 +194,7 @@ public class AuthServiceImpl implements com.smartmart.service.AuthService {
                 .username(user.getUsername())
                 .email(user.getEmail())
                 .fullName(user.getFullName())
-                .role(user.getRole() != null ? user.getRole().name().replace("ROLE_", "") : null)
+                .role(user.getRole())
                 .status(user.getStatus())
                 .build();
     }

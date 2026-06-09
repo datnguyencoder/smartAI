@@ -210,7 +210,6 @@ export type CreateUserPayload = {
 export type UpdateUserPayload = {
   fullName?: string;
   email?: string;
-  role?: Role;
 };
 
 // --------- Report DTOs ---------

@@ -56,10 +56,15 @@ public class UserServiceImpl implements com.smartmart.service.UserService {
     @Override
     public UserResponse create(CreateUserRequest req) {
         if (userRepository.existsByUsername(req.getUsername())) {
-            throw new ConflictException("Tên đăng nhập đã tồn tại");
+            throw new ConflictException(
+                    ErrorCode.USERNAME_ALREADY_EXISTS,
+                    ErrorCode.USERNAME_ALREADY_EXISTS.getMessage()
+            );
         }
         if (userRepository.existsByEmail(req.getEmail())) {
-            throw new ConflictException("Email đã tồn tại");
+            throw new ConflictException(
+                    ErrorCode.EMAIL_ALREADY_EXISTS,
+                    ErrorCode.EMAIL_ALREADY_EXISTS.getMessage());
         }
         User user = User.builder()
                 .username(req.getUsername())
@@ -83,11 +88,12 @@ public class UserServiceImpl implements com.smartmart.service.UserService {
         }
         if (req.getEmail() != null && !req.getEmail().isBlank()){
             if(!req.getEmail().equals(user.getEmail()) && userRepository.existsByEmail(req.getEmail())){
-                throw new ConflictException("Email dã tồn tại");
+                throw new ConflictException(
+                        ErrorCode.EMAIL_ALREADY_EXISTS,
+                        ErrorCode.EMAIL_ALREADY_EXISTS.getMessage());
             }
             user.setEmail(req.getEmail());
         }
-        if (req.getRole() != null) user.setRole(req.getRole());
         return authService.toUserResponse(userRepository.save(user));
     }
 
