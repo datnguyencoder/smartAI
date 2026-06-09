@@ -2449,7 +2449,6 @@ function UsersPage() {
         await updateUser(editingUser.id, {
           fullName: fullName || undefined,
           email: email || undefined,
-          role: values.role || undefined,
         });
         antdMessage.success('Cập nhật người dùng thành công');
       } else {
@@ -2590,17 +2589,24 @@ function UsersPage() {
             <Input />
           </Form.Item>
 
-          <Form.Item name="role" label="Vai trò" messageVariables={{ label: 'vai trò' }} rules={[{ required: true }]}>
-            <Select
-              options={[
-                { value: 'ROLE_ADMIN' satisfies Role, label: 'Admin' },
-                { value: 'ROLE_MANAGER' satisfies Role, label: 'Quản lý' },
-                { value: 'ROLE_STAFF' satisfies Role, label: 'Thu ngân' },
-                { value: 'ROLE_WAREHOUSE' satisfies Role, label: 'Kho' },
-                { value: 'ROLE_ANALYST' satisfies Role, label: 'Phân tích' },
-              ]}
-            />
-          </Form.Item>
+          {!editingUser && (
+            <Form.Item
+              name="role"
+              label="Vai trò"
+              messageVariables={{ label: 'vai trò' }}
+              rules={[{ required: true }]}
+            >
+              <Select
+                options={[
+                  { value: 'ROLE_ADMIN' satisfies Role, label: 'Admin' },
+                  { value: 'ROLE_MANAGER' satisfies Role, label: 'Quản lý' },
+                  { value: 'ROLE_STAFF' satisfies Role, label: 'Thu ngân' },
+                  { value: 'ROLE_WAREHOUSE' satisfies Role, label: 'Kho' },
+                  { value: 'ROLE_ANALYST' satisfies Role, label: 'Phân tích' },
+                ]}
+              />
+            </Form.Item>
+          )}
         </Form>
       </Modal>
     </Card>

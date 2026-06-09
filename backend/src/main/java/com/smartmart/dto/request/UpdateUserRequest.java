@@ -13,9 +13,7 @@ public class UpdateUserRequest {
     @Size(max = 100)
     private String fullName;
 
-    @Size(max = 100)
     @Email
     private String email;
 
-    private Role role;
 }
