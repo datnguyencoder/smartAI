@@ -83,8 +83,8 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
 
         Location location = locationRepository.findById(request.getLocationId())
                 .orElseThrow(() -> new NotFoundException("Địa điểm nhận hàng không hợp lệ."));
-        if (location.getParent() == null) {
-            throw new BadRequestException("Địa điểm nhận hàng không hợp lệ (Phải là kho con).");
+        if (!location.isActive()) {
+            throw new BadRequestException("Kho nhận hàng đã ngừng hoạt động.");
         }
 
         PurchaseOrder po = PurchaseOrder.builder()

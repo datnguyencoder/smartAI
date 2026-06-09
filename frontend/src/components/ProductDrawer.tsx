@@ -1,4 +1,4 @@
-import { Button, Drawer, Form, InputNumber, Progress, Statistic } from 'antd';
+import { Button, Drawer, Form, Input, InputNumber, Progress, Statistic, Table } from 'antd';
 import * as React from 'react';
 import { message as antdMessage } from 'antd';
 import { ImagePlus, RotateCcw } from 'lucide-react';
@@ -18,11 +18,22 @@ export function ProductDrawer({ product, onClose, onUpdated }: Props) {
   const bodyRef = React.useRef<HTMLDivElement>(null);
   const [saving, setSaving] = React.useState(false);
   const [price, setPrice] = React.useState<number | null>(null);
+  const [imageUrl, setImageUrl] = React.useState('');
+  const [lots, setLots] = React.useState<InventoryItemDto[]>([]);
+  const [loadingLots, setLoadingLots] = React.useState(false);
 
   React.useEffect(() => {
     if (product) {
       animateDrawer(bodyRef.current, true);
       setPrice(product.price);
+      setImageUrl(product.imageUrl ?? '');
+      setLoadingLots(true);
+      fetchInventory()
+        .then((rows) => setLots(rows.filter((row) => String(row.itemId) === product.key)))
+        .catch(() => setLots([]))
+        .finally(() => setLoadingLots(false));
+    } else {
+      setLots([]);
     }
   }, [product]);
 
@@ -95,7 +106,7 @@ export function ProductDrawer({ product, onClose, onUpdated }: Props) {
             </Form.Item>
           </Form>
           <Button type="primary" block loading={saving} onClick={handleSave}>
-            Lưu giá bán
+            Lưu thay đổi
           </Button>
 
           <div className="pt-6 mt-6 border-t border-slate-200">

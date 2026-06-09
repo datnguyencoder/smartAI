@@ -26,9 +26,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     fetchMe()
       .then((user) => {
-        const cleanUser = { ...user, role: user.role?.replace('ROLE_', '') || user.role };
-        setAuthUser(cleanUser);
-        localStorage.setItem('smartmart_user', JSON.stringify(cleanUser));
+        setAuthUser(user);
+        localStorage.setItem('smartmart_user', JSON.stringify(user));
       })
       .catch(() => {
         clearSession();
