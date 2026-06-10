@@ -25,6 +25,8 @@ public enum ErrorCode {
     EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "Email đã tồn tại"),
     DEFAULT_ADMIN_CANNOT_BE_DEACTIVATED(HttpStatus.BAD_REQUEST, "Không thể khóa tài khoản admin mặc định"),
     USER_MUST_BE_LOCKED_BEFORE_INACTIVE(HttpStatus.BAD_REQUEST, "Tài khoản phải bị khóa trước khi chuyển sang trạng thái không hoạt động"),
+    USER_MUST_BE_LOCKED_BEFORE_UNLOCK(HttpStatus.BAD_REQUEST, "Chỉ tài khoản đang bị khóa mới có thể mở khóa"),
+    INACTIVE_USER_CANNOT_BE_UNLOCKED(HttpStatus.BAD_REQUEST, "Tài khoản không hoạt động không thể mở khóa"),
 
 
     // Inventory / business domain

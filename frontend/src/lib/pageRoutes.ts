@@ -23,6 +23,7 @@ export const PAGE_PATHS: Record<PageKey, string> = {
   settings: '/settings',
   'scrap-create': '/scrap-orders/create',
   'scrap-orders': '/scrap-orders',
+  'audit-logs': '/audit-logs'
 };
 
 const PATH_TO_PAGE = Object.fromEntries(

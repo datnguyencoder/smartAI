@@ -8,9 +8,9 @@ import lombok.Setter;
 @Getter
 @Setter
 public class CreateUserRequest {
-    @NotBlank
-    @Size(min = 4, max = 50)
-    @Pattern(regexp = "^[a-zA-Z0-9_.]+$")
+    @NotBlank(message = "Tên đăng nhập không được để trống")
+    @Size(min = 4, max = 50, message = "Tên đăng nhập phải có độ dài từ 4 đến 50 ký tự")
+    @Pattern(regexp = "^[a-zA-Z0-9_.]+$",  message = "Tên đăng nhập chỉ được chứa chữ không dấu, số, dấu chấm và dấu gạch dưới")
     private String username;
 
     @NotBlank

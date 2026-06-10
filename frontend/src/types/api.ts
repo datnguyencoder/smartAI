@@ -167,6 +167,11 @@ export type AuditLogDto = {
   detail?: string;
   username: string;
   createdAt: string;
+  beforeData?: string | null;
+  afterData?: string | null;
+  ipAddress?: string | null;
+  entityType?: string | null;
+  entityId?: string | null;
 };
 
 export type DashboardSummaryDto = {

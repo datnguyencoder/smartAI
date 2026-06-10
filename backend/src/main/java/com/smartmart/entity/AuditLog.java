@@ -21,6 +21,17 @@ public class AuditLog extends LongAuditableEntity {
 
     private String ipAddress;
 
+    @Column(nullable = false)
+    private String entityType;
+
+    private String entityId;
+
+    @Column(columnDefinition = "TEXT")
+    private String beforeData;
+
+    @Column(columnDefinition = "TEXT")
+    private String afterData;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;

@@ -13,4 +13,9 @@ public class AuditLogResponse {
     private String detail;
     private String username;
     private LocalDateTime createdAt;
+    private String beforeData;
+    private String afterData;
+    private String ipAddress;
+    private String entityType;
+    private String entityId;
 }
