@@ -149,8 +149,8 @@ export default function PosPage({
   if (appliedPromo === 'AI_PROMO_10') promoDiscount = subtotal * 0.1;
   if (appliedPromo === 'AI_CLEARANCE_15') promoDiscount = subtotal * 0.15;
 
-  const vat = (subtotal - promoDiscount) * 0.08;
-  const total = subtotal - promoDiscount + vat;
+  const vat = 0; // Removed VAT logic for simplicity
+  const total = subtotal - promoDiscount;
 
   const [checkoutLoading, setCheckoutLoading] = React.useState(false);
 
@@ -184,7 +184,6 @@ export default function PosPage({
         })),
         subtotal: Math.round(subtotal),
         discount: Math.round(promoDiscount),
-        vat: Math.round(vat),
       };
       setLastInvoice(newInvoice);
       setReceiptOpen(true);
@@ -363,10 +362,6 @@ export default function PosPage({
                   <span>-{money(promoDiscount)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-slate-500">
-                <span>Thuế VAT (8%)</span>
-                <span>{money(vat)}</span>
-              </div>
               <div className="flex justify-between text-lg font-bold text-ink border-t border-slate-200/80 pt-2 mt-2">
                 <span>Tổng cộng thanh toán</span>
                 <span className="text-primary">{money(total)}</span>
@@ -434,7 +429,6 @@ export default function PosPage({
             <div className="space-y-1 text-[11px]">
               <div className="flex justify-between text-slate-500"><span>Tạm tính:</span><span>{money(lastInvoice.subtotal)}</span></div>
               {lastInvoice.discount > 0 && <div className="flex justify-between text-red-600"><span>Giảm giá AI:</span><span>-{money(lastInvoice.discount)}</span></div>}
-              <div className="flex justify-between text-slate-500"><span>Thuế VAT:</span><span>{money(lastInvoice.vat)}</span></div>
               <div className="flex justify-between text-sm font-bold text-slate-800 border-t border-dashed border-slate-200 pt-2">
                 <span>TỔNG THANH TOÁN:</span>
                 <span className="text-primary text-base font-extrabold">{money(lastInvoice.amount)}</span>

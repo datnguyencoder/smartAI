@@ -43,7 +43,7 @@ public class UserServiceImpl implements com.smartmart.service.UserService {
     @Transactional(readOnly = true)
     @Override
     public List<UserResponse> listAll() {
-        return userRepository.findAll().stream().map(authService::toUserResponse).toList();
+        return userRepository.findAllByOrderByCreatedAtDesc().stream().map(authService::toUserResponse).toList();
     }
 
     @Transactional(readOnly = true)
