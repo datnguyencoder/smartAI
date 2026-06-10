@@ -64,6 +64,8 @@ SPRING_PROFILES_ACTIVE=prod
 FASTAPI_ENV=production
 ```
 
+**Spring profiles:** Docker backend dùng `prod` (PostgreSQL hostname `postgres`). Chạy backend trong IDE dùng `local` (mặc định) — cùng schema Flyway, kết nối `localhost:5432` sau khi `docker compose up -d postgres`.
+
 #### Bước 3: Khởi chạy hệ thống bằng Docker Compose
 Chỉ cần thực hiện một câu lệnh duy nhất để Docker tự động tải mã nguồn, build các Dockerfile multi-stage, cài đặt các thư viện phụ thuộc và khởi tạo mạng nội bộ:
 

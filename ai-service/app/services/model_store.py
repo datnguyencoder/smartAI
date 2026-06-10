@@ -38,6 +38,8 @@ def save_training_artifacts(bundle: dict[str, Any], metrics: dict[str, Any]) -> 
         "trained_at": datetime.now(timezone.utc).isoformat(),
         "version": SERVICE_VERSION,
     }
+    if "item_model_types" in bundle:
+        metrics_payload["item_model_types"] = bundle["item_model_types"]
 
     joblib.dump(bundle, _model_path())
     _metadata_path().write_text(json.dumps(metrics_payload, indent=2), encoding="utf-8")

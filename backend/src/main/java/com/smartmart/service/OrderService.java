@@ -1,6 +1,7 @@
 package com.smartmart.service;
 
 import com.smartmart.dto.request.CreateOrderRequest;
+import com.smartmart.dto.response.OrderPrintResponse;
 import com.smartmart.dto.response.OrderResponse;
 import com.smartmart.enums.OrderStatus;
 import org.springframework.data.domain.Page;
@@ -18,6 +19,8 @@ public interface OrderService {
     OrderResponse getById(Long id);
 
     OrderResponse cancel(Long id);
+
+    OrderPrintResponse getPrint(Long id);
 
     List<String> suggestCustomers(String keyword);
 }

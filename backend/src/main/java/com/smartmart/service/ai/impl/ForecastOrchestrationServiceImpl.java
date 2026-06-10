@@ -2,14 +2,17 @@ package com.smartmart.service.ai.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.smartmart.client.AiClient;
+import com.smartmart.dto.response.ForecastItemDetailResponse;
 import com.smartmart.entity.*;
 import com.smartmart.enums.OrderStatus;
+import com.smartmart.exception.NotFoundException;
 import com.smartmart.repository.*;
 import com.smartmart.service.ai.ReorderRecommendationService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -21,6 +24,7 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
     private final ItemRepository itemRepository;
     private final ModelTrainingHistoryRepository trainingHistoryRepository;
     private final ForecastResultRepository forecastResultRepository;
+    private final ForecastDailyPointRepository forecastDailyPointRepository;
     private final ReorderRecommendationService reorderRecommendationService;
 
     public ForecastOrchestrationServiceImpl(
@@ -29,6 +33,7 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
             ItemRepository itemRepository,
             ModelTrainingHistoryRepository trainingHistoryRepository,
             ForecastResultRepository forecastResultRepository,
+            ForecastDailyPointRepository forecastDailyPointRepository,
             ReorderRecommendationService reorderRecommendationService
     ) {
         this.aiClient = aiClient;
@@ -36,6 +41,7 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
         this.itemRepository = itemRepository;
         this.trainingHistoryRepository = trainingHistoryRepository;
         this.forecastResultRepository = forecastResultRepository;
+        this.forecastDailyPointRepository = forecastDailyPointRepository;
         this.reorderRecommendationService = reorderRecommendationService;
     }
 
@@ -70,6 +76,11 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
         JsonNode result = aiClient.forecastAll(itemsPayload);
 
         ModelTrainingHistory latest = trainingHistoryRepository.findTopByOrderByTrainedAtDesc().orElse(null);
+
+        List<Long> oldIds = forecastResultRepository.findAll().stream().map(ForecastResult::getId).toList();
+        if (!oldIds.isEmpty()) {
+            forecastDailyPointRepository.deleteByForecastResultIdIn(oldIds);
+        }
         forecastResultRepository.deleteAll();
 
         JsonNode forecasts = result.path("forecasts");
@@ -86,6 +97,7 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
                 double pred7 = firstDouble(p, "predicted_qty_7d", "pred_7d");
                 double pred14 = firstDouble(p, "predicted_qty_14d", "pred_14d");
                 double pred30 = firstDouble(p, "predicted_qty_30d", "pred_30d");
+                String modelType = p.path("model_type").asText(null);
 
                 ForecastResult fr = ForecastResult.builder()
                         .item(item)
@@ -97,8 +109,10 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
                         .predictedQty30d(BigDecimal.valueOf(pred30))
                         .horizonDays(30)
                         .confidenceLevel(BigDecimal.valueOf(0.85))
+                        .modelType(modelType)
                         .build();
                 forecastResultRepository.save(fr);
+                saveDailySeries(fr, p.path("daily_series"));
                 saved++;
             }
         }
@@ -122,6 +136,7 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
                     m.put("pred7d", fr.getPredictedQty7d());
                     m.put("pred14d", fr.getPredictedQty14d());
                     m.put("pred30d", fr.getPredictedQty30d());
+                    m.put("modelType", fr.getModelType());
                     m.put("forecastDate", fr.getForecastDate());
                     return m;
                 }).toList();
@@ -129,8 +144,52 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
 
     @Transactional(readOnly = true)
     @Override
+    public ForecastItemDetailResponse getItemResult(Long itemId) {
+        ForecastResult fr = forecastResultRepository.findFirstByItemIdOrderByForecastDateDesc(itemId)
+                .orElseThrow(() -> new NotFoundException("Forecast result not found for item " + itemId));
+
+        List<ForecastItemDetailResponse.DailyPoint> series = forecastDailyPointRepository
+                .findByForecastResultIdOrderByPointDateAsc(fr.getId())
+                .stream()
+                .map(dp -> ForecastItemDetailResponse.DailyPoint.builder()
+                        .date(dp.getPointDate().toString())
+                        .predictedQty(dp.getPredictedQty())
+                        .build())
+                .toList();
+
+        return ForecastItemDetailResponse.builder()
+                .itemId(fr.getItem().getId())
+                .itemName(fr.getItem().getItemName())
+                .pred7d(fr.getPredictedQty7d())
+                .pred14d(fr.getPredictedQty14d())
+                .pred30d(fr.getPredictedQty30d())
+                .modelType(fr.getModelType())
+                .forecastDate(fr.getForecastDate())
+                .dailySeries(series)
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    @Override
     public List<ModelTrainingHistory> modelHistory() {
         return trainingHistoryRepository.findAll();
+    }
+
+    private void saveDailySeries(ForecastResult fr, JsonNode dailySeries) {
+        if (!dailySeries.isArray()) {
+            return;
+        }
+        for (JsonNode point : dailySeries) {
+            String dateStr = point.path("date").asText(null);
+            if (dateStr == null || dateStr.isBlank()) {
+                continue;
+            }
+            forecastDailyPointRepository.save(ForecastDailyPoint.builder()
+                    .forecastResult(fr)
+                    .pointDate(LocalDate.parse(dateStr))
+                    .predictedQty(BigDecimal.valueOf(point.path("predicted_qty").asDouble(0)))
+                    .build());
+        }
     }
 
     private List<Map<String, Object>> extractSalesHistory(int days) {

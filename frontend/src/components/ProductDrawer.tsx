@@ -5,10 +5,10 @@ import { ImagePlus, RotateCcw } from 'lucide-react';
 import { animateDrawer } from '../lib/gsapAnimations';
 import { formatMoney, type Product } from '../lib/itemMapper';
 import { ProductThumbnail } from './ProductThumbnail';
-import { updateItem, fetchInventory } from '../services/wmsApi';
-import type {
-  InventoryItemDto
-} from '../types/api';
+import { aiExplainRisk, fetchInventory, updateItem } from '../services/wmsApi';
+import type { InventoryItemDto } from '../types/api';
+import { MarkdownMessage } from './MarkdownMessage';
+
 type Props = {
   product: Product | null;
   onClose: () => void;
@@ -22,12 +22,15 @@ export function ProductDrawer({ product, onClose, onUpdated }: Props) {
   const [imageUrl, setImageUrl] = React.useState('');
   const [lots, setLots] = React.useState<InventoryItemDto[]>([]);
   const [loadingLots, setLoadingLots] = React.useState(false);
+  const [riskInsight, setRiskInsight] = React.useState<string | null>(null);
+  const [riskLoading, setRiskLoading] = React.useState(false);
 
   React.useEffect(() => {
     if (product) {
       animateDrawer(bodyRef.current, true);
       setPrice(product.price);
       setImageUrl(product.imageUrl ?? '');
+      setRiskInsight(null);
       setLoadingLots(true);
       fetchInventory()
         .then((rows) => setLots(rows.filter((row) => String(row.itemId) === product.key)))
@@ -109,6 +112,60 @@ export function ProductDrawer({ product, onClose, onUpdated }: Props) {
           <Button type="primary" block loading={saving} onClick={handleSave}>
             Lưu thay đổi
           </Button>
+
+          <div className="border-t border-slate-200 pt-6 mt-6">
+            <h3 className="mb-3 text-base font-semibold text-slate-800">Chi tiết tồn kho theo lô</h3>
+            <Table
+              dataSource={lots}
+              loading={loadingLots}
+              rowKey={(r) => r.id}
+              pagination={false}
+              size="small"
+              columns={[
+                { title: 'Kho', dataIndex: 'locationName' },
+                {
+                  title: 'Lô / HSD',
+                  render: (_, r) => (
+                    <div className="text-xs">
+                      <div className="font-medium text-slate-700">{r.lotNumber || '-'}</div>
+                      <div className="text-slate-400">{r.expiryDate || 'Không có HSD'}</div>
+                    </div>
+                  ),
+                },
+                { title: 'SL', dataIndex: 'quantity', align: 'right' },
+              ]}
+            />
+          </div>
+
+          <Button
+            block
+            loading={riskLoading}
+            onClick={async () => {
+              if (!product) return;
+              setRiskLoading(true);
+              try {
+                const text = await aiExplainRisk({
+                  itemId: Number(product.key),
+                  itemName: product.name,
+                  stock: product.stock,
+                  sold: product.sold,
+                  price: product.price,
+                });
+                setRiskInsight(text);
+              } catch (e) {
+                antdMessage.error(e instanceof Error ? e.message : 'Phân tích thất bại');
+              } finally {
+                setRiskLoading(false);
+              }
+            }}
+          >
+            Phân tích rủi ro AI
+          </Button>
+          {riskInsight && (
+            <div className="rounded-xl border border-line bg-white p-4 text-sm">
+              <MarkdownMessage text={riskInsight} />
+            </div>
+          )}
         </div>
       ) : null}
     </Drawer>

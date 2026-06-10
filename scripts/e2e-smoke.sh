@@ -60,5 +60,17 @@ check "Inventory alerts API" "curl -sf -H 'Authorization: Bearer $STAFF_TOKEN2' 
 
 check "AI model metrics" "curl -sf '$AI/ai/model/metrics' | python3 -c \"import sys,json; d=json.load(sys.stdin); assert 'model_type' in d or 'mae' in d\" || test \"\$(curl -s -o /dev/null -w '%{http_code}' '$AI/ai/model/metrics')\" = 404"
 
+check "Forecast train admin" "curl -sf -X POST -H 'Authorization: Bearer $ADMIN_TOKEN' '$API/api/v1/forecast/train' | python3 -c \"import sys,json; assert json.load(sys.stdin)['success']\""
+
+check "Forecast recommendations admin" "curl -sf -H 'Authorization: Bearer $ADMIN_TOKEN' '$API/api/v1/forecast/recommendations' | python3 -c \"import sys,json; assert json.load(sys.stdin)['success']\""
+
+check "Forecast recommendations staff forbidden" "test \"\$(curl -s -o /dev/null -w '%{http_code}' -H 'Authorization: Bearer $STAFF_TOKEN2' '$API/api/v1/forecast/recommendations')\" = 403"
+
+check "Order print endpoint" "
+  FIRST_ORDER=\$(curl -sf -H 'Authorization: Bearer $STAFF_TOKEN2' '$API/api/v1/orders' | python3 -c 'import sys,json; d=json.load(sys.stdin).get(\"data\") or []; print(d[0][\"id\"] if d else \"\")')
+  if [ -z \"\$FIRST_ORDER\" ]; then exit 0; fi
+  test \"\$(curl -s -o /dev/null -w '%{http_code}' -H 'Authorization: Bearer $STAFF_TOKEN2' '$API/api/v1/orders/'\$FIRST_ORDER'/print')\" = 200
+"
+
 echo "=== Kết quả: $pass passed, $fail failed ==="
 test "$fail" -eq 0

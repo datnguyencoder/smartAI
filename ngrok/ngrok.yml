@@ -1,0 +1,12 @@
+# Dual tunnel: backend (Swagger + API) + frontend (Vite dev).
+# Authtoken: ngrok config add-authtoken <token> (global, không commit).
+# Chạy qua: ./scripts/ngrok-setup.sh
+version: 3
+web_addr: 127.0.0.1:4040
+tunnels:
+  backend:
+    addr: 8080
+    proto: http
+  frontend:
+    addr: 5173
+    proto: http

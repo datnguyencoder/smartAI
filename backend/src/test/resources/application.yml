@@ -14,6 +14,7 @@ app:
   jwt:
     secret: test-jwt-secret-key-32-bytes-minimum-length
     expiration-ms: 86400000
+    refresh-expiration-ms: 604800000
   ai:
     base-url: http://localhost:8000
   gemini:

@@ -1,5 +1,11 @@
-import type { ApiEnvelope, AuthDto } from '../types/api';
+import {
+  clearSession,
+  getAccessToken,
+  getRefreshToken,
+  updateTokens,
+} from '../lib/authSession';
 import { mapErrorCode } from '../lib/errorMessages';
+import type { ApiEnvelope, AuthDto } from '../types/api';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8080';
 
@@ -15,15 +21,7 @@ export class ApiClientError extends Error {
   }
 }
 
-function getToken(): string | null {
-  return localStorage.getItem('smartmart_token');
-}
-
-function getRefreshToken(): string | null {
-  return localStorage.getItem('smartmart_refresh_token');
-}
-
-
+/** @deprecated dùng authSession.getAccessToken */
 export function setToken(token: string | null) {
   if (token) localStorage.setItem('smartmart_token', token);
   else localStorage.removeItem('smartmart_token');
@@ -49,7 +47,6 @@ let refreshInFlight: Promise<string | null> | null = null;
 async function tryRefreshToken(): Promise<string | null> {
   const refreshToken = getRefreshToken();
   if (!refreshToken) return null;
-
   if (!refreshInFlight) {
     refreshInFlight = (async () => {
       try {
@@ -64,9 +61,7 @@ async function tryRefreshToken(): Promise<string | null> {
         if (!res.ok || body.success === false || !body.data?.accessToken) {
           return null;
         }
-
-        setAuthTokens(body.data.accessToken, body.data.refreshToken ?? refreshToken);
-
+        updateTokens(body.data.accessToken, body.data.refreshToken ?? refreshToken);
         if (body.data.user) {
           localStorage.setItem('smartmart_user', JSON.stringify(body.data.user));
         }
@@ -82,11 +77,6 @@ async function tryRefreshToken(): Promise<string | null> {
   return refreshInFlight;
 }
 
-function clearSession() {
-  clearAuthTokens();
-  localStorage.removeItem('smartmart_user');
-}
-
 export async function apiRequest<T>(
   path: string,
   options: RequestInit = {},
@@ -98,7 +88,7 @@ export async function apiRequest<T>(
     ...(options.headers as Record<string, string>),
   };
   if (auth) {
-    const token = getToken();
+    const token = getAccessToken();
     if (token) headers.Authorization = `Bearer ${token}`;
   }
 
