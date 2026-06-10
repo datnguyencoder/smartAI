@@ -1,4 +1,4 @@
-﻿services:
+services:
   # ==========================================
   # 1. DATABASE: POSTGRESQL 16
   # ==========================================
@@ -185,4 +185,3 @@ volumes:
 networks:
   smartmart_network:
     driver: bridge
-

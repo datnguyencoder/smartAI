@@ -31,26 +31,45 @@ public class ScrapOrderController {
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
     @Operation(summary = "Danh sách phiếu hủy")
-    public ResponseEntity<ApiResponse<List<ScrapOrderResponse>>> list() {
+    public ResponseEntity<ApiResponse<List<ScrapOrderResponse>>> list(
+            @RequestParam(required = false) com.smartmart.enums.ScrapStatus status
+    ) {
+        // Here we ideally need a status filter in the service. For now we will filter the list.
+        List<com.smartmart.entity.ScrapOrder> orders = scrapOrderService.listAll();
+        if (status != null) {
+            orders = orders.stream().filter(o -> o.getStatus() == status).toList();
+        }
         return ResponseEntity.ok(ApiResponse.success(
-                WmsResponseMapper.toScrapOrderResponses(scrapOrderService.listAll())));
+                WmsResponseMapper.toScrapOrderResponses(orders)));
     }
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
-    @Operation(summary = "Tạo phiếu hủy (nháp)")
+    @Operation(summary = "Tạo phiếu hủy (chờ duyệt)")
     public ResponseEntity<ApiResponse<ScrapOrderResponse>> create(@Valid @RequestBody CreateScrapOrderRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Tạo phiếu hủy thành công",
                         WmsResponseMapper.toScrapOrderResponse(scrapOrderService.create(request))));
     }
 
-    @PostMapping("/{id}/complete")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
-    @Operation(summary = "Hoàn tất phiếu hủy — trừ tồn qua ledger")
-    public ResponseEntity<ApiResponse<ScrapOrderResponse>> complete(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.success("Hoàn tất hủy hàng",
+    @PostMapping("/{id}/approve")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @Operation(summary = "Duyệt phiếu hủy — trừ tồn kho")
+    public ResponseEntity<ApiResponse<ScrapOrderResponse>> approve(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success("Duyệt phiếu hủy thành công",
                 WmsResponseMapper.toScrapOrderResponse(
-                        scrapOrderService.complete(scrapOrderService.findById(id)))));
+                        scrapOrderService.approve(id))));
+    }
+    
+    @PostMapping("/{id}/cancel")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @Operation(summary = "Từ chối phiếu hủy")
+    public ResponseEntity<ApiResponse<ScrapOrderResponse>> cancel(
+            @PathVariable Long id,
+            @RequestParam String reason
+    ) {
+        return ResponseEntity.ok(ApiResponse.success("Từ chối phiếu hủy thành công",
+                WmsResponseMapper.toScrapOrderResponse(
+                        scrapOrderService.cancel(id, reason))));
     }
 }

@@ -41,6 +41,7 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
     private final OrderEventPublisher orderEventPublisher;
     private final InventoryAlertService inventoryAlertService;
     private final AuditLogService auditLogService;
+    private final com.smartmart.repository.UserRepository userRepository;
 
     public OrderServiceImpl(
             OrderRepository orderRepository,
@@ -49,7 +50,8 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
             InventoryLedgerService inventoryLedgerService,
             OrderEventPublisher orderEventPublisher,
             InventoryAlertService inventoryAlertService,
-            AuditLogService auditLogService
+            AuditLogService auditLogService,
+            com.smartmart.repository.UserRepository userRepository
     ) {
         this.orderRepository = orderRepository;
         this.itemService = itemService;
@@ -58,6 +60,7 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
         this.orderEventPublisher = orderEventPublisher;
         this.inventoryAlertService = inventoryAlertService;
         this.auditLogService = auditLogService;
+        this.userRepository = userRepository;
     }
 
     // POS: tạo hóa đơn, FEFO trừ tồn, publish event cảnh báo tồn
@@ -65,7 +68,8 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
     @CacheEvict(value = {"items", "itemsPage", "dashboardSummary", "dashboardRevenue"}, allEntries = true)
     public OrderResponse create(CreateOrderRequest request) {
         Location location = locationRepository.findByLocationName(DEFAULT_LOCATION)
-                .orElseThrow(() -> new BadRequestException("Chưa cấu hình kho mặc định: " + DEFAULT_LOCATION));
+                .orElseGet(() -> locationRepository.findAll().stream().findFirst()
+                .orElseThrow(() -> new BadRequestException("Hệ thống chưa có bất kỳ kho nào. Vui lòng tạo kho trước khi bán hàng.")));
 
         UUID userId = SecurityUtils.getCurrentUserId().orElse(null);
         String orderCode = "HD-" + System.currentTimeMillis();
@@ -90,12 +94,12 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
                 throw new BadRequestException("Sản phẩm không hoạt động: " + item.getItemName());
             }
 
-            List<InventoryLedgerService.LotAllocation> allocations =
-                    inventoryLedgerService.allocateFefo(item, location, line.getQuantity());
+            List<InventoryLedgerService.GlobalLotAllocation> allocations =
+                    inventoryLedgerService.allocateGlobalFefo(item, line.getQuantity());
 
-            for (InventoryLedgerService.LotAllocation alloc : allocations) {
+            for (InventoryLedgerService.GlobalLotAllocation alloc : allocations) {
                 inventoryLedgerService.applyMovement(
-                        item, location, alloc.lot(),
+                        item, alloc.location(), alloc.lot(),
                         alloc.quantity().negate(),
                         InventoryActionType.SALE,
                         ReferenceType.ORDER,
@@ -145,6 +149,20 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
 
     @Override
     @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<OrderResponse> listPaged(int page, int size, String search, OrderStatus status, java.time.LocalDateTime fromDate, java.time.LocalDateTime toDate) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "orderDate"));
+        org.springframework.data.domain.Page<Order> orderPage = orderRepository.searchOrders(
+                (search != null && !search.trim().isEmpty()) ? search.trim() : null,
+                status,
+                fromDate,
+                toDate,
+                pageable
+        );
+        return orderPage.map(this::toResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public OrderResponse getById(Long id) {
         Order order = orderRepository.findByIdWithItems(id)
                 .orElseThrow(() -> new com.smartmart.exception.NotFoundException("Không tìm thấy hóa đơn"));
@@ -174,7 +192,8 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
             throw new BadRequestException("Hóa đơn đã hủy");
         }
         Location location = locationRepository.findByLocationName(DEFAULT_LOCATION)
-                .orElseThrow(() -> new BadRequestException("Chưa cấu hình kho mặc định"));
+                .orElseGet(() -> locationRepository.findAll().stream().findFirst()
+                .orElseThrow(() -> new BadRequestException("Hệ thống chưa có bất kỳ kho nào.")));
         UUID userId = SecurityUtils.getCurrentUserId().orElse(null);
 
         for (OrderItem line : order.getItems()) {
@@ -202,15 +221,32 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
                         .subtotal(i.getSubtotal())
                         .build())
                 .toList();
+        String cashierName = "Hệ thống";
+        if (order.getCreatedBy() != null) {
+            cashierName = userRepository.findById(order.getCreatedBy())
+                    .map(u -> u.getFullName() != null ? u.getFullName() : u.getUsername())
+                    .orElse("Hệ thống");
+        }
+
         return OrderResponse.builder()
                 .id(order.getId())
                 .orderCode(order.getOrderCode())
                 .customerName(order.getCustomerName())
+                .cashierName(cashierName)
                 .orderDate(order.getOrderDate())
                 .status(order.getStatus())
                 .totalAmount(order.getTotalAmount())
                 .paymentMethod(order.getPaymentMethod())
                 .items(items)
                 .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<String> suggestCustomers(String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return List.of();
+        }
+        return orderRepository.suggestCustomerNames(keyword.trim());
     }
 }

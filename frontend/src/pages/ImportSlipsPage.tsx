@@ -1,10 +1,13 @@
 import React from 'react';
-import { Table, Modal, Button, Select, message as antdMessage, Dropdown } from 'antd';
+import { Table, Modal, Button, Select, message as antdMessage, Dropdown, DatePicker } from 'antd';
 import type { MenuProps } from 'antd';
 import { DownOutlined } from '@ant-design/icons';
+import { Search } from 'lucide-react';
+import { Input } from 'antd';
 import { Card } from '../components/ui';
 import { StatusChip } from '../components/ui';
-import { receivePurchaseOrder, cancelPurchaseOrder, fetchPurchaseOrdersPaged } from '../services/wmsApi';
+import { receivePurchaseOrder, cancelPurchaseOrder, fetchPurchaseOrdersPaged, fetchSuppliers, fetchLocations } from '../services/wmsApi';
+import type { SupplierDto, LocationDto } from '../types/api';
 import { purchaseToSlip, type ImportSlipRow } from '../lib/purchaseMapper';
 import { formatMoney as money } from '../lib/itemMapper';
 import { animateModalContent } from '../lib/gsapAnimations';
@@ -21,6 +24,13 @@ export default function ImportSlipsPage({
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(10);
   const [statusFilter, setStatusFilter] = React.useState('ALL');
+  const [supplierFilter, setSupplierFilter] = React.useState<number | undefined>(undefined);
+  const [locationFilter, setLocationFilter] = React.useState<number | undefined>(undefined);
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [dateRange, setDateRange] = React.useState<any>(null);
+  
+  const [suppliers, setSuppliers] = React.useState<SupplierDto[]>([]);
+  const [locations, setLocations] = React.useState<LocationDto[]>([]);
   const [loading, setLoading] = React.useState(false);
 
   const [receiving, setReceiving] = React.useState<ImportSlipRow | null>(null);
@@ -33,7 +43,9 @@ export default function ImportSlipsPage({
   const fetchData = React.useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetchPurchaseOrdersPaged(page - 1, pageSize, statusFilter, globalSearch);
+      const fromDate = dateRange && dateRange[0] ? dateRange[0].format('YYYY-MM-DD') : undefined;
+      const toDate = dateRange && dateRange[1] ? dateRange[1].format('YYYY-MM-DD') : undefined;
+      const res = await fetchPurchaseOrdersPaged(page - 1, pageSize, statusFilter, searchQuery, supplierFilter, locationFilter, fromDate, toDate);
       setData(res.content.map(purchaseToSlip));
       setTotal(res.totalElements);
     } catch (e) {
@@ -41,11 +53,16 @@ export default function ImportSlipsPage({
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, statusFilter, globalSearch]);
+  }, [page, pageSize, statusFilter, searchQuery, supplierFilter, locationFilter, dateRange]);
 
   React.useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  React.useEffect(() => {
+    fetchSuppliers().then(setSuppliers).catch(console.error);
+    fetchLocations().then(setLocations).catch(console.error);
+  }, []);
 
   // removing animateModalContent for now since it might be in App.tsx
   // React.useEffect(() => {
@@ -123,19 +140,57 @@ export default function ImportSlipsPage({
     <>
       <Card className="overflow-hidden">
         <div className="p-5 border-b border-slate-100 flex flex-wrap gap-4 items-center justify-between">
-          <h2 className="font-semibold text-lg">Danh sách phiếu nhập hàng</h2>
-          <div className="flex gap-3 items-center">
-            <Select
-              value={statusFilter}
-              onChange={(val) => { setStatusFilter(val); setPage(1); }}
-              className="w-40"
-              options={[
-                { value: 'ALL', label: 'Tất cả trạng thái' },
-                { value: 'PENDING', label: 'Chờ nhận' },
-                { value: 'COMPLETED', label: 'Đã nhận' },
-                { value: 'CANCELLED', label: 'Đã hủy' },
-              ]}
+          <div className="flex gap-4 items-center">
+            <h2 className="font-semibold text-lg">Danh sách phiếu nhập hàng</h2>
+            <Input className="w-64" prefix={<Search size={16} />} placeholder="Tìm kiếm phiếu nhập..." value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setPage(1); }} allowClear />
+          </div>
+          <div className="flex gap-3 items-center flex-wrap">
+            <DatePicker.RangePicker 
+              value={dateRange} 
+              onChange={(val) => { setDateRange(val); setPage(1); }} 
+              style={{ width: 250 }} 
             />
+            <select
+              className="h-[34px] px-3 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-emerald-500 bg-white"
+              value={supplierFilter || ""}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSupplierFilter(val ? Number(val) : undefined);
+                setPage(1);
+              }}
+            >
+              <option value="">Chọn nhà cung cấp</option>
+              {suppliers.map(s => (
+                <option key={s.id} value={s.id}>{s.supplierName}</option>
+              ))}
+            </select>
+            <select
+              className="h-[34px] px-3 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-emerald-500 bg-white"
+              value={locationFilter || ""}
+              onChange={(e) => {
+                const val = e.target.value;
+                setLocationFilter(val ? Number(val) : undefined);
+                setPage(1);
+              }}
+            >
+              <option value="">Chọn kho</option>
+              {locations.map(l => (
+                <option key={l.id} value={l.id}>{l.locationName}</option>
+              ))}
+            </select>
+            <select
+              className="h-[34px] px-3 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-emerald-500 bg-white"
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="ALL">Tất cả trạng thái</option>
+              <option value="PENDING">Chờ nhận</option>
+              <option value="COMPLETED">Đã nhận</option>
+              <option value="CANCELLED">Đã hủy</option>
+            </select>
           </div>
         </div>
         <Table

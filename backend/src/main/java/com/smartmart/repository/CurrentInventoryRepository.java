@@ -4,6 +4,8 @@ import com.smartmart.entity.CurrentInventory;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -62,4 +64,26 @@ public interface CurrentInventoryRepository extends JpaRepository<CurrentInvento
         WHERE l.expiryDate IS NOT NULL AND l.expiryDate <= :deadline
         """)
     List<CurrentInventory> findNearExpiry(@Param("deadline") LocalDate deadline);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM CurrentInventory c LEFT JOIN FETCH c.lot l " +
+           "WHERE c.item.id = :itemId " +
+           "AND c.location.id = :locationId " +
+           "AND (c.quantity - c.reservedQuantity) > 0 " +
+           "AND (l.expiryDate IS NULL OR l.expiryDate >= CURRENT_DATE) " +
+           "ORDER BY l.expiryDate ASC NULLS LAST, (c.quantity - c.reservedQuantity) ASC")
+    List<CurrentInventory> findAvailableInventoryForUpdate(
+           @Param("itemId") Long itemId, 
+           @Param("locationId") Long locationId
+    );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM CurrentInventory c LEFT JOIN FETCH c.lot l JOIN FETCH c.location loc " +
+           "WHERE c.item.id = :itemId " +
+           "AND (c.quantity - c.reservedQuantity) > 0 " +
+           "AND (l.expiryDate IS NULL OR l.expiryDate >= CURRENT_DATE) " +
+           "ORDER BY l.expiryDate ASC NULLS LAST, (c.quantity - c.reservedQuantity) ASC")
+    List<CurrentInventory> findGlobalAvailableInventoryForUpdate(
+           @Param("itemId") Long itemId
+    );
 }
