@@ -91,7 +91,7 @@ Dành riêng cho vai trò Admin để vận hành nhân sự.
 | :--- | :--- | :--- | :--- |
 | **GET** | `/api/users` | `ADMIN` | Xem danh sách toàn bộ nhân viên (hỗ trợ phân trang, lọc theo role/status). |
 | **POST** | `/api/users` | `ADMIN` | Tạo mới tài khoản nhân viên. |
-| **GET** | `/api/users/{id}` | `ADMIN` | Xem thông tin chi tiết một nhân viên theo UUID. |
+| **GET** | `/api/users/{id}` | `ADMIN` | Xem thông tin chi tiết một nhân viên theo ID (BIGINT). |
 | **PUT** | `/api/users/{id}` | `ADMIN` | Cập nhật thông tin cơ bản nhân viên (họ tên, email, vai trò). |
 | **PATCH** | `/api/users/{id}/status` | `ADMIN` | Kích hoạt hoặc Khóa tài khoản nhân viên (`ACTIVE` / `INACTIVE`). |
 | **DELETE** | `/api/users/{id}` | `ADMIN` | Xóa mềm tài khoản nhân viên khỏi hệ thống. |

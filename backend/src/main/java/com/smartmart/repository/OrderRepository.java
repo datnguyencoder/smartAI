@@ -11,7 +11,6 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("SELECT o FROM Order o WHERE " +
@@ -31,6 +30,8 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     Optional<Order> findByOrderCode(String orderCode);
 
     boolean existsByOrderCodeStartingWith(String prefix);
+
+    List<Order> findByOrderCodeStartingWith(String prefix);
 
     @Query("""
         SELECT o FROM Order o
@@ -78,7 +79,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         WHERE o.createdBy = :createdBy
         ORDER BY o.id DESC
         """)
-    List<Order> findByCreatedByWithItems(UUID createdBy);
+    List<Order> findByCreatedByWithItems(Long createdBy);
 
     @Query(value = """
         SELECT TO_CHAR(o.order_date, 'YYYY-MM-DD') as period,

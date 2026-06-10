@@ -9,7 +9,6 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 @Entity
 @Table(name = "purchase_orders")
@@ -29,7 +28,7 @@ public class PurchaseOrder extends LongAuditableEntity {
     private Location location;
 
     @Column(name = "created_by")
-    private UUID createdBy;
+    private Long createdBy;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

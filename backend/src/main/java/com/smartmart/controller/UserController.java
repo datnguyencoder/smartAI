@@ -15,7 +15,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -38,7 +37,7 @@ public class UserController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Chi tiết người dùng")
-    public ResponseEntity<ApiResponse<UserResponse>> get(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<UserResponse>> get(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(userService.getById(id)));
     }
 
@@ -52,7 +51,7 @@ public class UserController {
     @PutMapping("/{id}")
     @Operation(summary = "Cập nhật người dùng")
     public ResponseEntity<ApiResponse<UserResponse>> update(
-            @PathVariable UUID id,
+            @PathVariable Long id,
             @Valid @RequestBody UpdateUserRequest request
     ) {
         return ResponseEntity.ok(ApiResponse.success("Cập nhật thành công", userService.update(id, request)));
@@ -60,14 +59,14 @@ public class UserController {
 
     @PostMapping("/{id}/deactivate")
     @Operation(summary = "Khóa tài khoản")
-    public ResponseEntity<ApiResponse<Void>> deactivate(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> deactivate(@PathVariable Long id) {
         userService.deactivate(id);
         return ResponseEntity.ok(ApiResponse.success("Khóa tài khoản thành công", null));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Xóa mềm tài khoản nhân viên")
-    public ResponseEntity<ApiResponse<Void>> softDelete(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<Void>> softDelete(@PathVariable Long id) {
         userService.softDelete(id);
         return ResponseEntity.ok(ApiResponse.success("Xóa mềm tài khoản thành công", null));
     }

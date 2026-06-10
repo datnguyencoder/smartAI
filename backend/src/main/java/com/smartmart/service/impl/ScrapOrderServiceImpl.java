@@ -21,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 @Transactional
@@ -93,7 +92,7 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
         }
         ScrapOrder saved = scrapOrderRepository.save(scrap);
         
-        UUID userId = SecurityUtils.getCurrentUserId().orElse(null);
+        Long userId = SecurityUtils.getCurrentUserId().orElse(null);
         for (ScrapOrderItem line : saved.getItems()) {
             inventoryLedgerService.logActionOnly(
                     line.getItem(),
@@ -116,7 +115,7 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
         if (scrap.getStatus() != ScrapStatus.PENDING) {
             throw new BadRequestException("Chỉ có thể duyệt phiếu đang chờ (PENDING)");
         }
-        UUID userId = SecurityUtils.getCurrentUserId().orElse(null);
+        Long userId = SecurityUtils.getCurrentUserId().orElse(null);
         for (ScrapOrderItem line : scrap.getItems()) {
             inventoryLedgerService.applyMovementAndUpdateLog(
                     line.getItem(),

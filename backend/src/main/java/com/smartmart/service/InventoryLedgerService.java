@@ -9,7 +9,6 @@ import com.smartmart.enums.ReferenceType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.UUID;
 
 public interface InventoryLedgerService {
 
@@ -24,7 +23,7 @@ public interface InventoryLedgerService {
             InventoryActionType actionType,
             ReferenceType referenceType,
             Long referenceId,
-            UUID userId,
+            Long userId,
             String note
     );
 
@@ -35,7 +34,7 @@ public interface InventoryLedgerService {
             InventoryActionType actionType,
             ReferenceType referenceType,
             Long referenceId,
-            UUID userId,
+            Long userId,
             String note
     );
 
@@ -55,7 +54,7 @@ public interface InventoryLedgerService {
             InventoryActionType actionType,
             ReferenceType referenceType,
             Long referenceId,
-            UUID userId,
+            Long userId,
             String note
     );
 

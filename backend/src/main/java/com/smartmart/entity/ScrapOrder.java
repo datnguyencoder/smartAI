@@ -8,7 +8,6 @@ import lombok.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 @Entity
 @Table(name = "scrap_orders")
@@ -24,7 +23,7 @@ public class ScrapOrder extends LongAuditableEntity {
     private Location location;
 
     @Column(name = "created_by")
-    private UUID createdBy;
+    private Long createdBy;
 
     @Column(name = "scrap_date", nullable = false)
     private LocalDateTime scrapDate;

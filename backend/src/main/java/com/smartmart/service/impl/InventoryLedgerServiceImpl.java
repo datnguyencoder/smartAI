@@ -15,7 +15,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 public class InventoryLedgerServiceImpl implements com.smartmart.service.InventoryLedgerService {
@@ -42,7 +41,7 @@ public class InventoryLedgerServiceImpl implements com.smartmart.service.Invento
             InventoryActionType actionType,
             ReferenceType referenceType,
             Long referenceId,
-            UUID userId,
+            Long userId,
             String note) {
         if (quantityChange.compareTo(BigDecimal.ZERO) == 0) {
             return;
@@ -99,7 +98,7 @@ public class InventoryLedgerServiceImpl implements com.smartmart.service.Invento
             InventoryActionType actionType,
             ReferenceType referenceType,
             Long referenceId,
-            UUID userId,
+            Long userId,
             String note) {
         BigDecimal totalBefore = currentInventoryRepository.findByItemId(item.getId()).stream()
                 .filter(ci -> ci.getLocation().getId().equals(location.getId()))
@@ -208,7 +207,7 @@ public class InventoryLedgerServiceImpl implements com.smartmart.service.Invento
             InventoryActionType actionType,
             ReferenceType referenceType,
             Long referenceId,
-            UUID userId,
+            Long userId,
             String note) {
 
         if (quantityChange.compareTo(BigDecimal.ZERO) == 0) {
