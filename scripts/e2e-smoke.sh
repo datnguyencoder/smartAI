@@ -60,9 +60,63 @@ check "Inventory alerts API" "curl -sf -H 'Authorization: Bearer $STAFF_TOKEN2' 
 
 check "AI model metrics" "curl -sf '$AI/ai/model/metrics' | python3 -c \"import sys,json; d=json.load(sys.stdin); assert 'model_type' in d or 'mae' in d\" || test \"\$(curl -s -o /dev/null -w '%{http_code}' '$AI/ai/model/metrics')\" = 404"
 
-check "Forecast train admin" "curl -sf -X POST -H 'Authorization: Bearer $ADMIN_TOKEN' '$API/api/v1/forecast/train' | python3 -c \"import sys,json; assert json.load(sys.stdin)['success']\""
+check "Forecast train admin (auto-forecast)" "curl -sf -X POST -H 'Authorization: Bearer $ADMIN_TOKEN' '$API/api/v1/forecast/train' | python3 -c \"
+import sys, json
+d = json.load(sys.stdin)
+assert d['success']
+data = d.get('data') or {}
+assert 'itemsForecasted' in data or 'modelType' in data
+\""
 
-check "Forecast recommendations admin" "curl -sf -H 'Authorization: Bearer $ADMIN_TOKEN' '$API/api/v1/forecast/recommendations' | python3 -c \"import sys,json; assert json.load(sys.stdin)['success']\""
+check "AI model metrics training_samples" "curl -sf '$AI/ai/model/metrics' | python3 -c \"
+import sys, json
+d = json.load(sys.stdin)
+assert d.get('training_samples', 0) >= 0
+\""
+
+check "Forecast AI status" "curl -sf -H 'Authorization: Bearer $ADMIN_TOKEN' '$API/api/v1/forecast/ai-status' | python3 -c \"
+import sys, json
+d = json.load(sys.stdin)
+assert d['success'] and 'aiOnline' in (d.get('data') or {})
+\""
+
+check "Forecast recommendations admin (source field)" "curl -sf -H 'Authorization: Bearer $ADMIN_TOKEN' '$API/api/v1/forecast/recommendations' | python3 -c \"
+import sys, json
+d = json.load(sys.stdin)
+assert d['success']
+recs = d.get('data') or []
+if recs:
+    assert 'source' in recs[0]
+    assert 'predictedDemand14d' in recs[0]
+\""
+
+check "Gemini explain-forecast (optional key)" "
+  code=\$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Authorization: Bearer $ADMIN_TOKEN' '$API/api/v1/ai-insight/explain-forecast/1')
+  test \"\$code\" = 200 || test \"\$code\" = 404
+"
+
+check "Cerebras chat (optional key)" "
+  code=\$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Authorization: Bearer $ADMIN_TOKEN' -H 'Content-Type: application/json' -d '{\"message\":\"Tồn kho thấp xử lý thế nào?\"}' '$API/api/v1/ai-insight/chat')
+  test \"\$code\" = 200
+"
+
+check "Promotions list admin" "curl -sf -H 'Authorization: Bearer $ADMIN_TOKEN' '$API/api/v1/promotions' | python3 -c \"import sys,json; d=json.load(sys.stdin); assert d['success'] and len(d.get('data') or []) >= 0\""
+
+check "Promotion validate WEEKEND10" "curl -sf -X POST -H 'Authorization: Bearer $ADMIN_TOKEN' -H 'Content-Type: application/json' -d '{\"code\":\"WEEKEND10\",\"orderSubtotal\":200000}' '$API/api/v1/promotions/validate' | python3 -c \"import sys,json; d=json.load(sys.stdin); assert d['success']\""
+
+check "Customers search API" "curl -sf -H 'Authorization: Bearer $ADMIN_TOKEN' '$API/api/v1/customers' | python3 -c \"import sys,json; assert json.load(sys.stdin)['success']\""
+
+check "Loyalty settings seeded" "curl -sf -H 'Authorization: Bearer $ADMIN_TOKEN' '$API/api/v1/settings' | python3 -c \"
+import sys, json
+d = json.load(sys.stdin)
+assert d['success']
+keys = {s['key'] for s in (d.get('data') or [])}
+assert 'LOYALTY_POINT_RATE' in keys and 'LOYALTY_SILVER_THRESHOLD' in keys
+\""
+
+check "Promotion recommendations list" "curl -sf -H 'Authorization: Bearer $ADMIN_TOKEN' '$API/api/v1/promotions/recommendations?pendingOnly=true' | python3 -c \"import sys,json; assert json.load(sys.stdin)['success']\""
+
+check "Promotion recommendations staff forbidden" "test \"\$(curl -s -o /dev/null -w '%{http_code}' -H 'Authorization: Bearer $STAFF_TOKEN2' '$API/api/v1/promotions/recommendations')\" = 403"
 
 check "Forecast recommendations staff forbidden" "test \"\$(curl -s -o /dev/null -w '%{http_code}' -H 'Authorization: Bearer $STAFF_TOKEN2' '$API/api/v1/forecast/recommendations')\" = 403"
 

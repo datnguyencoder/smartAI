@@ -12,6 +12,15 @@ def _sum_horizon(daily_predictions: list[float], days: int) -> float:
     return float(sum(daily_predictions[:days]))
 
 
+def _confidence_bounds(daily: list[float]) -> tuple[float, float]:
+    if not daily:
+        return 0.0, 0.0
+    arr = np.asarray(daily[:30], dtype=float)
+    std = float(np.std(arr))
+    total = float(np.sum(arr))
+    return max(0.0, total - 1.96 * std * np.sqrt(len(arr))), total + 1.96 * std * np.sqrt(len(arr))
+
+
 def _forecast_with_moving_average(history: pd.DataFrame, horizon: int) -> list[float]:
     quantities = history["quantity"].tolist()
     return preprocess.moving_average_daily_forecast(
@@ -51,7 +60,7 @@ def _forecast_with_ml_model(
     working = history.copy()
     predictions: list[float] = []
 
-    for step in range(horizon):
+    for _ in range(horizon):
         next_date = working["sale_date"].max() + timedelta(days=1)
         next_row = _build_next_row(working, next_date, category_id)
         features = next_row[feature_columns].to_numpy()
@@ -116,7 +125,10 @@ def forecast_all_items(items: list[dict]) -> list[dict]:
     for item in items:
         item_id = int(item["item_id"])
         category_id = int(item["category_id"])
-        recent_sales = [record.model_dump() if hasattr(record, "model_dump") else record for record in item["recent_sales"]]
+        recent_sales = [
+            record.model_dump(mode="json") if hasattr(record, "model_dump") else record
+            for record in item["recent_sales"]
+        ]
 
         daily, model_type = forecast_item(
             item_id=item_id,
@@ -133,6 +145,7 @@ def forecast_all_items(items: list[dict]) -> list[dict]:
             }
             for i, qty in enumerate(daily[:30])
         ]
+        conf_low, conf_high = _confidence_bounds(daily)
         forecasts.append(
             {
                 "item_id": item_id,
@@ -140,6 +153,8 @@ def forecast_all_items(items: list[dict]) -> list[dict]:
                 "predicted_qty_14d": _sum_horizon(daily, 14),
                 "predicted_qty_30d": _sum_horizon(daily, 30),
                 "model_type": model_type,
+                "confidence_low": round(conf_low, 4),
+                "confidence_high": round(conf_high, 4),
                 "daily_series": daily_series,
             }
         )

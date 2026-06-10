@@ -22,3 +22,8 @@ class ItemRecentSales(BaseModel):
 
 class ForecastAllRequest(BaseModel):
     items: list[ItemRecentSales] = Field(min_length=1)
+
+
+class TrainForecastRequest(BaseModel):
+    sales_history: list[SalesHistoryRecord] = Field(min_length=1)
+    items: list[ItemRecentSales] = Field(min_length=1)

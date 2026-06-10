@@ -23,4 +23,6 @@ public interface OrderService {
     OrderPrintResponse getPrint(Long id);
 
     List<String> suggestCustomers(String keyword);
+
+    List<OrderResponse> listByCustomerPhone(String customerPhone);
 }

@@ -15,6 +15,8 @@ export type PageKey =
   | 'purchase-suggestions'
   | 'expiry-risk'
   | 'promotions'
+  | 'promotion-manage'
+  | 'customers'
   | 'ai-assistant'
   | 'reports'
   | 'users'

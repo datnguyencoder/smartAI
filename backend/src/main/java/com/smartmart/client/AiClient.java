@@ -31,6 +31,14 @@ public class AiClient {
         return post("/ai/train", Map.of("sales_history", salesHistory), Duration.ofSeconds(180));
     }
 
+    public JsonNode trainAndForecast(List<Map<String, Object>> salesHistory, List<Map<String, Object>> items) {
+        return post(
+                "/ai/train-and-forecast",
+                Map.of("sales_history", salesHistory, "items", items),
+                Duration.ofSeconds(240)
+        );
+    }
+
     public JsonNode forecastAll(List<Map<String, Object>> items) {
         return postWithRetry("/ai/forecast/all", Map.of("items", items), Duration.ofSeconds(120), 1);
     }

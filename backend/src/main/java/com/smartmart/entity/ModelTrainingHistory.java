@@ -29,6 +29,9 @@ public class ModelTrainingHistory {
     @Column(name = "trained_at", nullable = false)
     private LocalDateTime trainedAt;
 
+    @Column(name = "per_item_model_types", columnDefinition = "TEXT")
+    private String perItemModelTypes;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

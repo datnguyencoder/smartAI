@@ -31,4 +31,7 @@ def get_model_metrics() -> MetricsResponse:
         model_type=str(metrics["model_type"]),
         trained_at=trained_at,
         item_model_types={str(k): str(v) for k, v in item_types.items()},
+        training_samples=int(metrics.get("training_samples", 0)),
+        n_items_ml=int(metrics.get("n_items_ml", 0)),
+        n_items_ma=int(metrics.get("n_items_ma", 0)),
     )

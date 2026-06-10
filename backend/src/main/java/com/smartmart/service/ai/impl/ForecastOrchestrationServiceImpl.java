@@ -1,6 +1,7 @@
 package com.smartmart.service.ai.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartmart.client.AiClient;
 import com.smartmart.dto.response.ForecastItemDetailResponse;
 import com.smartmart.entity.*;
@@ -26,6 +27,7 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
     private final ForecastResultRepository forecastResultRepository;
     private final ForecastDailyPointRepository forecastDailyPointRepository;
     private final ReorderRecommendationService reorderRecommendationService;
+    private final ObjectMapper objectMapper;
 
     public ForecastOrchestrationServiceImpl(
             AiClient aiClient,
@@ -34,7 +36,8 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
             ModelTrainingHistoryRepository trainingHistoryRepository,
             ForecastResultRepository forecastResultRepository,
             ForecastDailyPointRepository forecastDailyPointRepository,
-            ReorderRecommendationService reorderRecommendationService
+            ReorderRecommendationService reorderRecommendationService,
+            ObjectMapper objectMapper
     ) {
         this.aiClient = aiClient;
         this.orderRepository = orderRepository;
@@ -43,6 +46,7 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
         this.forecastResultRepository = forecastResultRepository;
         this.forecastDailyPointRepository = forecastDailyPointRepository;
         this.reorderRecommendationService = reorderRecommendationService;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -51,14 +55,27 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
         List<Map<String, Object>> history = extractSalesHistory(180);
         JsonNode result = aiClient.train(history);
 
+        String perItemJson = null;
+        JsonNode itemTypes = result.path("item_model_types");
+        if (itemTypes.isObject() && !itemTypes.isEmpty()) {
+            try {
+                perItemJson = objectMapper.writeValueAsString(itemTypes);
+            } catch (Exception ignored) {
+                perItemJson = itemTypes.toString();
+            }
+        }
+
         ModelTrainingHistory record = ModelTrainingHistory.builder()
                 .modelType(result.path("model_type").asText("unknown"))
                 .mae(BigDecimal.valueOf(result.path("mae").asDouble(0)))
                 .rmse(BigDecimal.valueOf(result.path("rmse").asDouble(0)))
                 .mape(BigDecimal.valueOf(result.path("mape").asDouble(0)))
                 .trainedAt(LocalDateTime.now())
+                .perItemModelTypes(perItemJson)
                 .build();
         trainingHistoryRepository.save(record);
+
+        Map<String, Object> forecastSummary = runForecast();
 
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("modelType", record.getModelType());
@@ -66,6 +83,11 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
         out.put("rmse", record.getRmse());
         out.put("mape", record.getMape());
         out.put("trainedAt", record.getTrainedAt());
+        out.put("trainingSamples", result.path("training_samples").asInt(0));
+        out.put("nItemsMl", result.path("n_items_ml").asInt(0));
+        out.put("nItemsMa", result.path("n_items_ma").asInt(0));
+        out.put("perItemModelTypes", itemTypes);
+        out.putAll(forecastSummary);
         return out;
     }
 
@@ -97,6 +119,8 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
                 double pred7 = firstDouble(p, "predicted_qty_7d", "pred_7d");
                 double pred14 = firstDouble(p, "predicted_qty_14d", "pred_14d");
                 double pred30 = firstDouble(p, "predicted_qty_30d", "pred_30d");
+                double confLow = firstDouble(p, "confidence_low", "confidence_low");
+                double confHigh = firstDouble(p, "confidence_high", "confidence_high");
                 String modelType = p.path("model_type").asText(null);
 
                 ForecastResult fr = ForecastResult.builder()
@@ -109,6 +133,8 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
                         .predictedQty30d(BigDecimal.valueOf(pred30))
                         .horizonDays(30)
                         .confidenceLevel(BigDecimal.valueOf(0.85))
+                        .confidenceLow(BigDecimal.valueOf(confLow))
+                        .confidenceHigh(BigDecimal.valueOf(confHigh))
                         .modelType(modelType)
                         .build();
                 forecastResultRepository.save(fr);
@@ -138,6 +164,8 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
                     m.put("pred30d", fr.getPredictedQty30d());
                     m.put("modelType", fr.getModelType());
                     m.put("forecastDate", fr.getForecastDate());
+                    m.put("confidenceLow", fr.getConfidenceLow());
+                    m.put("confidenceHigh", fr.getConfidenceHigh());
                     return m;
                 }).toList();
     }
@@ -175,6 +203,24 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
         return trainingHistoryRepository.findAll();
     }
 
+    @Transactional(readOnly = true)
+    @Override
+    public Map<String, Object> getAiStatus() {
+        JsonNode health = aiClient.health();
+        boolean aiOnline = health != null && "ok".equalsIgnoreCase(health.path("status").asText(""));
+        ModelTrainingHistory latest = trainingHistoryRepository.findTopByOrderByTrainedAtDesc().orElse(null);
+        long totalForecasts = forecastResultRepository.count();
+
+        Map<String, Object> status = new LinkedHashMap<>();
+        status.put("aiOnline", aiOnline);
+        status.put("modelLoaded", health != null && health.path("model_loaded").asBoolean(false));
+        status.put("aiVersion", health != null ? health.path("version").asText("unknown") : "unknown");
+        status.put("lastTrainedAt", latest != null ? latest.getTrainedAt() : null);
+        status.put("modelType", latest != null ? latest.getModelType() : null);
+        status.put("totalForecasts", totalForecasts);
+        return status;
+    }
+
     private void saveDailySeries(ForecastResult fr, JsonNode dailySeries) {
         if (!dailySeries.isArray()) {
             return;
@@ -208,7 +254,7 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
     }
 
     private List<Map<String, Object>> buildForecastPayload() {
-        LocalDateTime since = LocalDateTime.now().minusDays(30);
+        LocalDateTime since = LocalDateTime.now().minusDays(90);
         List<Order> orders = orderRepository.findCompletedSince(OrderStatus.COMPLETED, since);
         Map<Long, List<Map<String, Object>>> byItem = new LinkedHashMap<>();
         Map<Long, Long> categoryByItem = new HashMap<>();

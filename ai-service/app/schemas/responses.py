@@ -14,6 +14,10 @@ class TrainResponse(BaseModel):
     rmse: float
     mape: float
     model_type: str
+    training_samples: int = 0
+    n_items_ml: int = 0
+    n_items_ma: int = 0
+    item_model_types: dict[str, str] = {}
 
 
 class MetricsResponse(BaseModel):
@@ -23,6 +27,9 @@ class MetricsResponse(BaseModel):
     model_type: str
     trained_at: datetime | None = None
     item_model_types: dict[str, str] = {}
+    training_samples: int = 0
+    n_items_ml: int = 0
+    n_items_ma: int = 0
 
 
 class DailyForecastPoint(BaseModel):
@@ -36,8 +43,22 @@ class ItemForecast(BaseModel):
     predicted_qty_14d: float
     predicted_qty_30d: float
     model_type: str
+    confidence_low: float = 0.0
+    confidence_high: float = 0.0
     daily_series: list[DailyForecastPoint] = []
 
 
 class ForecastAllResponse(BaseModel):
     forecasts: list[ItemForecast]
+
+
+class TrainAndForecastResponse(BaseModel):
+    mae: float
+    rmse: float
+    mape: float
+    model_type: str
+    training_samples: int = 0
+    n_items_ml: int = 0
+    n_items_ma: int = 0
+    item_model_types: dict[str, str] = {}
+    forecasts: list[ItemForecast] = []

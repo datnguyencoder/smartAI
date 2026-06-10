@@ -53,9 +53,15 @@ app:
     refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000} # 7 days
   gemini:
     api-key: ${GEMINI_API_KEY:}
+    model: ${GEMINI_MODEL:gemini-2.5-flash}
+  cerebras:
+    api-key: ${CEREBRAS_API_KEY:}
+    base-url: ${CEREBRAS_BASE_URL:https://api.cerebras.ai/v1}
+    model: ${CEREBRAS_MODEL:gpt-oss-120b}
   ai:
     base-url: ${AI_SERVICE_URL:http://localhost:8000}
+    auto-train-on-startup: ${AI_AUTO_TRAIN_ON_STARTUP:true}
   seed:
     retail-sales:
       enabled: ${SEED_RETAIL_SALES:true}
-      csv: data/retail/uci_online_retail_daily.csv
+      csv: data/retail/vn_synthetic_daily.csv

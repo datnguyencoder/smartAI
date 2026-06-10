@@ -16,10 +16,14 @@ import com.smartmart.repository.LocationRepository;
 import com.smartmart.repository.OrderRepository;
 import com.smartmart.repository.UserRepository;
 import com.smartmart.security.SecurityUtils;
+import com.smartmart.entity.Customer;
+import com.smartmart.entity.Promotion;
 import com.smartmart.service.AuditLogService;
+import com.smartmart.service.CustomerService;
 import com.smartmart.service.InventoryAlertService;
 import com.smartmart.service.InventoryLedgerService;
 import com.smartmart.service.ItemService;
+import com.smartmart.service.PromotionService;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +47,8 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
     private final InventoryAlertService inventoryAlertService;
     private final AuditLogService auditLogService;
     private final UserRepository userRepository;
+    private final CustomerService customerService;
+    private final PromotionService promotionService;
 
     public OrderServiceImpl(
             OrderRepository orderRepository,
@@ -52,7 +58,9 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
             OrderEventPublisher orderEventPublisher,
             InventoryAlertService inventoryAlertService,
             AuditLogService auditLogService,
-            UserRepository userRepository
+            UserRepository userRepository,
+            CustomerService customerService,
+            PromotionService promotionService
     ) {
         this.orderRepository = orderRepository;
         this.itemService = itemService;
@@ -62,6 +70,8 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
         this.inventoryAlertService = inventoryAlertService;
         this.auditLogService = auditLogService;
         this.userRepository = userRepository;
+        this.customerService = customerService;
+        this.promotionService = promotionService;
     }
 
     // POS: tạo hóa đơn, FEFO trừ tồn, publish event cảnh báo tồn
@@ -75,14 +85,23 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
         Long userId = SecurityUtils.getCurrentUserId().orElse(null);
         String orderCode = "HD-" + System.currentTimeMillis();
 
+        String customerName = request.getCustomerName() != null ? request.getCustomerName() : "Khách lẻ";
+        Customer customer = customerService.findOrCreateByPhone(request.getCustomerPhone(), customerName);
+        if (customer != null) {
+            customerName = customer.getFullName();
+        }
+
         Order order = Order.builder()
                 .orderCode(orderCode)
                 .createdBy(userId)
-                .customerName(request.getCustomerName() != null ? request.getCustomerName() : "Khách lẻ")
+                .customerName(customerName)
+                .customer(customer)
+                .customerPhone(request.getCustomerPhone())
                 .orderDate(LocalDateTime.now())
                 .status(OrderStatus.COMPLETED)
                 .paymentMethod(request.getPaymentMethod())
                 .note(request.getNote())
+                .discountAmount(BigDecimal.ZERO)
                 .totalAmount(BigDecimal.ZERO)
                 .build();
 
@@ -123,9 +142,21 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
             }
         }
 
-        order.setTotalAmount(total);
+        BigDecimal discountAmount = BigDecimal.ZERO;
+        Promotion promotion = null;
+        if (request.getPromotionCode() != null && !request.getPromotionCode().isBlank()) {
+            promotion = promotionService.applyCode(request.getPromotionCode(), total);
+            discountAmount = promotionService.calculateDiscount(promotion, total);
+        }
+        order.setPromotion(promotion);
+        order.setDiscountAmount(discountAmount);
+        order.setTotalAmount(total.subtract(discountAmount).max(BigDecimal.ZERO));
         order.getItems().addAll(orderItems);
         Order saved = orderRepository.save(order);
+
+        if (customer != null) {
+            customerService.awardPoints(customer.getId(), saved.getTotalAmount());
+        }
 
         // Update reference id on logs would need second pass — acceptable for MVP
         orderEventPublisher.publishOrderCreated(saved.getId(), saved.getOrderCode());
@@ -269,6 +300,9 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
                 .id(order.getId())
                 .orderCode(order.getOrderCode())
                 .customerName(order.getCustomerName())
+                .customerPhone(order.getCustomerPhone())
+                .discountAmount(order.getDiscountAmount())
+                .promotionCode(order.getPromotion() != null ? order.getPromotion().getCode() : null)
                 .cashierName(cashierName)
                 .orderDate(order.getOrderDate())
                 .status(order.getStatus())
@@ -276,6 +310,18 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
                 .paymentMethod(order.getPaymentMethod())
                 .items(items)
                 .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<OrderResponse> listByCustomerPhone(String customerPhone) {
+        if (customerPhone == null || customerPhone.isBlank()) {
+            return List.of();
+        }
+        String normalized = customerPhone.replaceAll("[^0-9+]", "").trim();
+        return orderRepository.findByCustomerPhoneWithItems(normalized).stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     @Override

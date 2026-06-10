@@ -12,6 +12,8 @@ import java.util.List;
 @Setter
 public class CreateOrderRequest {
     private String customerName;
+    private String customerPhone;
+    private String promotionCode;
     private PaymentMethod paymentMethod;
     private String note;
     @NotEmpty

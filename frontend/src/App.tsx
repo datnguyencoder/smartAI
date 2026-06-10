@@ -19,6 +19,7 @@ import {
   Tabs,
   Tag,
   Timeline,
+  Alert,
   message as antdMessage,
 } from 'antd';
 import * as React from 'react';
@@ -67,6 +68,7 @@ import {
   Truck,
   UsersRound,
   WandSparkles,
+  BadgePercent,
   Warehouse,
   Printer,
   Trash2,
@@ -104,6 +106,9 @@ import ImportSlipsPage from './pages/ImportSlipsPage';
 import InventoryLogsPage from './pages/InventoryLogsPage';
 import LocationsPage from './pages/LocationsPage';
 import PosPage from './pages/PosPage';
+import CustomersPage from './pages/CustomersPage';
+import PromotionsManagePage from './pages/PromotionsManagePage';
+import PromotionsSuggestPage from './pages/PromotionsSuggestPage';
 import ScrapOrdersPage from './pages/ScrapOrdersPage';
 import ScrapOrderCreatePage from './pages/ScrapOrderCreatePage';
 import { MarkdownMessage } from './components/MarkdownMessage';
@@ -127,6 +132,8 @@ import {
   fetchCategories,
   fetchDashboardRevenue,
   fetchForecastResults,
+  fetchAiStatus,
+  cancelOrder,
   fetchItems,
   fetchLocations,
   fetchOrders,
@@ -157,6 +164,8 @@ import {
   fetchSalesReport,
   fetchPurchaseReport,
   fetchInventoryReport,
+  fetchSettings,
+  updateSetting,
 } from './services/wmsApi';
 import type {
   AuditLogDto,
@@ -168,6 +177,7 @@ import type {
   PurchaseReportDto,
   Role,
   SalesReportDto,
+  AiStatusDto,
   SupplierDto,
   UomDto,
   UserDto,
@@ -195,6 +205,7 @@ const navItems: NavItem[] = [
   { key: 'suppliers', label: 'Nhà cung cấp', icon: Truck },
   { key: 'locations', label: 'Vị trí kho', icon: Building2 },
   { key: 'pos', label: 'Bán hàng tại quầy', icon: ShoppingCart },
+  { key: 'customers', label: 'Khách hàng', icon: UserCheck },
   { key: 'invoices', label: 'Hóa đơn bán hàng', icon: ReceiptText },
   { key: 'import-create', label: 'Tạo phiếu nhập', icon: FileInput },
   { key: 'import-slips', label: 'Phiếu nhập hàng', icon: ClipboardCheck },
@@ -206,7 +217,8 @@ const navItems: NavItem[] = [
   { key: 'ai-forecast', label: 'Dự báo AI', icon: BrainCircuit },
   { key: 'purchase-suggestions', label: 'Gợi ý nhập hàng', icon: Bot },
   { key: 'expiry-risk', label: 'Rủi ro hết hạn', icon: CalendarClock },
-  { key: 'promotions', label: 'Đề xuất khuyến mãi', icon: WandSparkles },
+  { key: 'promotions', label: 'Đề xuất KM (AI)', icon: WandSparkles },
+  { key: 'promotion-manage', label: 'Quản lý mã KM', icon: BadgePercent },
   { key: 'ai-assistant', label: 'Trợ lý AI', icon: Sparkles },
   { key: 'reports', label: 'Báo cáo hệ thống', icon: BarChart3 },
   { key: 'users', label: 'Người dùng', icon: UsersRound },
@@ -237,13 +249,15 @@ const money = formatMoney;
 function ordersToInvoices(orders: Awaited<ReturnType<typeof fetchOrders>>) {
   return orders.map((o) => ({
     key: o.orderCode,
+    orderId: o.id,
+    rawStatus: o.status,
     customer: o.customerName,
     amount: Number(o.totalAmount),
     cashier: o.cashierName || 'Hệ thống',
     status: o.status === 'CANCELLED' ? 'Đã hủy' : 'Đã thanh toán',
     time: new Date(o.orderDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
     subtotal: Number(o.totalAmount) / 1.08,
-    discount: 0,
+    discount: Number(o.discountAmount || 0),
     vat: Number(o.totalAmount) * 0.08 / 1.08,
     items: (o.items ?? []).map((i) => ({ name: i.itemName, qty: Number(i.quantity), price: Number(i.unitPrice) })),
   }));
@@ -281,7 +295,6 @@ function App() {
   const [locations, setLocations] = React.useState<LocationDto[]>([]);
   const [uoms, setUoms] = React.useState<UomDto[]>([]);
   const [catalogLoading, setCatalogLoading] = React.useState(false);
-  const [activePromotions, setActivePromotions] = React.useState<Record<string, number>>({});
   const [chatHistory, setChatHistory] = React.useState<
     Array<{ sender: 'user' | 'ai'; text: string; action?: { label: string; page: PageKey } }>
   >([
@@ -478,8 +491,6 @@ function App() {
                 categories={categories}
                 suppliers={suppliers}
                 locations={locations}
-                activePromotions={activePromotions}
-                setActivePromotions={setActivePromotions}
                 chatHistory={chatHistory}
                 setChatHistory={setChatHistory}
                 posCart={posCart}
@@ -496,7 +507,12 @@ function App() {
             onClose={() => setDrawerProduct(null)}
             onUpdated={reloadCatalog}
           />
-          <InvoiceDrawer invoice={selectedInvoice} onClose={() => setSelectedInvoice(null)} />
+          <InvoiceDrawer
+            invoice={selectedInvoice}
+            authUser={authUser}
+            onClose={() => setSelectedInvoice(null)}
+            onCancelled={() => setSelectedInvoice(null)}
+          />
           <CreateProductModal
             open={modalOpen}
             onCancel={() => setModalOpen(false)}
@@ -518,6 +534,7 @@ const pageTitles: Record<PageKey, { title: string; description: string }> = {
   suppliers: { title: 'Quản lý nhà cung cấp', description: 'Theo dõi đối tác, công nợ, lịch giao hàng và SLA.' },
   locations: { title: 'Vị trí kho hàng', description: 'Sơ đồ kho, sức chứa và khu vực lưu trữ hàng hóa.' },
   pos: { title: 'Bán hàng tại quầy POS', description: 'Quét sản phẩm, tạo giỏ hàng và thanh toán nhanh.' },
+  customers: { title: 'Quản lý khách hàng', description: 'Tra cứu SĐT, điểm tích lũy và lịch sử mua hàng.' },
   invoices: { title: 'Hóa đơn bán hàng', description: 'Tra cứu hóa đơn, trạng thái thanh toán và giao dịch hoàn tiền.' },
   'import-create': { title: 'Tạo phiếu nhập hàng', description: 'Nhập hàng từ nhà cung cấp với kiểm tra tồn kho tức thời.' },
   'import-slips': { title: 'Phiếu nhập hàng', description: 'Quản lý phiếu nhập, trạng thái duyệt và lịch nhận hàng.' },
@@ -529,7 +546,8 @@ const pageTitles: Record<PageKey, { title: string; description: string }> = {
   'ai-forecast': { title: 'Dự báo AI', description: 'Mô hình dự báo nhu cầu, doanh thu và rủi ro vận hành.' },
   'purchase-suggestions': { title: 'Gợi ý nhập hàng', description: 'Đề xuất số lượng nhập tối ưu dựa trên tốc độ bán.' },
   'expiry-risk': { title: 'Rủi ro hết hạn', description: 'Theo dõi lô hàng gần hết hạn và đề xuất xử lý.' },
-  promotions: { title: 'Đề xuất khuyến mãi', description: 'Tạo chiến dịch giảm tồn và tối ưu doanh thu bằng AI.' },
+  promotions: { title: 'Đề xuất KM (AI)', description: 'Gemini đề xuất giảm giá — Manager duyệt → mã KM dùng tại POS.' },
+  'promotion-manage': { title: 'Quản lý mã KM', description: 'Tạo mã giảm giá, thời hạn áp dụng và dùng ngay tại POS.' },
   'ai-assistant': { title: 'Trợ lý AI', description: 'Hỏi đáp nghiệp vụ, phân tích bán hàng và tạo tác vụ nhanh.' },
   reports: { title: 'Báo cáo hệ thống', description: 'Báo cáo doanh thu, tồn kho, nhân sự và hiệu quả AI.' },
   users: { title: 'Quản lý người dùng', description: 'Phân quyền nhân viên, vai trò và nhật ký truy cập.' },
@@ -874,8 +892,6 @@ function PageRenderer({
   categories,
   suppliers,
   locations,
-  activePromotions,
-  setActivePromotions,
   chatHistory,
   setChatHistory,
   posCart,
@@ -896,8 +912,6 @@ function PageRenderer({
   categories: CategoryDto[];
   suppliers: SupplierDto[];
   locations: LocationDto[];
-  activePromotions: Record<string, number>;
-  setActivePromotions: React.Dispatch<React.SetStateAction<Record<string, number>>>;
   chatHistory: any[];
   setChatHistory: React.Dispatch<React.SetStateAction<any[]>>;
   posCart: any[];
@@ -927,7 +941,6 @@ function PageRenderer({
         categories={categories}
         posCart={posCart}
         setPosCart={setPosCart}
-        activePromotions={activePromotions}
         setPage={setPage}
         reloadCatalog={reloadCatalog}
         catalogLoading={catalogLoading}
@@ -936,7 +949,7 @@ function PageRenderer({
     );
   }
   if (page === 'products') {
-    return <ProductsPage openProduct={openProduct} openModal={openModal} productsList={productsList} activePromotions={activePromotions} />;
+    return <ProductsPage openProduct={openProduct} openModal={openModal} productsList={productsList} />;
   }
   if (page === 'categories') {
     return <CategoriesPage categories={categories} productsList={productsList} />;
@@ -948,7 +961,7 @@ function PageRenderer({
     return <LocationsPage locations={locations} productsList={productsList} authUser={authUser} reloadCatalog={reloadCatalog} />;
   }
   if (page === 'invoices') {
-    return <InvoicesPage setSelectedInvoice={setSelectedInvoice} />;
+    return <InvoicesPage setSelectedInvoice={setSelectedInvoice} authUser={authUser} />;
   }
   if (page === 'import-create') {
     return (
@@ -987,10 +1000,16 @@ function PageRenderer({
     return <PurchaseSuggestionsPage productsList={productsList} setPage={setPage} />;
   }
   if (page === 'expiry-risk') {
-    return <ExpiryRiskPage productsList={productsList} setActivePromotions={setActivePromotions} setPage={setPage} />;
+    return <ExpiryRiskPage productsList={productsList} setPage={setPage} />;
+  }
+  if (page === 'customers') {
+    return <CustomersPage />;
   }
   if (page === 'promotions') {
-    return <PromotionsPage productsList={productsList} activePromotions={activePromotions} setActivePromotions={setActivePromotions} setPage={setPage} />;
+    return <PromotionsSuggestPage setPage={setPage} />;
+  }
+  if (page === 'promotion-manage') {
+    return <PromotionsManagePage />;
   }
   if (page === 'ai-assistant') {
     return (
@@ -1027,6 +1046,32 @@ function Dashboard({
   productsList: Product[];
   invoicesList: any[];
 }) {
+  const [bestsellers, setBestsellers] = React.useState<Product[]>([]);
+  React.useEffect(() => {
+    if (authUser.role !== 'ROLE_ADMIN' && authUser.role !== 'ROLE_MANAGER') return;
+    const to = new Date().toISOString().slice(0, 10);
+    const from = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+    fetchSalesReport(from, to, 'DAY')
+      .then((rows) => {
+        const top = rows[0]?.topProducts ?? [];
+        const mapped = top.map((t) => {
+          const existing = productsList.find((p) => String(p.key) === String(t.itemId));
+          return existing ?? {
+            key: String(t.itemId),
+            name: t.itemName,
+            sku: t.itemCode,
+            price: 0,
+            stock: Number(t.quantitySold),
+            category: '',
+          } as Product;
+        });
+        setBestsellers(mapped);
+      })
+      .catch(() => setBestsellers(productsList.slice(0, 5)));
+  }, [authUser.role, productsList]);
+
+  const topRows = bestsellers.length > 0 ? bestsellers : productsList.slice(0, 5);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3">
@@ -1050,7 +1095,7 @@ function Dashboard({
         </div>
       )}
       <div className="grid gap-4 xl:grid-cols-[1.35fr_0.95fr]">
-        <ProductsTable title="Sản phẩm bán chạy" rows={productsList.slice(0, 5)} openProduct={openProduct} />
+        <ProductsTable title="Sản phẩm bán chạy (7 ngày)" rows={topRows} openProduct={openProduct} />
         <UrgentAlerts productsList={productsList} />
       </div>
       <IntegrationsStrip />
@@ -1341,12 +1386,10 @@ function ProductsPage({
   openProduct,
   openModal,
   productsList,
-  activePromotions,
 }: {
   openProduct: (product: Product) => void;
   openModal: () => void;
   productsList: Product[];
-  activePromotions: Record<string, number>;
 }) {
   const [searchQuery, setSearchQuery] = React.useState('');
   const [selectedCat, setSelectedCat] = React.useState('all');
@@ -1590,11 +1633,19 @@ function SuppliersPage({ suppliers, productsList, authUser, reloadCatalog }: { s
 }
 // PosPage has been moved to ./pages/PosPage.tsx
 
-function InvoicesPage({ setSelectedInvoice }: { setSelectedInvoice: (invoice: any) => void }) {
+function InvoicesPage({
+  setSelectedInvoice,
+  authUser,
+}: {
+  setSelectedInvoice: (invoice: any) => void;
+  authUser: import('./types/api').UserDto;
+}) {
+  const canCancel = authUser.role === 'ROLE_ADMIN' || authUser.role === 'ROLE_MANAGER';
   const [orders, setOrders] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [pagination, setPagination] = React.useState({ page: 0, size: 10, total: 0 });
   const [filters, setFilters] = React.useState({ search: '', status: 'ALL', fromDate: '', toDate: '' });
+  const [reloadTick, setReloadTick] = React.useState(0);
 
   React.useEffect(() => {
     let active = true;
@@ -1611,7 +1662,7 @@ function InvoicesPage({ setSelectedInvoice }: { setSelectedInvoice: (invoice: an
       })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [pagination.page, pagination.size, filters.search, filters.status, filters.fromDate, filters.toDate]);
+  }, [pagination.page, pagination.size, filters.search, filters.status, filters.fromDate, filters.toDate, reloadTick]);
 
   const columns = [
     { title: 'Mã hóa đơn', dataIndex: 'key', render: (v: string, row: any) => <button className="font-bold text-primary hover:text-emerald" onClick={() => setSelectedInvoice(row)}>{v}</button> },
@@ -1620,7 +1671,31 @@ function InvoicesPage({ setSelectedInvoice }: { setSelectedInvoice: (invoice: an
     { title: 'Tổng thanh toán', dataIndex: 'amount', render: (v: number) => money(v) },
     { title: 'Thời gian', dataIndex: 'time' },
     { title: 'Trạng thái', dataIndex: 'status', render: (v: string) => <StatusChip tone={v.includes('toán') ? 'success' : 'warning'}>{v}</StatusChip> },
-    { title: 'Hành động', render: (_: any, row: any) => <Button size="small" onClick={() => setSelectedInvoice(row)}>Chi tiết</Button> }
+    {
+      title: 'Hành động',
+      render: (_: any, row: any) => (
+        <div className="flex gap-2">
+          <Button size="small" onClick={() => setSelectedInvoice(row)}>Chi tiết</Button>
+          {canCancel && row.rawStatus === 'COMPLETED' && (
+            <Button
+              size="small"
+              danger
+              onClick={async () => {
+                try {
+                  await cancelOrder(row.orderId);
+                  antdMessage.success('Đã hủy hóa đơn');
+                  setReloadTick((t) => t + 1);
+                } catch (e) {
+                  antdMessage.error(e instanceof Error ? e.message : 'Hủy thất bại');
+                }
+              }}
+            >
+              Hủy
+            </Button>
+          )}
+        </div>
+      ),
+    },
   ];
 
   return (
@@ -1747,13 +1822,66 @@ function InventoryAlertsPage({ setPage }: { productsList: Product[]; setPage: (p
 function AiForecastPage({ productsList: _productsList }: { productsList: Product[]; invoicesList: any[] }) {
   const [loading, setLoading] = React.useState(false);
   const [results, setResults] = React.useState<import('./types/api').ForecastResultDto[]>([]);
+  const [aiStatus, setAiStatus] = React.useState<AiStatusDto | null>(null);
+  const [revenueChart, setRevenueChart] = React.useState<Array<{ day: string; revenue: number; orders: number }>>([]);
   const [selectedItemId, setSelectedItemId] = React.useState<number | null>(null);
   const [dailyChart, setDailyChart] = React.useState<Array<{ date: string; qty: number }>>([]);
+
+  const refreshStatus = React.useCallback(async () => {
+    try {
+      const status = await fetchAiStatus();
+      setAiStatus(status);
+    } catch {
+      setAiStatus(null);
+    }
+  }, []);
+
+  const refreshResults = React.useCallback(async () => {
+    try {
+      const r = await fetchForecastResults();
+      setResults(r);
+      if (r.length > 0) {
+        const firstId = Number(r[0].itemId);
+        if (!Number.isNaN(firstId)) {
+          setSelectedItemId(firstId);
+          const detail = await fetchForecastItemDetail(firstId);
+          setDailyChart(
+            (detail.dailySeries || []).map((p) => ({
+              date: p.date.slice(5),
+              qty: Number(p.predictedQty),
+            }))
+          );
+        }
+      }
+    } catch {
+      setResults([]);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    refreshResults();
+    refreshStatus();
+    const to = new Date().toISOString().slice(0, 10);
+    const from = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+    fetchSalesReport(from, to, 'DAY')
+      .then((rows) => {
+        setRevenueChart(
+          rows.map((r) => ({
+            day: r.period.slice(5),
+            revenue: Number(r.totalRevenue),
+            orders: Number(r.totalOrders),
+          }))
+        );
+      })
+      .catch(() => setRevenueChart([]));
+  }, [refreshResults, refreshStatus]);
 
   const handleTrain = async () => {
     setLoading(true);
     try {
       await trainForecast();
+      await refreshResults();
+      await refreshStatus();
       antdMessage.success('Huấn luyện mô hình thành công');
     } catch (e) {
       antdMessage.error(e instanceof Error ? e.message : 'Huấn luyện thất bại');
@@ -1781,12 +1909,8 @@ function AiForecastPage({ productsList: _productsList }: { productsList: Product
     setLoading(true);
     try {
       await runForecast();
-      const r = await fetchForecastResults();
-      setResults(r);
-      if (r.length > 0) {
-        const firstId = Number(r[0].itemId);
-        if (!Number.isNaN(firstId)) await loadItemChart(firstId);
-      }
+      await refreshResults();
+      await refreshStatus();
       antdMessage.success('Dự báo hoàn tất');
     } catch (e) {
       antdMessage.error(e instanceof Error ? e.message : 'Dự báo thất bại — kiểm tra ai-service');
@@ -1801,13 +1925,42 @@ function AiForecastPage({ productsList: _productsList }: { productsList: Product
     return <Tag>MA</Tag>;
   };
 
+  const formatTrainedAt = (iso?: string) => {
+    if (!iso) return 'Chưa huấn luyện';
+    const d = new Date(iso);
+    return d.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  };
+
   return (
     <div className="space-y-4">
+      <Card>
+        <CardHeader title="Trạng thái AI" description="FastAPI ML service + backend orchestration" />
+        <div className="px-5 pb-5 flex flex-wrap gap-4 items-center">
+          <Tag color={aiStatus?.aiOnline ? 'success' : 'error'}>
+            {aiStatus?.aiOnline ? 'AI Online' : 'AI Offline'}
+          </Tag>
+          <Tag color={aiStatus?.modelLoaded ? 'processing' : 'default'}>
+            {aiStatus?.modelLoaded ? 'Model loaded' : 'Chưa có model'}
+          </Tag>
+          <span className="text-sm text-slate-500">
+            Version: <strong>{aiStatus?.aiVersion ?? '—'}</strong>
+          </span>
+          <span className="text-sm text-slate-500">
+            Model: <strong>{aiStatus?.modelType ?? '—'}</strong>
+          </span>
+          <span className="text-sm text-slate-500">
+            Huấn luyện lần cuối: <strong>{formatTrainedAt(aiStatus?.lastTrainedAt)}</strong>
+          </span>
+          <span className="text-sm text-slate-500">
+            SKU đã dự báo: <strong>{aiStatus?.totalForecasts ?? 0}</strong>
+          </span>
+        </div>
+      </Card>
       <div className="flex gap-2">
         <Button type="primary" loading={loading} onClick={handleTrain}>Huấn luyện AI</Button>
         <Button loading={loading} onClick={handleRun}>Chạy dự báo</Button>
       </div>
-      {results.length > 0 && (
+      {results.length > 0 ? (
         <Card>
           <CardHeader title="Kết quả dự báo theo SKU" description={`${results.length} sản phẩm`} />
           <Table
@@ -1824,10 +1977,24 @@ function AiForecastPage({ productsList: _productsList }: { productsList: Product
               { title: '7 ngày', dataIndex: 'pred7d' },
               { title: '14 ngày', dataIndex: 'pred14d' },
               { title: '30 ngày', dataIndex: 'pred30d' },
+              {
+                title: 'Khoảng tin cậy (30d)',
+                render: (_, r) =>
+                  r.confidenceLow != null
+                    ? `${Number(r.confidenceLow).toFixed(0)} – ${Number(r.confidenceHigh ?? 0).toFixed(0)}`
+                    : '—',
+              },
               { title: 'Model', dataIndex: 'modelType', render: (v) => modelLabel(String(v)) },
             ]}
           />
         </Card>
+      ) : (
+        <Alert
+          type="info"
+          showIcon
+          message="Chưa có kết quả dự báo"
+          description="Nhấn Huấn luyện AI để train model và chạy dự báo tự động."
+        />
       )}
       <Card>
         <CardHeader
@@ -1852,28 +2019,32 @@ function AiForecastPage({ productsList: _productsList }: { productsList: Product
       </Card>
       <div className="grid gap-4 xl:grid-cols-[1.4fr_0.8fr]">
         <Card className="hover:shadow-xl transition-all duration-300">
-          <CardHeader title="Dự báo doanh thu & đơn hàng từ AI" description="Mô hình ML (FastAPI) — train/run qua backend." />
+          <CardHeader title="Doanh thu & đơn hàng thực tế" description="Dữ liệu từ báo cáo bán hàng 30 ngày gần nhất." />
           <div className="h-[360px] px-3 pb-5">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={salesData} margin={{ top: 14, right: 18, bottom: 6, left: 0 }}>
-                <defs>
-                  <linearGradient id="forecastRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.01} />
-                  </linearGradient>
-                  <linearGradient id="forecastOrders" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#4648d4" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#4648d4" stopOpacity={0.01} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid stroke="#f1f5f9" strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                <ChartTooltip content={<SmartTooltip />} />
-                <Area dataKey="revenue" name="Doanh thu dự báo" stroke="#10b981" strokeWidth={3} fill="url(#forecastRevenue)" type="monotone" dot={false} activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 3 }} isAnimationActive animationDuration={900} />
-                <Area dataKey="orders" name="Đơn hàng dự báo" stroke="#4648d4" strokeWidth={3} fill="url(#forecastOrders)" type="monotone" dot={false} activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 3 }} isAnimationActive animationDuration={1050} />
-              </AreaChart>
-            </ResponsiveContainer>
+            {revenueChart.length === 0 ? (
+              <div className="h-full grid place-items-center text-muted text-sm">Chưa có dữ liệu doanh thu</div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={revenueChart} margin={{ top: 14, right: 18, bottom: 6, left: 0 }}>
+                  <defs>
+                    <linearGradient id="forecastRevenue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0.01} />
+                    </linearGradient>
+                    <linearGradient id="forecastOrders" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#4648d4" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#4648d4" stopOpacity={0.01} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke="#f1f5f9" strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                  <ChartTooltip content={<SmartTooltip />} />
+                  <Area dataKey="revenue" name="Doanh thu" stroke="#10b981" strokeWidth={3} fill="url(#forecastRevenue)" type="monotone" dot={false} activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 3 }} isAnimationActive animationDuration={900} />
+                  <Area dataKey="orders" name="Đơn hàng" stroke="#4648d4" strokeWidth={3} fill="url(#forecastOrders)" type="monotone" dot={false} activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 3 }} isAnimationActive animationDuration={1050} />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </Card>
         <AiSummary setPage={() => { }} />
@@ -1882,23 +2053,20 @@ function AiForecastPage({ productsList: _productsList }: { productsList: Product
   );
 }
 
-function PurchaseSuggestionsPage({ productsList, setPage }: { productsList: Product[]; setPage: (page: PageKey) => void }) {
+function PurchaseSuggestionsPage({ productsList: _productsList, setPage }: { productsList: Product[]; setPage: (page: PageKey) => void }) {
   const [recs, setRecs] = React.useState<Record<string, unknown>[]>([]);
   React.useEffect(() => {
     fetchReorderRecommendations().then(setRecs).catch(() => setRecs([]));
   }, []);
-  const suggestions = recs.length > 0
-    ? recs.map((r) => ({
-      key: String(r.itemId),
-      name: String(r.itemName),
-      stock: Number(r.currentAvailable),
-      sold: Number(r.predictedDemand7d),
-      suggested: Number(r.suggestedQty),
-      risk: String(r.riskLevel),
-    }))
-    : productsList.filter((p) => p.stock <= 40).map((p) => ({
-      key: p.key, name: p.name, stock: p.stock, sold: p.sold, suggested: 80, risk: 'MEDIUM',
-    }));
+  const suggestions = recs.map((r) => ({
+    key: String(r.itemId),
+    name: String(r.itemName),
+    stock: Number(r.currentAvailable),
+    sold: Number(r.predictedDemand14d ?? r.predictedDemand7d),
+    suggested: Number(r.suggestedQty),
+    risk: String(r.riskLevel),
+    source: String(r.source ?? 'AI'),
+  }));
   return (
     <Card className="overflow-hidden">
       <div className="p-4 border-b border-slate-100 flex items-center justify-between">
@@ -1906,30 +2074,53 @@ function PurchaseSuggestionsPage({ productsList, setPage }: { productsList: Prod
           <h2 className="text-base font-bold text-ink">AI Đề xuất nhập thêm hàng</h2>
           <p className="text-xs text-slate-400">Được đề xuất tự động dựa theo tốc độ bán hàng và chu kỳ vận chuyển.</p>
         </div>
-        <Button type="primary" onClick={() => setPage('import-create')}>Lập phiếu tất cả</Button>
+        {suggestions.length > 0 && (
+          <Button type="primary" onClick={() => setPage('import-create')}>Lập phiếu tất cả</Button>
+        )}
       </div>
       <div className="px-5 pb-5">
-        <Table
-          dataSource={suggestions}
-          columns={[
-            { title: 'Tên hàng', dataIndex: 'name', render: (v) => <span className="font-bold text-ink">{v}</span> },
-            { title: 'Tồn hiện tại', dataIndex: 'stock' },
-            { title: 'Đã bán (7 ngày)', dataIndex: 'sold' },
-            { title: 'Số lượng đề xuất', dataIndex: 'suggested' },
-            { title: 'Độ ưu tiên', render: (_, row) => <Tag color={row.stock === 0 ? 'red' : 'orange'}>{row.stock === 0 ? 'KHẨN CẤP' : 'CAO'}</Tag> },
-            { title: 'Hành động', render: () => <Button size="small" type="primary" ghost onClick={() => setPage('import-create')}>Lập phiếu</Button> }
-          ]}
-          pagination={false}
-          rowKey="key"
-        />
+        {suggestions.length === 0 ? (
+          <Alert
+            type="warning"
+            showIcon
+            message="Chưa có đề xuất nhập hàng"
+            description={
+              <span>
+                Hãy chạy{' '}
+                <Button type="link" size="small" className="p-0 h-auto" onClick={() => setPage('ai-forecast')}>
+                  Huấn luyện AI
+                </Button>{' '}
+                trên trang Dự báo AI trước.
+              </span>
+            }
+          />
+        ) : (
+          <Table
+            dataSource={suggestions}
+            columns={[
+              { title: 'Tên hàng', dataIndex: 'name', render: (v) => <span className="font-bold text-ink">{v}</span> },
+              { title: 'Tồn hiện tại', dataIndex: 'stock' },
+              { title: 'Nhu cầu (14 ngày)', dataIndex: 'sold' },
+              { title: 'Số lượng đề xuất', dataIndex: 'suggested' },
+              { title: 'Nguồn', dataIndex: 'source', render: (v) => <Tag color={v === 'AI' ? 'green' : 'orange'}>{v}</Tag> },
+              { title: 'Độ ưu tiên', render: (_, row) => <Tag color={row.stock === 0 ? 'red' : 'orange'}>{row.stock === 0 ? 'KHẨN CẤP' : 'CAO'}</Tag> },
+              { title: 'Hành động', render: () => <Button size="small" type="primary" ghost onClick={() => setPage('import-create')}>Lập phiếu</Button> }
+            ]}
+            pagination={false}
+            rowKey="key"
+          />
+        )}
       </div>
     </Card>
   );
 }
 
-function ExpiryRiskPage({ productsList, setActivePromotions, setPage }: { productsList: Product[]; setActivePromotions: React.Dispatch<React.SetStateAction<Record<string, number>>>; setPage: (page: PageKey) => void }) {
-  const [items, setItems] = React.useState<Product[]>(productsList.filter((p) => p.expiry !== 'Không áp dụng'));
+function ExpiryRiskPage({ productsList: _productsList, setPage }: { productsList: Product[]; setPage: (page: PageKey) => void }) {
+  const [items, setItems] = React.useState<Product[]>([]);
+  const [loading, setLoading] = React.useState(true);
   React.useEffect(() => {
+    let active = true;
+    setLoading(true);
     fetchNearExpiry()
       .then((rows) => {
         const mapped: Product[] = rows.map((row) => ({
@@ -1947,85 +2138,48 @@ function ExpiryRiskPage({ productsList, setActivePromotions, setPage }: { produc
           expiry: row.expiryDate ?? '—',
           purchaseRatio: 1,
         }));
-        if (mapped.length) setItems(mapped);
+        if (active) setItems(mapped);
       })
-      .catch(() => undefined);
-  }, [productsList]);
-  return <RiskCards title="Rủi ro hạn sử dụng" icon={CalendarClock} items={items} setActivePromotions={setActivePromotions} setPage={setPage} />;
-}
+      .catch(() => {
+        if (active) setItems([]);
+      })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
 
-function PromotionsPage({
-  productsList,
-  activePromotions,
-  setActivePromotions,
-  setPage,
-}: {
-  productsList: Product[];
-  activePromotions: Record<string, number>;
-  setActivePromotions: React.Dispatch<React.SetStateAction<Record<string, number>>>;
-  setPage: (page: PageKey) => void;
-}) {
-  const items = productsList.slice(1, 5);
-  return <RiskCards title="Đề xuất khuyến mãi giảm giá" icon={WandSparkles} items={items} setActivePromotions={setActivePromotions} setPage={setPage} activePromotions={activePromotions} />;
-}
+  if (loading) {
+    return <Card className="p-8 text-center text-muted">Đang tải danh sách cận hạn...</Card>;
+  }
 
-function RiskCards({
-  title,
-  icon: Icon,
-  items,
-  setActivePromotions,
-  setPage,
-  activePromotions = {},
-}: {
-  title: string;
-  icon: typeof CalendarClock;
-  items: Product[];
-  setActivePromotions: React.Dispatch<React.SetStateAction<Record<string, number>>>;
-  setPage: (page: PageKey) => void;
-  activePromotions?: Record<string, number>;
-}) {
-
-  const handleApplyPromo = (productKey: string) => {
-    setActivePromotions(prev => ({
-      ...prev,
-      [productKey]: 15 // Apply 15% discount for this product in POS!
-    }));
-    antdMessage.success(`Áp dụng chiến dịch giảm giá 15% cho sản phẩm thành công!`);
-    setPage('pos');
-  };
+  if (items.length === 0) {
+    return (
+      <Card className="p-8 text-center text-slate-500">
+        Không có mặt hàng cận hạn sử dụng (API trả về 0). Vào <Button type="link" className="p-0 h-auto" onClick={() => setPage('promotions')}>Đề xuất KM (AI)</Button> để tạo KM thủ công.
+      </Card>
+    );
+  }
 
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {items.map((item, index) => {
-        const isApplied = activePromotions[item.key] !== undefined;
-        return (
-          <Card className="p-5 flex flex-col justify-between h-[220px]" key={item.key}>
-            <div>
-              <div className="mb-4 flex items-center justify-between">
-                <div className="grid h-11 w-11 place-items-center rounded-xl bg-indigo-50 text-indigo shadow-[0_2px_8px_rgba(70,72,212,0.1)]">
-                  <Icon size={20} />
-                </div>
-                <StatusChip tone={isApplied ? 'success' : 'ai'}>{isApplied ? 'Đang áp dụng' : 'AI đề xuất'}</StatusChip>
+      {items.map((item) => (
+        <Card className="p-5 flex flex-col justify-between h-[220px]" key={item.key}>
+          <div>
+            <div className="mb-4 flex items-center justify-between">
+              <div className="grid h-11 w-11 place-items-center rounded-xl bg-indigo-50 text-indigo shadow-[0_2px_8px_rgba(70,72,212,0.1)]">
+                <CalendarClock size={20} />
               </div>
-              <h3 className="font-semibold text-base line-clamp-1">{item.name}</h3>
-              <p className="mt-2 text-sm text-slate-500 font-medium">
-                {title.includes('hạn')
-                  ? `Mặt hàng cận hạn (${item.expiry}). AI đề xuất chiến dịch giải phóng hàng tồn.`
-                  : 'AI gợi ý giảm giá 15% để kích thích cầu kéo tăng doanh thu dòng tiền.'}
-              </p>
+              <StatusChip tone="warning">Cận hạn</StatusChip>
             </div>
-            <Button
-              className="w-full mt-3 font-semibold"
-              type="primary"
-              ghost={!isApplied}
-              disabled={isApplied}
-              onClick={() => handleApplyPromo(item.key)}
-            >
-              {isApplied ? 'Khuyến mãi hoạt động' : 'Áp dụng đề xuất AI (-15%)'}
-            </Button>
-          </Card>
-        );
-      })}
+            <h3 className="font-semibold text-base line-clamp-1">{item.name}</h3>
+            <p className="mt-2 text-sm text-slate-500 font-medium">
+              HSD: {item.expiry} · Tồn: {item.stock}. Dùng AI đề xuất KM để xả hàng.
+            </p>
+          </div>
+          <Button className="w-full mt-3 font-semibold" type="primary" ghost onClick={() => setPage('promotions')}>
+            Đề xuất KM (AI)
+          </Button>
+        </Card>
+      ))}
     </div>
   );
 }
@@ -2651,17 +2805,49 @@ function UsersPage() {
 }
 
 function SettingsPage() {
+  const [settings, setSettings] = React.useState<Array<{ key: string; value: string; description?: string }>>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    fetchSettings()
+      .then((rows) => setSettings(rows.map((r) => ({ key: r.key, value: r.value, description: r.description }))))
+      .catch(() => setSettings([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleSave = async (key: string, value: string) => {
+    try {
+      await updateSetting(key, value);
+      antdMessage.success('Đã lưu cấu hình');
+      setSettings((prev) => prev.map((s) => (s.key === key ? { ...s, value } : s)));
+    } catch (e) {
+      antdMessage.error(e instanceof Error ? e.message : 'Lưu thất bại');
+    }
+  };
+
+  if (loading) {
+    return <Card className="p-8 text-center text-muted">Đang tải cấu hình...</Card>;
+  }
+
+  if (settings.length === 0) {
+    return (
+      <Card className="p-8 text-center text-muted">
+        Chưa có cấu hình trong hệ thống. Thêm bản ghi vào bảng settings (Flyway V3).
+      </Card>
+    );
+  }
+
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      {['Cấu hình cửa hàng', 'Thiết lập AI', 'Cảnh báo tồn kho', 'Tích hợp thanh toán'].map((title, index) => (
-        <Card className="p-5" key={title}>
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-lg font-semibold">{title}</h3>
-            <Switch defaultChecked={index !== 3} />
-          </div>
-          <Form layout="vertical">
-            <Form.Item label="Tên cấu hình"><Input defaultValue={title} /></Form.Item>
-            <Form.Item label="Ngưỡng cảnh báo"><InputNumber className="w-full" defaultValue={index === 1 ? 88 : 20} /></Form.Item>
+      {settings.map((setting) => (
+        <Card className="p-5" key={setting.key}>
+          <h3 className="text-lg font-semibold mb-1">{setting.key}</h3>
+          {setting.description && <p className="text-sm text-muted mb-4">{setting.description}</p>}
+          <Form layout="vertical" onFinish={(vals) => handleSave(setting.key, vals.value)}>
+            <Form.Item label="Giá trị" name="value" initialValue={setting.value}>
+              <Input />
+            </Form.Item>
+            <Button type="primary" htmlType="submit">Lưu</Button>
           </Form>
         </Card>
       ))}
@@ -2669,32 +2855,51 @@ function SettingsPage() {
   );
 }
 
-function SimpleManagementPage({ title, rows, icon: Icon }: { title: string; rows: string[]; icon: typeof Tags }) {
-  return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
-      <Card>
-        <CardHeader title={title} action={<Button type="primary" icon={<Plus size={16} />}>Tạo mới</Button>} />
-        <div className="grid gap-3 px-5 pb-5 md:grid-cols-2">
-          {rows.map((row, index) => (
-            <motion.div whileHover={{ y: -3 }} className="rounded-xl border border-line bg-slate-50 p-4" key={row}>
-              <div className="mb-4 flex items-center justify-between">
-                <div className="grid h-10 w-10 place-items-center rounded-lg bg-emerald-50 text-primary">
-                  <Icon size={18} />
-                </div>
-                <StatusChip tone={index % 3 === 0 ? 'warning' : 'success'}>{index % 3 === 0 ? 'Cần rà soát' : 'Hoạt động'}</StatusChip>
-              </div>
-              <strong className="text-ink">{row}</strong>
-              <p className="mt-1 text-sm text-muted">{80 + index * 17} sản phẩm · biên lợi nhuận {12 + index}%</p>
-            </motion.div>
-          ))}
-        </div>
-      </Card>
-      <AiSummary setPage={() => { }} />
-    </div>
-  );
-}
+function InvoiceDrawer({
+  invoice,
+  authUser,
+  onClose,
+  onCancelled,
+}: {
+  invoice: any | null;
+  authUser: UserDto;
+  onClose: () => void;
+  onCancelled?: () => void;
+}) {
+  const canCancel = authUser.role === 'ROLE_ADMIN' || authUser.role === 'ROLE_MANAGER';
 
-function InvoiceDrawer({ invoice, onClose }: { invoice: any | null; onClose: () => void }) {
+  const handlePrint = async () => {
+    if (!invoice?.orderId) {
+      antdMessage.warning('Không có mã đơn để in');
+      return;
+    }
+    try {
+      const data = await fetchOrderPrint(invoice.orderId);
+      const lines = data.items.map((it) =>
+        `<tr><td>${it.itemName}</td><td style="text-align:center">${it.quantity}</td><td style="text-align:right">${money(it.unitPrice)}</td><td style="text-align:right">${money(it.lineTotal)}</td></tr>`
+      ).join('');
+      const html = `<html><head><title>${data.orderCode}</title></head><body style="font-family:monospace;padding:16px">
+        <h2>SMARTMART AI</h2><p>Mã HĐ: ${data.orderCode}</p><p>KH: ${data.customerName}</p><p>NV: ${data.staffName}</p>
+        <table width="100%" border="1" cellpadding="4"><tr><th>SP</th><th>SL</th><th>ĐG</th><th>TT</th></tr>${lines}</table>
+        <p><strong>Tổng: ${money(data.totalAmount)}</strong></p></body></html>`;
+      const w = window.open('', '_blank');
+      if (w) { w.document.write(html); w.document.close(); w.print(); }
+    } catch (e) {
+      antdMessage.error(e instanceof Error ? e.message : 'In hóa đơn thất bại');
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!invoice?.orderId) return;
+    try {
+      await cancelOrder(invoice.orderId);
+      antdMessage.success('Đã hủy hóa đơn');
+      onCancelled?.();
+      onClose();
+    } catch (e) {
+      antdMessage.error(e instanceof Error ? e.message : 'Hủy thất bại');
+    }
+  };
   const bodyRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
     if (invoice) animateDrawer(bodyRef.current, true);
@@ -2737,7 +2942,7 @@ function InvoiceDrawer({ invoice, onClose }: { invoice: any | null; onClose: () 
             </div>
             {invoice.discount > 0 && (
               <div className="flex justify-between text-red-600">
-                <span>Giảm giá AI</span>
+                <span>Giảm giá KM</span>
                 <span>-{money(invoice.discount)}</span>
               </div>
             )}
@@ -2752,8 +2957,10 @@ function InvoiceDrawer({ invoice, onClose }: { invoice: any | null; onClose: () 
           </div>
 
           <div className="grid grid-cols-2 gap-3 pt-3">
-            <Button icon={<Printer size={16} />} onClick={() => antdMessage.info('Đang in hóa đơn ảo...')}>In hóa đơn</Button>
-            <Button type="primary" block onClick={() => antdMessage.success('Đã gửi SMS cảm ơn đến khách hàng.')}>Gửi SMS khách</Button>
+            <Button icon={<Printer size={16} />} onClick={handlePrint}>In hóa đơn</Button>
+            {canCancel && invoice.rawStatus === 'COMPLETED' && (
+              <Button danger onClick={handleCancel}>Hủy hóa đơn</Button>
+            )}
           </div>
         </div>
       ) : null}

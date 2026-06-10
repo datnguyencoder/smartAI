@@ -40,7 +40,12 @@ public class OrderController {
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF')")
     @Operation(summary = "Danh sách hóa đơn")
-    public ResponseEntity<ApiResponse<List<OrderResponse>>> list() {
+    public ResponseEntity<ApiResponse<List<OrderResponse>>> list(
+            @RequestParam(required = false) String customerPhone
+    ) {
+        if (customerPhone != null && !customerPhone.isBlank()) {
+            return ResponseEntity.ok(ApiResponse.success(orderService.listByCustomerPhone(customerPhone)));
+        }
         return ResponseEntity.ok(ApiResponse.success(orderService.listAll()));
     }
 

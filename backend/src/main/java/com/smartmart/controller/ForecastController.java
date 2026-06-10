@@ -73,4 +73,11 @@ public class ForecastController {
     public ResponseEntity<ApiResponse<List<ModelTrainingHistory>>> modelHistory() {
         return ResponseEntity.ok(ApiResponse.success(forecastOrchestrationService.modelHistory()));
     }
+
+    @GetMapping("/ai-status")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @Operation(summary = "Trạng thái dịch vụ AI")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> aiStatus() {
+        return ResponseEntity.ok(ApiResponse.success(forecastOrchestrationService.getAiStatus()));
+    }
 }
