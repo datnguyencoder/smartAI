@@ -53,11 +53,13 @@ public class PurchaseOrderController {
     @Operation(summary = "Danh sách phiếu nhập")
     public ResponseEntity<ApiResponse<Page<PurchaseOrderResponse>>> list(
             @RequestParam(required = false) Long supplierId,
+            @RequestParam(required = false) Long locationId,
+            @RequestParam(required = false) String search,
             @RequestParam(required = false) PurchaseStatus status,
             @RequestParam(required = false) LocalDate fromDate,
             @RequestParam(required = false) LocalDate toDate,
             @ParameterObject Pageable pageable) {
-        Page<PurchaseOrderResponse> page = purchaseOrderService.list(supplierId, status, fromDate, toDate, pageable);
+        Page<PurchaseOrderResponse> page = purchaseOrderService.list(supplierId, locationId, search, status, fromDate, toDate, pageable);
         return ResponseEntity.ok(ApiResponse.success(page));
     }
 

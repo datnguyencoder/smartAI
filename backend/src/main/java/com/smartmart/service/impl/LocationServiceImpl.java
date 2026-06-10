@@ -41,6 +41,22 @@ public class LocationServiceImpl implements com.smartmart.service.LocationServic
         return toResponse(locationRepository.save(location));
     }
 
+    @Override
+    public LocationResponse update(Long id, com.smartmart.dto.request.UpdateLocationRequest req) {
+        Location location = locationRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy vị trí kho"));
+        
+        Location parent = req.getParentId() != null
+                ? locationRepository.findById(req.getParentId()).orElseThrow(() -> new NotFoundException("Không tìm thấy kho cha"))
+                : null;
+
+        location.setLocationName(req.getLocationName());
+        location.setLocationType(req.getLocationType());
+        location.setParent(parent);
+        location.setActive(req.isActive());
+        return toResponse(locationRepository.save(location));
+    }
+
     private LocationResponse toResponse(Location l) {
         return LocationResponse.builder()
                 .id(l.getId())

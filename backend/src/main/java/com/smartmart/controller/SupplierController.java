@@ -42,4 +42,13 @@ public class SupplierController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Tạo NCC thành công", supplierService.create(request)));
     }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @Operation(summary = "Cập nhật nhà cung cấp")
+    public ResponseEntity<ApiResponse<SupplierResponse>> update(
+            @PathVariable Long id,
+            @Valid @RequestBody com.smartmart.dto.request.UpdateSupplierRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật thành công", supplierService.update(id, request)));
+    }
 }

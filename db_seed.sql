@@ -1,94 +1,94 @@
--- SmartMart Mock Data Seed (Very Realistic)
-TRUNCATE categories, uoms, suppliers, locations, items, item_lots, current_inventory, inventory_logs, purchase_orders, purchase_order_items CASCADE;
+-- -- SmartMart Mock Data Seed (Very Realistic)
+-- TRUNCATE categories, uoms, suppliers, locations, items, item_lots, current_inventory, inventory_logs, purchase_orders, purchase_order_items CASCADE;
 
--- 1. CATEGORIES (10 dòng)
-INSERT INTO categories (id, category_name) VALUES 
-(1, 'Đồ gia dụng'),
-(2, 'Thực phẩm đóng gói'),
-(3, 'Đồ uống'),
-(4, 'Sữa và các sản phẩm từ sữa'),
-(5, 'Đồ điện tử'),
-(6, 'Phụ kiện điện thoại'),
-(7, 'Đồ dùng cá nhân'),
-(8, 'Hóa mỹ phẩm'),
-(9, 'Văn phòng phẩm'),
-(10, 'Đồ ăn vặt');
+-- -- 1. CATEGORIES (10 dòng)
+-- INSERT INTO categories (id, category_name) VALUES 
+-- (1, 'Đồ gia dụng'),
+-- (2, 'Thực phẩm đóng gói'),
+-- (3, 'Đồ uống'),
+-- (4, 'Sữa và các sản phẩm từ sữa'),
+-- (5, 'Đồ điện tử'),
+-- (6, 'Phụ kiện điện thoại'),
+-- (7, 'Đồ dùng cá nhân'),
+-- (8, 'Hóa mỹ phẩm'),
+-- (9, 'Văn phòng phẩm'),
+-- (10, 'Đồ ăn vặt');
 
--- 2. UOMs (Đơn vị tính - 10 dòng)
-INSERT INTO uoms (id, uom_name, category, conversion_ratio, is_base_unit) VALUES 
-(1, 'Piece', 'General', 1, TRUE),
-(2, 'Box', 'General', 1, TRUE),
-(3, 'Can', 'General', 1, TRUE),
-(4, 'Bottle', 'General', 1, TRUE),
-(5, 'Pack', 'General', 1, TRUE),
-(6, 'Kg', 'Weight', 1, TRUE),
-(7, 'Case (24)', 'General', 24, FALSE),
-(8, 'Pack (6)', 'General', 6, FALSE),
-(9, 'Case (12)', 'General', 12, FALSE),
-(10, 'Set', 'General', 1, TRUE),
-(11, 'Gram', 'Weight', 0.001, FALSE),
-(12, 'Ton', 'Weight', 1000, FALSE),
-(13, 'Ounce', 'Weight', 0.0283495, FALSE),
-(14, 'Pound', 'Weight', 0.453592, FALSE),
-(15, 'Liter', 'Volume', 1, TRUE),
-(16, 'Milliliter', 'Volume', 0.001, FALSE),
-(17, 'Gallon', 'Volume', 3.78541, FALSE),
-(18, 'Meter', 'Length', 1, TRUE),
-(19, 'Centimeter', 'Length', 0.01, FALSE),
-(20, 'Millimeter', 'Length', 0.001, FALSE),
-(21, 'Roll', 'General', 1, TRUE),
-(22, 'Pair', 'General', 2, FALSE),
-(23, 'Dozen', 'General', 12, FALSE),
-(24, 'Box (36)', 'General', 36, FALSE),
-(25, 'Box (48)', 'General', 48, FALSE),
-(26, 'Pack (4)', 'General', 4, FALSE),
-(27, 'Bag', 'General', 1, TRUE),
-(28, 'Sack (50kg)', 'Weight', 50, FALSE),
-(29, 'Sack (25kg)', 'Weight', 25, FALSE),
-(30, 'Pallet', 'General', 1, TRUE);
+-- -- 2. UOMs (Đơn vị tính - 10 dòng)
+-- INSERT INTO uoms (id, uom_name, category, conversion_ratio, is_base_unit) VALUES 
+-- (1, 'Piece', 'General', 1, TRUE),
+-- (2, 'Box', 'General', 1, TRUE),
+-- (3, 'Can', 'General', 1, TRUE),
+-- (4, 'Bottle', 'General', 1, TRUE),
+-- (5, 'Pack', 'General', 1, TRUE),
+-- (6, 'Kg', 'Weight', 1, TRUE),
+-- (7, 'Case (24)', 'General', 24, FALSE),
+-- (8, 'Pack (6)', 'General', 6, FALSE),
+-- (9, 'Case (12)', 'General', 12, FALSE),
+-- (10, 'Set', 'General', 1, TRUE),
+-- (11, 'Gram', 'Weight', 0.001, FALSE),
+-- (12, 'Ton', 'Weight', 1000, FALSE),
+-- (13, 'Ounce', 'Weight', 0.0283495, FALSE),
+-- (14, 'Pound', 'Weight', 0.453592, FALSE),
+-- (15, 'Liter', 'Volume', 1, TRUE),
+-- (16, 'Milliliter', 'Volume', 0.001, FALSE),
+-- (17, 'Gallon', 'Volume', 3.78541, FALSE),
+-- (18, 'Meter', 'Length', 1, TRUE),
+-- (19, 'Centimeter', 'Length', 0.01, FALSE),
+-- (20, 'Millimeter', 'Length', 0.001, FALSE),
+-- (21, 'Roll', 'General', 1, TRUE),
+-- (22, 'Pair', 'General', 2, FALSE),
+-- (23, 'Dozen', 'General', 12, FALSE),
+-- (24, 'Box (36)', 'General', 36, FALSE),
+-- (25, 'Box (48)', 'General', 48, FALSE),
+-- (26, 'Pack (4)', 'General', 4, FALSE),
+-- (27, 'Bag', 'General', 1, TRUE),
+-- (28, 'Sack (50kg)', 'Weight', 50, FALSE),
+-- (29, 'Sack (25kg)', 'Weight', 25, FALSE),
+-- (30, 'Pallet', 'General', 1, TRUE);
 
--- 3. SUPPLIERS (Nhà cung cấp - 10 dòng)
-INSERT INTO suppliers (id, supplier_name, contact_person, phone, email, address) VALUES 
-(1, 'Công ty TNHH Unilever Việt Nam', 'Mr. Tuấn', '0912345678', 'contact@unilever.vn', 'Khu Công Nghệ Cao, TP.HCM'),
-(2, 'Công ty Cổ phần Sữa Việt Nam (Vinamilk)', 'Ms. Lan', '0987654321', 'sales@vinamilk.com.vn', 'Quận 7, TP.HCM'),
-(3, 'Công ty TNHH Nestlé Việt Nam', 'Mr. Hùng', '0901234567', 'info@nestle.vn', 'KCN Biên Hòa 2, Đồng Nai'),
-(4, 'Công ty TNHH Samsung Electronics', 'Mr. Lee', '0934567890', 'supplier@samsung.com', 'SEVT, Thái Nguyên'),
-(5, 'Công ty Cổ phần Tập đoàn Masan', 'Ms. Hương', '0945678901', 'contact@masan.com', 'Quận 1, TP.HCM'),
-(6, 'Công ty TNHH Coca-Cola Việt Nam', 'Mr. John', '0956789012', 'sales@coca-cola.com', 'Thủ Đức, TP.HCM'),
-(7, 'Công ty Cổ phần Kinh Đô (Mondelez)', 'Mr. Bình', '0967890123', 'info@kinhdo.vn', 'Bình Dương'),
-(8, 'Công ty TNHH Thực phẩm Orion Vina', 'Mr. Kim', '0978901234', 'sales@orion.vn', 'Bắc Ninh'),
-(9, 'Công ty TNHH P&G Việt Nam', 'Ms. Nga', '0989012345', 'contact@pg.com', 'Bình Dương'),
-(10, 'Công ty Cổ phần Thiên Long', 'Mr. Cường', '0990123456', 'info@thienlong.vn', 'Tân Bình, TP.HCM');
+-- -- 3. SUPPLIERS (Nhà cung cấp - 10 dòng)
+-- INSERT INTO suppliers (id, supplier_name, contact_person, phone, email, address) VALUES 
+-- (1, 'Công ty TNHH Unilever Việt Nam', 'Mr. Tuấn', '0912345678', 'contact@unilever.vn', 'Khu Công Nghệ Cao, TP.HCM'),
+-- (2, 'Công ty Cổ phần Sữa Việt Nam (Vinamilk)', 'Ms. Lan', '0987654321', 'sales@vinamilk.com.vn', 'Quận 7, TP.HCM'),
+-- (3, 'Công ty TNHH Nestlé Việt Nam', 'Mr. Hùng', '0901234567', 'info@nestle.vn', 'KCN Biên Hòa 2, Đồng Nai'),
+-- (4, 'Công ty TNHH Samsung Electronics', 'Mr. Lee', '0934567890', 'supplier@samsung.com', 'SEVT, Thái Nguyên'),
+-- (5, 'Công ty Cổ phần Tập đoàn Masan', 'Ms. Hương', '0945678901', 'contact@masan.com', 'Quận 1, TP.HCM'),
+-- (6, 'Công ty TNHH Coca-Cola Việt Nam', 'Mr. John', '0956789012', 'sales@coca-cola.com', 'Thủ Đức, TP.HCM'),
+-- (7, 'Công ty Cổ phần Kinh Đô (Mondelez)', 'Mr. Bình', '0967890123', 'info@kinhdo.vn', 'Bình Dương'),
+-- (8, 'Công ty TNHH Thực phẩm Orion Vina', 'Mr. Kim', '0978901234', 'sales@orion.vn', 'Bắc Ninh'),
+-- (9, 'Công ty TNHH P&G Việt Nam', 'Ms. Nga', '0989012345', 'contact@pg.com', 'Bình Dương'),
+-- (10, 'Công ty Cổ phần Thiên Long', 'Mr. Cường', '0990123456', 'info@thienlong.vn', 'Tân Bình, TP.HCM');
 
--- 4. LOCATIONS (Vị trí lưu trữ - 10 dòng)
-INSERT INTO locations (id, location_name, location_type, parent_id) VALUES 
-(1, 'Kho Tổng SmartMart', 'WAREHOUSE', NULL),
-(2, 'Khu Vực Nhận Hàng (Receiving)', 'ZONE', 1),
-(3, 'Khu Vực Lưu Trữ (Storage)', 'ZONE', 1),
-(4, 'Khu Vực Lạnh (Cold Storage)', 'ZONE', 1),
-(5, 'Khu Vực Đóng Gói (Packing)', 'ZONE', 1),
-(6, 'Khu Vực Xuất Hàng (Shipping)', 'ZONE', 1),
-(7, 'Kệ A1 - Thực Phẩm Khô', 'SHELF', 3),
-(8, 'Kệ A2 - Đồ Gia Dụng', 'SHELF', 3),
-(9, 'Kệ B1 - Điện Tử', 'SHELF', 3),
-(10, 'Tủ Đông C1 - Đồ Lạnh', 'SHELF', 4);
+-- -- 4. LOCATIONS (Vị trí lưu trữ - 10 dòng)
+-- INSERT INTO locations (id, location_name, location_type, parent_id) VALUES 
+-- (1, 'Kho Tổng SmartMart', 'WAREHOUSE', NULL),
+-- (2, 'Khu Vực Nhận Hàng (Receiving)', 'ZONE', 1),
+-- (3, 'Khu Vực Lưu Trữ (Storage)', 'ZONE', 1),
+-- (4, 'Khu Vực Lạnh (Cold Storage)', 'ZONE', 1),
+-- (5, 'Khu Vực Đóng Gói (Packing)', 'ZONE', 1),
+-- (6, 'Khu Vực Xuất Hàng (Shipping)', 'ZONE', 1),
+-- (7, 'Kệ A1 - Thực Phẩm Khô', 'SHELF', 3),
+-- (8, 'Kệ A2 - Đồ Gia Dụng', 'SHELF', 3),
+-- (9, 'Kệ B1 - Điện Tử', 'SHELF', 3),
+-- (10, 'Tủ Đông C1 - Đồ Lạnh', 'SHELF', 4);
 
--- 5. ITEMS (Hàng hóa - 10 dòng)
-INSERT INTO items (id, item_code, item_name, item_type, category_id, base_uom_id, purchase_uom_id, cost_price, selling_price, minimum_stock, has_expiry) VALUES 
-(1, 'ITM-HEINEKEN-01', 'Bia Heineken Sleek 330ml', 'FINISHED_GOOD', 3, 3, 7, 18000, 21000, 100, TRUE), -- Lon -> Thùng (24)
-(2, 'ITM-VNM-S100', 'Sữa Tươi Vinamilk 100% 1L', 'FINISHED_GOOD', 4, 4, 9, 32000, 36000, 50, TRUE), -- Chai -> Thùng (12)
-(3, 'ITM-SAM-S24U', 'Điện thoại Samsung Galaxy S24 Ultra', 'FINISHED_GOOD', 5, 1, 1, 24000000, 28000000, 5, FALSE), -- Cái -> Cái
-(4, 'ITM-HAOHAO-01', 'Mì Hảo Hảo Tôm Chua Cay', 'FINISHED_GOOD', 2, 5, 7, 3500, 4500, 200, TRUE), -- Gói -> Thùng (24)
-(5, 'ITM-CLEAR-630', 'Dầu Gội Clear Men 630g', 'FINISHED_GOOD', 8, 4, 9, 145000, 175000, 20, FALSE), -- Chai -> Thùng (12)
-(6, 'ITM-CHOCO-01', 'Bánh Chocopie Hộp 12 cái', 'FINISHED_GOOD', 10, 2, 8, 45000, 55000, 30, TRUE), -- Hộp -> Lốc (6)
-(7, 'ITM-COCA-320', 'Nước Giải Khát Coca-Cola 320ml', 'FINISHED_GOOD', 3, 3, 7, 8500, 10500, 150, TRUE), -- Lon -> Thùng (24)
-(8, 'ITM-OMO-28', 'Bột Giặt OMO Matic 2.8kg', 'FINISHED_GOOD', 8, 5, 5, 155000, 180000, 15, FALSE), -- Gói -> Gói
-(9, 'ITM-G7-3IN1', 'Cà Phê Hòa Tan G7 3in1', 'FINISHED_GOOD', 3, 2, 7, 50000, 62000, 40, TRUE), -- Hộp -> Thùng (24)
-(10, 'ITM-PS-123', 'Kem Đánh Răng P/S Bảo Vệ 123 240g', 'FINISHED_GOOD', 8, 1, 9, 35000, 42000, 50, FALSE); -- Cái -> Thùng (12)
+-- -- 5. ITEMS (Hàng hóa - 10 dòng)
+-- INSERT INTO items (id, item_code, item_name, item_type, category_id, base_uom_id, purchase_uom_id, cost_price, selling_price, minimum_stock, has_expiry) VALUES 
+-- (1, 'ITM-HEINEKEN-01', 'Bia Heineken Sleek 330ml', 'FINISHED_GOOD', 3, 3, 7, 18000, 21000, 100, TRUE), -- Lon -> Thùng (24)
+-- (2, 'ITM-VNM-S100', 'Sữa Tươi Vinamilk 100% 1L', 'FINISHED_GOOD', 4, 4, 9, 32000, 36000, 50, TRUE), -- Chai -> Thùng (12)
+-- (3, 'ITM-SAM-S24U', 'Điện thoại Samsung Galaxy S24 Ultra', 'FINISHED_GOOD', 5, 1, 1, 24000000, 28000000, 5, FALSE), -- Cái -> Cái
+-- (4, 'ITM-HAOHAO-01', 'Mì Hảo Hảo Tôm Chua Cay', 'FINISHED_GOOD', 2, 5, 7, 3500, 4500, 200, TRUE), -- Gói -> Thùng (24)
+-- (5, 'ITM-CLEAR-630', 'Dầu Gội Clear Men 630g', 'FINISHED_GOOD', 8, 4, 9, 145000, 175000, 20, FALSE), -- Chai -> Thùng (12)
+-- (6, 'ITM-CHOCO-01', 'Bánh Chocopie Hộp 12 cái', 'FINISHED_GOOD', 10, 2, 8, 45000, 55000, 30, TRUE), -- Hộp -> Lốc (6)
+-- (7, 'ITM-COCA-320', 'Nước Giải Khát Coca-Cola 320ml', 'FINISHED_GOOD', 3, 3, 7, 8500, 10500, 150, TRUE), -- Lon -> Thùng (24)
+-- (8, 'ITM-OMO-28', 'Bột Giặt OMO Matic 2.8kg', 'FINISHED_GOOD', 8, 5, 5, 155000, 180000, 15, FALSE), -- Gói -> Gói
+-- (9, 'ITM-G7-3IN1', 'Cà Phê Hòa Tan G7 3in1', 'FINISHED_GOOD', 3, 2, 7, 50000, 62000, 40, TRUE), -- Hộp -> Thùng (24)
+-- (10, 'ITM-PS-123', 'Kem Đánh Răng P/S Bảo Vệ 123 240g', 'FINISHED_GOOD', 8, 1, 9, 35000, 42000, 50, FALSE); -- Cái -> Thùng (12)
 
--- Cập nhật lại Sequence để DB không bị lỗi Duplicate Key khi tạo mới dữ liệu từ App
-SELECT setval('categories_id_seq', (SELECT MAX(id) FROM categories));
-SELECT setval('uoms_id_seq', (SELECT MAX(id) FROM uoms));
-SELECT setval('suppliers_id_seq', (SELECT MAX(id) FROM suppliers));
-SELECT setval('locations_id_seq', (SELECT MAX(id) FROM locations));
-SELECT setval('items_id_seq', (SELECT MAX(id) FROM items));
+-- -- Cập nhật lại Sequence để DB không bị lỗi Duplicate Key khi tạo mới dữ liệu từ App
+-- SELECT setval('categories_id_seq', (SELECT MAX(id) FROM categories));
+-- SELECT setval('uoms_id_seq', (SELECT MAX(id) FROM uoms));
+-- SELECT setval('suppliers_id_seq', (SELECT MAX(id) FROM suppliers));
+-- SELECT setval('locations_id_seq', (SELECT MAX(id) FROM locations));
+-- SELECT setval('items_id_seq', (SELECT MAX(id) FROM items));

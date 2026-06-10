@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
+import org.springframework.scheduling.annotation.Async;
 import java.util.Map;
 
 @Component
@@ -18,6 +19,7 @@ public class OrderEventPublisher {
         this.kafkaTemplate = kafkaTemplate;
     }
 
+    @Async
     public void publishOrderCreated(Long orderId, String orderCode) {
         try {
             kafkaTemplate.send(KafkaTopicConstant.SALES_ORDERS, orderCode,

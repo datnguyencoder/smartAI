@@ -10,7 +10,9 @@ public interface ScrapOrderService {
 
     ScrapOrder create(CreateScrapOrderRequest request);
 
-    ScrapOrder complete(ScrapOrder scrap);
+    ScrapOrder approve(Long id);
+    
+    ScrapOrder cancel(Long id, String reason);
 
     ScrapOrder createDraft(Long locationId, List<ScrapOrderItem> items);
 

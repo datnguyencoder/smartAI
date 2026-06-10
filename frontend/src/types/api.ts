@@ -34,6 +34,7 @@ export type ItemDto = {
   id: number;
   itemCode: string;
   itemName: string;
+  categoryId?: number;
   categoryName?: string;
   costPrice: number;
   sellingPrice: number;
@@ -62,6 +63,7 @@ export type OrderDto = {
   id: number;
   orderCode: string;
   customerName: string;
+  cashierName?: string;
   orderDate: string;
   status: string;
   totalAmount: number;
@@ -105,9 +107,21 @@ export type SupplierDto = {
   supplierName: string;
   contactPerson?: string;
   phone?: string;
+  email?: string;
+  address?: string;
+  taxCode?: string;
+  note?: string;
   active: boolean;
 };
-export type LocationDto = { id: number; locationName: string; locationType?: string };
+export type LocationDto = {
+  id: number;
+  locationName: string;
+  locationType?: string;
+  locationCode?: string;
+  capacity?: number;
+  parentId?: number;
+  active?: boolean;
+};
 export type UomDto = { id: number; uomName: string };
 
 export type PurchaseOrderItemDto = {
@@ -144,6 +158,14 @@ export type InventoryAlertDto = {
   severity: string;
   message: string;
   resolved: boolean;
+  createdAt: string;
+};
+
+export type AuditLogDto = {
+  id: string;
+  action: string;
+  detail?: string;
+  username: string;
   createdAt: string;
 };
 
@@ -190,3 +212,85 @@ export type UpdateUserPayload = {
   email?: string;
   role?: Role;
 };
+
+// --------- Report DTOs ---------
+export type TopProductDto = {
+  itemId: number;
+  itemCode: string;
+  itemName: string;
+  quantitySold: number;
+  revenue: number;
+};
+
+export type SalesReportDto = {
+  period: string;
+  totalOrders: number;
+  cancelledOrders: number;
+  totalRevenue: number;
+  totalCost: number;
+  grossProfit: number;
+  totalItemsSold: number;
+  topProducts: TopProductDto[];
+};
+
+export type PurchaseReportDto = {
+  supplierId: number;
+  supplierName: string;
+  totalOrders: number;
+  totalAmount: number;
+  totalItemTypes: number;
+  totalQuantity: number;
+};
+
+export type InventoryReportDto = {
+  itemId: number;
+  itemCode: string;
+  itemName: string;
+  categoryName: string;
+  currentStock: number;
+  totalPurchased: number;
+  totalSold: number;
+  totalScrapped: number;
+  shrinkage: number;
+  turnoverRate: number;
+  nearestExpiryDate?: string;
+  daysUntilExpiry?: number;
+};
+
+export type InventoryLogDto = {
+  id: number;
+  itemId: number;
+  itemName: string;
+  locationId: number;
+  locationName: string;
+  userId?: string;
+  referenceType?: string;
+  referenceId?: number;
+  actionType: string;
+  quantityBefore: number;
+  quantityChange: number;
+  quantityAfter: number;
+  note?: string;
+  createdAt: string;
+};
+
+export type ScrapOrderItemDto = {
+  itemId: number;
+  itemName: string;
+  lotId?: number;
+  lotNumber?: string;
+  quantity: number;
+  reason?: string;
+};
+
+export type ScrapOrderDto = {
+  id: number;
+  locationId: number;
+  locationName: string;
+  createdBy: string;
+  scrapDate: string;
+  status: 'PENDING' | 'COMPLETED' | 'CANCELLED';
+  note?: string;
+  items: ScrapOrderItemDto[];
+};
+

@@ -83,8 +83,8 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
 
         Location location = locationRepository.findById(request.getLocationId())
                 .orElseThrow(() -> new NotFoundException("Địa điểm nhận hàng không hợp lệ."));
-        if (location.getParent() == null) {
-            throw new BadRequestException("Địa điểm nhận hàng không hợp lệ (Phải là kho con).");
+        if (!location.isActive()) {
+            throw new BadRequestException("Kho nhận hàng đã ngừng hoạt động.");
         }
 
         PurchaseOrder po = PurchaseOrder.builder()
@@ -212,28 +212,27 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<PurchaseOrderResponse> list(Long supplierId, PurchaseStatus status,
-            LocalDate fromDate, LocalDate toDate, Pageable pageable) {
-        LocalDateTime from = fromDate != null ? fromDate.atStartOfDay() : null;
-        LocalDateTime to = toDate != null ? toDate.plusDays(1).atStartOfDay() : null;
+    public Page<PurchaseOrderResponse> list(Long supplierId, Long locationId, String search, PurchaseStatus status, LocalDate fromDate, LocalDate toDate, Pageable pageable) {
+        LocalDateTime safeFrom = fromDate != null ? fromDate.atStartOfDay() : LocalDateTime.of(2000, 1, 1, 0, 0);
+        LocalDateTime safeTo = toDate != null ? toDate.plusDays(1).atStartOfDay() : LocalDateTime.of(2100, 1, 1, 0, 0);
 
-        Page<Long> pageIds = purchaseOrderRepository.findFilteredIdsPaged(supplierId, status, from, to, pageable);
+        Page<Long> idPage = purchaseOrderRepository.findFilteredIdsPaged(supplierId, locationId, search, status, safeFrom, safeTo, pageable);
 
-        if (pageIds.isEmpty()) {
+        if (idPage.isEmpty()) {
             return Page.empty(pageable);
         }
 
-        List<PurchaseOrder> pos = purchaseOrderRepository.findByIdsWithDetails(pageIds.getContent());
+        List<PurchaseOrder> pos = purchaseOrderRepository.findByIdsWithDetails(idPage.getContent());
 
         // order based on original pageIds list
         java.util.Map<Long, PurchaseOrder> map = pos.stream().collect(
                 java.util.stream.Collectors.toMap(PurchaseOrder::getId, java.util.function.Function.identity()));
-        List<PurchaseOrderResponse> responses = pageIds.getContent().stream()
+        List<PurchaseOrderResponse> responses = idPage.getContent().stream()
                 .map(map::get)
                 .map(this::toResponse)
                 .toList();
 
-        return new PageImpl<>(responses, pageable, pageIds.getTotalElements());
+        return new PageImpl<>(responses, pageable, idPage.getTotalElements());
     }
 
     @Override

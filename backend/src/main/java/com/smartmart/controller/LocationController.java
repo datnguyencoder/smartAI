@@ -43,4 +43,13 @@ public class LocationController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Tạo kho thành công", locationService.create(request)));
     }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @Operation(summary = "Cập nhật kho")
+    public ResponseEntity<ApiResponse<LocationResponse>> update(
+            @PathVariable Long id,
+            @Valid @RequestBody com.smartmart.dto.request.UpdateLocationRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật thành công", locationService.update(id, request)));
+    }
 }

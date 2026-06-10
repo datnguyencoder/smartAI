@@ -11,6 +11,7 @@ import com.smartmart.exception.NotFoundException;
 import com.smartmart.repository.ItemLotRepository;
 import com.smartmart.repository.LocationRepository;
 import com.smartmart.repository.ScrapOrderRepository;
+import com.smartmart.repository.CurrentInventoryRepository;
 import com.smartmart.security.SecurityUtils;
 import com.smartmart.service.InventoryLedgerService;
 import com.smartmart.service.ItemService;
@@ -32,29 +33,50 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
     private final ItemService itemService;
     private final InventoryLedgerService inventoryLedgerService;
 
+    private final CurrentInventoryRepository currentInventoryRepository;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
+
     public ScrapOrderServiceImpl(
             ScrapOrderRepository scrapOrderRepository,
             LocationRepository locationRepository,
             ItemLotRepository itemLotRepository,
             ItemService itemService,
-            InventoryLedgerService inventoryLedgerService
+            InventoryLedgerService inventoryLedgerService,
+            CurrentInventoryRepository currentInventoryRepository,
+            org.springframework.context.ApplicationEventPublisher eventPublisher
     ) {
         this.scrapOrderRepository = scrapOrderRepository;
         this.locationRepository = locationRepository;
         this.itemLotRepository = itemLotRepository;
         this.itemService = itemService;
         this.inventoryLedgerService = inventoryLedgerService;
+        this.currentInventoryRepository = currentInventoryRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
+    @Transactional
     public ScrapOrder create(CreateScrapOrderRequest request) {
         Location location = locationRepository.findById(request.getLocationId())
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy kho"));
+                
+        // Fast-fail check
+        for (ScrapLineRequest line : request.getItems()) {
+            BigDecimal available = currentInventoryRepository.findFiltered(line.getItemId(), location.getId(), line.getLotId())
+                    .stream()
+                    .map(ci -> ci.getQuantity().subtract(ci.getReservedQuantity()))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            if (available.compareTo(line.getQuantity()) < 0) {
+                Item item = itemService.findItem(line.getItemId());
+                throw new com.smartmart.exception.InsufficientStockException("Không đủ tồn kho khả dụng cho sản phẩm: " + item.getItemName());
+            }
+        }
+
         ScrapOrder scrap = ScrapOrder.builder()
                 .location(location)
                 .createdBy(SecurityUtils.getCurrentUserId().orElse(null))
                 .scrapDate(LocalDateTime.now())
-                .status(ScrapStatus.DRAFT)
+                .status(ScrapStatus.PENDING)
                 .build();
         for (ScrapLineRequest line : request.getItems()) {
             Item item = itemService.findItem(line.getItemId());
@@ -69,23 +91,39 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
                     .reason(line.getReason())
                     .build());
         }
-        return scrapOrderRepository.save(scrap);
+        ScrapOrder saved = scrapOrderRepository.save(scrap);
+        
+        UUID userId = SecurityUtils.getCurrentUserId().orElse(null);
+        for (ScrapOrderItem line : saved.getItems()) {
+            inventoryLedgerService.logActionOnly(
+                    line.getItem(),
+                    saved.getLocation(),
+                    line.getLot(),
+                    InventoryActionType.SCRAP_PENDING,
+                    ReferenceType.SCRAP_ORDER,
+                    saved.getId(),
+                    userId,
+                    line.getReason()
+            );
+        }
+        return saved;
     }
 
     @Override
-    @org.springframework.cache.annotation.CacheEvict(value = {"items", "itemsPage", "dashboardSummary", "dashboardRevenue"}, allEntries = true)
-    public ScrapOrder complete(ScrapOrder scrap) {
-        if (scrap.getStatus() == ScrapStatus.COMPLETED) {
-            throw new BadRequestException("Phiếu hủy đã hoàn tất");
+    @Transactional
+    public ScrapOrder approve(Long id) {
+        ScrapOrder scrap = findById(id);
+        if (scrap.getStatus() != ScrapStatus.PENDING) {
+            throw new BadRequestException("Chỉ có thể duyệt phiếu đang chờ (PENDING)");
         }
         UUID userId = SecurityUtils.getCurrentUserId().orElse(null);
         for (ScrapOrderItem line : scrap.getItems()) {
-            inventoryLedgerService.applyMovement(
+            inventoryLedgerService.applyMovementAndUpdateLog(
                     line.getItem(),
                     scrap.getLocation(),
                     line.getLot(),
                     line.getQuantity().negate(),
-                    InventoryActionType.SCRAP,
+                    InventoryActionType.SCRAP_COMPLETED,
                     ReferenceType.SCRAP_ORDER,
                     scrap.getId(),
                     userId,
@@ -93,10 +131,30 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
             );
         }
         scrap.setStatus(ScrapStatus.COMPLETED);
+        ScrapOrder updated = scrapOrderRepository.save(scrap);
+        
+        eventPublisher.publishEvent(new com.smartmart.event.ScrapOrderCompletedEvent(this, updated.getId()));
+        return updated;
+    }
+    
+    @Override
+    @Transactional
+    public ScrapOrder cancel(Long id, String reason) {
+        ScrapOrder scrap = findById(id);
+        if (scrap.getStatus() != ScrapStatus.PENDING) {
+            throw new BadRequestException("Chỉ có thể hủy phiếu đang chờ (PENDING)");
+        }
+        
+        String oldNote = scrap.getNote() != null ? scrap.getNote() : "";
+        scrap.setNote(oldNote + " | TỪ CHỐI: " + reason);
+        scrap.setStatus(ScrapStatus.CANCELLED);
+        
+        inventoryLedgerService.deleteLogsByReference(ReferenceType.SCRAP_ORDER, scrap.getId());
         return scrapOrderRepository.save(scrap);
     }
 
     @Override
+    @Transactional
     public ScrapOrder createDraft(Long locationId, List<ScrapOrderItem> items) {
         Location location = locationRepository.findById(locationId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy kho"));
@@ -104,7 +162,7 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
                 .location(location)
                 .createdBy(SecurityUtils.getCurrentUserId().orElse(null))
                 .scrapDate(LocalDateTime.now())
-                .status(ScrapStatus.DRAFT)
+                .status(ScrapStatus.PENDING)
                 .build();
         scrap.getItems().addAll(items);
         return scrapOrderRepository.save(scrap);
@@ -120,6 +178,6 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
     @Transactional(readOnly = true)
     @Override
     public List<ScrapOrder> listAll() {
-        return scrapOrderRepository.findAll();
+        return scrapOrderRepository.findAllByOrderByIdDesc();
     }
 }

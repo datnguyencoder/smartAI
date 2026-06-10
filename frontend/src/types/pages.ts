@@ -3,12 +3,14 @@ export type PageKey =
   | 'products'
   | 'categories'
   | 'suppliers'
+  | 'locations'
   | 'pos'
   | 'invoices'
   | 'import-create'
   | 'import-slips'
   | 'inventory'
   | 'inventory-alerts'
+  | 'inventory-logs'
   | 'ai-forecast'
   | 'purchase-suggestions'
   | 'expiry-risk'
@@ -16,4 +18,6 @@ export type PageKey =
   | 'ai-assistant'
   | 'reports'
   | 'users'
-  | 'settings';
+  | 'settings'
+  | 'scrap-create'
+  | 'scrap-orders';

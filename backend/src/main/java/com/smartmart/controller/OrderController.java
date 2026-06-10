@@ -4,6 +4,7 @@ import com.smartmart.common.response.ApiResponse;
 import com.smartmart.dto.request.CreateOrderRequest;
 import com.smartmart.dto.response.OrderPrintResponse;
 import com.smartmart.dto.response.OrderResponse;
+import com.smartmart.enums.OrderStatus;
 import com.smartmart.service.OrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -43,6 +44,19 @@ public class OrderController {
         return ResponseEntity.ok(ApiResponse.success(orderService.listAll()));
     }
 
+    @GetMapping("/paged")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF')")
+    @Operation(summary = "Danh sách hóa đơn phân trang")
+    public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<OrderResponse>>> listPaged(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) OrderStatus status,
+            @RequestParam(required = false) java.time.LocalDateTime fromDate,
+            @RequestParam(required = false) java.time.LocalDateTime toDate) {
+        return ResponseEntity.ok(ApiResponse.success(orderService.listPaged(page, size, search, status, fromDate, toDate)));
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF')")
     @Operation(summary = "Chi tiết hóa đơn")
@@ -62,5 +76,12 @@ public class OrderController {
     @Operation(summary = "Hủy hóa đơn")
     public ResponseEntity<ApiResponse<OrderResponse>> cancel(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success("Hủy hóa đơn thành công", orderService.cancel(id)));
+    }
+
+    @GetMapping("/customers/suggest")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF')")
+    @Operation(summary = "Gợi ý tên khách hàng cũ cho POS")
+    public ResponseEntity<ApiResponse<List<String>>> suggestCustomers(@RequestParam("q") String keyword) {
+        return ResponseEntity.ok(ApiResponse.success(orderService.suggestCustomers(keyword)));
     }
 }
