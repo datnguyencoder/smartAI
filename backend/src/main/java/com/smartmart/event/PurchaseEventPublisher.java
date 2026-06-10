@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
+import org.springframework.scheduling.annotation.Async;
 import java.util.Map;
 
 @Component
@@ -18,6 +19,7 @@ public class PurchaseEventPublisher {
         this.kafkaTemplate = kafkaTemplate;
     }
 
+    @Async
     public void publishPurchaseCreated(Long purchaseId) {
         try {
             kafkaTemplate.send(KafkaTopicConstant.PURCHASE_ORDERS, String.valueOf(purchaseId),
@@ -27,6 +29,7 @@ public class PurchaseEventPublisher {
         }
     }
 
+    @Async
     public void publishPurchaseReceived(Long purchaseId) {
         try {
             kafkaTemplate.send(KafkaTopicConstant.PURCHASE_ORDERS, String.valueOf(purchaseId),
@@ -36,6 +39,7 @@ public class PurchaseEventPublisher {
         }
     }
 
+    @Async
     public void publishPurchaseCancelled(Long purchaseId) {
         try {
             kafkaTemplate.send(KafkaTopicConstant.PURCHASE_ORDERS, String.valueOf(purchaseId),

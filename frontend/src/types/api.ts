@@ -35,6 +35,7 @@ export type ItemDto = {
   id: number;
   itemCode: string;
   itemName: string;
+  categoryId?: number;
   categoryName?: string;
   costPrice: number;
   sellingPrice: number;
@@ -63,6 +64,7 @@ export type OrderDto = {
   id: number;
   orderCode: string;
   customerName: string;
+  cashierName?: string;
   orderDate: string;
   status: string;
   totalAmount: number;
@@ -76,9 +78,21 @@ export type SupplierDto = {
   supplierName: string;
   contactPerson?: string;
   phone?: string;
+  email?: string;
+  address?: string;
+  taxCode?: string;
+  note?: string;
   active: boolean;
 };
-export type LocationDto = { id: number; locationName: string; locationType?: string };
+export type LocationDto = {
+  id: number;
+  locationName: string;
+  locationType?: string;
+  locationCode?: string;
+  capacity?: number;
+  parentId?: number;
+  active?: boolean;
+};
 export type UomDto = { id: number; uomName: string };
 
 export type PurchaseOrderItemDto = {
@@ -155,3 +169,21 @@ export type UpdateUserPayload = {
   role?: Role;
   status?: UserStatus;
 };
+
+export type InventoryLogDto = {
+  id: number;
+  itemId: number;
+  itemName: string;
+  locationId: number;
+  locationName: string;
+  userId?: string;
+  referenceType?: string;
+  referenceId?: number;
+  actionType: string;
+  quantityBefore: number;
+  quantityChange: number;
+  quantityAfter: number;
+  note?: string;
+  createdAt: string;
+};
+

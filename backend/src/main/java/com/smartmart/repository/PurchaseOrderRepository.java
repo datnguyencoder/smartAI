@@ -24,13 +24,18 @@ public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, Lo
     @Query("""
             SELECT po.id FROM PurchaseOrder po
             WHERE (:supplierId IS NULL OR po.supplier.id = :supplierId)
+            AND (:locationId IS NULL OR po.location.id = :locationId)
             AND (:status IS NULL OR po.status = :status)
-            AND (cast(:fromDate as java.time.LocalDateTime) IS NULL OR po.createdAt >= :fromDate)
-            AND (cast(:toDate as java.time.LocalDateTime) IS NULL OR po.createdAt <= :toDate)
-            ORDER BY po.createdAt DESC
+            AND (:search IS NULL OR :search = '' OR str(po.id) LIKE CONCAT('%', :search, '%') OR LOWER(po.supplier.supplierName) LIKE LOWER(CONCAT('%', :search, '%')))
+            AND (po.createdAt >= :fromDate)
+            AND (po.createdAt < :toDate)
             """)
-    Page<Long> findFilteredIdsPaged(Long supplierId, com.smartmart.enums.PurchaseStatus status,
-                                    java.time.LocalDateTime fromDate, java.time.LocalDateTime toDate,
+    Page<Long> findFilteredIdsPaged(@org.springframework.data.repository.query.Param("supplierId") Long supplierId, 
+                                    @org.springframework.data.repository.query.Param("locationId") Long locationId, 
+                                    @org.springframework.data.repository.query.Param("search") String search,
+                                    @org.springframework.data.repository.query.Param("status") com.smartmart.enums.PurchaseStatus status,
+                                    @org.springframework.data.repository.query.Param("fromDate") java.time.LocalDateTime fromDate, 
+                                    @org.springframework.data.repository.query.Param("toDate") java.time.LocalDateTime toDate,
                                     Pageable pageable);
 
     @Query("""

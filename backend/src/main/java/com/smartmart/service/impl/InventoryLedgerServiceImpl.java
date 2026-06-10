@@ -27,14 +27,12 @@ public class InventoryLedgerServiceImpl implements com.smartmart.service.Invento
     public InventoryLedgerServiceImpl(
             CurrentInventoryRepository currentInventoryRepository,
             InventoryLogRepository inventoryLogRepository,
-            ItemLotRepository itemLotRepository
-    ) {
+            ItemLotRepository itemLotRepository) {
         this.currentInventoryRepository = currentInventoryRepository;
         this.inventoryLogRepository = inventoryLogRepository;
         this.itemLotRepository = itemLotRepository;
     }
 
-    // Cập nhật tồn (+ nhập / − xuất), ghi inventory_log, chặn âm tồn
     @Transactional
     public void applyMovement(
             Item item,
@@ -45,8 +43,7 @@ public class InventoryLedgerServiceImpl implements com.smartmart.service.Invento
             ReferenceType referenceType,
             Long referenceId,
             UUID userId,
-            String note
-    ) {
+            String note) {
         if (quantityChange.compareTo(BigDecimal.ZERO) == 0) {
             return;
         }
@@ -56,17 +53,27 @@ public class InventoryLedgerServiceImpl implements com.smartmart.service.Invento
                 .findByItemLocationLot(item.getId(), location.getId(), lotId)
                 .orElseGet(() -> createEmptyInventory(item, location, lot));
 
-        BigDecimal before = inv.getQuantity();
-        BigDecimal after = before.add(quantityChange);
+        BigDecimal lotBefore = inv.getQuantity();
+        BigDecimal lotAfter = lotBefore.add(quantityChange);
 
-        if (after.compareTo(BigDecimal.ZERO) < 0) {
+        if (lotAfter.compareTo(BigDecimal.ZERO) < 0) {
             throw new InsufficientStockException(
                     "Không đủ tồn kho cho sản phẩm " + item.getItemName()
                             + (lot != null ? " (lô " + lot.getLotNumber() + ")" : ""));
         }
 
-        inv.setQuantity(after);
-        currentInventoryRepository.save(inv);
+        inv.setQuantity(lotAfter);
+        inv = currentInventoryRepository.save(inv);
+        final Long savedInvId = inv.getId();
+
+        BigDecimal totalBefore = currentInventoryRepository.findByItemId(item.getId()).stream()
+                .filter(ci -> ci.getLocation().getId().equals(location.getId()))
+                .filter(ci -> !ci.getId().equals(savedInvId))
+                .map(CurrentInventory::getQuantity)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .add(lotBefore);
+
+        BigDecimal totalAfter = totalBefore.add(quantityChange);
 
         InventoryLog log = InventoryLog.builder()
                 .item(item)
@@ -76,57 +83,86 @@ public class InventoryLedgerServiceImpl implements com.smartmart.service.Invento
                 .referenceType(referenceType)
                 .referenceId(referenceId)
                 .actionType(actionType)
-                .quantityBefore(before)
+                .quantityBefore(totalBefore)
                 .quantityChange(quantityChange)
-                .quantityAfter(after)
+                .quantityAfter(totalAfter)
+                .note(note)
+                .build();
+        inventoryLogRepository.save(log);
+    }
+
+    @Transactional
+    public void logActionOnly(
+            Item item,
+            Location location,
+            ItemLot lot,
+            InventoryActionType actionType,
+            ReferenceType referenceType,
+            Long referenceId,
+            UUID userId,
+            String note) {
+        BigDecimal totalBefore = currentInventoryRepository.findByItemId(item.getId()).stream()
+                .filter(ci -> ci.getLocation().getId().equals(location.getId()))
+                .map(CurrentInventory::getQuantity)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        InventoryLog log = InventoryLog.builder()
+                .item(item)
+                .location(location)
+                .lot(lot)
+                .userId(userId)
+                .referenceType(referenceType)
+                .referenceId(referenceId)
+                .actionType(actionType)
+                .quantityBefore(totalBefore)
+                .quantityChange(BigDecimal.ZERO)
+                .quantityAfter(totalBefore)
                 .note(note)
                 .build();
         inventoryLogRepository.save(log);
     }
 
     // Xuất bán: phân bổ lô FEFO (hạn dùng sớm trước), rồi tồn không lô
-    @Transactional(readOnly = true)
+    @Transactional
     public List<LotAllocation> allocateFefo(Item item, Location location, BigDecimal quantityNeeded) {
         List<LotAllocation> allocations = new ArrayList<>();
         BigDecimal remaining = quantityNeeded;
 
-        List<CurrentInventory> rows = currentInventoryRepository.findByItemId(item.getId()).stream()
-                .filter(ci -> ci.getLocation().getId().equals(location.getId()))
-                .toList();
+        List<CurrentInventory> rows = currentInventoryRepository.findAvailableInventoryForUpdate(item.getId(), location.getId());
 
-        // Lots with expiry first (FEFO), then no-lot rows
-        List<CurrentInventory> withLot = rows.stream()
-                .filter(ci -> ci.getLot() != null)
-                .sorted((a, b) -> {
-                    LocalDate ea = a.getLot().getExpiryDate();
-                    LocalDate eb = b.getLot().getExpiryDate();
-                    if (ea == null && eb == null) return 0;
-                    if (ea == null) return 1;
-                    if (eb == null) return -1;
-                    return ea.compareTo(eb);
-                })
-                .toList();
-
-        for (CurrentInventory ci : withLot) {
-            if (remaining.compareTo(BigDecimal.ZERO) <= 0) break;
-            validateLotNotExpired(ci.getLot());
+        for (CurrentInventory ci : rows) {
+            if (remaining.compareTo(BigDecimal.ZERO) <= 0)
+                break;
             BigDecimal available = ci.getQuantity().subtract(ci.getReservedQuantity());
-            if (available.compareTo(BigDecimal.ZERO) <= 0) continue;
+            if (available.compareTo(BigDecimal.ZERO) <= 0)
+                continue;
             BigDecimal take = available.min(remaining);
             allocations.add(new LotAllocation(ci.getLot(), take));
             remaining = remaining.subtract(take);
         }
 
-        // Non-lot inventory
         if (remaining.compareTo(BigDecimal.ZERO) > 0) {
-            for (CurrentInventory ci : rows.stream().filter(ci -> ci.getLot() == null).toList()) {
-                BigDecimal available = ci.getQuantity().subtract(ci.getReservedQuantity());
-                if (available.compareTo(BigDecimal.ZERO) <= 0) continue;
-                BigDecimal take = available.min(remaining);
-                allocations.add(new LotAllocation(null, take));
-                remaining = remaining.subtract(take);
-                if (remaining.compareTo(BigDecimal.ZERO) <= 0) break;
-            }
+            throw new InsufficientStockException("Không đủ tồn kho khả dụng cho " + item.getItemName());
+        }
+        return allocations;
+    }
+
+    @Transactional
+    public List<GlobalLotAllocation> allocateGlobalFefo(Item item, BigDecimal quantityNeeded) {
+        List<GlobalLotAllocation> allocations = new ArrayList<>();
+        BigDecimal remaining = quantityNeeded;
+
+        List<CurrentInventory> rows = currentInventoryRepository.findGlobalAvailableInventoryForUpdate(item.getId());
+
+        for (CurrentInventory ci : rows) {
+            if (remaining.compareTo(BigDecimal.ZERO) <= 0)
+                break;
+            BigDecimal available = ci.getQuantity().subtract(ci.getReservedQuantity());
+            if (available.compareTo(BigDecimal.ZERO) <= 0)
+                continue;
+            BigDecimal take = available.min(remaining);
+            allocations.add(new GlobalLotAllocation(ci.getLot(), ci.getLocation(), take));
+            remaining = remaining.subtract(take);
         }
 
         if (remaining.compareTo(BigDecimal.ZERO) > 0) {

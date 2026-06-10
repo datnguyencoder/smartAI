@@ -10,4 +10,6 @@ public interface LocationService {
     List<LocationResponse> listAll(String q, String type, Boolean active);
 
     LocationResponse create(CreateLocationRequest req);
+
+    LocationResponse update(Long id, com.smartmart.dto.request.UpdateLocationRequest req);
 }

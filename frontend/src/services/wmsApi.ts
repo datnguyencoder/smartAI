@@ -5,6 +5,7 @@ import type {
   DashboardSummaryDto,
   InventoryAlertDto,
   InventoryItemDto,
+  InventoryLogDto,
   ItemDto,
   LocationDto,
   OrderDto,
@@ -80,9 +81,12 @@ export function resolveInventoryAlert(id: number) {
   return apiRequest<InventoryAlertDto>(`/api/v1/inventory-alerts/${id}/resolve`, { method: 'PATCH' });
 }
 
-export function fetchItems(search?: string) {
-  const q = search ? `?q=${encodeURIComponent(search)}` : '';
-  return apiRequest<ItemDto[]>(`/api/v1/items${q}`);
+export function fetchItems(search?: string, categoryId?: number) {
+  const params = new URLSearchParams();
+  if (search) params.set('q', search);
+  if (categoryId) params.set('categoryId', String(categoryId));
+  const query = params.toString() ? `?${params.toString()}` : '';
+  return apiRequest<ItemDto[]>(`/api/v1/items${query}`);
 }
 
 export function fetchItemsPaged(page = 0, size = 50, search?: string) {
@@ -154,6 +158,19 @@ export async function fetchOrders() {
   }
 }
 
+export function fetchOrdersPaged(page = 0, size = 10, search?: string, status?: string, fromDate?: string, toDate?: string) {
+  const params = new URLSearchParams({ page: String(page), size: String(size) });
+  if (search) params.set('search', search);
+  if (status && status !== 'ALL') params.set('status', status);
+  if (fromDate) params.set('fromDate', fromDate);
+  if (toDate) params.set('toDate', toDate);
+  return apiRequest<PageResponseDto<OrderDto>>(`/api/v1/orders/paged?${params}`);
+}
+
+export function suggestCustomers(keyword: string) {
+  return apiRequest<string[]>(`/api/v1/orders/customers/suggest?q=${encodeURIComponent(keyword)}`);
+}
+
 export function fetchCategories() {
   return apiRequest<CategoryDto[]>('/api/v1/categories');
 }
@@ -162,8 +179,22 @@ export function fetchSuppliers() {
   return apiRequest<SupplierDto[]>('/api/v1/suppliers');
 }
 
+export function updateSupplier(id: number, payload: Partial<SupplierDto>) {
+  return apiRequest<SupplierDto>(`/api/v1/suppliers/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
 export function fetchLocations() {
   return apiRequest<LocationDto[]>('/api/v1/locations');
+}
+
+export function updateLocation(id: number, payload: Partial<LocationDto>) {
+  return apiRequest<LocationDto>(`/api/v1/locations/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
 }
 
 export function fetchUoms() {
@@ -181,10 +212,14 @@ export function createPurchaseOrder(payload: {
   });
 }
 
-export function fetchPurchaseOrdersPaged(page = 0, size = 10, status?: string, keyword?: string) {
-  const params = new URLSearchParams({ page: String(page), size: String(size) });
+export function fetchPurchaseOrdersPaged(page = 0, size = 10, status?: string, keyword?: string, supplierId?: number, locationId?: number, fromDate?: string, toDate?: string) {
+  const params = new URLSearchParams({ page: String(page), size: String(size), sort: 'id,desc' });
   if (status && status !== 'ALL') params.set('status', status);
   if (keyword) params.set('search', keyword);
+  if (supplierId) params.set('supplierId', String(supplierId));
+  if (locationId) params.set('locationId', String(locationId));
+  if (fromDate) params.set('fromDate', fromDate);
+  if (toDate) params.set('toDate', toDate);
   return apiRequest<PageResponseDto<PurchaseOrderDto>>(`/api/v1/purchase-orders?${params}`);
 }
 
@@ -232,8 +267,13 @@ export function createScrapOrder(payload: {
   });
 }
 
-export function completeScrapOrder(id: number) {
-  return apiRequest<unknown>(`/api/v1/scrap-orders/${id}/complete`, { method: 'POST' });
+export function approveScrapOrder(id: number) {
+  return apiRequest<unknown>(`/api/v1/scrap-orders/${id}/approve`, { method: 'POST' });
+}
+
+export function cancelScrapOrder(id: number, reason: string) {
+  const params = new URLSearchParams({ reason: reason });
+  return apiRequest<unknown>(`/api/v1/scrap-orders/${id}/cancel?${params}`, { method: 'POST' });
 }
 
 export function fetchDashboardSummary() {
@@ -258,6 +298,26 @@ export function fetchForecastResults() {
 
 export function fetchReorderRecommendations() {
   return apiRequest<Record<string, unknown>[]>('/api/v1/forecast/recommendations');
+}
+
+export function fetchInventoryLogs(
+  page = 0,
+  size = 20,
+  actionType?: string,
+  itemId?: number,
+  locationId?: number,
+  search?: string,
+  fromDate?: string,
+  toDate?: string
+) {
+  const params = new URLSearchParams({ page: String(page), size: String(size), sort: 'createdAt,desc' });
+  if (actionType) params.set('actionType', actionType);
+  if (itemId) params.set('itemId', String(itemId));
+  if (locationId) params.set('locationId', String(locationId));
+  if (search) params.set('search', search);
+  if (fromDate) params.set('fromDate', fromDate);
+  if (toDate) params.set('toDate', toDate);
+  return apiRequest<PageResponseDto<InventoryLogDto>>(`/api/v1/inventory/logs?${params}`);
 }
 
 export function aiChat(message: string) {

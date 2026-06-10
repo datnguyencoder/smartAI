@@ -39,6 +39,19 @@ public class SupplierServiceImpl implements com.smartmart.service.SupplierServic
         return toResponse(supplierRepository.save(supplier));
     }
 
+    @Override
+    public SupplierResponse update(Long id, com.smartmart.dto.request.UpdateSupplierRequest req) {
+        Supplier supplier = supplierRepository.findById(id)
+                .orElseThrow(() -> new com.smartmart.exception.NotFoundException("Không tìm thấy nhà cung cấp"));
+        supplier.setSupplierName(req.getSupplierName());
+        supplier.setContactPerson(req.getContactPerson());
+        supplier.setPhone(req.getPhone());
+        supplier.setEmail(req.getEmail());
+        supplier.setAddress(req.getAddress());
+        supplier.setActive(req.isActive());
+        return toResponse(supplierRepository.save(supplier));
+    }
+
     private SupplierResponse toResponse(Supplier s) {
         return SupplierResponse.builder()
                 .id(s.getId())
@@ -46,6 +59,7 @@ public class SupplierServiceImpl implements com.smartmart.service.SupplierServic
                 .contactPerson(s.getContactPerson())
                 .phone(s.getPhone())
                 .email(s.getEmail())
+                .address(s.getAddress())
                 .active(s.isActive())
                 .build();
     }

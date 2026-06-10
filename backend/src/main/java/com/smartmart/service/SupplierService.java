@@ -10,4 +10,6 @@ public interface SupplierService {
     List<SupplierResponse> listAll(String q, Boolean active);
 
     SupplierResponse create(CreateSupplierRequest req);
+
+    SupplierResponse update(Long id, com.smartmart.dto.request.UpdateSupplierRequest req);
 }

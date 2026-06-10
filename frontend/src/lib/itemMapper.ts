@@ -5,6 +5,7 @@ export type Product = {
   name: string;
   sku: string;
   category: string;
+  categoryId: number;
   stock: number;
   sold: number;
   price: number;
@@ -36,6 +37,7 @@ export function itemToProduct(item: ItemDto): Product {
     name: item.itemName,
     sku: item.itemCode,
     category: item.categoryName ?? 'Khác',
+    categoryId: item.categoryId ?? 0,
     stock: qty,
     sold: Number(item.soldQty ?? 0),
     price: Number(item.sellingPrice),

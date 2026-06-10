@@ -68,3 +68,11 @@ export function StatusChip({ tone, children }: { tone: 'success' | 'warning' | '
     </span>
   );
 }
+
+export function PageFooter({ children, className }: { children?: ReactNode; className?: string }) {
+  return (
+    <div className={cn('sticky bottom-0 z-10 w-full bg-white border-t border-slate-100 px-5 py-3 flex items-center justify-end min-h-[56px]', className)}>
+      {children}
+    </div>
+  );
+}
