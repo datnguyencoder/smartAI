@@ -17,7 +17,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 @Component
-@Profile({ "local", "prod" })
+@Profile({"local", "prod", "test"})
 @Order(1)
 public class DataSeeder implements CommandLineRunner {
 

@@ -9,7 +9,8 @@ const { Text } = Typography;
 
 export default function ScrapOrdersPage() {
   const { authUser } = useAuth();
-  const isAdminOrManager = authUser?.role === 'ADMIN' || authUser?.role === 'MANAGER';
+  const role = authUser?.role?.replace('ROLE_', '') ?? '';
+  const isAdminOrManager = role === 'ADMIN' || role === 'MANAGER';
 
   const [orders, setOrders] = useState<ScrapOrderDto[]>([]);
   const [loading, setLoading] = useState(false);

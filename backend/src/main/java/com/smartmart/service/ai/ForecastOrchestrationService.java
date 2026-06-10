@@ -13,5 +13,7 @@ public interface ForecastOrchestrationService {
 
     List<Map<String, Object>> listResults();
 
+    com.smartmart.dto.response.ForecastItemDetailResponse getItemResult(Long itemId);
+
     List<ModelTrainingHistory> modelHistory();
 }

@@ -117,6 +117,22 @@ docker compose -f docker/docker-compose.yaml down
 
 ---
 
+## Chạy Backend trong IDE (IntelliJ)
+
+Profile mặc định **`local`** dùng **PostgreSQL** (không còn H2 in-memory), đồng bộ schema với Docker qua Flyway.
+
+1. Khởi động Postgres:
+   ```bash
+   docker compose -f docker/docker-compose.yaml up -d postgres
+   ```
+2. Copy `docker/.env.example` → `docker/.env` nếu chưa có (mật khẩu DB khớp `application-local.yml`).
+3. Run `SmartMartApplication` với **Active profiles: `local`** (hoặc `./mvnw -f backend spring-boot:run`).
+4. Xem DB trong IntelliJ: **Database → + → PostgreSQL** — `localhost:5432`, database `smartmart_db`, user `smartmart_admin`.
+
+Integration test (`./mvnw -f backend test`) dùng profile **`test`** (H2), không cần Postgres.
+
+---
+
 ## 📚 Hệ Thống Tài bản liệu Chi Tiết (Deep Technical Documents)
 
 Tham khảo thêm các tài liệu thiết kế nghiệp vụ và kiến trúc kỹ thuật trong thư mục `docs/`:

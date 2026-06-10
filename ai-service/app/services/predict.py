@@ -93,13 +93,16 @@ def forecast_item(
     item_model_types = bundle.get("item_model_types", {})
     item_type = item_model_types.get(str(item_id), bundle.get("model_type", "moving_average"))
 
-    if item_type == "moving_average" or bundle.get("ml_model") is None:
+    item_models = bundle.get("item_models", {})
+    ml_model = item_models.get(str(item_id)) or bundle.get("ml_model")
+
+    if item_type == "moving_average" or ml_model is None:
         return _forecast_with_moving_average(history, horizon), "moving_average"
 
     daily = _forecast_with_ml_model(
         history=history,
         category_id=category_id,
-        ml_model=bundle["ml_model"],
+        ml_model=ml_model,
         feature_columns=bundle["feature_columns"],
         horizon=horizon,
     )

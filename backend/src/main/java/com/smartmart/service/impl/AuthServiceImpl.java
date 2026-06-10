@@ -1,6 +1,7 @@
 package com.smartmart.service.impl;
 
 import com.smartmart.dto.request.LoginRequest;
+import com.smartmart.dto.request.LogoutRequest;
 import com.smartmart.dto.request.RefreshTokenRequest;
 import com.smartmart.dto.response.AuthResponse;
 import com.smartmart.dto.response.UserResponse;
@@ -98,6 +99,13 @@ public class AuthServiceImpl implements com.smartmart.service.AuthService {
     public AuthResponse refresh(RefreshTokenRequest request) {
         String refreshToken = request.getRefreshToken();
 
+        if (tokenBlacklistService.isBlacklisted(refreshToken)) {
+            throw new UnauthorizedException(
+                    ErrorCode.REFRESH_TOKEN_INVALID,
+                    ErrorCode.REFRESH_TOKEN_INVALID.getMessage()
+            );
+        }
+
         if(jwtTokenProvider.isTokenExpired(refreshToken)){
             throw new UnauthorizedException(
                     ErrorCode.REFRESH_TOKEN_EXPIRED,
@@ -139,10 +147,13 @@ public class AuthServiceImpl implements com.smartmart.service.AuthService {
                 userDetails.getAuthorities()
         );
 
+        tokenBlacklistService.blacklist(refreshToken, jwtTokenProvider.remainingValidityMs(refreshToken));
+
         String newAccessToken = jwtTokenProvider.generateAccessToken(auth);
+        String newRefreshToken = jwtTokenProvider.generateRefreshToken(auth);
         return AuthResponse.builder()
                 .accessToken(newAccessToken)
-                .refreshToken(refreshToken)
+                .refreshToken(newRefreshToken)
                 .tokenType("Bearer")
                 .user(toUserResponse(user))
                 .build();
@@ -151,12 +162,18 @@ public class AuthServiceImpl implements com.smartmart.service.AuthService {
 
 
     @Override
-    public void logout(String bearerToken) {
+    public void logout(String bearerToken, LogoutRequest request) {
         if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
-            String token = bearerToken.substring(7);
-            tokenBlacklistService.blacklist(token, jwtTokenProvider.remainingValidityMs(token));
-            auditLogService.log("AUTH_LOGOUT", "Đăng xuất JWT");
+            String accessToken = bearerToken.substring(7);
+            tokenBlacklistService.blacklist(accessToken, jwtTokenProvider.remainingValidityMs(accessToken));
         }
+        if (request != null && request.getRefreshToken() != null && !request.getRefreshToken().isBlank()) {
+            String refreshToken = request.getRefreshToken();
+            if (jwtTokenProvider.validateToken(refreshToken) && jwtTokenProvider.isRefreshToken(refreshToken)) {
+                tokenBlacklistService.blacklist(refreshToken, jwtTokenProvider.remainingValidityMs(refreshToken));
+            }
+        }
+        auditLogService.log("AUTH_LOGOUT", "Đăng xuất JWT");
         SecurityContextHolder.clearContext();
     }
 

@@ -85,4 +85,4 @@ UNIQUE `(item_id, location_id, lot_id)`.
 1. Mọi thay đổi tồn qua `InventoryLedgerService` — không PATCH tồn trên `items`.
 2. Bán: `available >= qty`; lot hết hạn → `PRODUCT_EXPIRED`.
 3. Seed location **"Kho bán"** cho POS Phase 1.
-4. Local: H2 + `ddl-auto: update`. Prod: Flyway + `validate`.
+4. Local & prod: PostgreSQL + Flyway + `ddl-auto: validate`. Integration tests: profile `test` (H2 `create-drop`).

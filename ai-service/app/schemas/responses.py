@@ -22,6 +22,7 @@ class MetricsResponse(BaseModel):
     mape: float
     model_type: str
     trained_at: datetime | None = None
+    item_model_types: dict[str, str] = {}
 
 
 class DailyForecastPoint(BaseModel):

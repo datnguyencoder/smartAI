@@ -1,28 +1,24 @@
-# Local development profile: in-memory H2 for instant boot, no external DB needed.
+# Local dev (IntelliJ / mvn spring-boot:run): PostgreSQL on localhost — same schema as Docker prod.
 spring:
   cache:
     type: simple
   datasource:
-    url: jdbc:h2:mem:smartmartdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    driver-class-name: org.h2.Driver
-    username: sa
-    password: sa
-
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
-      settings:
-        web-allow-others: true
-
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/smartmart_db}
+    username: ${SPRING_DATASOURCE_USERNAME:smartmart_admin}
+    password: ${SPRING_DATASOURCE_PASSWORD:SuperSecurePassword2026}
+    driver-class-name: org.postgresql.Driver
   flyway:
-    enabled: false
-
+    enabled: true
+    locations: classpath:db/migration
   jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: true
+    open-in-view: false
     properties:
       hibernate:
         format_sql: true
+  kafka:
+    listener:
+      enabled: false

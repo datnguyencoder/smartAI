@@ -1,0 +1,16 @@
+# Integration tests: in-memory H2, no Docker Postgres required.
+spring:
+  datasource:
+    url: jdbc:h2:mem:smartmart_test;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: sa
+  flyway:
+    enabled: false
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+  kafka:
+    listener:
+      enabled: false

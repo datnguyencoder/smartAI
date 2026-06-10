@@ -2,6 +2,7 @@ package com.smartmart.controller;
 
 import com.smartmart.common.response.ApiResponse;
 import com.smartmart.dto.request.LoginRequest;
+import com.smartmart.dto.request.LogoutRequest;
 import com.smartmart.dto.request.RefreshTokenRequest;
 import com.smartmart.dto.response.AuthResponse;
 import com.smartmart.dto.response.UserResponse;
@@ -44,11 +45,12 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    @Operation(summary = "Đăng xuất — vô hiệu hóa token hiện tại")
+    @Operation(summary = "Đăng xuất — vô hiệu hóa access + refresh token")
     public ResponseEntity<ApiResponse<Void>> logout(
-            @RequestHeader(value = "Authorization", required = false) String authorization
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestBody(required = false) LogoutRequest request
     ) {
-        authService.logout(authorization);
+        authService.logout(authorization, request);
         return ResponseEntity.ok(ApiResponse.success("Đăng xuất thành công", null));
     }
 }

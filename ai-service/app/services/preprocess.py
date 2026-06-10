@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 from datetime import date, timedelta
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -22,7 +24,7 @@ FEATURE_COLUMNS = [
     "category_id",
 ]
 
-# Ngày lễ cố định Việt Nam (MM-DD) — mở rộng theo năm khi cần
+# Ngày lễ cố định Việt Nam (MM-DD)
 _VN_HOLIDAY_MD = {
     "01-01",
     "04-30",
@@ -30,9 +32,28 @@ _VN_HOLIDAY_MD = {
     "09-02",
 }
 
+_VN_HOLIDAY_DATES: set[str] = set()
+
+
+def _load_lunar_holidays() -> set[str]:
+    global _VN_HOLIDAY_DATES
+    if _VN_HOLIDAY_DATES:
+        return _VN_HOLIDAY_DATES
+
+    path = Path(__file__).resolve().parent.parent / "data" / "holidays_vn.json"
+    if path.exists():
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        for key in ("lunar_new_year", "extra"):
+            for raw in payload.get(key, []):
+                _VN_HOLIDAY_DATES.add(str(raw))
+
+    return _VN_HOLIDAY_DATES
+
 
 def is_vietnam_holiday(d: date) -> bool:
-    return d.strftime("%m-%d") in _VN_HOLIDAY_MD
+    if d.strftime("%m-%d") in _VN_HOLIDAY_MD:
+        return True
+    return d.isoformat() in _load_lunar_holidays()
 
 MIN_ML_HISTORY_DAYS = 30
 MA_WINDOW = 7

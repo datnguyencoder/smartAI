@@ -1,8 +1,12 @@
 {
-  "mae": 0.0,
-  "rmse": 0.0,
-  "mape": 0.0,
-  "model_type": "moving_average",
-  "trained_at": "2026-06-02T06:36:31.452696+00:00",
+  "mae": 0.003315183851453993,
+  "rmse": 0.004897885539394018,
+  "mape": 0.026118281008722904,
+  "model_type": "xgboost",
+  "item_model_types": {
+    "1": "xgboost",
+    "2": "xgboost"
+  },
+  "trained_at": "2026-06-06T03:13:03.803152+00:00",
   "version": "1.0.0"
 }
