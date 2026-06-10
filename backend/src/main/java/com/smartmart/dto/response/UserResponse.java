@@ -6,13 +6,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Getter;
 
-import java.util.UUID;
-
 @Getter
 @Builder
 @Schema(description = "Thông tin người dùng")
 public class UserResponse {
-    private UUID id;
+    private Long id;
     private String username;
     private String email;
     private String fullName;

@@ -78,9 +78,9 @@ public class ReportDataSeeder implements CommandLineRunner {
             return;
         }
 
-        UUID warehouseUserId = userRepository.findByUsername("warehouse")
+        Long warehouseUserId = userRepository.findByUsername("warehouse")
                 .map(User::getId).orElse(null);
-        UUID staffUserId = userRepository.findByUsername("staff")
+        Long staffUserId = userRepository.findByUsername("staff")
                 .map(User::getId).orElse(null);
 
         // --- 1. Create additional suppliers ---
@@ -127,7 +127,7 @@ public class ReportDataSeeder implements CommandLineRunner {
             List<Item> items,
             List<Supplier> suppliers,
             Location location,
-            UUID userId
+            Long userId
     ) {
         // Generate 1 PO per supplier per month (Jul–Dec 2011)
         YearMonth start = YearMonth.of(2011, 7);
@@ -187,8 +187,8 @@ public class ReportDataSeeder implements CommandLineRunner {
     private int seedInventoryLogs(
             List<Item> items,
             Location location,
-            UUID warehouseUserId,
-            UUID staffUserId
+            Long warehouseUserId,
+            Long staffUserId
     ) {
         int count = 0;
 

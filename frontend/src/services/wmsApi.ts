@@ -67,20 +67,20 @@ export function createUser(payload: CreateUserPayload) {
   });
 }
 
-export function updateUser(id: string, payload: UpdateUserPayload) {
+export function updateUser(id: number, payload: UpdateUserPayload) {
   return apiRequest<UserDto>(`/api/v1/users/${id}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   });
 }
 
-export function lockUser(id: string) {
+export function lockUser(id: number) {
   return apiRequest<void>(`/api/v1/users/${id}/deactivate`, {
     method: 'POST',
   });
 }
 
-export function softDeleteUser(id: string) {
+export function softDeleteUser(id: number) {
   return apiRequest<void>(`/api/v1/users/${id}`, {
     method: 'DELETE',
   });

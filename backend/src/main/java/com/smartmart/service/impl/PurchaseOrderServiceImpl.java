@@ -30,7 +30,6 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
-import java.util.UUID;
 
 @Service
 @Transactional
@@ -159,7 +158,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             throw new BadRequestException("Không thể nhận hàng! Phiếu nhập đã hoàn thành hoặc hủy.");
         }
 
-        UUID userId = SecurityUtils.getCurrentUserId().orElse(null);
+        Long userId = SecurityUtils.getCurrentUserId().orElse(null);
 
         // Sort items by ID to prevent Deadlocks when acquiring Pessimistic Locks
         List<PurchaseOrderItem> sortedItems = new java.util.ArrayList<>(po.getItems());

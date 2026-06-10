@@ -44,7 +44,7 @@ com.smartmart/
 ├── enums/
 ├── security/
 ├── constant/
-├── common/           # ApiResponse, PageResponse, BaseEntity
+├── common/           # ApiResponse, PageResponse, LongAuditableEntity
 └── event/            # Kafka producer/consumer (khi có)
 ```
 
@@ -113,7 +113,7 @@ Mọi endpoint REST trả về `ApiResponse<T>`:
 public class ProductController {
     @GetMapping("/{id}")
     @Operation(summary = "Get product by ID")
-    public ResponseEntity<ApiResponse<ProductResponse>> getById(@PathVariable UUID id) { ... }
+    public ResponseEntity<ApiResponse<ProductResponse>> getById(@PathVariable Long id) { ... }
 }
 ```
 
@@ -123,7 +123,7 @@ public class ProductController {
 |-------|--------|
 | Request body | `CreateXxxRequest` + `@Valid` |
 | Response body | `XxxResponse` — **không** trả `passwordHash`, lazy proxy lỗi |
-| Path/query | `UUID id`, primitive có `@Min`/`@NotNull` |
+| Path/query | `Long id`, primitive có `@Min`/`@NotNull` |
 
 ---
 
@@ -132,7 +132,7 @@ public class ProductController {
 - **Constructor injection** duy nhất — không `@Autowired` field.
 - Service: interface + `impl` package.
 - Utility: `final class` + private constructor (`AppConstant`).
-- Entity: `@Getter` `@Setter` hoặc `@Builder`; kế thừa `BaseEntity` (UUID `id`, `createdAt`, `updatedAt`).
+- Entity: `@Getter` `@Setter` hoặc `@Builder`; kế thừa `LongAuditableEntity` (`Long id`, `createdAt`, `updatedAt`).
 
 ```java
 @Service
@@ -147,7 +147,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
-    public Product getProductById(UUID id) {
+    public Product getProductById(Long id) {
         return productRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy sản phẩm với ID: " + id));
     }
@@ -208,7 +208,7 @@ public class ProductServiceImpl implements ProductService {
 
 ### 8. Persistence (JPA)
 
-- ID: `UUID`, `@GeneratedValue(strategy = GenerationType.UUID)` qua `BaseEntity`.
+- ID: `Long`, `@GeneratedValue(strategy = GenerationType.IDENTITY)` qua `LongAuditableEntity`.
 - Quan hệ lazy mặc định; tránh N+1 — `@EntityGraph` hoặc fetch join có chủ đích.
 - Enum nghiệp vụ: `@Enumerated(EnumType.STRING)`.
 - Tiền tệ: `BigDecimal` — không `double`/`float`.

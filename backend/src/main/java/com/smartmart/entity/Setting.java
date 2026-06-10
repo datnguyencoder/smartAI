@@ -1,6 +1,6 @@
 package com.smartmart.entity;
 
-import com.smartmart.common.base.BaseEntity;
+import com.smartmart.common.base.LongAuditableEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -11,7 +11,7 @@ import lombok.*;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Setting extends BaseEntity {
+public class Setting extends LongAuditableEntity {
 
     @Column(name = "setting_key", nullable = false, unique = true)
     private String key;

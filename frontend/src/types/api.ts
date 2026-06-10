@@ -15,7 +15,7 @@ export type ApiEnvelope<T> = {
 };
 
 export type UserDto = {
-  id: string;
+  id: number;
   username: string;
   email: string;
   fullName?: string;
@@ -162,7 +162,7 @@ export type InventoryAlertDto = {
 };
 
 export type AuditLogDto = {
-  id: string;
+  id: number;
   action: string;
   detail?: string;
   username: string;
@@ -263,7 +263,7 @@ export type InventoryLogDto = {
   itemName: string;
   locationId: number;
   locationName: string;
-  userId?: string;
+  userId?: number;
   referenceType?: string;
   referenceId?: number;
   actionType: string;
@@ -287,7 +287,7 @@ export type ScrapOrderDto = {
   id: number;
   locationId: number;
   locationName: string;
-  createdBy: string;
+  createdBy: number;
   scrapDate: string;
   status: 'PENDING' | 'COMPLETED' | 'CANCELLED';
   note?: string;

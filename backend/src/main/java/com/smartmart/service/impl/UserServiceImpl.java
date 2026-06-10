@@ -17,7 +17,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.UUID;
 
 @Service
 @Transactional
@@ -48,7 +47,7 @@ public class UserServiceImpl implements com.smartmart.service.UserService {
 
     @Transactional(readOnly = true)
     @Override
-    public UserResponse getById(UUID id) {
+    public UserResponse getById(Long id) {
         return userRepository.findById(id)
                 .map(authService::toUserResponse)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng"));
@@ -76,7 +75,7 @@ public class UserServiceImpl implements com.smartmart.service.UserService {
     }
 
     @Override
-    public UserResponse update(UUID id, UpdateUserRequest req) {
+    public UserResponse update(Long id, UpdateUserRequest req) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng"));
         if (req.getFullName() != null && !req.getFullName().isBlank()){
@@ -93,7 +92,7 @@ public class UserServiceImpl implements com.smartmart.service.UserService {
     }
 
     @Override
-    public void deactivate(UUID id) {
+    public void deactivate(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng"));
         if ("admin".equalsIgnoreCase(user.getUsername())) {
@@ -108,7 +107,7 @@ public class UserServiceImpl implements com.smartmart.service.UserService {
     }
 
     @Override
-    public void softDelete(UUID id) {
+    public void softDelete(Long id) {
         User user = userRepository.findById(id).orElseThrow(()-> new NotFoundException("Không tìm thấy người dùng"));
 
         if ("admin".equalsIgnoreCase(user.getUsername())) {

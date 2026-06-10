@@ -5,7 +5,6 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.Optional;
-import java.util.UUID;
 
 public class SecurityUtils {
 
@@ -21,7 +20,7 @@ public class SecurityUtils {
         return Optional.ofNullable(authentication.getName());
     }
 
-    public static Optional<UUID> getCurrentUserId() {
+    public static Optional<Long> getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {
             return Optional.empty();

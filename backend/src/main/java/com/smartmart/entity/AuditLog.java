@@ -1,6 +1,6 @@
 package com.smartmart.entity;
 
-import com.smartmart.common.base.BaseEntity;
+import com.smartmart.common.base.LongAuditableEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -11,7 +11,7 @@ import lombok.*;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AuditLog extends BaseEntity {
+public class AuditLog extends LongAuditableEntity {
 
     @Column(nullable = false)
     private String action;

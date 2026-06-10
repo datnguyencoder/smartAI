@@ -28,7 +28,6 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 @Transactional
@@ -73,7 +72,7 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
                 .orElseGet(() -> locationRepository.findAll().stream().findFirst()
                 .orElseThrow(() -> new BadRequestException("Hệ thống chưa có bất kỳ kho nào. Vui lòng tạo kho trước khi bán hàng.")));
 
-        UUID userId = SecurityUtils.getCurrentUserId().orElse(null);
+        Long userId = SecurityUtils.getCurrentUserId().orElse(null);
         String orderCode = "HD-" + System.currentTimeMillis();
 
         Order order = Order.builder()
@@ -142,7 +141,7 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
         boolean staffOnly = SecurityUtils.hasRole("STAFF")
                 && !SecurityUtils.hasAnyRole("ADMIN", "MANAGER");
         if (staffOnly) {
-            UUID userId = SecurityUtils.getCurrentUserId()
+            Long userId = SecurityUtils.getCurrentUserId()
                     .orElseThrow(() -> new ForbiddenException("Không xác định được người dùng"));
             return orderRepository.findByCreatedByWithItems(userId).stream().map(this::toResponse).toList();
         }
@@ -178,7 +177,7 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
         if (!staffOnly) {
             return;
         }
-        UUID userId = SecurityUtils.getCurrentUserId()
+        Long userId = SecurityUtils.getCurrentUserId()
                 .orElseThrow(() -> new ForbiddenException("Không xác định được người dùng"));
         if (order.getCreatedBy() == null || !order.getCreatedBy().equals(userId)) {
             throw new ForbiddenException("Bạn không có quyền xem hóa đơn này");
@@ -232,7 +231,7 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
         Location location = locationRepository.findByLocationName(DEFAULT_LOCATION)
                 .orElseGet(() -> locationRepository.findAll().stream().findFirst()
                 .orElseThrow(() -> new BadRequestException("Hệ thống chưa có bất kỳ kho nào.")));
-        UUID userId = SecurityUtils.getCurrentUserId().orElse(null);
+        Long userId = SecurityUtils.getCurrentUserId().orElse(null);
 
         for (OrderItem line : order.getItems()) {
             inventoryLedgerService.applyMovement(

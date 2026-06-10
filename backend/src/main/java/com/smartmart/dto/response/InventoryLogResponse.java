@@ -7,7 +7,6 @@ import lombok.Getter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Getter
 @Builder
@@ -17,7 +16,7 @@ public class InventoryLogResponse {
     private String itemName;
     private Long locationId;
     private String locationName;
-    private UUID userId;
+    private Long userId;
     private ReferenceType referenceType;
     private Long referenceId;
     private InventoryActionType actionType;

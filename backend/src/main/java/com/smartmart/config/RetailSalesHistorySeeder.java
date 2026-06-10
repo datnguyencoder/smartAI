@@ -22,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 // Seed lịch sử bán UCI vào orders (không trừ tồn) — phục vụ train AI
@@ -33,6 +34,8 @@ public class RetailSalesHistorySeeder implements CommandLineRunner {
     private static final Logger log = LoggerFactory.getLogger(RetailSalesHistorySeeder.class);
     private static final String DEFAULT_CSV = "data/retail/uci_online_retail_daily.csv";
     private static final String ORDER_PREFIX = "RETAIL-";
+    /** Ngày cuối trong file UCI — dùng để map lịch sử 2011 vào cửa sổ gần hiện tại cho AI train. */
+    private static final LocalDate CSV_DATA_END = LocalDate.of(2011, 12, 10);
 
     private final OrderRepository orderRepository;
     private final ItemRepository itemRepository;
@@ -67,7 +70,7 @@ public class RetailSalesHistorySeeder implements CommandLineRunner {
             return;
         }
         if (orderRepository.existsByOrderCodeStartingWith(ORDER_PREFIX)) {
-            log.debug("Retail sales history already seeded, skipping");
+            shiftRetailOrderDatesIfStale();
             return;
         }
         ClassPathResource resource = new ClassPathResource(csvClasspath);
@@ -76,7 +79,7 @@ public class RetailSalesHistorySeeder implements CommandLineRunner {
             return;
         }
 
-        UUID staffId = userRepository.findByUsername("staff").map(User::getId).orElse(null);
+        Long staffId = userRepository.findByUsername("staff").map(User::getId).orElse(null);
         Optional<Uom> baseUomOpt = uomRepository.findAll().stream().findFirst();
         if (baseUomOpt.isEmpty()) {
             log.warn("Skipping retail sales import — no UOM (DataSeeder not ready)");
@@ -104,7 +107,7 @@ public class RetailSalesHistorySeeder implements CommandLineRunner {
                 String externalCode = cols.get(1).trim();
                 String productName = cols.get(2).trim();
                 String categoryName = cols.get(3).trim();
-                LocalDate saleDate = LocalDate.parse(cols.get(4).trim());
+                LocalDate saleDate = shiftToRecentWindow(LocalDate.parse(cols.get(4).trim()));
                 BigDecimal quantity = new BigDecimal(cols.get(5).trim());
 
                 Item item = itemsByCode.computeIfAbsent(externalCode, code ->
@@ -178,6 +181,36 @@ public class RetailSalesHistorySeeder implements CommandLineRunner {
                 .active(true)
                 .imageUrl(ItemImageUrls.defaultItemPath(itemCode))
                 .build());
+    }
+
+    /** Map ngày trong CSV (2011) → gần hiện tại để extractSalesHistory(180) có dữ liệu. */
+    private static LocalDate shiftToRecentWindow(LocalDate csvDate) {
+        LocalDate targetEnd = LocalDate.now().minusDays(1);
+        long offsetDays = ChronoUnit.DAYS.between(CSV_DATA_END, targetEnd);
+        return csvDate.plusDays(offsetDays);
+    }
+
+    /** DB cũ seed ngày 2011 — dịch sang cửa sổ gần hiện tại một lần khi khởi động. */
+    private void shiftRetailOrderDatesIfStale() {
+        List<com.smartmart.entity.Order> retailOrders = orderRepository.findByOrderCodeStartingWith(ORDER_PREFIX);
+        if (retailOrders.isEmpty()) {
+            return;
+        }
+        LocalDate maxDate = retailOrders.stream()
+                .map(o -> o.getOrderDate().toLocalDate())
+                .max(LocalDate::compareTo)
+                .orElse(LocalDate.now());
+        if (!maxDate.isBefore(LocalDate.now().minusDays(60))) {
+            return;
+        }
+        long offsetDays = ChronoUnit.DAYS.between(maxDate, LocalDate.now().minusDays(1));
+        for (com.smartmart.entity.Order order : retailOrders) {
+            order.setOrderDate(order.getOrderDate().plusDays(offsetDays));
+            String datePart = order.getOrderDate().toLocalDate().toString();
+            order.setOrderCode(ORDER_PREFIX + datePart);
+        }
+        orderRepository.saveAll(retailOrders);
+        log.info("Shifted {} retail orders forward by {} days for AI forecast window", retailOrders.size(), offsetDays);
     }
 
     private static String truncate(String value, int max) {

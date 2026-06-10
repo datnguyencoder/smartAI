@@ -7,7 +7,6 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Entity
 @Table(name = "inventory_logs")
@@ -35,7 +34,7 @@ public class InventoryLog {
     private ItemLot lot;
 
     @Column(name = "user_id")
-    private UUID userId;
+    private Long userId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "reference_type")

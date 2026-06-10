@@ -1,6 +1,6 @@
 # SmartMart AI — WMS Database Design (docs/03)
 
-PostgreSQL schema cho **Warehouse Management System**: tồn theo **item + location + lot**, mọi biến động qua **inventory_logs** (before/after). Master data dùng `BIGSERIAL`; `users` giữ `UUID` (JWT).
+PostgreSQL schema cho **Warehouse Management System**: tồn theo **item + location + lot**, mọi biến động qua **inventory_logs** (before/after). Toàn bộ PK dùng `BIGSERIAL` (kể cả `users`, `audit_logs`, `settings`).
 
 ## ERD cốt lõi
 
@@ -40,11 +40,11 @@ Migration Flyway: `backend/src/main/resources/db/migration/V1__wms_baseline.sql`
 
 ## Chi tiết bảng chính
 
-### users (UUID PK)
+### users (BIGSERIAL PK)
 
 | Cột | Kiểu | Ghi chú |
 |-----|------|---------|
-| id | UUID | PK |
+| id | BIGSERIAL | PK |
 | username | VARCHAR(100) UNIQUE | |
 | password_hash | VARCHAR(255) | BCrypt |
 | email | VARCHAR(100) UNIQUE | |
