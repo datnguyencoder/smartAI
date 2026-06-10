@@ -1,5 +1,6 @@
 package com.smartmart.service.impl;
 
+import com.smartmart.constant.AuditAction;
 import com.smartmart.dto.request.CreateCustomerRequest;
 import com.smartmart.dto.request.UpdateCustomerRequest;
 import com.smartmart.dto.response.CustomerResponse;
@@ -7,8 +8,10 @@ import com.smartmart.entity.Customer;
 import com.smartmart.exception.BadRequestException;
 import com.smartmart.exception.NotFoundException;
 import com.smartmart.repository.CustomerRepository;
+import com.smartmart.service.AuditLogService;
 import com.smartmart.service.CustomerService;
 import com.smartmart.service.SettingService;
+import com.smartmart.util.AuditData;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,10 +25,12 @@ public class CustomerServiceImpl implements CustomerService {
 
     private final CustomerRepository customerRepository;
     private final SettingService settingService;
+    private final AuditLogService auditLogService;
 
-    public CustomerServiceImpl(CustomerRepository customerRepository, SettingService settingService) {
+    public CustomerServiceImpl(CustomerRepository customerRepository, SettingService settingService, AuditLogService auditLogService) {
         this.customerRepository = customerRepository;
         this.settingService = settingService;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional(readOnly = true)
@@ -69,12 +74,21 @@ public class CustomerServiceImpl implements CustomerService {
                 .loyaltyPoints(0)
                 .tier("REGULAR")
                 .build());
+        auditLogService.log(
+                AuditAction.CUSTOMER_CREATE,
+                "CUSTOMER",
+                saved.getId().toString(),
+                "Tạo khách hàng: " + saved.getFullName(),
+                null,
+                customerData(saved)
+        );
         return toResponse(saved);
     }
 
     @Override
     public CustomerResponse update(Long id, UpdateCustomerRequest request) {
         Customer customer = findCustomer(id);
+        String beforeData = customerData(customer);
         if (request.getFullName() != null && !request.getFullName().isBlank()) {
             customer.setFullName(request.getFullName().trim());
         }
@@ -90,7 +104,18 @@ public class CustomerServiceImpl implements CustomerService {
         if (request.getEmail() != null) {
             customer.setEmail(request.getEmail());
         }
-        return toResponse(customer);
+        Customer saved = customerRepository.save(customer);
+
+        auditLogService.log(
+                AuditAction.CUSTOMER_UPDATE,
+                "CUSTOMER",
+                saved.getId().toString(),
+                "Cập nhật khách hàng: " + saved.getFullName(),
+                beforeData,
+                customerData(saved)
+        );
+
+        return toResponse(saved);
     }
 
     @Override
@@ -116,6 +141,10 @@ public class CustomerServiceImpl implements CustomerService {
             return;
         }
         Customer customer = findCustomer(customerId);
+        String beforeData = AuditData.of(
+                "loyaltyPoints", customer.getLoyaltyPoints(),
+                "tier", customer.getTier()
+        );
         int pointRate = settingService.getIntValue("LOYALTY_POINT_RATE", 1000);
         if (pointRate <= 0) {
             pointRate = 1000;
@@ -127,6 +156,18 @@ public class CustomerServiceImpl implements CustomerService {
         int newPoints = customer.getLoyaltyPoints() + earned;
         customer.setLoyaltyPoints(newPoints);
         customer.setTier(resolveTier(newPoints));
+        auditLogService.log(
+                AuditAction.CUSTOMER_POINTS_EARNED,
+                "CUSTOMER",
+                customer.getId().toString(),
+                "Cộng " + earned + " điểm cho khách hàng: "
+                        + customer.getFullName(),
+                beforeData,
+                AuditData.of(
+                        "loyaltyPoints", customer.getLoyaltyPoints(),
+                        "tier", customer.getTier()
+                )
+        );
     }
 
     private Customer findCustomer(Long id) {
@@ -160,5 +201,14 @@ public class CustomerServiceImpl implements CustomerService {
                 .tier(customer.getTier())
                 .createdAt(customer.getCreatedAt())
                 .build();
+    }
+    private String customerData(Customer customer) {
+        return AuditData.of(
+                "fullName", customer.getFullName(),
+                "phone", customer.getPhone(),
+                "email", customer.getEmail(),
+                "loyaltyPoints", customer.getLoyaltyPoints(),
+                "tier", customer.getTier()
+        );
     }
 }

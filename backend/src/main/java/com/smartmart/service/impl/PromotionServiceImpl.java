@@ -1,5 +1,6 @@
 package com.smartmart.service.impl;
 
+import com.smartmart.constant.AuditAction;
 import com.smartmart.dto.request.CreatePromotionRequest;
 import com.smartmart.dto.request.UpdatePromotionRequest;
 import com.smartmart.dto.response.PromotionResponse;
@@ -8,7 +9,9 @@ import com.smartmart.entity.Promotion;
 import com.smartmart.exception.BadRequestException;
 import com.smartmart.exception.NotFoundException;
 import com.smartmart.repository.PromotionRepository;
+import com.smartmart.service.AuditLogService;
 import com.smartmart.service.PromotionService;
+import com.smartmart.util.AuditData;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,9 +25,11 @@ import java.util.List;
 public class PromotionServiceImpl implements PromotionService {
 
     private final PromotionRepository promotionRepository;
+    private final AuditLogService auditLogService;
 
-    public PromotionServiceImpl(PromotionRepository promotionRepository) {
+    public PromotionServiceImpl(PromotionRepository promotionRepository, AuditLogService auditLogService) {
         this.promotionRepository = promotionRepository;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional(readOnly = true)
@@ -66,12 +71,21 @@ public class PromotionServiceImpl implements PromotionService {
                 .endDate(request.getEndDate() != null ? request.getEndDate() : LocalDate.now().plusMonths(3))
                 .active(request.getActive() == null || request.getActive())
                 .build());
+        auditLogService.log(
+                AuditAction.PROMOTION_CREATE,
+                "PROMOTION",
+                saved.getId().toString(),
+                "Tạo khuyến mãi: " + saved.getCode(),
+                null,
+                promotionData(saved)
+        );
         return toResponse(saved);
     }
 
     @Override
     public PromotionResponse update(Long id, UpdatePromotionRequest request) {
         Promotion promotion = findPromotion(id);
+        String beforeData = promotionData(promotion);
         if (request.getName() != null) promotion.setName(request.getName().trim());
         if (request.getCode() != null) promotion.setCode(request.getCode().trim().toUpperCase());
         if (request.getType() != null) promotion.setType(request.getType().toUpperCase());
@@ -80,12 +94,33 @@ public class PromotionServiceImpl implements PromotionService {
         if (request.getStartDate() != null) promotion.setStartDate(request.getStartDate());
         if (request.getEndDate() != null) promotion.setEndDate(request.getEndDate());
         if (request.getActive() != null) promotion.setActive(request.getActive());
-        return toResponse(promotion);
+        Promotion saved = promotionRepository.save(promotion);
+        auditLogService.log(
+                AuditAction.PROMOTION_UPDATE,
+                "PROMOTION",
+                saved.getId().toString(),
+                "Cập nhật khuyến mãi: " + saved.getCode(),
+                beforeData,
+                promotionData(saved)
+        );
+        return toResponse(saved);
     }
 
     @Override
     public void delete(Long id) {
-        promotionRepository.delete(findPromotion(id));
+        Promotion promotion = findPromotion(id);
+        String beforeData = promotionData(promotion);
+
+        promotionRepository.delete(promotion);
+
+        auditLogService.log(
+                AuditAction.PROMOTION_DELETE,
+                "PROMOTION",
+                id.toString(),
+                "Xóa khuyến mãi: " + promotion.getCode(),
+                beforeData,
+                null
+        );
     }
 
     @Transactional(readOnly = true)
@@ -173,5 +208,18 @@ public class PromotionServiceImpl implements PromotionService {
                 .active(promotion.isActive())
                 .createdAt(promotion.getCreatedAt())
                 .build();
+    }
+
+    private String promotionData(Promotion promotion) {
+        return AuditData.of(
+                "name", promotion.getName(),
+                "code", promotion.getCode(),
+                "type", promotion.getType(),
+                "value", promotion.getValue(),
+                "minOrder", promotion.getMinOrder(),
+                "startDate", promotion.getStartDate(),
+                "endDate", promotion.getEndDate(),
+                "active", promotion.isActive()
+        );
     }
 }

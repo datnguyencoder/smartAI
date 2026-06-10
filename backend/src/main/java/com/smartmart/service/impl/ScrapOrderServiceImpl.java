@@ -1,5 +1,6 @@
 package com.smartmart.service.impl;
 
+import com.smartmart.constant.AuditAction;
 import com.smartmart.dto.request.CreateScrapOrderRequest;
 import com.smartmart.dto.request.ScrapLineRequest;
 import com.smartmart.entity.*;
@@ -13,8 +14,10 @@ import com.smartmart.repository.LocationRepository;
 import com.smartmart.repository.ScrapOrderRepository;
 import com.smartmart.repository.CurrentInventoryRepository;
 import com.smartmart.security.SecurityUtils;
+import com.smartmart.service.AuditLogService;
 import com.smartmart.service.InventoryLedgerService;
 import com.smartmart.service.ItemService;
+import com.smartmart.util.AuditData;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +34,7 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
     private final ItemLotRepository itemLotRepository;
     private final ItemService itemService;
     private final InventoryLedgerService inventoryLedgerService;
+    private final AuditLogService auditLogService;
 
     private final CurrentInventoryRepository currentInventoryRepository;
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
@@ -42,7 +46,8 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
             ItemService itemService,
             InventoryLedgerService inventoryLedgerService,
             CurrentInventoryRepository currentInventoryRepository,
-            org.springframework.context.ApplicationEventPublisher eventPublisher
+            org.springframework.context.ApplicationEventPublisher eventPublisher,
+            AuditLogService auditLogService
     ) {
         this.scrapOrderRepository = scrapOrderRepository;
         this.locationRepository = locationRepository;
@@ -51,6 +56,7 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
         this.inventoryLedgerService = inventoryLedgerService;
         this.currentInventoryRepository = currentInventoryRepository;
         this.eventPublisher = eventPublisher;
+        this.auditLogService = auditLogService;
     }
 
     @Override
@@ -105,6 +111,18 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
                     line.getReason()
             );
         }
+        auditLogService.log(
+                AuditAction.SCRAP_CREATE,
+                "SCRAP_ORDER",
+                saved.getId().toString(),
+                "Tạo phiếu hủy #" + saved.getId(),
+                null,
+                AuditData.of(
+                        "locationId", saved.getLocation().getId(),
+                        "status", saved.getStatus(),
+                        "itemCount", saved.getItems().size()
+                )
+        );
         return saved;
     }
 
@@ -115,6 +133,7 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
         if (scrap.getStatus() != ScrapStatus.PENDING) {
             throw new BadRequestException("Chỉ có thể duyệt phiếu đang chờ (PENDING)");
         }
+        String beforeData = AuditData.of("status", scrap.getStatus());
         Long userId = SecurityUtils.getCurrentUserId().orElse(null);
         for (ScrapOrderItem line : scrap.getItems()) {
             inventoryLedgerService.applyMovementAndUpdateLog(
@@ -129,12 +148,28 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
                     line.getReason()
             );
         }
-        scrap.setStatus(ScrapStatus.COMPLETED);
-        ScrapOrder updated = scrapOrderRepository.save(scrap);
-        
-        eventPublisher.publishEvent(new com.smartmart.event.ScrapOrderCompletedEvent(this, updated.getId()));
+
+            scrap.setStatus(ScrapStatus.COMPLETED);
+            ScrapOrder updated = scrapOrderRepository.save(scrap);
+
+            auditLogService.log(
+                    AuditAction.SCRAP_APPROVE,
+                    "SCRAP_ORDER",
+                    updated.getId().toString(),
+                    "Duyệt phiếu hủy #" + updated.getId(),
+                    beforeData,
+                    AuditData.of("status", updated.getStatus()
+                    )
+            );
+
+            eventPublisher.publishEvent(
+                    new com.smartmart.event.ScrapOrderCompletedEvent(
+                            this, updated.getId()
+                    )
+            );
         return updated;
     }
+
     
     @Override
     @Transactional
@@ -143,13 +178,29 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
         if (scrap.getStatus() != ScrapStatus.PENDING) {
             throw new BadRequestException("Chỉ có thể hủy phiếu đang chờ (PENDING)");
         }
-        
+        String beforeData = AuditData.of("status", scrap.getStatus(),
+                "note", scrap.getNote());
+
         String oldNote = scrap.getNote() != null ? scrap.getNote() : "";
         scrap.setNote(oldNote + " | TỪ CHỐI: " + reason);
         scrap.setStatus(ScrapStatus.CANCELLED);
         
         inventoryLedgerService.deleteLogsByReference(ReferenceType.SCRAP_ORDER, scrap.getId());
-        return scrapOrderRepository.save(scrap);
+
+        ScrapOrder saved = scrapOrderRepository.save(scrap);
+        auditLogService.log(
+                AuditAction.SCRAP_CANCEL,
+                "SCRAP_ORDER",
+                saved.getId().toString(),
+                "Từ chối phiếu hủy #" + saved.getId(),
+                beforeData,
+                AuditData.of(
+                        "status", saved.getStatus(),
+                        "note", saved.getNote(),
+                        "reason", reason
+                )
+        );
+        return saved;
     }
 
     @Override

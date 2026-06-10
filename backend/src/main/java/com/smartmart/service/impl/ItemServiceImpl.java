@@ -1,6 +1,7 @@
 package com.smartmart.service.impl;
 
 import com.smartmart.common.response.PageResponse;
+import com.smartmart.constant.AuditAction;
 import com.smartmart.dto.request.CreateItemRequest;
 import com.smartmart.dto.request.UpdateItemRequest;
 import com.smartmart.dto.response.ItemResponse;
@@ -10,6 +11,7 @@ import com.smartmart.exception.BadRequestException;
 import com.smartmart.exception.NotFoundException;
 import com.smartmart.repository.*;
 import com.smartmart.service.AuditLogService;
+import com.smartmart.util.AuditData;
 import com.smartmart.util.ItemImageUrls;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -152,7 +154,14 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
                 .imageUrl(imageUrl)
                 .build();
         Item saved = itemRepository.save(item);
-        auditLogService.log("ITEM_CREATE", "Tạo sản phẩm " + saved.getItemCode() + " - " + saved.getItemName());
+        auditLogService.log(
+                AuditAction.ITEM_CREATE,
+                "ITEM",
+                saved.getId().toString(),
+                "Tạo sản phẩm: " + saved.getItemCode(),
+                null,
+                itemData(saved)
+        );
         return toResponse(saved, BigDecimal.ZERO);
     }
 
@@ -160,6 +169,7 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
     @CacheEvict(value = { "items", "itemsPage" }, allEntries = true)
     public ItemResponse update(Long id, UpdateItemRequest req) {
         Item item = findItem(id);
+        String beforeData = itemData(item);
         if (req.getItemName() != null && !req.getItemName().isBlank()) {
             item.setItemName(req.getItemName());
         }
@@ -208,7 +218,15 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
         }
         BigDecimal sold = soldQtyMap().getOrDefault(id, BigDecimal.ZERO);
         Item saved = itemRepository.save(item);
-        auditLogService.log("ITEM_UPDATE", "Cập nhật sản phẩm " + saved.getItemCode() + " - " + saved.getItemName());
+        auditLogService.log(
+                AuditAction.ITEM_UPDATE,
+                "ITEM",
+                saved.getId().toString(),
+                "Cập nhật sản phẩm: " + saved.getItemCode()
+                        + " - " + saved.getItemName(),
+                beforeData,
+                itemData(saved)
+        );
         return toResponse(saved, sold);
     }
 
@@ -277,5 +295,27 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
                 .purchaseUomId(item.getPurchaseUom() != null ? item.getPurchaseUom().getId() : null)
                 .purchaseUomName(item.getPurchaseUom() != null ? item.getPurchaseUom().getUomName() : null)
                 .build();
+    }
+
+    private String itemData(Item item) {
+        return AuditData.of(
+                "itemCode", item.getItemCode(),
+                "itemName", item.getItemName(),
+                "itemType", item.getItemType(),
+                "categoryId", item.getCategory() != null
+                        ? item.getCategory().getId()
+                        : null,
+                "baseUomId", item.getBaseUom() != null
+                        ? item.getBaseUom().getId()
+                        : null,
+                "purchaseUomId", item.getPurchaseUom() != null
+                        ? item.getPurchaseUom().getId()
+                        : null,
+                "costPrice", item.getCostPrice(),
+                "sellingPrice", item.getSellingPrice(),
+                "minimumStock", item.getMinimumStock(),
+                "hasExpiry", item.isHasExpiry(),
+                "active", item.isActive()
+        );
     }
 }

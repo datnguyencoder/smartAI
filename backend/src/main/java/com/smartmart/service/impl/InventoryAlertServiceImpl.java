@@ -1,5 +1,6 @@
 package com.smartmart.service.impl;
 
+import com.smartmart.constant.AuditAction;
 import com.smartmart.dto.response.InventoryAlertResponse;
 import com.smartmart.entity.InventoryAlert;
 import com.smartmart.entity.Item;
@@ -10,7 +11,9 @@ import com.smartmart.mapper.WmsResponseMapper;
 import com.smartmart.repository.CurrentInventoryRepository;
 import com.smartmart.repository.InventoryAlertRepository;
 import com.smartmart.repository.ItemRepository;
+import com.smartmart.service.AuditLogService;
 import com.smartmart.service.InventoryAlertService;
+import com.smartmart.util.AuditData;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,15 +28,18 @@ public class InventoryAlertServiceImpl implements InventoryAlertService {
     private final ItemRepository itemRepository;
     private final CurrentInventoryRepository currentInventoryRepository;
     private final InventoryAlertRepository inventoryAlertRepository;
+    private final AuditLogService auditLogService;
 
     public InventoryAlertServiceImpl(
             ItemRepository itemRepository,
             CurrentInventoryRepository currentInventoryRepository,
-            InventoryAlertRepository inventoryAlertRepository
+            InventoryAlertRepository inventoryAlertRepository,
+            AuditLogService auditLogService
     ) {
         this.itemRepository = itemRepository;
         this.currentInventoryRepository = currentInventoryRepository;
         this.inventoryAlertRepository = inventoryAlertRepository;
+        this.auditLogService = auditLogService;
     }
 
     @Override
@@ -61,7 +67,7 @@ public class InventoryAlertServiceImpl implements InventoryAlertService {
         if (inventoryAlertRepository.findFirstByItemIdAndAlertTypeAndResolvedFalse(item.getId(), typeName).isPresent()) {
             return;
         }
-        inventoryAlertRepository.save(InventoryAlert.builder()
+        InventoryAlert saved = inventoryAlertRepository.save(InventoryAlert.builder()
                 .item(item)
                 .alertType(typeName)
                 .severity(severity.name())
@@ -69,6 +75,19 @@ public class InventoryAlertServiceImpl implements InventoryAlertService {
                 .resolved(false)
                 .createdAt(LocalDateTime.now())
                 .build());
+        auditLogService.log(
+                AuditAction.INVENTORY_ALERT_CREATE,
+                "INVENTORY_ALERT",
+                saved.getId().toString(),
+                "Tạo cảnh báo tồn kho: " + item.getItemName(),
+                null,
+                AuditData.of(
+                        "itemId", item.getId(),
+                        "alertType", saved.getAlertType(),
+                        "severity", saved.getSeverity(),
+                        "resolved", saved.isResolved()
+                )
+        );
     }
 
     @Override
@@ -82,7 +101,19 @@ public class InventoryAlertServiceImpl implements InventoryAlertService {
     public InventoryAlertResponse resolve(Long alertId) {
         InventoryAlert alert = inventoryAlertRepository.findById(alertId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy cảnh báo"));
+        String beforeData = AuditData.of(
+                "resolved", alert.isResolved()
+        );
         alert.setResolved(true);
-        return WmsResponseMapper.toInventoryAlertResponse(inventoryAlertRepository.save(alert));
+        InventoryAlert saved = inventoryAlertRepository.save(alert);
+        auditLogService.log(
+                AuditAction.INVENTORY_ALERT_RESOLVE,
+                "INVENTORY_ALERT",
+                saved.getId().toString(),
+                "Xử lý cảnh báo tồn kho #" + saved.getId(),
+                beforeData,
+                AuditData.of("resolved", saved.isResolved())
+        );
+        return WmsResponseMapper.toInventoryAlertResponse(saved);
     }
 }

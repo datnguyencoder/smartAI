@@ -1,5 +1,6 @@
 package com.smartmart.service.impl;
 
+import com.smartmart.constant.AuditAction;
 import com.smartmart.dto.request.CreateOrderRequest;
 import com.smartmart.dto.request.OrderLineRequest;
 import com.smartmart.dto.response.OrderItemResponse;
@@ -24,6 +25,7 @@ import com.smartmart.service.InventoryAlertService;
 import com.smartmart.service.InventoryLedgerService;
 import com.smartmart.service.ItemService;
 import com.smartmart.service.PromotionService;
+import com.smartmart.util.AuditData;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -161,7 +163,21 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
         // Update reference id on logs would need second pass — acceptable for MVP
         orderEventPublisher.publishOrderCreated(saved.getId(), saved.getOrderCode());
         saved.getItems().forEach(oi -> inventoryAlertService.evaluateStockAfterSale(oi.getItem().getId()));
-        auditLogService.log("ORDER_CREATE", "Hóa đơn " + saved.getOrderCode());
+        auditLogService.log(
+                AuditAction.ORDER_CREATE,
+                "ORDER",
+                saved.getId().toString(),
+                "Tạo hóa đơn: " + saved.getOrderCode(),
+                null,
+                AuditData.of(
+                        "orderCode", saved.getOrderCode(),
+                        "customerName", saved.getCustomerName(),
+                        "paymentMethod", saved.getPaymentMethod(),
+                        "discountAmount", saved.getDiscountAmount(),
+                        "totalAmount", saved.getTotalAmount(),
+                        "status", saved.getStatus()
+                )
+        );
 
         return toResponse(saved);
     }
@@ -256,6 +272,8 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
     public OrderResponse cancel(Long id) {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new com.smartmart.exception.NotFoundException("Không tìm thấy hóa đơn"));
+        String beforeData = AuditData.of(
+                "status", order.getStatus());
         if (order.getStatus() == OrderStatus.CANCELLED) {
             throw new BadRequestException("Hóa đơn đã hủy");
         }
@@ -276,7 +294,18 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
             );
         }
         order.setStatus(OrderStatus.CANCELLED);
-        return toResponse(orderRepository.save(order));
+        Order saved = orderRepository.save(order);
+
+        auditLogService.log(
+                AuditAction.ORDER_CANCEL,
+                "ORDER",
+                saved.getId().toString(),
+                "Hủy hóa đơn: " + saved.getOrderCode(),
+                beforeData,
+                AuditData.of("status", saved.getStatus())
+        );
+
+        return toResponse(saved);
     }
 
     private OrderResponse toResponse(Order order) {
