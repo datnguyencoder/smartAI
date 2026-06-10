@@ -257,6 +257,15 @@ export function fetchNearExpiry() {
   return apiRequest<InventoryItemDto[]>('/api/v1/inventory/near-expiry');
 }
 
+export function fetchScrapOrders(status?: string) {
+  const params = new URLSearchParams();
+  if (status) {
+    params.set('status', status);
+  }
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  return apiRequest<import('../types/api').ScrapOrderDto[]>(`/api/v1/scrap-orders${qs}`);
+}
+
 export function createScrapOrder(payload: {
   locationId: number;
   items: { itemId: number; lotId?: number; quantity: number; reason?: string }[];

@@ -10,8 +10,15 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 
+import com.smartmart.enums.ReferenceType;
+
 public interface InventoryLogRepository extends JpaRepository<InventoryLog, Long> {
-    Page<InventoryLog> findByItemIdOrderByCreatedAtDesc(Long itemId, Pageable pageable);
+    Page<InventoryLog> findByItemIdOrderByIdDesc(Long itemId, Pageable pageable);
+
+    @Query("SELECT l FROM InventoryLog l WHERE l.referenceType = :refType AND l.referenceId = :refId AND l.item.id = :itemId AND ((l.lot IS NULL AND :lotId IS NULL) OR (l.lot.id = :lotId))")
+    java.util.Optional<InventoryLog> findLogForUpdate(@Param("refType") ReferenceType refType, @Param("refId") Long refId, @Param("itemId") Long itemId, @Param("lotId") Long lotId);
+
+    void deleteByReferenceTypeAndReferenceId(ReferenceType refType, Long refId);
 
     @Query("SELECT l FROM InventoryLog l " +
            "WHERE (:itemId IS NULL OR l.item.id = :itemId) " +

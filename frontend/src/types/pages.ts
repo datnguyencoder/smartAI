@@ -18,4 +18,6 @@ export type PageKey =
   | 'ai-assistant'
   | 'reports'
   | 'users'
-  | 'settings';
+  | 'settings'
+  | 'scrap-create'
+  | 'scrap-orders';

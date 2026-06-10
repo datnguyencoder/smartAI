@@ -16,6 +16,8 @@ const ACTION_LABELS: Record<string, { text: string; color: string }> = {
   SALE: { text: 'Bán hàng', color: 'red' },
   SALE_CANCEL: { text: 'Hủy bán', color: 'orange' },
   SCRAP: { text: 'Hủy hàng', color: 'volcano' },
+  SCRAP_PENDING: { text: 'Chờ loại bỏ', color: 'orange' },
+  SCRAP_COMPLETED: { text: 'Loại bỏ', color: 'volcano' },
   ADJUSTMENT: { text: 'Điều chỉnh', color: 'blue' },
 };
 
@@ -174,7 +176,7 @@ export default function InventoryLogsPage() {
             <option value="PURCHASE_RECEIVE">🟢 Nhập kho</option>
             <option value="SALE">🔴 Bán hàng</option>
             <option value="SALE_CANCEL">🟠 Hủy bán</option>
-            <option value="SCRAP">🔥 Hủy hàng</option>
+            <option value="SCRAP_COMPLETED">🔥 Loại bỏ</option>
             <option value="ADJUSTMENT">🔵 Điều chỉnh</option>
           </select>
           <RangePicker

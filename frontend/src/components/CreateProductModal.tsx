@@ -27,6 +27,8 @@ const pageTitles: Record<PageKey, { title: string }> = {
   reports: { title: 'Báo cáo hệ thống' },
   users: { title: 'Người dùng' },
   settings: { title: 'Cài đặt hệ thống' },
+  'scrap-orders': { title: 'Quản lý Yêu cầu loại bỏ hàng hóa' },
+  'scrap-create': { title: 'Tạo Yêu cầu loại bỏ hàng hóa' },
 };
 
 type Props = {

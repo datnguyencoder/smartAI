@@ -52,7 +52,7 @@ public class InventoryQueryServiceImpl implements com.smartmart.service.Inventor
     @Override
     public Page<InventoryLog> logs(Long itemId, Pageable pageable) {
         if (itemId != null) {
-            return inventoryLogRepository.findByItemIdOrderByCreatedAtDesc(itemId, pageable);
+            return inventoryLogRepository.findByItemIdOrderByIdDesc(itemId, pageable);
         }
         return inventoryLogRepository.findAll(pageable);
     }

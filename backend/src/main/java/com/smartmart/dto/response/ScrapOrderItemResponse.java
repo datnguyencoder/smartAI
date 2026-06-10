@@ -10,6 +10,8 @@ import java.math.BigDecimal;
 public class ScrapOrderItemResponse {
     private Long itemId;
     private String itemName;
+    private Long lotId;
+    private String lotNumber;
     private BigDecimal quantity;
     private String reason;
 }

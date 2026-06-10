@@ -150,7 +150,7 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
     @Override
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<OrderResponse> listPaged(int page, int size, String search, OrderStatus status, java.time.LocalDateTime fromDate, java.time.LocalDateTime toDate) {
-        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "orderDate"));
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id"));
         org.springframework.data.domain.Page<Order> orderPage = orderRepository.searchOrders(
                 (search != null && !search.trim().isEmpty()) ? search.trim() : null,
                 status,

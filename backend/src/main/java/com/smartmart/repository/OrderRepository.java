@@ -37,7 +37,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         LEFT JOIN FETCH o.items oi
         LEFT JOIN FETCH oi.item
         WHERE o.status = :status AND o.orderDate >= :since
-        ORDER BY o.orderDate DESC
+        ORDER BY o.id DESC
         """)
     List<Order> findCompletedSince(OrderStatus status, LocalDateTime since);
 
@@ -67,7 +67,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         SELECT o FROM Order o
         LEFT JOIN FETCH o.items oi
         LEFT JOIN FETCH oi.item
-        ORDER BY o.orderDate DESC
+        ORDER BY o.id DESC
         """)
     List<Order> findAllWithItems();
 
@@ -76,7 +76,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         LEFT JOIN FETCH o.items oi
         LEFT JOIN FETCH oi.item
         WHERE o.createdBy = :createdBy
-        ORDER BY o.orderDate DESC
+        ORDER BY o.id DESC
         """)
     List<Order> findByCreatedByWithItems(UUID createdBy);
 }
