@@ -22,7 +22,7 @@ public class UomServiceImpl implements com.smartmart.service.UomService {
     @Transactional(readOnly = true)
     @Override
     public List<UomResponse> listAll() {
-        return uomRepository.findAll().stream().map(this::toResponse).toList();
+        return uomRepository.findAllByOrderByIdDesc().stream().map(this::toResponse).toList();
     }
 
     @Override

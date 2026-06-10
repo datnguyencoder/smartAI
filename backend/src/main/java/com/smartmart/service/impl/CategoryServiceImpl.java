@@ -23,7 +23,7 @@ public class CategoryServiceImpl implements com.smartmart.service.CategoryServic
 
     @Transactional(readOnly = true)
     public List<CategoryResponse> listAll() {
-        return categoryRepository.findAll().stream().map(this::toResponse).toList();
+        return categoryRepository.findAllByOrderByIdDesc().stream().map(this::toResponse).toList();
     }
 
     public CategoryResponse create(CreateCategoryRequest req) {

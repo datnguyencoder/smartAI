@@ -328,7 +328,7 @@ export function fetchInventoryLogs(
   fromDate?: string,
   toDate?: string
 ) {
-  const params = new URLSearchParams({ page: String(page), size: String(size), sort: 'createdAt,desc' });
+  const params = new URLSearchParams({ page: String(page), size: String(size), sort: 'id,desc' });
   if (actionType) params.set('actionType', actionType);
   if (itemId) params.set('itemId', String(itemId));
   if (locationId) params.set('locationId', String(locationId));
