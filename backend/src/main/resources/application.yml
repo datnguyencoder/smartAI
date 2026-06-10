@@ -49,7 +49,7 @@ management:
 app:
   jwt:
     secret: ${JWT_SECRET:smartmart-super-secret-key-32-bytes-long-for-jwt-signing}
-    expiration-ms: ${JWT_EXPIRATION_MS:86400000}        # 24h access token
+    expiration-ms: ${JWT_EXPIRATION_MS:900000}        # 15 minutes
     refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000} # 7 days
   gemini:
     api-key: ${GEMINI_API_KEY:}
