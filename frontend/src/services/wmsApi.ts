@@ -1,16 +1,20 @@
 import { apiRequest, ApiClientError, setToken } from './apiClient';
 import type {
+  AuditLogDto,
   AuthDto,
   CategoryDto,
   DashboardSummaryDto,
   InventoryAlertDto,
   InventoryItemDto,
   InventoryLogDto,
+  InventoryReportDto,
   ItemDto,
   LocationDto,
   OrderDto,
   PageResponseDto,
   PurchaseOrderDto,
+  PurchaseReportDto,
+  SalesReportDto,
   SupplierDto,
   UomDto,
   UserDto,
@@ -81,12 +85,17 @@ export function resolveInventoryAlert(id: number) {
   return apiRequest<InventoryAlertDto>(`/api/v1/inventory-alerts/${id}/resolve`, { method: 'PATCH' });
 }
 
+export function fetchRecentAuditLogs(limit = 20) {
+  return apiRequest<AuditLogDto[]>(`/api/v1/audit-logs/recent?limit=${limit}`);
+}
+
 export function fetchItems(search?: string, categoryId?: number) {
   const params = new URLSearchParams();
   if (search) params.set('q', search);
   if (categoryId) params.set('categoryId', String(categoryId));
   const query = params.toString() ? `?${params.toString()}` : '';
   return apiRequest<ItemDto[]>(`/api/v1/items${query}`);
+
 }
 
 export function fetchItemsPaged(page = 0, size = 50, search?: string) {
@@ -334,4 +343,30 @@ export function aiChat(message: string) {
     method: 'POST',
     body: JSON.stringify({ message }),
   });
+}
+
+// --------- Report APIs ---------
+export function fetchSalesReport(from?: string, to?: string, groupBy?: string) {
+  const params = new URLSearchParams();
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  if (groupBy) params.set('groupBy', groupBy);
+  const qs = params.toString();
+  return apiRequest<SalesReportDto[]>(`/api/v1/reports/sales${qs ? `?${qs}` : ''}`);
+}
+
+export function fetchPurchaseReport(from?: string, to?: string) {
+  const params = new URLSearchParams();
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  const qs = params.toString();
+  return apiRequest<PurchaseReportDto[]>(`/api/v1/reports/purchase${qs ? `?${qs}` : ''}`);
+}
+
+export function fetchInventoryReport(from?: string, to?: string) {
+  const params = new URLSearchParams();
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  const qs = params.toString();
+  return apiRequest<InventoryReportDto[]>(`/api/v1/reports/inventory${qs ? `?${qs}` : ''}`);
 }

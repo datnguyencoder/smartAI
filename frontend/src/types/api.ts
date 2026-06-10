@@ -4,8 +4,7 @@ export type Role =
   | 'ROLE_MANAGER'
   | 'ROLE_STAFF'
   | 'ROLE_WAREHOUSE'
-  | 'ROLE_ANALYST'
-  | string;
+  | 'ROLE_ANALYST';
 
 export type ApiEnvelope<T> = {
   success: boolean;
@@ -132,6 +131,14 @@ export type InventoryAlertDto = {
   createdAt: string;
 };
 
+export type AuditLogDto = {
+  id: string;
+  action: string;
+  detail?: string;
+  username: string;
+  createdAt: string;
+};
+
 export type DashboardSummaryDto = {
   todayRevenue?: number;
   todayOrders?: number;
@@ -167,7 +174,50 @@ export type UpdateUserPayload = {
   fullName?: string;
   email?: string;
   role?: Role;
-  status?: UserStatus;
+};
+
+// --------- Report DTOs ---------
+export type TopProductDto = {
+  itemId: number;
+  itemCode: string;
+  itemName: string;
+  quantitySold: number;
+  revenue: number;
+};
+
+export type SalesReportDto = {
+  period: string;
+  totalOrders: number;
+  cancelledOrders: number;
+  totalRevenue: number;
+  totalCost: number;
+  grossProfit: number;
+  totalItemsSold: number;
+  topProducts: TopProductDto[];
+};
+
+export type PurchaseReportDto = {
+  supplierId: number;
+  supplierName: string;
+  totalOrders: number;
+  totalAmount: number;
+  totalItemTypes: number;
+  totalQuantity: number;
+};
+
+export type InventoryReportDto = {
+  itemId: number;
+  itemCode: string;
+  itemName: string;
+  categoryName: string;
+  currentStock: number;
+  totalPurchased: number;
+  totalSold: number;
+  totalScrapped: number;
+  shrinkage: number;
+  turnoverRate: number;
+  nearestExpiryDate?: string;
+  daysUntilExpiry?: number;
 };
 
 export type InventoryLogDto = {

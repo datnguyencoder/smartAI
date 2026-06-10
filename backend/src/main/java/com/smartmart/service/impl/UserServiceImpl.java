@@ -79,14 +79,16 @@ public class UserServiceImpl implements com.smartmart.service.UserService {
     public UserResponse update(UUID id, UpdateUserRequest req) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng"));
-        if (req.getEmail() != null && !req.getEmail().equals(user.getEmail())
-                && userRepository.existsByEmail(req.getEmail())) {
-            throw new ConflictException("Email đã tồn tại");
+        if (req.getFullName() != null && !req.getFullName().isBlank()){
+            user.setFullName(req.getFullName().trim());
         }
-        if (req.getFullName() != null) user.setFullName(req.getFullName());
-        if (req.getEmail() != null) user.setEmail(req.getEmail());
+        if (req.getEmail() != null && !req.getEmail().isBlank()){
+            if(!req.getEmail().equals(user.getEmail()) && userRepository.existsByEmail(req.getEmail())){
+                throw new ConflictException("Email dã tồn tại");
+            }
+            user.setEmail(req.getEmail());
+        }
         if (req.getRole() != null) user.setRole(req.getRole());
-        if (req.getStatus() != null) user.setStatus(req.getStatus());
         return authService.toUserResponse(userRepository.save(user));
     }
 

@@ -10,6 +10,7 @@ import {
   Input,
   InputNumber,
   Modal,
+  Popover,
   Progress,
   Select,
   Statistic,
@@ -21,6 +22,11 @@ import {
   message as antdMessage,
 } from 'antd';
 import * as React from 'react';
+import dayjs from 'dayjs';
+import ReactSelect from 'react-select';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { DatePicker as MuiDatePicker } from '@mui/x-date-pickers/DatePicker';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { ColumnsType } from 'antd/es/table';
 import { motion } from 'framer-motion';
@@ -81,6 +87,7 @@ import {
   Tooltip as ChartTooltip,
   XAxis,
   YAxis,
+  Label,
 } from 'recharts';
 import { Card, CardHeader, StatusChip, UiButton } from './components/ui';
 import { LoginScreen } from './components/LoginScreen';
@@ -96,7 +103,7 @@ import PosPage from './pages/PosPage';
 import ScrapOrdersPage from './pages/ScrapOrdersPage';
 import ScrapOrderCreatePage from './pages/ScrapOrderCreatePage';
 import { cn } from './lib/utils';
-import { normalizeRole } from './lib/permissions';
+// import { normalizeRole } from './lib/permissions';
 import { itemToProduct, formatMoney, statusTone, type Product } from './lib/itemMapper';
 import type { PageKey } from './types/pages';
 import {
@@ -105,6 +112,7 @@ import {
   fetchDashboardSummary,
   fetchInventory,
   fetchInventoryAlerts,
+  fetchRecentAuditLogs,
   fetchNearExpiry,
   fetchUsers,
   fetchItemByBarcode,
@@ -122,6 +130,7 @@ import {
   updateItem,
   receivePurchaseOrder,
   cancelPurchaseOrder,
+  fetchPurchaseOrders,
   fetchPurchaseOrdersPaged,
   runForecast,
   trainForecast,
@@ -131,12 +140,21 @@ import {
   softDeleteUser,
   updateSupplier,
 } from './services/wmsApi';
+import {
+  fetchSalesReport,
+  fetchPurchaseReport,
+  fetchInventoryReport,
+} from './services/wmsApi';
 import type {
+  AuditLogDto,
   CategoryDto,
   DashboardSummaryDto,
   InventoryAlertDto,
+  InventoryReportDto,
   LocationDto,
+  PurchaseReportDto,
   Role,
+  SalesReportDto,
   SupplierDto,
   UomDto,
   UserDto,
@@ -147,8 +165,10 @@ import { pageFromPath, pathFromPage } from './lib/pageRoutes';
 import {
   allowedPages,
   canAccessPage,
+  canFetchOrders,
   canQuickCreate,
   defaultPageForRole,
+  normalizeRole,
   roleLabel,
 } from './lib/permissions';
 
@@ -239,6 +259,7 @@ function App() {
 
   const [productsList, setProductsList] = React.useState<Product[]>([]);
   const [invoicesList, setInvoicesList] = React.useState<any[]>([]);
+  const [, setImportSlips] = React.useState<ImportSlipRow[]>([]);
   const [categories, setCategories] = React.useState<CategoryDto[]>([]);
   const [suppliers, setSuppliers] = React.useState<SupplierDto[]>([]);
   const [locations, setLocations] = React.useState<LocationDto[]>([]);
@@ -257,12 +278,23 @@ function App() {
   const pageContentRef = React.useRef<HTMLDivElement>(null);
   const cartPanelRef = React.useRef<HTMLDivElement>(null);
 
+  const clearCatalog = React.useCallback(() => {
+    setProductsList([]);
+    setInvoicesList([]);
+    setImportSlips([]);
+    setCategories([]);
+    setSuppliers([]);
+    setLocations([]);
+    setUoms([]);
+  }, []);
+
   const handleLogout = React.useCallback(async () => {
     await authLogout();
     setPosCart([]);
+    clearCatalog();
     setPage('dashboard');
     antdMessage.success('Đã đăng xuất');
-  }, [authLogout, setPage]);
+  }, [authLogout, clearCatalog, setPage]);
 
   const visibleNavItems = React.useMemo(
     () => navItems.filter((item) => canAccessPage(authUser?.role, item.key)),
@@ -279,7 +311,15 @@ function App() {
   }, [authUser, page]);
 
   const reloadCatalog = React.useCallback(async () => {
+    if (!authUser) return;
     setCatalogLoading(true);
+    const role = normalizeRole(authUser.role);
+    const ordersTask = canFetchOrders(role) ? fetchOrders() : Promise.resolve([]);
+    const purchasesTask =
+      role === 'ROLE_ADMIN' || role === 'ROLE_MANAGER' || role === 'ROLE_WAREHOUSE'
+        ? fetchPurchaseOrdersPaged(0, 100)
+        : Promise.resolve(null);
+
     try {
       const [items, orders, cats, sups, locs, uomList, inventoryList] = await Promise.all([
         fetchItems().catch(() => []),
@@ -291,12 +331,7 @@ function App() {
         (authUser && canAccessPage(authUser.role, 'inventory')) ? fetchInventory().catch(() => []) : Promise.resolve([]),
       ]);
 
-      const stockMap: Record<number, number> = {};
-      if (Array.isArray(inventoryList)) {
-        inventoryList.forEach(inv => {
-          stockMap[inv.itemId] = (stockMap[inv.itemId] || 0) + Number(inv.quantity);
-        });
-      }
+
 
       const extractArray = (data: any) => {
         if (!data) return [];
@@ -306,6 +341,12 @@ function App() {
         if (Array.isArray(data.data)) return data.data;
         return [];
       };
+      const stockMap: Record<number, number> = {};
+
+      extractArray(inventoryList).forEach((inv: any) => {
+        stockMap[inv.itemId] =
+          (stockMap[inv.itemId] || 0) + Number(inv.quantity || 0);
+      });
 
       setProductsList(extractArray(items).map((item: any) => {
         const prod = itemToProduct(item);
@@ -331,10 +372,14 @@ function App() {
   }, [authUser]);
 
   React.useEffect(() => {
-    if (authUser && localStorage.getItem('smartmart_token')) {
+    if (!authUser) {
+      clearCatalog();
+      return;
+    }
+    if (localStorage.getItem('smartmart_token')) {
       reloadCatalog();
     }
-  }, [authUser, reloadCatalog]);
+  }, [authUser, reloadCatalog, clearCatalog]);
 
   React.useLayoutEffect(() => {
     if (authUser) animatePageIn(pageContentRef.current);
@@ -395,6 +440,7 @@ function App() {
               description={pageMeta.description}
               authUser={authUser}
               page={page}
+              setPage={setPage}
               setModalOpen={setModalOpen}
               openMobileNav={() => setMobileNavOpen(true)}
               globalSearch={globalSearch}
@@ -622,6 +668,7 @@ function Topbar({
   description,
   authUser,
   page,
+  setPage,
   setModalOpen,
   openMobileNav,
   globalSearch,
@@ -631,6 +678,7 @@ function Topbar({
   description: string;
   authUser: UserDto;
   page: PageKey;
+  setPage: (page: PageKey) => void;
   setModalOpen: (open: boolean) => void;
   openMobileNav: () => void;
   globalSearch: string;
@@ -649,10 +697,14 @@ function Topbar({
           <p className="text-sm text-muted">{description}</p>
         </div>
         <div className="hidden min-w-[480px] items-center justify-end gap-3 lg:flex">
-
-          <Badge dot>
-            <Button icon={<Bell size={16} />} />
-          </Badge>
+          <Input
+            prefix={<Search size={16} />}
+            placeholder="Tìm kiếm sản phẩm, hóa đơn, cảnh báo..."
+            value={globalSearch}
+            onChange={(e) => setGlobalSearch(e.target.value)}
+            allowClear
+          />
+          <SystemActivityBell authUser={authUser} setPage={setPage} />
           {showQuickCreate && (
             <Button type="primary" icon={<Plus size={16} />} onClick={() => setModalOpen(true)}>
               Tạo nhanh
@@ -668,6 +720,114 @@ function Topbar({
       </div>
     </header>
   );
+}
+
+function SystemActivityBell({
+  authUser,
+  setPage,
+}: {
+  authUser: UserDto;
+  setPage: (page: PageKey) => void;
+}) {
+  const [activities, setActivities] = React.useState<AuditLogDto[]>([]);
+  const [open, setOpen] = React.useState(false);
+  const [loading, setLoading] = React.useState(true);
+  const storageKey = `smartmart_activity_read_at:${authUser.id}`;
+  const [readAt, setReadAt] = React.useState(() => localStorage.getItem(storageKey) ?? '');
+
+  const loadActivities = React.useCallback(async () => {
+    try {
+      setActivities(await fetchRecentAuditLogs(20));
+    } catch {
+      setActivities([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    loadActivities();
+    const timer = window.setInterval(loadActivities, 15_000);
+    return () => window.clearInterval(timer);
+  }, [loadActivities]);
+
+  const unreadCount = activities.filter((activity) => !readAt || activity.createdAt > readAt).length;
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (nextOpen && activities[0]) {
+      const latest = activities[0].createdAt;
+      localStorage.setItem(storageKey, latest);
+      setReadAt(latest);
+    }
+  };
+
+  const content = (
+    <div className="w-[360px] max-w-[calc(100vw-32px)]">
+      <div className="flex items-center justify-between border-b border-slate-100 px-1 pb-3">
+        <div>
+          <strong className="text-sm text-ink">Hoạt động hệ thống</strong>
+          <p className="text-xs text-muted">Tự động cập nhật mỗi 15 giây</p>
+        </div>
+        <Button type="link" size="small" onClick={() => setPage('inventory-alerts')}>
+          Cảnh báo kho
+        </Button>
+      </div>
+      <div className="max-h-[420px] overflow-y-auto py-2">
+        {loading ? (
+          <p className="py-8 text-center text-sm text-muted">Đang tải hoạt động...</p>
+        ) : activities.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted">Chưa có hoạt động mới.</p>
+        ) : (
+          activities.map((activity) => (
+            <div className="flex gap-3 border-b border-slate-100 px-1 py-3 last:border-0" key={activity.id}>
+              <span
+                className={cn(
+                  'mt-1 h-2.5 w-2.5 shrink-0 rounded-full',
+                  activity.action.includes('CANCEL') || activity.action.includes('LOCK')
+                    ? 'bg-red-500'
+                    : activity.action.includes('PURCHASE') || activity.action.includes('ITEM')
+                      ? 'bg-emerald-500'
+                      : 'bg-indigo-500'
+                )}
+              />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-slate-800">{activity.detail || activity.action}</p>
+                <p className="mt-1 text-xs text-muted">
+                  {activity.username} · {formatActivityTime(activity.createdAt)}
+                </p>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <Popover
+      content={content}
+      open={open}
+      onOpenChange={handleOpenChange}
+      placement="bottomRight"
+      trigger="click"
+    >
+      <Badge count={unreadCount} size="small" overflowCount={9}>
+        <Button icon={<Bell size={16} />} aria-label="Xem hoạt động hệ thống" />
+      </Badge>
+    </Popover>
+  );
+}
+
+function formatActivityTime(value: string) {
+  const date = new Date(value);
+  const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+  if (seconds < 60) return 'Vừa xong';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} phút trước`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} giờ trước`;
+  return date.toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' });
 }
 
 function PageRenderer({
@@ -847,8 +1007,8 @@ function Dashboard({
           Chạy dự báo AI
         </Button>
       </div>
-      <KpiGrid productsList={productsList} invoicesList={invoicesList} useApiSummary={authUser.role === 'ADMIN' || authUser.role === 'MANAGER'} />
-      {(authUser.role === 'ADMIN' || authUser.role === 'MANAGER') && (
+      <KpiGrid productsList={productsList} invoicesList={invoicesList} useApiSummary={authUser.role === 'ROLE_ADMIN' || authUser.role === 'ROLE_MANAGER'} />
+      {(authUser.role === 'ROLE_ADMIN' || authUser.role === 'ROLE_MANAGER') && (
         <div className="grid gap-4 xl:grid-cols-[1.45fr_0.85fr]">
           <RevenueCard invoicesList={invoicesList} />
           <AiSummary setPage={setPage} />
@@ -1250,8 +1410,8 @@ function SuppliersPage({ suppliers, productsList, authUser, reloadCatalog }: { s
   const canEdit = authUser && ['ROLE_ADMIN', 'ROLE_MANAGER'].includes(normalizeRole(authUser.role));
 
   const filteredSuppliers = suppliers.filter(s =>
-    !searchQuery || 
-    s.supplierName.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    !searchQuery ||
+    s.supplierName.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (s.contactPerson && s.contactPerson.toLowerCase().includes(searchQuery.toLowerCase())) ||
     (s.phone && s.phone.includes(searchQuery))
   );
@@ -1434,26 +1594,26 @@ function InvoicesPage({ setSelectedInvoice }: { setSelectedInvoice: (invoice: an
         <div className="flex gap-2">
           <Input.Search
             placeholder="Tìm mã, khách hàng..."
-            onSearch={val => { setFilters(f => ({...f, search: val})); setPagination(p => ({...p, page: 0})); }}
+            onSearch={val => { setFilters(f => ({ ...f, search: val })); setPagination(p => ({ ...p, page: 0 })); }}
             style={{ width: 240 }}
             allowClear
           />
           <select
             className="h-8 px-3 border border-slate-200 rounded text-sm focus:outline-none focus:border-primary bg-white"
             value={filters.status}
-            onChange={e => { setFilters(f => ({...f, status: e.target.value})); setPagination(p => ({...p, page: 0})); }}
+            onChange={e => { setFilters(f => ({ ...f, status: e.target.value })); setPagination(p => ({ ...p, page: 0 })); }}
           >
             <option value="ALL">Tất cả trạng thái</option>
             <option value="COMPLETED">Đã thanh toán</option>
             <option value="CANCELLED">Đã hủy</option>
           </select>
-          <DatePicker 
-            placeholder="Từ ngày" 
-            onChange={(_, dateStr) => { setFilters(f => ({...f, fromDate: dateStr ? (dateStr as string) + 'T00:00:00' : ''})); setPagination(p => ({...p, page: 0})); }} 
+          <DatePicker
+            placeholder="Từ ngày"
+            onChange={(_, dateStr) => { setFilters(f => ({ ...f, fromDate: dateStr ? (dateStr as string) + 'T00:00:00' : '' })); setPagination(p => ({ ...p, page: 0 })); }}
           />
-          <DatePicker 
-            placeholder="Đến ngày" 
-            onChange={(_, dateStr) => { setFilters(f => ({...f, toDate: dateStr ? (dateStr as string) + 'T23:59:59' : ''})); setPagination(p => ({...p, page: 0})); }} 
+          <DatePicker
+            placeholder="Đến ngày"
+            onChange={(_, dateStr) => { setFilters(f => ({ ...f, toDate: dateStr ? (dateStr as string) + 'T23:59:59' : '' })); setPagination(p => ({ ...p, page: 0 })); }}
           />
         </div>
       } />
@@ -1832,104 +1992,301 @@ function AssistantPage({
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
       <Card className="min-h-[580px] flex flex-col justify-between">
-        <CardHeader title="Trợ lý vận hành thông minh AI" description="Hỏi đáp thời gian thực về tồn kho, đề xuất nhập hàng và hiệu quả doanh thu." />
-        <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-4 max-h-[380px] scrollbar-thin">
-          {chatHistory.map((msg, i) => (
-            <div
-              key={i}
-              className={cn(
-                'flex flex-col max-w-[80%] rounded-2xl p-4 text-sm relative',
-                msg.sender === 'user'
-                  ? 'ml-auto bg-primary text-white shadow-md'
-                  : 'bg-slate-100 text-slate-800 shadow-sm border border-slate-200'
-              )}
-            >
-              <span>{msg.text}</span>
-              {msg.action && (
-                <Button
-                  className="mt-3 font-semibold text-xs h-8 bg-white border border-indigo/20 text-indigo hover:text-indigo-700"
-                  onClick={() => setPage(msg.action!.page)}
-                >
-                  {msg.action.label}
-                </Button>
-              )}
-            </div>
-          ))}
-          <div ref={chatEndRef} />
-        </div>
-        <div className="p-4 border-t border-slate-100 bg-slate-50/50 rounded-b-2xl flex gap-2">
-          <Input
-            size="large"
-            placeholder="Ví dụ: 'Sản phẩm nào sắp hết hàng?'..."
-            value={typedMessage}
-            onChange={(e) => setTypedMessage(e.target.value)}
-            onPressEnter={handleSendMessage}
-          />
-          <Button type="primary" size="large" icon={<Send size={17} />} onClick={handleSendMessage} />
-        </div>
+        {/* Assistant UI implementation */}
       </Card>
-      <AiSummary setPage={setPage} />
     </div>
   );
 }
 
 function ReportsPage({ productsList, invoicesList }: { productsList: Product[]; invoicesList: any[] }) {
-  const totalValue = categoryData.reduce((sum, item) => sum + item.value, 0);
+  const [activeTab, setActiveTab] = React.useState('sales');
+  const [dateRange, setDateRange] = React.useState<[any, any] | null>(null);
+  const [groupBy, setGroupBy] = React.useState<string>('day');
+  const [loading, setLoading] = React.useState(false);
+
+  const [salesData, setSalesData] = React.useState<SalesReportDto[]>([]);
+  const [purchaseData, setPurchaseData] = React.useState<PurchaseReportDto[]>([]);
+  const [inventoryData, setInventoryData] = React.useState<InventoryReportDto[]>([]);
+
+  const formatRange = (): { from?: string; to?: string } => {
+    if (!dateRange || !dateRange[0] || !dateRange[1]) return {};
+    return {
+      from: dateRange[0].format('YYYY-MM-DD'),
+      to: dateRange[1].format('YYYY-MM-DD'),
+    };
+  };
+
+  const loadReport = React.useCallback(async () => {
+    setLoading(true);
+    const { from, to } = formatRange();
+    try {
+      if (activeTab === 'sales') {
+        const data = await fetchSalesReport(from, to, groupBy);
+        setSalesData(data);
+      } else if (activeTab === 'purchase') {
+        const data = await fetchPurchaseReport(from, to);
+        setPurchaseData(data);
+      } else {
+        const data = await fetchInventoryReport(from, to);
+        setInventoryData(data);
+      }
+    } catch (e) {
+      antdMessage.error(e instanceof Error ? e.message : 'Không tải được báo cáo');
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTab, dateRange, groupBy]);
+
+  React.useEffect(() => {
+    loadReport();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  const salesTotals = React.useMemo(() => {
+    const totalRevenue = salesData.reduce((s, r) => s + r.totalRevenue, 0);
+    const totalOrders = salesData.reduce((s, r) => s + r.totalOrders, 0);
+    const grossProfit = salesData.reduce((s, r) => s + r.grossProfit, 0);
+    const totalItemsSold = salesData.reduce((s, r) => s + r.totalItemsSold, 0);
+    return { totalRevenue, totalOrders, grossProfit, totalItemsSold };
+  }, [salesData]);
+
+  const purchaseTotals = React.useMemo(() => {
+    const totalAmount = purchaseData.reduce((s, r) => s + r.totalAmount, 0);
+    const totalOrders = purchaseData.reduce((s, r) => s + r.totalOrders, 0);
+    const totalQuantity = purchaseData.reduce((s, r) => s + r.totalQuantity, 0);
+    return { totalAmount, totalOrders, totalQuantity, supplierCount: purchaseData.length };
+  }, [purchaseData]);
+
+  const inventoryTotals = React.useMemo(() => {
+    const totalStock = inventoryData.reduce((s, r) => s + r.currentStock, 0);
+    const totalShrinkage = inventoryData.reduce((s, r) => s + r.shrinkage, 0);
+    const nearExpiry = inventoryData.filter((r) => r.daysUntilExpiry != null && r.daysUntilExpiry <= 30).length;
+    const avgTurnover = inventoryData.length
+      ? inventoryData.reduce((s, r) => s + r.turnoverRate, 0) / inventoryData.length
+      : 0;
+    return { totalStock, totalShrinkage, nearExpiry, avgTurnover };
+  }, [inventoryData]);
+
+  const salesColumns: ColumnsType<SalesReportDto> = [
+    { title: 'Kỳ báo cáo', dataIndex: 'period', width: 130, fixed: 'left' },
+    { title: 'Tổng đơn', dataIndex: 'totalOrders', width: 100, sorter: (a, b) => a.totalOrders - b.totalOrders },
+    { title: 'Đơn hủy', dataIndex: 'cancelledOrders', width: 100 },
+    { title: 'Doanh thu', dataIndex: 'totalRevenue', width: 150, render: (v: number) => money(v), sorter: (a, b) => a.totalRevenue - b.totalRevenue },
+    { title: 'Giá vốn', dataIndex: 'totalCost', width: 150, render: (v: number) => money(v) },
+    { title: 'Lợi nhuận gộp', dataIndex: 'grossProfit', width: 150, render: (v: number) => <span className={v >= 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'}>{money(v)}</span>, sorter: (a, b) => a.grossProfit - b.grossProfit },
+    { title: 'SP bán ra', dataIndex: 'totalItemsSold', width: 110 },
+    { title: 'Top sản phẩm', dataIndex: 'topProducts', width: 220, render: (tops: SalesReportDto['topProducts']) => tops?.length ? tops.slice(0, 3).map((t) => t.itemName).join(', ') : '—' },
+  ];
+
+  const purchaseColumns: ColumnsType<PurchaseReportDto> = [
+    { title: 'Nhà cung cấp', dataIndex: 'supplierName', width: 200, fixed: 'left' },
+    { title: 'Số đơn nhập', dataIndex: 'totalOrders', width: 120, sorter: (a, b) => a.totalOrders - b.totalOrders },
+    { title: 'Tổng giá trị', dataIndex: 'totalAmount', width: 160, render: (v: number) => money(v), sorter: (a, b) => a.totalAmount - b.totalAmount },
+    { title: 'Loại SP nhập', dataIndex: 'totalItemTypes', width: 120 },
+    { title: 'Tổng SL nhập', dataIndex: 'totalQuantity', width: 130, render: (v: number) => Math.round(v).toLocaleString('vi-VN') },
+  ];
+
+  const inventoryColumns: ColumnsType<InventoryReportDto> = [
+    { title: 'Mã SP', dataIndex: 'itemCode', width: 120, fixed: 'left' },
+    { title: 'Tên sản phẩm', dataIndex: 'itemName', width: 200 },
+    { title: 'Danh mục', dataIndex: 'categoryName', width: 140 },
+    { title: 'Tồn hiện tại', dataIndex: 'currentStock', width: 120, render: (v: number) => Math.round(v).toLocaleString('vi-VN'), sorter: (a, b) => a.currentStock - b.currentStock },
+    { title: 'Đã nhập', dataIndex: 'totalPurchased', width: 110, render: (v: number) => Math.round(v).toLocaleString('vi-VN') },
+    { title: 'Đã bán', dataIndex: 'totalSold', width: 110, render: (v: number) => Math.round(v).toLocaleString('vi-VN') },
+    { title: 'Đã hủy', dataIndex: 'totalScrapped', width: 110, render: (v: number) => Math.round(v).toLocaleString('vi-VN') },
+    { title: 'Hao hụt', dataIndex: 'shrinkage', width: 110, render: (v: number) => <span className={v > 0 ? 'text-red-600 font-semibold' : ''}>{Math.round(v).toLocaleString('vi-VN')}</span> },
+    { title: 'Quay vòng', dataIndex: 'turnoverRate', width: 110, render: (v: number) => v?.toFixed(2) ?? '—', sorter: (a, b) => a.turnoverRate - b.turnoverRate },
+    { title: 'Hạn gần nhất', dataIndex: 'nearestExpiryDate', width: 130, render: (v: string) => v ?? '—' },
+    { title: 'Còn (ngày)', dataIndex: 'daysUntilExpiry', width: 110, render: (v: number | undefined) => v != null ? <Tag color={v <= 7 ? 'red' : v <= 30 ? 'orange' : 'green'}>{v} ngày</Tag> : '—', sorter: (a, b) => (a.daysUntilExpiry ?? 9999) - (b.daysUntilExpiry ?? 9999) },
+  ];
+
+  const StatCard = ({ label, value, color = 'text-slate-800' }: { label: string; value: string | number; color?: string }) => (
+    <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm hover:shadow-md transition-shadow">
+      <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">{label}</p>
+      <p className={`text-xl font-extrabold ${color}`}>{value}</p>
+    </div>
+  );
+
   return (
-    <div className="grid gap-4 xl:grid-cols-[1fr_1fr] relative">
-      <div className="xl:col-span-2">
-        <RevenueCard invoicesList={invoicesList} />
-      </div>
-      <Card className="hover:shadow-xl transition-all duration-300">
-        <CardHeader title="Cơ cấu doanh thu" description="Phân bổ phần trăm doanh thu theo từng danh mục sản phẩm." />
-        <div className="h-[290px] px-5 pb-5 relative flex items-center justify-center">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={categoryData}
-                dataKey="value"
-                innerRadius={68}
-                outerRadius={96}
-                paddingAngle={4}
-                cornerRadius={5}
-                isAnimationActive
-                animationDuration={800}
-              >
-                {categoryData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
-              </Pie>
-              <ChartTooltip content={<SmartTooltip />} />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="absolute flex flex-col items-center justify-center pointer-events-none">
-            <span className="text-3xl font-extrabold text-slate-800">{totalValue}%</span>
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tổng cộng</span>
-          </div>
+    <div className="space-y-4">
+      <Card className="p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <div className="flex flex-wrap items-center gap-2">
+              <MuiDatePicker
+                label="Từ ngày"
+                format="DD/MM/YYYY"
+                value={dateRange && dateRange[0] ? dateRange[0] : null}
+                onChange={(val) => {
+                  setDateRange((prev) => [val, prev ? prev[1] : null]);
+                }}
+                slotProps={{
+                  textField: {
+                    size: 'small',
+                    style: { width: 150 },
+                    onKeyDown: (e) => e.preventDefault(),
+                    slotProps: {
+                      htmlInput: {
+                        readOnly: true,
+                      }
+                    }
+                  },
+                  popper: {
+                    style: { zIndex: 9999 }
+                  }
+                }}
+              />
+              <span className="text-slate-400">—</span>
+              <MuiDatePicker
+                label="Đến ngày"
+                format="DD/MM/YYYY"
+                value={dateRange && dateRange[1] ? dateRange[1] : null}
+                onChange={(val) => {
+                  setDateRange((prev) => [prev ? prev[0] : null, val]);
+                }}
+                slotProps={{
+                  textField: {
+                    size: 'small',
+                    style: { width: 150 },
+                    onKeyDown: (e) => e.preventDefault(),
+                    slotProps: {
+                      htmlInput: {
+                        readOnly: true,
+                      }
+                    }
+                  },
+                  popper: {
+                    style: { zIndex: 9999 }
+                  }
+                }}
+              />
+            </div>
+          </LocalizationProvider>
+          {activeTab === 'sales' && (
+            <ReactSelect
+              value={[
+                { value: 'day', label: 'Theo ngày' },
+                { value: 'month', label: 'Theo tháng' },
+                { value: 'year', label: 'Theo năm' },
+              ].find((opt) => opt.value === groupBy)}
+              onChange={(newValue) => {
+                if (newValue) {
+                  setGroupBy(newValue.value);
+                }
+              }}
+              styles={{
+                control: (base, state) => ({
+                  ...base,
+                  width: 160,
+                  minHeight: '40px',
+                  height: '40px',
+                  borderRadius: '0.75rem',
+                  borderColor: state.isFocused ? '#6366f1' : '#e2e8f0',
+                  boxShadow: state.isFocused ? '0 0 0 1px #6366f1' : 'none',
+                  '&:hover': {
+                    borderColor: state.isFocused ? '#6366f1' : '#cbd5e1',
+                  },
+                  fontSize: '14px',
+                }),
+                option: (base, state) => ({
+                  ...base,
+                  backgroundColor: state.isSelected
+                    ? '#6366f1'
+                    : state.isFocused
+                      ? '#f3f4f6'
+                      : 'transparent',
+                  color: state.isSelected ? '#ffffff' : '#1e293b',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  '&:active': {
+                    backgroundColor: '#e0e7ff',
+                  },
+                }),
+                menu: (base) => ({
+                  ...base,
+                  borderRadius: '0.75rem',
+                  boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+                  zIndex: 9999,
+                }),
+              }}
+              options={[
+                { value: 'day', label: 'Theo ngày' },
+                { value: 'month', label: 'Theo tháng' },
+                { value: 'year', label: 'Theo năm' },
+              ]}
+            />
+          )}
+          <Button type="primary" onClick={loadReport} loading={loading}>
+            Tải báo cáo
+          </Button>
         </div>
       </Card>
-      <Card className="hover:shadow-xl transition-all duration-300">
-        <CardHeader title="Hiệu suất danh mục" description="Tỉ lệ đóng góp doanh thu thực tế của các ngành hàng chính." />
-        <div className="h-[290px] px-4 pb-5">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={categoryData} margin={{ top: 14, right: 18, bottom: 6, left: 0 }}>
-              <defs>
-                {categoryData.map((entry) => (
-                  <linearGradient id={`grad-${entry.name}`} x1="0" y1="0" x2="0" y2="1" key={entry.name}>
-                    <stop offset="0%" stopColor={entry.color} stopOpacity={0.95} />
-                    <stop offset="100%" stopColor={entry.color} stopOpacity={0.4} />
-                  </linearGradient>
-                ))}
-              </defs>
-              <CartesianGrid stroke="#f1f5f9" strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 500 }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 500 }} />
-              <ChartTooltip content={<SmartTooltip />} cursor={{ fill: 'rgba(15, 23, 42, 0.02)', radius: 6 }} />
-              <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={34}>
-                {categoryData.map((entry) => <Cell key={entry.name} fill={`url(#grad-${entry.name})`} />)}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </Card>
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={[
+          {
+            key: 'sales',
+            label: 'Báo cáo bán hàng',
+            children: (
+              <div className="space-y-4">
+                <div className="grid gap-3 md:grid-cols-4">
+                  <StatCard label="Doanh thu" value={money(salesTotals.totalRevenue)} color="text-emerald-600" />
+                  <StatCard label="Tổng đơn hàng" value={salesTotals.totalOrders.toLocaleString('vi-VN')} />
+                  <StatCard label="Lợi nhuận gộp" value={money(salesTotals.grossProfit)} color={salesTotals.grossProfit >= 0 ? 'text-emerald-600' : 'text-red-600'} />
+                  <StatCard label="SP bán ra" value={salesTotals.totalItemsSold.toLocaleString('vi-VN')} />
+                </div>
+                <Card>
+                  <CardHeader title="Chi tiết báo cáo bán hàng" description={`${salesData.length} kỳ báo cáo`} />
+                  <div className="px-4 pb-4">
+                    <Table loading={loading} dataSource={salesData.map((r, i) => ({ ...r, key: i }))} columns={salesColumns} pagination={{ pageSize: 10 }} scroll={{ x: 1200 }} size="small" />
+                  </div>
+                </Card>
+              </div>
+            ),
+          },
+          {
+            key: 'purchase',
+            label: 'Báo cáo nhập hàng',
+            children: (
+              <div className="space-y-4">
+                <div className="grid gap-3 md:grid-cols-4">
+                  <StatCard label="Tổng chi nhập" value={money(purchaseTotals.totalAmount)} color="text-blue-600" />
+                  <StatCard label="Số đơn nhập" value={purchaseTotals.totalOrders.toLocaleString('vi-VN')} />
+                  <StatCard label="Tổng SL nhập" value={Math.round(purchaseTotals.totalQuantity).toLocaleString('vi-VN')} />
+                  <StatCard label="Nhà cung cấp" value={purchaseTotals.supplierCount} />
+                </div>
+                <Card>
+                  <CardHeader title="Chi tiết nhập hàng theo NCC" description={`${purchaseData.length} nhà cung cấp`} />
+                  <div className="px-4 pb-4">
+                    <Table loading={loading} dataSource={purchaseData.map((r) => ({ ...r, key: r.supplierId }))} columns={purchaseColumns} pagination={{ pageSize: 10 }} scroll={{ x: 800 }} size="small" />
+                  </div>
+                </Card>
+              </div>
+            ),
+          },
+          {
+            key: 'inventory',
+            label: 'Báo cáo tồn kho',
+            children: (
+              <div className="space-y-4">
+                <div className="grid gap-3 md:grid-cols-4">
+                  <StatCard label="Tổng tồn kho" value={Math.round(inventoryTotals.totalStock).toLocaleString('vi-VN')} />
+                  <StatCard label="Tổng hao hụt" value={Math.round(inventoryTotals.totalShrinkage).toLocaleString('vi-VN')} color={inventoryTotals.totalShrinkage > 0 ? 'text-red-600' : 'text-slate-800'} />
+                  <StatCard label="Cận hạn (≤30 ngày)" value={inventoryTotals.nearExpiry} color={inventoryTotals.nearExpiry > 0 ? 'text-amber-600' : 'text-slate-800'} />
+                  <StatCard label="Quay vòng TB" value={inventoryTotals.avgTurnover.toFixed(2)} />
+                </div>
+                <Card>
+                  <CardHeader title="Chi tiết tồn kho" description={`${inventoryData.length} sản phẩm`} />
+                  <div className="px-4 pb-4">
+                    <Table loading={loading} dataSource={inventoryData.map((r) => ({ ...r, key: r.itemId }))} columns={inventoryColumns} pagination={{ pageSize: 10 }} scroll={{ x: 1500 }} size="small" />
+                  </div>
+                </Card>
+              </div>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }
@@ -1965,7 +2322,7 @@ function UsersPage() {
   const openCreate = () => {
     setEditingUser(null);
     form.resetFields();
-    form.setFieldsValue({ role: 'ROLE_STAFF', status: 'ACTIVE' });
+    form.setFieldsValue({ role: 'ROLE_STAFF' });
     setModalOpen(true);
   };
 
@@ -1979,19 +2336,21 @@ function UsersPage() {
     const values = await form.validateFields();
     try {
       if (editingUser) {
+        const fullName = values.fullName?.trim();
+        const email = values.email?.trim();
+
         await updateUser(editingUser.id, {
-          fullName: values.fullName,
-          email: values.email,
-          role: values.role,
-          status: values.status,
+          fullName: fullName || undefined,
+          email: email || undefined,
+          role: values.role || undefined,
         });
         antdMessage.success('Cập nhật người dùng thành công');
       } else {
         await createUser({
-          username: values.username,
+          username: values.username.trim(),
           password: values.password,
-          email: values.email,
-          fullName: values.fullName,
+          email: values.email.trim(),
+          fullName: values.fullName?.trim() || undefined,
           role: values.role,
         });
         antdMessage.success('Tạo người dùng thành công');
@@ -2009,11 +2368,25 @@ function UsersPage() {
     return <Tag color="red">INACTIVE</Tag>;
   };
 
+  const roleText = (role: Role) => {
+    switch (role) {
+      case 'ROLE_ADMIN':
+        return 'ADMIN';
+      case 'ROLE_MANAGER':
+        return 'QUẢN LÝ';
+      case 'ROLE_STAFF':
+        return 'THU NGÂN';
+      case 'ROLE_WAREHOUSE':
+        return 'KHO';
+      case 'ROLE_ANALYST':
+        return 'PHÂN TÍCH';
+    }
+  };
   const columns: ColumnsType<UserDto> = [
     { title: 'Tên đăng nhập', dataIndex: 'username' },
     { title: 'Họ tên', dataIndex: 'fullName' },
     { title: 'Email', dataIndex: 'email' },
-    { title: 'Vai trò', dataIndex: 'role' },
+    { title: 'Vai trò', dataIndex: 'role', render: roleText },
     { title: 'Trạng thái', dataIndex: 'status', render: statusTag },
     {
       title: 'Thao tác',
@@ -2085,24 +2458,32 @@ function UsersPage() {
         <Form form={form} layout="vertical" validateMessages={userFormValidateMessages}>
           {!editingUser && (
             <>
-              <Form.Item name="username" label="Tên đăng nhập" rules={[{ required: true }]}>
+              <Form.Item name="username" label="Tên đăng nhập" messageVariables={{ label: 'tên đăng nhập' }} rules={[{ required: true }, { min: 4 }, { max: 50 }, { pattern: /^[a-zA-Z0-9_.]+$/, message: 'Tên đăng nhập chỉ được chứa chữ, số và gạch dưới hoặc dấu chấm' }]}>
                 <Input />
               </Form.Item>
-              <Form.Item name="password" label="Mật khẩu" rules={[{ required: true }, { min: 6 }]}>
+              <Form.Item name="password" label="Mật khẩu" messageVariables={{ label: 'mật khẩu' }} rules={[{ required: true }, { min: 6 }]}>
                 <Input.Password />
               </Form.Item>
             </>
           )}
 
-          <Form.Item name="fullName" label="Họ tên">
+          <Form.Item name="fullName" label="Họ tên" messageVariables={{ label: 'họ tên' }} rules={[{ max: 100 }]}>
             <Input />
           </Form.Item>
 
-          <Form.Item name="email" label="Email" rules={[{ required: true }, { type: 'email' }]}>
+          <Form.Item
+            name="email"
+            label="Email"
+            messageVariables={{ label: 'email' }}
+            rules={[
+              ...(!editingUser ? [{ required: true }] : []),
+              { type: 'email' },
+            ]}
+          >
             <Input />
           </Form.Item>
 
-          <Form.Item name="role" label="Vai trò" rules={[{ required: true }]}>
+          <Form.Item name="role" label="Vai trò" messageVariables={{ label: 'vai trò' }} rules={[{ required: true }]}>
             <Select
               options={[
                 { value: 'ROLE_ADMIN' satisfies Role, label: 'Admin' },
@@ -2113,18 +2494,6 @@ function UsersPage() {
               ]}
             />
           </Form.Item>
-
-          {editingUser && (
-            <Form.Item name="status" label="Trạng thái">
-              <Select
-                options={[
-                  { value: 'ACTIVE' satisfies UserStatus, label: 'ACTIVE' },
-                  { value: 'LOCKED' satisfies UserStatus, label: 'LOCKED' },
-                  { value: 'INACTIVE' satisfies UserStatus, label: 'INACTIVE' },
-                ]}
-              />
-            </Form.Item>
-          )}
         </Form>
       </Modal>
     </Card>
