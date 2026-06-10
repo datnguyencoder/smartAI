@@ -161,3 +161,47 @@ export type UpdateUserPayload = {
   email?: string;
   role?: Role;
 };
+
+// --------- Report DTOs ---------
+export type TopProductDto = {
+  itemId: number;
+  itemCode: string;
+  itemName: string;
+  quantitySold: number;
+  revenue: number;
+};
+
+export type SalesReportDto = {
+  period: string;
+  totalOrders: number;
+  cancelledOrders: number;
+  totalRevenue: number;
+  totalCost: number;
+  grossProfit: number;
+  totalItemsSold: number;
+  topProducts: TopProductDto[];
+};
+
+export type PurchaseReportDto = {
+  supplierId: number;
+  supplierName: string;
+  totalOrders: number;
+  totalAmount: number;
+  totalItemTypes: number;
+  totalQuantity: number;
+};
+
+export type InventoryReportDto = {
+  itemId: number;
+  itemCode: string;
+  itemName: string;
+  categoryName: string;
+  currentStock: number;
+  totalPurchased: number;
+  totalSold: number;
+  totalScrapped: number;
+  shrinkage: number;
+  turnoverRate: number;
+  nearestExpiryDate?: string;
+  daysUntilExpiry?: number;
+};
