@@ -1,12 +1,13 @@
-package com.smartmart.dto.response;
+package com.smartmart.dto.request;
 
-import lombok.Builder;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
+import lombok.Setter;
 
 @Getter
-@Builder
-public class SupplierResponse {
-    private Long id;
+@Setter
+public class UpdateSupplierRequest {
+    @NotBlank
     private String supplierName;
     private String contactPerson;
     private String phone;

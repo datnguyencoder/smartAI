@@ -1,6 +1,6 @@
 import React from 'react';
-import { Form, Select, InputNumber, Button, message as antdMessage, Alert, Spin } from 'antd';
-import { Trash2, Plus } from 'lucide-react';
+import { Form, InputNumber, Button, message as antdMessage, Alert, Spin } from 'antd';
+import { Trash2, Plus, FileText, Package, Calendar, DollarSign, Hash, AlertTriangle } from 'lucide-react';
 import { Card, CardHeader } from '../components/ui';
 import { createPurchaseOrder } from '../services/wmsApi';
 import type { Product } from '../lib/itemMapper';
@@ -8,6 +8,21 @@ import { formatMoney as money } from '../lib/itemMapper';
 import type { SupplierDto, LocationDto } from '../types/api';
 import type { PageKey } from '../types/pages';
 import { AiSummary } from '../App';
+
+function TotalPriceDisplay({ form }: { form: any }) {
+  const itemsWatch = Form.useWatch('items', form);
+  const total = (itemsWatch || []).reduce(
+    (acc: number, item: any) => acc + Number(item?.quantity || 0) * Number(item?.price || 0),
+    0
+  );
+  return <span>{money(total)}</span>;
+}
+
+function ItemsCount({ form }: { form: any }) {
+  const itemsWatch = Form.useWatch('items', form);
+  const count = (itemsWatch || []).filter((i: any) => i?.itemId).length;
+  return <span>{count}</span>;
+}
 
 export default function ImportCreatePage({
   productsList,
@@ -26,9 +41,6 @@ export default function ImportCreatePage({
 }) {
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = React.useState(false);
-  const itemsWatch = Form.useWatch('items', form);
-
-  const defaultLocation = locations.length > 0 ? (locations.find((l) => l.locationName?.includes('Kho bán')) ?? locations[0]) : null;
 
   const handleCreateSlip = async (values: {
     supplierId: number;
@@ -64,7 +76,7 @@ export default function ImportCreatePage({
 
   if (catalogLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex items-center justify-center h-full min-h-[400px]">
         <Spin size="large" tip="Đang tải dữ liệu...">
           <div className="w-10 h-10" />
         </Spin>
@@ -72,119 +84,227 @@ export default function ImportCreatePage({
     );
   }
 
+  const selectClass =
+    "w-full h-11 px-3.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 transition-all hover:border-emerald-300 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100";
+
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
-      {/* Cảnh báo Alert */}
+    <div className="grid gap-5 lg:grid-cols-[1fr_380px]">
+      {/* Cảnh báo */}
       {suppliers.length === 0 && (
-        <Alert type="warning" message="Chưa có nhà cung cấp nào. Vui lòng tạo nhà cung cấp trước khi tạo phiếu nhập." className="lg:col-span-2" />
+        <Alert
+          type="warning"
+          showIcon
+          icon={<AlertTriangle size={18} />}
+          message="Chưa có nhà cung cấp nào. Vui lòng tạo nhà cung cấp trước khi tạo phiếu nhập."
+          className="lg:col-span-2 rounded-xl border-amber-200"
+        />
       )}
       {locations.length === 0 && (
-        <Alert type="warning" message="Chưa có kho nào được cấu hình. Vui lòng tạo kho trước khi tạo phiếu nhập." className="lg:col-span-2" />
+        <Alert
+          type="warning"
+          showIcon
+          icon={<AlertTriangle size={18} />}
+          message="Chưa có kho nào được cấu hình. Vui lòng tạo kho trước khi tạo phiếu nhập."
+          className="lg:col-span-2 rounded-xl border-amber-200"
+        />
       )}
-      <Card>
-        <CardHeader title="Thông tin lập phiếu nhập hàng" />
+
+      <Card className="overflow-hidden border-slate-200 shadow-sm">
+        {/* Header */}
+        <div className="px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-emerald-50/60 to-transparent">
+          <div className="flex items-start gap-3">
+            <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-emerald-600 text-white shadow-sm shadow-emerald-200">
+              <FileText size={22} />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-slate-800 leading-tight">
+                Lập phiếu nhập hàng
+              </h2>
+              <p className="text-sm text-slate-500 mt-0.5">
+                Chọn nhà cung cấp, kho nhận và thêm các sản phẩm cần nhập
+              </p>
+            </div>
+          </div>
+        </div>
+
         <Form
           layout="vertical"
           form={form}
           onFinish={handleCreateSlip}
-          className="px-5 pb-5"
-          initialValues={{ locationId: defaultLocation?.id, items: [{ quantity: 50, price: 0 }] }}
+          className="px-6 pt-6 pb-6"
+          initialValues={{ supplierId: "", locationId: "", items: [{ itemId: "", quantity: 50, price: 0 }] }}
         >
+          {/* Thông tin chung */}
           <div className="grid gap-4 md:grid-cols-2">
-            <Form.Item name="supplierId" label="Nhà cung cấp" rules={[{ required: true, message: 'Bắt buộc' }]}>
+            <Form.Item
+              name="supplierId"
+              label={<span className="font-medium text-slate-700">Nhà cung cấp</span>}
+              rules={[{ required: true, message: 'Bắt buộc' }]}
+            >
               <select
-                className="w-full h-10 px-3 border border-[#d9d9d9] rounded-lg focus:outline-none focus:border-[#006c49] focus:ring-1 focus:ring-[#006c49]"
+                className={selectClass}
                 onChange={(e) => form.setFieldsValue({ supplierId: Number(e.target.value) })}
-                defaultValue={form.getFieldValue('supplierId') || ''}
               >
-                <option value="" disabled>Chọn nhà cung cấp</option>
+                <option value="" disabled>-- Chọn nhà cung cấp --</option>
                 {suppliers.map((s) => (
                   <option key={s.id} value={s.id}>{s.supplierName}</option>
                 ))}
               </select>
             </Form.Item>
-            <Form.Item name="locationId" label="Kho nhận" rules={[{ required: true, message: 'Bắt buộc' }]}>
+            <Form.Item
+              name="locationId"
+              label={<span className="font-medium text-slate-700">Kho nhận</span>}
+              rules={[{ required: true, message: 'Bắt buộc' }]}
+            >
               <select
-                className="w-full h-10 px-3 border border-[#d9d9d9] rounded-lg focus:outline-none focus:border-[#006c49] focus:ring-1 focus:ring-[#006c49]"
+                className={selectClass}
                 onChange={(e) => form.setFieldsValue({ locationId: Number(e.target.value) })}
-                defaultValue={defaultLocation?.id || ''}
               >
-                <option value="" disabled>Chọn kho</option>
-                {locations.map((l) => (
+                <option value="" disabled>-- Chọn kho nhận --</option>
+                {locations.filter(l => l.parentId).map((l) => (
                   <option key={l.id} value={l.id}>{l.locationName}</option>
                 ))}
               </select>
             </Form.Item>
           </div>
 
-          <div className="mt-4 mb-2 font-semibold text-slate-700">Danh sách sản phẩm nhập</div>
+          {/* Divider có nhãn */}
+          <div className="flex items-center gap-3 my-6">
+            <div className="flex items-center gap-2 text-slate-700 font-semibold">
+              <Package size={18} className="text-emerald-600" />
+              Danh sách sản phẩm nhập
+            </div>
+            <div className="flex-1 h-px bg-slate-200" />
+            <span className="text-xs text-slate-500">
+              <ItemsCount form={form} /> mặt hàng
+            </span>
+          </div>
+
           <Form.List name="items">
             {(fields, { add, remove }) => (
               <>
-                {fields.map(({ key, name, ...restField }) => (
-                  <div key={key} className="flex flex-wrap md:flex-nowrap gap-3 items-end mb-4 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                    <Form.Item
-                      {...restField}
-                      name={[name, 'itemId']}
-                      label="Sản phẩm"
-                      rules={[{ required: true, message: 'Bắt buộc' }]}
-                      className="mb-0 flex-1"
+                <div className="space-y-3">
+                  {fields.map(({ key, name, ...restField }, index) => (
+                    <div
+                      key={key}
+                      className="relative bg-white border border-slate-200 rounded-xl p-4 transition-all hover:border-emerald-200 hover:shadow-sm"
                     >
-                      <select
-                        className="w-full h-10 px-3 border border-[#d9d9d9] rounded-lg focus:outline-none focus:border-[#006c49] focus:ring-1 focus:ring-[#006c49] text-sm"
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          form.setFieldValue(['items', name, 'itemId'], val);
-                          const product = productsList.find((p) => p.key === val);
-                          if (product) {
-                            const calculatedPrice = product.cost * (product.purchaseRatio || 1);
-                            form.setFieldValue(['items', name, 'price'], Number(calculatedPrice.toFixed(2)));
+                      {/* Số thứ tự */}
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 text-xs font-semibold">
+                          Sản phẩm {index + 1}
+                        </span>
+                        {fields.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => remove(name)}
+                            className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+                            aria-label="Xoá"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                        <Form.Item
+                          {...restField}
+                          name={[name, 'itemId']}
+                          label={<span className="text-xs font-medium text-slate-600 whitespace-nowrap">Sản phẩm</span>}
+                          rules={[{ required: true, message: 'Bắt buộc' }]}
+                          className="mb-0 md:col-span-4"
+                        >
+                          <select
+                            className={selectClass}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              form.setFieldValue(['items', name, 'itemId'], val);
+                              const product = productsList.find((p) => p.key === val);
+                              if (product) {
+                                const calculatedPrice = product.cost * (product.purchaseRatio || 1);
+                                form.setFieldValue(['items', name, 'price'], Number(calculatedPrice.toFixed(2)));
+                              }
+                            }}
+                          >
+                            <option value="" disabled>-- Chọn sản phẩm --</option>
+                            {productsList.map((p) => (
+                              <option key={p.key} value={p.key}>{p.name} (Tồn: {p.stock})</option>
+                            ))}
+                          </select>
+                        </Form.Item>
+
+                        <Form.Item
+                          {...restField}
+                          name={[name, 'quantity']}
+                          label={<span className="text-xs font-medium text-slate-600 whitespace-nowrap">Số lượng</span>}
+                          rules={[{ required: true, message: 'Bắt buộc' }]}
+                          className="mb-0 md:col-span-2"
+                        >
+                          <InputNumber size="large" className="w-full" min={1} />
+                        </Form.Item>
+
+                        <Form.Item
+                          {...restField}
+                          name={[name, 'price']}
+                          label={
+                            <span className="text-xs font-medium text-slate-600 inline-flex items-center gap-1 whitespace-nowrap">
+                              <DollarSign size={12} /> Đơn giá nhập
+                            </span>
                           }
-                        }}
-                        defaultValue=""
-                      >
-                        <option value="" disabled>Chọn sản phẩm</option>
-                        {productsList.map((p) => (
-                          <option key={p.key} value={p.key}>{p.name} (Tồn: {p.stock})</option>
-                        ))}
-                      </select>
-                    </Form.Item>
-                    <Form.Item
-                      {...restField}
-                      name={[name, 'quantity']}
-                      label="Số lượng"
-                      rules={[{ required: true, message: 'Bắt buộc' }]}
-                      className="mb-0 w-28"
-                    >
-                      <InputNumber className="w-full" min={1} />
-                    </Form.Item>
-                    <Form.Item
-                      {...restField}
-                      name={[name, 'price']}
-                      label="Đơn giá nhập"
-                      rules={[{ required: true, message: 'Bắt buộc' }]}
-                      className="mb-0 w-full md:w-36"
-                    >
-                      <InputNumber className="w-full" min={1} />
-                    </Form.Item>
-                    <Form.Item
-                      {...restField}
-                      name={[name, 'expiryDate']}
-                      label="Hạn sử dụng"
-                      className="mb-0 w-full md:w-40"
-                    >
-                      <input
-                        type="date"
-                        className="w-full h-10 px-3 border border-[#d9d9d9] rounded-lg focus:outline-none focus:border-[#006c49] focus:ring-1 focus:ring-[#006c49] text-sm"
-                      />
-                    </Form.Item>
-                    {fields.length > 1 && (
-                      <Button danger type="text" icon={<Trash2 size={18} />} onClick={() => remove(name)} className="mb-0 w-full md:w-auto" />
-                    )}
-                  </div>
-                ))}
-                <Form.Item className="mb-4">
-                  <Button type="dashed" onClick={() => add({ quantity: 50, price: 0 })} block icon={<Plus size={16} />}>
+                          rules={[{ required: true, message: 'Bắt buộc' }]}
+                          className="mb-0 md:col-span-3"
+                        >
+                          <InputNumber size="large" className="w-full" min={1} />
+                        </Form.Item>
+
+                        <Form.Item
+                          {...restField}
+                          name={[name, 'expiryDate']}
+                          label={
+                            <span className="text-xs font-medium text-slate-600 inline-flex items-center gap-1 whitespace-nowrap">
+                              <Calendar size={12} /> Hạn sử dụng
+                            </span>
+                          }
+                          className="mb-0 md:col-span-2"
+                        >
+                          <input
+                            type="date"
+                            className={selectClass}
+                          />
+                        </Form.Item>
+
+                        <div className="md:col-span-12 mt-2 pt-2 border-t border-slate-100 flex justify-end">
+                          <span className="text-sm text-slate-500 font-medium mr-2">Thành tiền:</span>
+                          <span className="text-sm font-bold text-emerald-600">
+                            <Form.Item
+                              shouldUpdate={(prevValues, currentValues) => {
+                                const prev = prevValues.items?.[name];
+                                const curr = currentValues.items?.[name];
+                                return prev?.quantity !== curr?.quantity || prev?.price !== curr?.price;
+                              }}
+                              noStyle
+                            >
+                              {({ getFieldValue }) => {
+                                const qty = getFieldValue(['items', name, 'quantity']) || 0;
+                                const price = getFieldValue(['items', name, 'price']) || 0;
+                                return money(qty * price);
+                              }}
+                            </Form.Item>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <Form.Item className="mt-3 mb-0">
+                  <Button
+                    type="dashed"
+                    onClick={() => add({ itemId: "", quantity: 50, price: 0 })}
+                    block
+                    icon={<Plus size={16} />}
+                    className="h-11 border-emerald-300 text-emerald-700 hover:!border-emerald-500 hover:!text-emerald-800"
+                  >
                     Thêm sản phẩm khác
                   </Button>
                 </Form.Item>
@@ -192,22 +312,45 @@ export default function ImportCreatePage({
             )}
           </Form.List>
 
-          <div className="mb-6 p-4 bg-emerald-50 text-emerald-900 rounded-lg flex justify-between items-center font-medium">
-            <span className="text-base">Tổng tiền phiếu nhập:</span>
-            <span className="text-xl font-bold">
-              {(() => {
-                const currentItems = form.getFieldValue('items') || [];
-                const total = currentItems.reduce((acc: number, item: any) => acc + (Number(item?.quantity || 0) * Number(item?.price || 0)), 0);
-                return money(total);
-              })()}
-            </span>
+          {/* Tổng tiền */}
+          <div className="mt-6 p-5 rounded-xl bg-white border border-slate-200 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-slate-800 font-bold text-base">Tổng tiền phiếu nhập</div>
+                <div className="text-slate-500 font-medium text-sm mt-0.5">
+                  <ItemsCount form={form} /> mặt hàng được chọn
+                </div>
+              </div>
+              <div className="text-2xl md:text-3xl font-bold tracking-tight text-emerald-600">
+                <TotalPriceDisplay form={form} />
+              </div>
+            </div>
           </div>
 
-          <Button type="primary" htmlType="submit" loading={submitting} icon={<Plus size={16} />} size="large" className="w-full sm:w-auto">
-            Tạo phiếu nhập
-          </Button>
+          {/* Action bar dính đáy */}
+          <div className="sticky bottom-0 -mx-6 -mb-6 mt-6 px-6 py-4 bg-white/95 backdrop-blur border-t border-slate-100 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-3 rounded-b-xl">
+            <Button
+              type="default"
+              size="large"
+              onClick={() => form.resetFields()}
+              className="h-11"
+            >
+              Làm mới
+            </Button>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={submitting}
+              icon={<Plus size={16} />}
+              size="large"
+              className="h-11 px-6 bg-emerald-600 hover:!bg-emerald-700 border-emerald-600"
+            >
+              Tạo phiếu nhập
+            </Button>
+          </div>
         </Form>
       </Card>
+
       <AiSummary setPage={setPage} />
     </div>
   );

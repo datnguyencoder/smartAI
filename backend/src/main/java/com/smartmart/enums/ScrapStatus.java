@@ -1,7 +1,7 @@
 package com.smartmart.enums;
 
 public enum ScrapStatus {
-    DRAFT,
+    PENDING,
     COMPLETED,
     CANCELLED
 }

@@ -2,8 +2,11 @@ package com.smartmart.repository;
 
 import com.smartmart.entity.Order;
 import com.smartmart.enums.OrderStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -11,6 +14,20 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
+    @Query("SELECT o FROM Order o WHERE " +
+           "(:status IS NULL OR o.status = :status) AND " +
+           "(:keyword IS NULL OR :keyword = '' OR LOWER(o.orderCode) LIKE LOWER(CONCAT('%', CAST(:keyword AS text), '%')) OR LOWER(o.customerName) LIKE LOWER(CONCAT('%', CAST(:keyword AS text), '%'))) AND " +
+           "(CAST(:fromDate AS timestamp) IS NULL OR o.orderDate >= :fromDate) AND " +
+           "(CAST(:toDate AS timestamp) IS NULL OR o.orderDate <= :toDate)")
+    Page<Order> searchOrders(@Param("keyword") String keyword, 
+                             @Param("status") OrderStatus status, 
+                             @Param("fromDate") LocalDateTime fromDate,
+                             @Param("toDate") LocalDateTime toDate,
+                             Pageable pageable);
+
+    @Query(value = "SELECT DISTINCT o.customer_name FROM orders o WHERE o.customer_name ILIKE CONCAT('%', :keyword, '%') AND o.customer_name IS NOT NULL LIMIT 10", nativeQuery = true)
+    List<String> suggestCustomerNames(@Param("keyword") String keyword);
+
     Optional<Order> findByOrderCode(String orderCode);
 
     boolean existsByOrderCodeStartingWith(String prefix);
@@ -20,7 +37,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         LEFT JOIN FETCH o.items oi
         LEFT JOIN FETCH oi.item
         WHERE o.status = :status AND o.orderDate >= :since
-        ORDER BY o.orderDate DESC
+        ORDER BY o.id DESC
         """)
     List<Order> findCompletedSince(OrderStatus status, LocalDateTime since);
 
@@ -50,7 +67,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         SELECT o FROM Order o
         LEFT JOIN FETCH o.items oi
         LEFT JOIN FETCH oi.item
-        ORDER BY o.orderDate DESC
+        ORDER BY o.id DESC
         """)
     List<Order> findAllWithItems();
 
@@ -59,17 +76,17 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         LEFT JOIN FETCH o.items oi
         LEFT JOIN FETCH oi.item
         WHERE o.createdBy = :createdBy
-        ORDER BY o.orderDate DESC
+        ORDER BY o.id DESC
         """)
     List<Order> findByCreatedByWithItems(UUID createdBy);
 
     @Query(value = """
         SELECT TO_CHAR(o.order_date, 'YYYY-MM-DD') as period,
                COUNT(DISTINCT o.id) as total_orders,
-               COUNT(DISTINCT o.id) FILTER (WHERE o.status = 'CANCELLED') as cancelled_orders,
-               COALESCE(SUM(oi.subtotal) FILTER (WHERE o.status = 'COMPLETED'), 0) as revenue,
-               COALESCE(SUM(oi.quantity * i.cost_price) FILTER (WHERE o.status = 'COMPLETED'), 0) as cost,
-               COALESCE(SUM(oi.quantity) FILTER (WHERE o.status = 'COMPLETED'), 0) as items_sold
+               COUNT(DISTINCT CASE WHEN o.status = 'CANCELLED' THEN o.id END) as cancelled_orders,
+               COALESCE(SUM(CASE WHEN o.status = 'COMPLETED' THEN oi.subtotal ELSE 0 END), 0) as revenue,
+               COALESCE(SUM(CASE WHEN o.status = 'COMPLETED' THEN oi.quantity * i.cost_price ELSE 0 END), 0) as cost,
+               COALESCE(SUM(CASE WHEN o.status = 'COMPLETED' THEN oi.quantity ELSE 0 END), 0) as items_sold
         FROM orders o
         LEFT JOIN order_items oi ON oi.order_id = o.id
         LEFT JOIN items i ON i.id = oi.item_id
@@ -82,10 +99,10 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query(value = """
         SELECT TO_CHAR(o.order_date, 'YYYY-MM') as period,
                COUNT(DISTINCT o.id) as total_orders,
-               COUNT(DISTINCT o.id) FILTER (WHERE o.status = 'CANCELLED') as cancelled_orders,
-               COALESCE(SUM(oi.subtotal) FILTER (WHERE o.status = 'COMPLETED'), 0) as revenue,
-               COALESCE(SUM(oi.quantity * i.cost_price) FILTER (WHERE o.status = 'COMPLETED'), 0) as cost,
-               COALESCE(SUM(oi.quantity) FILTER (WHERE o.status = 'COMPLETED'), 0) as items_sold
+               COUNT(DISTINCT CASE WHEN o.status = 'CANCELLED' THEN o.id END) as cancelled_orders,
+               COALESCE(SUM(CASE WHEN o.status = 'COMPLETED' THEN oi.subtotal ELSE 0 END), 0) as revenue,
+               COALESCE(SUM(CASE WHEN o.status = 'COMPLETED' THEN oi.quantity * i.cost_price ELSE 0 END), 0) as cost,
+               COALESCE(SUM(CASE WHEN o.status = 'COMPLETED' THEN oi.quantity ELSE 0 END), 0) as items_sold
         FROM orders o
         LEFT JOIN order_items oi ON oi.order_id = o.id
         LEFT JOIN items i ON i.id = oi.item_id
@@ -98,10 +115,10 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query(value = """
         SELECT TO_CHAR(o.order_date, 'YYYY') as period,
                COUNT(DISTINCT o.id) as total_orders,
-               COUNT(DISTINCT o.id) FILTER (WHERE o.status = 'CANCELLED') as cancelled_orders,
-               COALESCE(SUM(oi.subtotal) FILTER (WHERE o.status = 'COMPLETED'), 0) as revenue,
-               COALESCE(SUM(oi.quantity * i.cost_price) FILTER (WHERE o.status = 'COMPLETED'), 0) as cost,
-               COALESCE(SUM(oi.quantity) FILTER (WHERE o.status = 'COMPLETED'), 0) as items_sold
+               COUNT(DISTINCT CASE WHEN o.status = 'CANCELLED' THEN o.id END) as cancelled_orders,
+               COALESCE(SUM(CASE WHEN o.status = 'COMPLETED' THEN oi.subtotal ELSE 0 END), 0) as revenue,
+               COALESCE(SUM(CASE WHEN o.status = 'COMPLETED' THEN oi.quantity * i.cost_price ELSE 0 END), 0) as cost,
+               COALESCE(SUM(CASE WHEN o.status = 'COMPLETED' THEN oi.quantity ELSE 0 END), 0) as items_sold
         FROM orders o
         LEFT JOIN order_items oi ON oi.order_id = o.id
         LEFT JOIN items i ON i.id = oi.item_id

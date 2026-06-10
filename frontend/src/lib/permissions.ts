@@ -7,12 +7,14 @@ const ALL_PAGES: PageKey[] = [
   'products',
   'categories',
   'suppliers',
+  'locations',
   'pos',
   'invoices',
   'import-create',
   'import-slips',
   'inventory',
   'inventory-alerts',
+  'inventory-logs',
   'ai-forecast',
   'purchase-suggestions',
   'expiry-risk',
@@ -21,6 +23,8 @@ const ALL_PAGES: PageKey[] = [
   'reports',
   'users',
   'settings',
+  'scrap-orders',
+  'scrap-create',
 ];
 
 // Ma trận trang theo role (docs/02-business-rule)
@@ -32,12 +36,16 @@ const ROLE_PAGES: Record<string, PageKey[]> = {
     'products',
     'categories',
     'suppliers',
+    'locations',
     'import-create',
     'import-slips',
     'inventory',
     'inventory-alerts',
+    'inventory-logs',
     'purchase-suggestions',
     'expiry-risk',
+    'scrap-orders',
+    'scrap-create',
   ],
 };
 

@@ -2,6 +2,7 @@ package com.smartmart.service.impl;
 
 import com.smartmart.entity.CurrentInventory;
 import com.smartmart.entity.InventoryLog;
+import com.smartmart.enums.InventoryActionType;
 import com.smartmart.repository.CurrentInventoryRepository;
 import com.smartmart.repository.InventoryLogRepository;
 import org.springframework.data.domain.Page;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -50,8 +52,16 @@ public class InventoryQueryServiceImpl implements com.smartmart.service.Inventor
     @Override
     public Page<InventoryLog> logs(Long itemId, Pageable pageable) {
         if (itemId != null) {
-            return inventoryLogRepository.findByItemIdOrderByCreatedAtDesc(itemId, pageable);
+            return inventoryLogRepository.findByItemIdOrderByIdDesc(itemId, pageable);
         }
         return inventoryLogRepository.findAll(pageable);
+    }
+
+    @Override
+    public Page<InventoryLog> logs(Long itemId, Long locationId, String search, InventoryActionType actionType,
+                                   LocalDateTime from, LocalDateTime to, Pageable pageable) {
+        LocalDateTime safeFrom = from != null ? from : LocalDateTime.of(2000, 1, 1, 0, 0);
+        LocalDateTime safeTo = to != null ? to : LocalDateTime.of(2100, 1, 1, 0, 0);
+        return inventoryLogRepository.findFiltered(itemId, locationId, search, actionType, safeFrom, safeTo, pageable);
     }
 }

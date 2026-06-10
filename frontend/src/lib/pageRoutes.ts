@@ -5,12 +5,14 @@ export const PAGE_PATHS: Record<PageKey, string> = {
   products: '/products',
   categories: '/categories',
   suppliers: '/suppliers',
+  locations: '/locations',
   pos: '/pos',
   invoices: '/invoices',
   'import-create': '/import/create',
   'import-slips': '/import/slips',
   inventory: '/inventory',
   'inventory-alerts': '/inventory/alerts',
+  'inventory-logs': '/inventory/logs',
   'ai-forecast': '/ai/forecast',
   'purchase-suggestions': '/purchase/suggestions',
   'expiry-risk': '/expiry-risk',
@@ -19,6 +21,8 @@ export const PAGE_PATHS: Record<PageKey, string> = {
   reports: '/reports',
   users: '/users',
   settings: '/settings',
+  'scrap-create': '/scrap-orders/create',
+  'scrap-orders': '/scrap-orders',
 };
 
 const PATH_TO_PAGE = Object.fromEntries(

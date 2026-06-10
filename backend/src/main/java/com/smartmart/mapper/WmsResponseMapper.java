@@ -82,6 +82,8 @@ public final class WmsResponseMapper {
                 .map(i -> ScrapOrderItemResponse.builder()
                         .itemId(i.getItem().getId())
                         .itemName(i.getItem().getItemName())
+                        .lotId(i.getLot() != null ? i.getLot().getId() : null)
+                        .lotNumber(i.getLot() != null ? i.getLot().getLotNumber() : null)
                         .quantity(i.getQuantity())
                         .reason(i.getReason())
                         .build())

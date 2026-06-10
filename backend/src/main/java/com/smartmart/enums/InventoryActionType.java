@@ -5,5 +5,8 @@ public enum InventoryActionType {
     SALE,
     SALE_CANCEL,
     SCRAP,
+    SCRAP_PENDING,
+    SCRAP_COMPLETED,
+    SCRAP_CANCELLED,
     ADJUSTMENT
 }

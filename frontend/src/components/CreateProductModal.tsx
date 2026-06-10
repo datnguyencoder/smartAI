@@ -11,12 +11,14 @@ const pageTitles: Record<PageKey, { title: string }> = {
   products: { title: 'Sản phẩm' },
   categories: { title: 'Danh mục' },
   suppliers: { title: 'Nhà cung cấp' },
+  locations: { title: 'Vị trí kho' },
   pos: { title: 'Bán hàng tại quầy' },
   invoices: { title: 'Hóa đơn bán hàng' },
   'import-create': { title: 'Tạo phiếu nhập' },
   'import-slips': { title: 'Phiếu nhập hàng' },
   inventory: { title: 'Tồn kho' },
   'inventory-alerts': { title: 'Cảnh báo tồn kho' },
+  'inventory-logs': { title: 'Lịch sử biến động' },
   'ai-forecast': { title: 'Dự báo AI' },
   'purchase-suggestions': { title: 'Gợi ý nhập hàng' },
   'expiry-risk': { title: 'Rủi ro hết hạn' },
@@ -25,6 +27,8 @@ const pageTitles: Record<PageKey, { title: string }> = {
   reports: { title: 'Báo cáo hệ thống' },
   users: { title: 'Người dùng' },
   settings: { title: 'Cài đặt hệ thống' },
+  'scrap-orders': { title: 'Quản lý Yêu cầu loại bỏ hàng hóa' },
+  'scrap-create': { title: 'Tạo Yêu cầu loại bỏ hàng hóa' },
 };
 
 type Props = {
@@ -95,6 +99,7 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
       cancelText="Hủy"
       confirmLoading={saving}
       onOk={() => form.submit()}
+      forceRender
     >
       <Form
         layout="vertical"

@@ -15,6 +15,7 @@ public class OrderResponse {
     private Long id;
     private String orderCode;
     private String customerName;
+    private String cashierName;
     private LocalDateTime orderDate;
     private OrderStatus status;
     private BigDecimal totalAmount;

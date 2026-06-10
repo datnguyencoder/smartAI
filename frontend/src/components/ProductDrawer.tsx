@@ -31,17 +31,13 @@ export function ProductDrawer({ product, onClose, onUpdated }: Props) {
       setPrice(product.price);
       setImageUrl(product.imageUrl ?? '');
       setRiskInsight(null);
-
-      const itemId = Number(product.key);
-      if (!Number.isNaN(itemId)) {
-        setLoadingLots(true);
-        fetchInventory()
-          .then((rows) => setLots(rows.filter((r) => r.itemId === itemId)))
-          .catch(() => setLots([]))
-          .finally(() => setLoadingLots(false));
-      } else {
-        setLots([]);
-      }
+      setLoadingLots(true);
+      fetchInventory()
+        .then((rows) => setLots(rows.filter((row) => String(row.itemId) === product.key)))
+        .catch(() => setLots([]))
+        .finally(() => setLoadingLots(false));
+    } else {
+      setLots([]);
     }
   }, [product]);
 
@@ -114,7 +110,7 @@ export function ProductDrawer({ product, onClose, onUpdated }: Props) {
             </Form.Item>
           </Form>
           <Button type="primary" block loading={saving} onClick={handleSave}>
-            Lưu giá bán
+            Lưu thay đổi
           </Button>
 
           <div className="border-t border-slate-200 pt-6 mt-6">
