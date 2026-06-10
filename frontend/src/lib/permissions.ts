@@ -79,6 +79,12 @@ export function defaultPageForRole(role?: string): PageKey {
   return pages[0] ?? 'pos';
 }
 
+/** GET /api/v1/orders — chỉ ADMIN, MANAGER, STAFF (WAREHOUSE → 403) */
+export function canFetchOrders(role?: string): boolean {
+  const r = normalizeRole(role);
+  return r === 'ROLE_ADMIN' || r === 'ROLE_MANAGER' || r === 'ROLE_STAFF';
+}
+
 export function canQuickCreate(role: string | undefined, page: PageKey): boolean {
   const allowed = QUICK_CREATE_PAGES[page];
   if (!allowed) return false;

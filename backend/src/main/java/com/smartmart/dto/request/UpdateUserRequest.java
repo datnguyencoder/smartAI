@@ -18,6 +18,4 @@ public class UpdateUserRequest {
     private String email;
 
     private Role role;
-
-    private UserStatus status;
 }
