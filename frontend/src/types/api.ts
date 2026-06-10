@@ -63,12 +63,53 @@ export type OrderDto = {
   id: number;
   orderCode: string;
   customerName: string;
+  customerPhone?: string;
+  discountAmount?: number;
+  promotionCode?: string;
   cashierName?: string;
   orderDate: string;
   status: string;
   totalAmount: number;
   paymentMethod?: string;
   items?: Array<{ itemName: string; quantity: number; unitPrice: number }>;
+};
+
+export type CustomerDto = {
+  id: number;
+  fullName: string;
+  phone: string;
+  email?: string;
+  loyaltyPoints: number;
+  tier: 'REGULAR' | 'SILVER' | 'GOLD' | string;
+  createdAt?: string;
+};
+
+export type PromotionDto = {
+  id: number;
+  name: string;
+  code: string;
+  type: 'PERCENTAGE' | 'FIXED_AMOUNT' | string;
+  value: number;
+  minOrder: number;
+  startDate?: string;
+  endDate?: string;
+  active: boolean;
+  createdAt?: string;
+};
+
+export type PromotionValidateDto = {
+  valid: boolean;
+  promotionName?: string;
+  code?: string;
+  discountAmount: number;
+  message?: string;
+};
+
+export type SettingDto = {
+  id: number;
+  key: string;
+  value: string;
+  description?: string;
 };
 
 export type ForecastDailyPointDto = { date: string; predictedQty: number };
@@ -189,6 +230,29 @@ export type ForecastResultDto = {
   pred14d?: number;
   pred30d?: number;
   modelType?: string;
+  confidenceLow?: number;
+  confidenceHigh?: number;
+};
+
+export type PromotionRecommendationDto = {
+  id: number;
+  itemId: number;
+  itemCode?: string;
+  itemName?: string;
+  discountPercent: number;
+  reason?: string;
+  status: string;
+  promotionCode?: string;
+  createdAt?: string;
+};
+
+export type AiStatusDto = {
+  aiOnline: boolean;
+  modelLoaded: boolean;
+  aiVersion?: string;
+  lastTrainedAt?: string;
+  modelType?: string;
+  totalForecasts?: number;
 };
 
 export type PurchaseOrderDto = {

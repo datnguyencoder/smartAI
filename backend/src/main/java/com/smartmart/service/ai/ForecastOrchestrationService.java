@@ -16,4 +16,6 @@ public interface ForecastOrchestrationService {
     com.smartmart.dto.response.ForecastItemDetailResponse getItemResult(Long itemId);
 
     List<ModelTrainingHistory> modelHistory();
+
+    Map<String, Object> getAiStatus();
 }

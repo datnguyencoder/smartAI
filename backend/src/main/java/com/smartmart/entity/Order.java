@@ -29,6 +29,20 @@ public class Order extends LongAuditableEntity {
     @Column(name = "customer_name")
     private String customerName;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id")
+    private Customer customer;
+
+    @Column(name = "customer_phone", length = 15)
+    private String customerPhone;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "promotion_id")
+    private Promotion promotion;
+
+    @Column(name = "discount_amount", nullable = false)
+    private BigDecimal discountAmount = BigDecimal.ZERO;
+
     @Column(name = "order_date", nullable = false)
     private LocalDateTime orderDate;
 

@@ -16,11 +16,15 @@ FEATURE_COLUMNS = [
     "rolling_mean_7",
     "rolling_mean_30",
     "rolling_std_7",
+    "rolling_max_7",
     "day_of_week",
     "day_of_month",
     "month",
     "is_weekend",
     "is_holiday",
+    "is_hung_vuong",
+    "tet_proximity",
+    "mid_autumn_proximity",
     "category_id",
 ]
 
@@ -33,12 +37,15 @@ _VN_HOLIDAY_MD = {
 }
 
 _VN_HOLIDAY_DATES: set[str] = set()
+_VN_TET_DATES: list[date] = []
+_VN_MID_AUTUMN_DATES: list[date] = []
+_VN_HUNG_VUONG_DATES: set[str] = set()
 
 
-def _load_lunar_holidays() -> set[str]:
-    global _VN_HOLIDAY_DATES
+def _load_holiday_data() -> None:
+    global _VN_HOLIDAY_DATES, _VN_TET_DATES, _VN_MID_AUTUMN_DATES, _VN_HUNG_VUONG_DATES
     if _VN_HOLIDAY_DATES:
-        return _VN_HOLIDAY_DATES
+        return
 
     path = Path(__file__).resolve().parent.parent / "data" / "holidays_vn.json"
     if path.exists():
@@ -46,14 +53,35 @@ def _load_lunar_holidays() -> set[str]:
         for key in ("lunar_new_year", "extra"):
             for raw in payload.get(key, []):
                 _VN_HOLIDAY_DATES.add(str(raw))
-
-    return _VN_HOLIDAY_DATES
+        for raw in payload.get("lunar_new_year", []):
+            _VN_TET_DATES.append(date.fromisoformat(str(raw)))
+        for raw in payload.get("mid_autumn", []):
+            _VN_MID_AUTUMN_DATES.append(date.fromisoformat(str(raw)))
+        for raw in payload.get("hung_vuong", []):
+            _VN_HUNG_VUONG_DATES.add(str(raw))
+            _VN_HOLIDAY_DATES.add(str(raw))
 
 
 def is_vietnam_holiday(d: date) -> bool:
+    _load_holiday_data()
     if d.strftime("%m-%d") in _VN_HOLIDAY_MD:
         return True
-    return d.isoformat() in _load_lunar_holidays()
+    return d.isoformat() in _VN_HOLIDAY_DATES
+
+
+def is_hung_vuong(d: date) -> bool:
+    _load_holiday_data()
+    return d.isoformat() in _VN_HUNG_VUONG_DATES
+
+
+def _proximity_score(d: date, holiday_dates: list[date], window: int = 30) -> float:
+    if not holiday_dates:
+        return 0.0
+    min_dist = min(abs((d - h).days) for h in holiday_dates)
+    if min_dist > window:
+        return 0.0
+    return max(0.0, (window - min_dist) / window)
+
 
 MIN_ML_HISTORY_DAYS = 30
 MA_WINDOW = 7
@@ -108,6 +136,7 @@ def build_features(frame: pd.DataFrame) -> pd.DataFrame:
     if frame.empty:
         return frame
 
+    _load_holiday_data()
     working = frame.sort_values(["item_id", "sale_date"]).copy()
 
     for lag in (1, 2, 3, 7, 14):
@@ -122,15 +151,26 @@ def build_features(frame: pd.DataFrame) -> pd.DataFrame:
     working["rolling_std_7"] = (
         working.groupby("item_id")["quantity"].transform(lambda s: s.rolling(7, min_periods=1).std())
     )
+    working["rolling_max_7"] = (
+        working.groupby("item_id")["quantity"].transform(lambda s: s.rolling(7, min_periods=1).max())
+    )
 
     working["day_of_week"] = working["sale_date"].dt.dayofweek
     working["day_of_month"] = working["sale_date"].dt.day
     working["month"] = working["sale_date"].dt.month
     working["is_weekend"] = working["day_of_week"].isin([5, 6]).astype(int)
     working["is_holiday"] = working["sale_date"].apply(lambda ts: int(is_vietnam_holiday(ts.date())))
+    working["is_hung_vuong"] = working["sale_date"].apply(lambda ts: int(is_hung_vuong(ts.date())))
+    working["tet_proximity"] = working["sale_date"].apply(
+        lambda ts: _proximity_score(ts.date(), _VN_TET_DATES, 30)
+    )
+    working["mid_autumn_proximity"] = working["sale_date"].apply(
+        lambda ts: _proximity_score(ts.date(), _VN_MID_AUTUMN_DATES, 14)
+    )
 
     working[FEATURE_COLUMNS] = working[FEATURE_COLUMNS].fillna(0.0)
     working["rolling_std_7"] = working["rolling_std_7"].fillna(0.0)
+    working["rolling_max_7"] = working["rolling_max_7"].fillna(0.0)
 
     return working
 

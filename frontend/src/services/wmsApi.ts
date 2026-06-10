@@ -16,6 +16,10 @@ import type {
   PurchaseOrderDto,
   PurchaseReportDto,
   SalesReportDto,
+  CustomerDto,
+  PromotionDto,
+  PromotionValidateDto,
+  SettingDto,
   SupplierDto,
   UomDto,
   UserDto,
@@ -156,6 +160,8 @@ export function updateItem(
 
 export function createOrder(payload: {
   customerName?: string;
+  customerPhone?: string;
+  promotionCode?: string;
   paymentMethod?: string;
   items: { itemId: number; quantity: number }[];
 }) {
@@ -165,9 +171,10 @@ export function createOrder(payload: {
   });
 }
 
-export async function fetchOrders() {
+export async function fetchOrders(customerPhone?: string) {
   try {
-    return await apiRequest<OrderDto[]>('/api/v1/orders');
+    const qs = customerPhone ? `?customerPhone=${encodeURIComponent(customerPhone)}` : '';
+    return await apiRequest<OrderDto[]>(`/api/v1/orders${qs}`);
   } catch (e: any) {
     // Nếu không có quyền (403), trả về mảng rỗng để UI không báo lỗi
     if (e instanceof ApiClientError && e.status === 403) {
@@ -175,6 +182,99 @@ export async function fetchOrders() {
     }
     throw e;
   }
+}
+
+export function fetchCustomers(phone?: string, q?: string) {
+  const params = new URLSearchParams();
+  if (phone) params.set('phone', phone);
+  if (q) params.set('q', q);
+  const qs = params.toString() ? `?${params}` : '';
+  return apiRequest<CustomerDto[]>(`/api/v1/customers${qs}`);
+}
+
+export function createCustomer(payload: { fullName: string; phone: string; email?: string }) {
+  return apiRequest<CustomerDto>('/api/v1/customers', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function fetchPromotions(activeOnly = false) {
+  const qs = activeOnly ? '?activeOnly=true' : '';
+  return apiRequest<PromotionDto[]>(`/api/v1/promotions${qs}`);
+}
+
+export function createPromotion(payload: {
+  name: string;
+  code: string;
+  type: string;
+  value: number;
+  minOrder?: number;
+  startDate?: string;
+  endDate?: string;
+  active?: boolean;
+}) {
+  return apiRequest<PromotionDto>('/api/v1/promotions', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updatePromotion(id: number, payload: Partial<PromotionDto>) {
+  return apiRequest<PromotionDto>(`/api/v1/promotions/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deletePromotion(id: number) {
+  return apiRequest<void>(`/api/v1/promotions/${id}`, { method: 'DELETE' });
+}
+
+export function validatePromotion(code: string, orderSubtotal: number) {
+  return apiRequest<PromotionValidateDto>('/api/v1/promotions/validate', {
+    method: 'POST',
+    body: JSON.stringify({ code, orderSubtotal }),
+  });
+}
+
+export function fetchPromotionRecommendations(pendingOnly = false) {
+  const qs = pendingOnly ? '?pendingOnly=true' : '';
+  return apiRequest<import('../types/api').PromotionRecommendationDto[]>(
+    `/api/v1/promotions/recommendations${qs}`
+  );
+}
+
+export function approvePromotionRecommendation(id: number) {
+  return apiRequest<import('../types/api').PromotionRecommendationDto>(
+    `/api/v1/promotions/recommendations/${id}/approve`,
+    { method: 'POST' }
+  );
+}
+
+export function rejectPromotionRecommendation(id: number) {
+  return apiRequest<import('../types/api').PromotionRecommendationDto>(
+    `/api/v1/promotions/recommendations/${id}/reject`,
+    { method: 'POST' }
+  );
+}
+
+export function aiSuggestPromotion(itemId: number) {
+  return apiRequest<{ suggestion: string; promotionId: number; discountPercent: number; status: string }>(
+    `/api/v1/ai-insight/suggest-promotion/${itemId}`,
+    { method: 'POST' }
+  );
+}
+
+export function fetchSettings() {
+  return apiRequest<SettingDto[]>('/api/v1/settings');
+}
+
+export function updateSetting(key: string, value: string, description?: string) {
+  return apiRequest<SettingDto>(`/api/v1/settings/${encodeURIComponent(key)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ value, description }),
+  });
 }
 
 export function fetchOrdersPaged(page = 0, size = 10, search?: string, status?: string, fromDate?: string, toDate?: string) {
@@ -330,6 +430,10 @@ export function fetchForecastItemDetail(itemId: number) {
 
 export function fetchReorderRecommendations() {
   return apiRequest<Record<string, unknown>[]>('/api/v1/forecast/recommendations');
+}
+
+export function fetchAiStatus() {
+  return apiRequest<import('../types/api').AiStatusDto>('/api/v1/forecast/ai-status');
 }
 
 export function fetchOrderPrint(orderId: number) {

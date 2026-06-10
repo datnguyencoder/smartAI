@@ -93,8 +93,11 @@ services:
       - SPRING_DATA_REDIS_PORT=6379
       # Kafka configurations
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      # Gemini API integrations
-      - GEMINI_API_KEY=${GEMINI_API_KEY:-AIzaSyYourActualGeminiAPIKeyHere}
+      # Gemini + Cerebras API integrations
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash}
+      - CEREBRAS_API_KEY=${CEREBRAS_API_KEY:-}
+      - CEREBRAS_MODEL=${CEREBRAS_MODEL:-gpt-oss-120b}
       # Security Configurations
       - JWT_SECRET=${JWT_SECRET:-9a78a63584828f73b889312c1c38d6f5e8e89f81a7b8e910a11c12d13e14f15a}
       # Spring configurations

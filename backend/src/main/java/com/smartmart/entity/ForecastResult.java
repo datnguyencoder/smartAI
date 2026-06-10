@@ -51,6 +51,12 @@ public class ForecastResult {
     @Column(name = "model_type")
     private String modelType;
 
+    @Column(name = "confidence_low")
+    private BigDecimal confidenceLow;
+
+    @Column(name = "confidence_high")
+    private BigDecimal confidenceHigh;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

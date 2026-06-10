@@ -121,8 +121,17 @@ def train_from_sales_history(records: list[dict]) -> dict[str, Any]:
                 str(item_id): "moving_average" for item_id in filled["item_id"].unique()
             },
         }
-        model_store.save_training_artifacts(bundle, {**metrics, "model_type": "moving_average", "item_model_types": bundle["item_model_types"]})
-        return {**metrics, "model_type": "moving_average", "item_model_types": bundle["item_model_types"]}
+        n_ma = len(bundle["item_model_types"])
+        meta = {
+            **metrics,
+            "model_type": "moving_average",
+            "item_model_types": bundle["item_model_types"],
+            "training_samples": int(len(filled)),
+            "n_items_ml": 0,
+            "n_items_ma": n_ma,
+        }
+        model_store.save_training_artifacts(bundle, meta)
+        return meta
 
     avg_metrics = {
         "mae": float(np.mean([m["mae"] for m in per_item_metrics])),
@@ -143,8 +152,15 @@ def train_from_sales_history(records: list[dict]) -> dict[str, Any]:
         "ma_window": preprocess.MA_WINDOW,
         "item_model_types": item_model_types,
     }
-    model_store.save_training_artifacts(
-        bundle,
-        {**avg_metrics, "model_type": global_type, "item_model_types": item_model_types},
-    )
-    return {**avg_metrics, "model_type": global_type, "item_model_types": item_model_types}
+    n_ml = sum(1 for t in item_model_types.values() if t != "moving_average")
+    n_ma = sum(1 for t in item_model_types.values() if t == "moving_average")
+    meta = {
+        **avg_metrics,
+        "model_type": global_type,
+        "item_model_types": item_model_types,
+        "training_samples": int(len(filled)),
+        "n_items_ml": n_ml,
+        "n_items_ma": n_ma,
+    }
+    model_store.save_training_artifacts(bundle, meta)
+    return meta

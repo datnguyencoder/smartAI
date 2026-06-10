@@ -31,6 +31,11 @@ public class ReorderRecommendation extends LongAuditableEntity {
     @Column(name = "risk_level", nullable = false)
     private String riskLevel;
 
+    private String reason;
+
+    @Column(nullable = false)
+    private String source = "AI";
+
     @Column(nullable = false)
     private String status = "ACTIVE";
 }

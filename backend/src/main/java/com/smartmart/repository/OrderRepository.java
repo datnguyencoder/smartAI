@@ -81,6 +81,15 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         """)
     List<Order> findByCreatedByWithItems(Long createdBy);
 
+    @Query("""
+        SELECT o FROM Order o
+        LEFT JOIN FETCH o.items oi
+        LEFT JOIN FETCH oi.item
+        WHERE o.customerPhone = :customerPhone
+        ORDER BY o.orderDate DESC
+        """)
+    List<Order> findByCustomerPhoneWithItems(String customerPhone);
+
     @Query(value = """
         SELECT TO_CHAR(o.order_date, 'YYYY-MM-DD') as period,
                COUNT(DISTINCT o.id) as total_orders,
