@@ -25,7 +25,7 @@ export type UserDto = {
 
 export type AuthDto = {
   accessToken: string;
-  refreshToken: string;
+  refreshToken?: string;
   tokenType: string;
   user: UserDto;
 };
@@ -67,6 +67,36 @@ export type OrderDto = {
   totalAmount: number;
   paymentMethod?: string;
   items?: Array<{ itemName: string; quantity: number; unitPrice: number }>;
+};
+
+export type ForecastDailyPointDto = { date: string; predictedQty: number };
+
+export type ForecastItemDetailDto = {
+  itemId: number;
+  itemName: string;
+  pred7d: number;
+  pred14d: number;
+  pred30d: number;
+  modelType?: string;
+  forecastDate?: string;
+  dailySeries: ForecastDailyPointDto[];
+};
+
+export type OrderPrintDto = {
+  id: number;
+  orderCode: string;
+  customerName: string;
+  orderDate: string;
+  staffName: string;
+  totalAmount: number;
+  paymentMethod: string;
+  items: Array<{
+    itemCode: string;
+    itemName: string;
+    quantity: number;
+    unitPrice: number;
+    lineTotal: number;
+  }>;
 };
 
 export type CategoryDto = { id: number; categoryName: string; active: boolean; imageUrl?: string };
@@ -125,7 +155,14 @@ export type DashboardSummaryDto = {
   [key: string]: unknown;
 };
 
-export type ForecastResultDto = Record<string, unknown>;
+export type ForecastResultDto = {
+  itemId: number;
+  itemName?: string;
+  pred7d?: number;
+  pred14d?: number;
+  pred30d?: number;
+  modelType?: string;
+};
 
 export type PurchaseOrderDto = {
   id: number;

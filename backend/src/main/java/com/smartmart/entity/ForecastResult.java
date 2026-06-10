@@ -48,6 +48,9 @@ public class ForecastResult {
     @Column(name = "predicted_qty_30d")
     private BigDecimal predictedQty30d;
 
+    @Column(name = "model_type")
+    private String modelType;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

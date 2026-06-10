@@ -17,8 +17,9 @@ docker compose up --build
 
 ## Profiles
 
-- **local:** H2, Flyway off, `ddl-auto: update`
-- **prod:** PostgreSQL, Flyway `V1__wms_baseline.sql`, `ddl-auto: validate`
+- **local:** PostgreSQL `localhost:5432`, Flyway V1–V6, `ddl-auto: validate` (IntelliJ / `mvn spring-boot:run`)
+- **prod:** PostgreSQL trong Docker, cùng Flyway + validate
+- **test:** H2 in-memory — chỉ `./mvnw test`, không cần Postgres
 
 ## Seed users
 
@@ -28,12 +29,28 @@ docker compose up --build
 | staff | staff123 | STAFF |
 | warehouse | warehouse123 | WAREHOUSE |
 
-## Dev without Docker
+## Dev without full Docker stack
+
+Chạy Postgres trước (schema + seed):
 
 ```bash
-cd backend && ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+docker compose -f docker/docker-compose.yaml up -d postgres
+```
+
+Backend (profile `local` mặc định):
+
+```bash
+cd backend && ./mvnw spring-boot:run
+# hoặc IntelliJ: Active profiles = local, SmartMartApplication
+```
+
+Frontend & AI:
+
+```bash
 cd frontend && npm run dev   # VITE_API_URL=http://localhost:8080
 cd ai-service && uvicorn app.main:app --reload --port 8000
 ```
+
+**IntelliJ Database:** PostgreSQL, host `localhost`, port `5432`, DB `smartmart_db`, user/pass theo `docker/.env` hoặc `application-local.yml` defaults.
 
 OpenAPI: `/v3/api-docs` hoặc `docs/openapi-v1.json`.

@@ -1,6 +1,7 @@
 package com.smartmart.controller;
 
 import com.smartmart.common.response.ApiResponse;
+import com.smartmart.dto.response.ForecastItemDetailResponse;
 import com.smartmart.entity.ModelTrainingHistory;
 import com.smartmart.service.ai.ForecastOrchestrationService;
 import com.smartmart.service.ai.ReorderRecommendationService;
@@ -50,6 +51,13 @@ public class ForecastController {
     @Operation(summary = "Kết quả dự báo")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> results() {
         return ResponseEntity.ok(ApiResponse.success(forecastOrchestrationService.listResults()));
+    }
+
+    @GetMapping("/results/{itemId}")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @Operation(summary = "Chi tiết dự báo theo SKU (kèm daily series)")
+    public ResponseEntity<ApiResponse<ForecastItemDetailResponse>> resultByItem(@PathVariable Long itemId) {
+        return ResponseEntity.ok(ApiResponse.success(forecastOrchestrationService.getItemResult(itemId)));
     }
 
     @GetMapping("/recommendations")

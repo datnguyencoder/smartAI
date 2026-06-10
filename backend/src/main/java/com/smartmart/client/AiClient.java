@@ -14,6 +14,7 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeoutException;
 
 @Component
 public class AiClient {
@@ -27,11 +28,11 @@ public class AiClient {
     }
 
     public JsonNode train(List<Map<String, Object>> salesHistory) {
-        return post("/ai/train", Map.of("sales_history", salesHistory));
+        return post("/ai/train", Map.of("sales_history", salesHistory), Duration.ofSeconds(180));
     }
 
     public JsonNode forecastAll(List<Map<String, Object>> items) {
-        return post("/ai/forecast/all", Map.of("items", items));
+        return postWithRetry("/ai/forecast/all", Map.of("items", items), Duration.ofSeconds(120), 1);
     }
 
     public JsonNode health() {
@@ -51,7 +52,22 @@ public class AiClient {
         return get("/ai/model/metrics");
     }
 
-    private JsonNode post(String path, Object body) {
+    private JsonNode postWithRetry(String path, Object body, Duration timeout, int retries) {
+        int attempt = 0;
+        while (true) {
+            try {
+                return post(path, body, timeout);
+            } catch (AiServiceException ex) {
+                if (attempt >= retries) {
+                    throw ex;
+                }
+                attempt++;
+                log.warn("AI call retry {}/{} for {}", attempt, retries, path);
+            }
+        }
+    }
+
+    private JsonNode post(String path, Object body, Duration timeout) {
         try {
             return webClient.post()
                     .uri(path)
@@ -59,11 +75,14 @@ public class AiClient {
                     .bodyValue(body)
                     .retrieve()
                     .bodyToMono(JsonNode.class)
-                    .block(Duration.ofSeconds(120));
+                    .block(timeout);
         } catch (WebClientResponseException e) {
             log.error("AI service error {}: {}", path, e.getResponseBodyAsString());
             throw new AiServiceException("AI service error: " + e.getStatusCode());
         } catch (Exception e) {
+            if (e.getCause() instanceof TimeoutException || e.getMessage() != null && e.getMessage().contains("Timeout")) {
+                throw new AiServiceException(ErrorCode.AI_SERVICE_UNAVAILABLE.getMessage());
+            }
             log.error("AI service unavailable {}: {}", path, e.getMessage());
             throw new AiServiceException(ErrorCode.AI_SERVICE_UNAVAILABLE.getMessage());
         }

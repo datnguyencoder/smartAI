@@ -7,5 +7,8 @@ import java.util.List;
 
 public interface ForecastResultRepository extends JpaRepository<ForecastResult, Long> {
     List<ForecastResult> findByItemIdOrderByForecastDateDesc(Long itemId);
+
+    java.util.Optional<ForecastResult> findFirstByItemIdOrderByForecastDateDesc(Long itemId);
+
     List<ForecastResult> findTop100ByOrderByForecastDateDesc();
 }

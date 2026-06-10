@@ -14,12 +14,15 @@ public class CorsConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOrigins(
+                        .allowedOriginPatterns(
                                 "http://localhost:3000",
                                 "http://localhost:5173",
                                 "http://localhost:5174",
                                 "http://127.0.0.1:5173",
-                                "http://127.0.0.1:5174"
+                                "http://127.0.0.1:5174",
+                                "https://*.ngrok-free.app",
+                                "https://*.ngrok.app",
+                                "https://*.ngrok.dev"
                         )
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
                         .allowedHeaders("*")

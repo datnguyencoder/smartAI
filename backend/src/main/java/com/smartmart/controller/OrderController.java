@@ -2,6 +2,7 @@ package com.smartmart.controller;
 
 import com.smartmart.common.response.ApiResponse;
 import com.smartmart.dto.request.CreateOrderRequest;
+import com.smartmart.dto.response.OrderPrintResponse;
 import com.smartmart.dto.response.OrderResponse;
 import com.smartmart.service.OrderService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -47,6 +48,13 @@ public class OrderController {
     @Operation(summary = "Chi tiết hóa đơn")
     public ResponseEntity<ApiResponse<OrderResponse>> get(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(orderService.getById(id)));
+    }
+
+    @GetMapping("/{id}/print")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF')")
+    @Operation(summary = "Dữ liệu in hóa đơn POS")
+    public ResponseEntity<ApiResponse<OrderPrintResponse>> print(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(orderService.getPrint(id)));
     }
 
     @PostMapping("/{id}/cancel")

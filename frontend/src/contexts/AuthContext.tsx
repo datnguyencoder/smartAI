@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { clearSession, loadStoredUser, persistSession } from '../lib/authSession';
+import { clearSession, getAccessToken, getRefreshToken, loadStoredUser, persistSession } from '../lib/authSession';
 import { fetchMe, login as loginApi, logout as logoutApi } from '../services/wmsApi';
 import type { UserDto } from '../types/api';
 
@@ -15,18 +15,18 @@ const AuthContext = React.createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authUser, setAuthUser] = React.useState<UserDto | null>(() => loadStoredUser());
-  const [sessionReady, setSessionReady] = React.useState(() => !localStorage.getItem('smartmart_token') && !localStorage.getItem('smartmart_refresh_token'));
+  const [sessionReady, setSessionReady] = React.useState(() => !getAccessToken() && !getRefreshToken());
 
   React.useEffect(() => {
-    const token = localStorage.getItem('smartmart_token');
-    const refreshToken = localStorage.getItem('smartmart_refresh_token');
+    const token = getAccessToken();
+    const refreshToken = getRefreshToken();
     if (!token && !refreshToken) {
       setSessionReady(true);
       return;
     }
     fetchMe()
       .then((user) => {
-        const cleanUser = { ...user, role: user.role?.replace('ROLE_', '') || user.role };
+        const cleanUser = { ...user, role: user.role?.replace('ROLE_', '') || user.role } as UserDto;
         setAuthUser(cleanUser);
         localStorage.setItem('smartmart_user', JSON.stringify(cleanUser));
       })
