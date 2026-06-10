@@ -20,7 +20,7 @@ import java.util.List;
 @RequestMapping("/api/v1/users")
 @Tag(name = "Users", description = "Quản lý người dùng")
 @SecurityRequirement(name = "bearerAuth")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('ADMIN')")
 public class UserController {
 
     private final UserService userService;
@@ -57,11 +57,18 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success("Cập nhật thành công", userService.update(id, request)));
     }
 
-    @PostMapping("/{id}/deactivate")
+    @PostMapping("/{id}/lock")
     @Operation(summary = "Khóa tài khoản")
-    public ResponseEntity<ApiResponse<Void>> deactivate(@PathVariable Long id) {
-        userService.deactivate(id);
+    public ResponseEntity<ApiResponse<Void>> lock(@PathVariable Long id) {
+        userService.lock(id);
         return ResponseEntity.ok(ApiResponse.success("Khóa tài khoản thành công", null));
+    }
+
+    @PostMapping("/{id}/unlock")
+    @Operation(summary = "Mở khóa tài khoản")
+    public ResponseEntity<ApiResponse<Void>> unlock(@PathVariable Long id) {
+        userService.unlock(id);
+        return ResponseEntity.ok(ApiResponse.success("Mở khóa tài khoản thành công", null));
     }
 
     @DeleteMapping("/{id}")

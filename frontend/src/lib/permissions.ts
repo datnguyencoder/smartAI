@@ -23,14 +23,17 @@ const ALL_PAGES: PageKey[] = [
   'reports',
   'users',
   'settings',
-  'scrap-orders',
-  'scrap-create',
+'users',
+'settings',
+'scrap-orders',
+'scrap-create',
+'audit-logs',
 ];
 
 // Ma trận trang theo role (docs/02-business-rule)
 const ROLE_PAGES: Record<string, PageKey[]> = {
   ROLE_ADMIN: ALL_PAGES,
-  ROLE_MANAGER: ALL_PAGES.filter((p) => p !== 'users' && p !== 'settings'),
+  ROLE_MANAGER: ALL_PAGES.filter((p) => p !== 'users' && p !== 'settings' && p !== 'audit-logs'),
   ROLE_STAFF: ['dashboard', 'products', 'pos', 'invoices', 'inventory-alerts'],
   ROLE_WAREHOUSE: [
     'products',

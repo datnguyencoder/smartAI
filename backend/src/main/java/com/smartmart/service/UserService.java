@@ -16,7 +16,9 @@ public interface UserService {
 
     UserResponse update(Long id, UpdateUserRequest req);
 
-    void deactivate(Long id);
+    void lock(Long id);
+
+    void unlock(Long id);
 
     void softDelete(Long id);
 }

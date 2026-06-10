@@ -74,8 +74,9 @@ export function updateUser(id: number, payload: UpdateUserPayload) {
   });
 }
 
+
 export function lockUser(id: number) {
-  return apiRequest<void>(`/api/v1/users/${id}/deactivate`, {
+  return apiRequest<void>(`/api/v1/users/${id}/lock`, {
     method: 'POST',
   });
 }
@@ -394,3 +395,51 @@ export function fetchInventoryReport(from?: string, to?: string) {
   const qs = params.toString();
   return apiRequest<InventoryReportDto[]>(`/api/v1/reports/inventory${qs ? `?${qs}` : ''}`);
 }
+export function fetchAuditLogs(page = 0, size = 10) {
+  return apiRequest<PageResponseDto<AuditLogDto>>(`/api/v1/audit-logs?page=${page}&size=${size}`);
+}
+
+export function fetchAuditLogsByAction(action: string, page = 0, size = 10) {
+  return apiRequest<PageResponseDto<AuditLogDto>>(
+    `/api/v1/audit-logs/action/${encodeURIComponent(action)}?page=${page}&size=${size}`
+  );
+}
+
+export function fetchAuditLogsByUsername(username: string, page = 0, size = 10) {
+  return apiRequest<PageResponseDto<AuditLogDto>>(
+    `/api/v1/audit-logs/username/${encodeURIComponent(username)}?page=${page}&size=${size}`
+  );
+}
+
+export function fetchAuditLogsByEntity(entityType: string, entityId?: string, page = 0, size = 10) {
+  const params = new URLSearchParams({
+    entityType,
+    page: String(page),
+    size: String(size),
+  });
+
+  if (entityId && entityId.trim()) {
+    params.set('entityId', entityId.trim());
+  }
+
+  return apiRequest<PageResponseDto<AuditLogDto>>(`/api/v1/audit-logs/entity?${params}`);
+}
+
+export function unlockUser(id: number) {
+  return apiRequest<void>(`/api/v1/users/${id}/unlock`, {
+    method: 'POST',
+  });
+}
+
+export function fetchAuditLogActions(entityType?: string) {
+  const params = new URLSearchParams();
+
+  if (entityType) {
+    params.set('entityType', entityType);
+  }
+
+  const query = params.toString();
+  return apiRequest<string[]>(`/api/v1/audit-logs/actions${query ? `?${query}` : ''}`);
+
+}
+

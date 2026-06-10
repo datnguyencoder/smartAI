@@ -20,4 +20,5 @@ export type PageKey =
   | 'users'
   | 'settings'
   | 'scrap-create'
-  | 'scrap-orders';
+  | 'scrap-orders'
+  | 'audit-logs';

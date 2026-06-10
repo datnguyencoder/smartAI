@@ -12,6 +12,7 @@ import com.smartmart.exception.NotFoundException;
 import com.smartmart.repository.UserRepository;
 import com.smartmart.service.AuditLogService;
 import com.smartmart.service.AuthService;
+import jakarta.persistence.Id;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -75,7 +76,18 @@ public class UserServiceImpl implements com.smartmart.service.UserService {
                 .status(UserStatus.ACTIVE)
                 .build();
         User saved = userRepository.save(user);
-        auditLogService.log("USER_CREATE", "Tạo user: " + saved.getUsername());
+        auditLogService.log(
+                        "USER_CREATE",
+                        "USER",
+                        saved.getId().toString(),
+                        "Tạo người dùng: " + saved.getUsername(),
+                        null,
+                        "username=" + saved.getUsername()
+                                + ", email=" + saved.getEmail()
+                                + ", fullName=" + saved.getFullName()
+                                + ", role=" + saved.getRole()
+                                + ", status=" + saved.getStatus()
+        );
         return authService.toUserResponse(saved);
     }
 
@@ -83,6 +95,8 @@ public class UserServiceImpl implements com.smartmart.service.UserService {
     public UserResponse update(Long id, UpdateUserRequest req) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng"));
+        String beforeData = "email=" + user.getEmail()
+                + ", fullName=" + user.getFullName();
         if (req.getFullName() != null && !req.getFullName().isBlank()){
             user.setFullName(req.getFullName().trim());
         }
@@ -92,13 +106,27 @@ public class UserServiceImpl implements com.smartmart.service.UserService {
                         ErrorCode.EMAIL_ALREADY_EXISTS,
                         ErrorCode.EMAIL_ALREADY_EXISTS.getMessage());
             }
-            user.setEmail(req.getEmail());
+            user.setEmail(req.getEmail().trim());
         }
-        return authService.toUserResponse(userRepository.save(user));
+
+        User saved = userRepository.save(user);
+
+        auditLogService.log(
+                "USER_UPDATE",
+                "USER",
+                saved.getId().toString(),
+                "Cập nhật người dùng: " + saved.getUsername(),
+                beforeData,
+                "email=" + saved.getEmail()
+                        + ", fullName=" + saved.getFullName()
+        );
+
+        return authService.toUserResponse(saved);
     }
 
     @Override
-    public void deactivate(Long id) {
+
+    public void lock(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng"));
         if ("admin".equalsIgnoreCase(user.getUsername())) {
@@ -107,9 +135,19 @@ public class UserServiceImpl implements com.smartmart.service.UserService {
                     ErrorCode.DEFAULT_ADMIN_CANNOT_BE_DEACTIVATED.getMessage()
             );
         }
+        String beforeData = "status=" + user.getStatus();
+
         user.setStatus(UserStatus.LOCKED);
         userRepository.save(user);
-        auditLogService.log("USER_LOCKED", "Khóa user: " + user.getUsername());
+
+        auditLogService.log(
+                "USER_LOCKED",
+                "USER",
+                user.getId().toString(),
+                "Khóa user: " + user.getUsername(),
+                beforeData,
+                "status=" + user.getStatus()
+        );
     }
 
     @Override
@@ -130,10 +168,54 @@ public class UserServiceImpl implements com.smartmart.service.UserService {
             );
         }
 
+        String beforeData = "status=" + user.getStatus();
+
         user.setStatus(UserStatus.INACTIVE);
         userRepository.save(user);
 
-        auditLogService.log("USER_SOFT_DELETE", "Xóa mềm user: " + user.getUsername());
+        auditLogService.log(
+                "USER_SOFT_DELETE",
+                "USER",
+                user.getId().toString(),
+                "Xóa mềm người dùng: " + user.getUsername(),
+                beforeData,
+                "status=" + user.getStatus()
+        );
     }
+
+    @Override
+    public void unlock(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng"));
+
+        if (user.getStatus() == UserStatus.INACTIVE) {
+            throw new BadRequestException(
+                    ErrorCode.INACTIVE_USER_CANNOT_BE_UNLOCKED,
+                    ErrorCode.INACTIVE_USER_CANNOT_BE_UNLOCKED.getMessage()
+            );
+        }
+
+        if (user.getStatus() != UserStatus.LOCKED) {
+            throw new BadRequestException(
+                    ErrorCode.USER_MUST_BE_LOCKED_BEFORE_UNLOCK,
+                    ErrorCode.USER_MUST_BE_LOCKED_BEFORE_UNLOCK.getMessage()
+            );
+        }
+
+        String beforeData = "status=" + user.getStatus();
+
+        user.setStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        auditLogService.log(
+                "USER_UNLOCKED",
+                "USER",
+                user.getId().toString(),
+                "Mở khóa user: " + user.getUsername(),
+                beforeData,
+                "status=" + user.getStatus()
+        );
+    }
+
 
 }

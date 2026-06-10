@@ -32,6 +32,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { motion } from 'framer-motion';
 import { animateCartBump, animateDrawer, animateModalContent, animatePageIn } from './lib/gsapAnimations';
 import { purchaseToSlip, type ImportSlipRow } from './lib/purchaseMapper';
+
 import {
   AlertTriangle,
   BarChart3,
@@ -72,6 +73,7 @@ import {
   ScrollText,
   Send,
   UserCheck,
+  FileClock,
 } from 'lucide-react';
 import {
   Area,
@@ -144,6 +146,12 @@ import {
   lockUser,
   softDeleteUser,
   updateSupplier,
+  fetchAuditLogs,
+  fetchAuditLogsByAction,
+  fetchAuditLogsByUsername,
+  fetchAuditLogsByEntity,
+  unlockUser,
+  fetchAuditLogActions
 } from './services/wmsApi';
 import {
   fetchSalesReport,
@@ -203,6 +211,7 @@ const navItems: NavItem[] = [
   { key: 'reports', label: 'Báo cáo hệ thống', icon: BarChart3 },
   { key: 'users', label: 'Người dùng', icon: UsersRound },
   { key: 'settings', label: 'Cài đặt hệ thống', icon: Settings },
+  {key: 'audit-logs', label: 'Nhật ký hệ thống', icon: FileClock },
 ];
 
 const salesData = [
@@ -525,6 +534,10 @@ const pageTitles: Record<PageKey, { title: string; description: string }> = {
   reports: { title: 'Báo cáo hệ thống', description: 'Báo cáo doanh thu, tồn kho, nhân sự và hiệu quả AI.' },
   users: { title: 'Quản lý người dùng', description: 'Phân quyền nhân viên, vai trò và nhật ký truy cập.' },
   settings: { title: 'Cài đặt hệ thống', description: 'Cấu hình cửa hàng, AI, cảnh báo và tích hợp.' },
+  'audit-logs': {
+  title: 'Nhật ký hệ thống',
+  description: 'Theo dõi lịch sử thao tác, thay đổi dữ liệu và hoạt động người dùng.',
+  },
 };
 
 function Sidebar({
@@ -994,6 +1007,9 @@ function PageRenderer({
   }
   if (page === 'users') {
     return <UsersPage />;
+  }
+  if (page === 'audit-logs') {
+  return <AuditLogsPage />;
   }
   return <SettingsPage />;
 }
@@ -2508,15 +2524,36 @@ function UsersPage() {
                 title: 'Khóa tài khoản?',
                 content: `Bạn muốn khóa ${user.username}?`,
                 onOk: async () => {
-                  await lockUser(user.id);
-                  antdMessage.success('Khóa tài khoản thành công');
-                  loadUsers();
+                  try {
+                    await lockUser(user.id);
+                    antdMessage.success('Khóa tài khoản thành công');
+                    loadUsers();
+                  } catch (e) {
+                  antdMessage.error(e instanceof Error ? e.message : 'Không thể khóa tài khoản');
+                  }
                 },
               });
             }}
           >
             Khóa
           </Button>
+          <Button
+            size="small"
+            disabled={user.status !== 'LOCKED'}
+            onClick={() => {
+              Modal.confirm({
+                title: 'Mở khóa tài khoản?',
+                content: `Bạn muốn mở khóa ${user.username}?`,
+                onOk: async () => {
+                  await unlockUser(user.id);
+                  antdMessage.success('Mở khóa tài khoản thành công');
+                  loadUsers();
+                },
+          });
+    }}
+>
+  Mở khóa
+</Button>
           <Button
             size="small"
             danger
@@ -2722,6 +2759,330 @@ function InvoiceDrawer({ invoice, onClose }: { invoice: any | null; onClose: () 
       ) : null}
     </Drawer>
   );
+}
+
+function AuditLogsPage() {
+  const [logs, setLogs] = React.useState<AuditLogDto[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const [page, setPage] = React.useState(0);
+  const [size, setSize] = React.useState(10);
+  const [total, setTotal] = React.useState(0);
+
+  const [action, setAction] = React.useState<string | undefined>();
+  const [username, setUsername] = React.useState<string | undefined>();
+  const [entityType, setEntityType] = React.useState<string | undefined>();
+  const [actionOptions, setActionOptions] = React.useState<string[]>([]);
+
+  React.useEffect(() => {
+  if (!entityType) {
+    setActionOptions([]);
+    return;
+  }
+
+  fetchAuditLogActions(entityType)
+    .then(setActionOptions)
+    .catch(() => setActionOptions([]));
+}, [entityType]);
+
+  const loadLogs = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      let res;
+
+      if (action) {
+        res = await fetchAuditLogsByAction(action, page, size);
+      } else if (entityType) {
+        res = await fetchAuditLogsByEntity(entityType, undefined, page, size);
+      } else if (username) {
+        res = await fetchAuditLogsByUsername(username, page, size);
+      } else {
+        res = await fetchAuditLogs(page, size);
+      }
+
+      setLogs(res.content);
+      setTotal(res.totalElements);
+    } catch (e) {
+      antdMessage.error(e instanceof Error ? e.message : 'Không tải được nhật ký hệ thống');
+      setLogs([]);
+      setTotal(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, size, action, username, entityType]);
+
+  React.useEffect(() => {
+    loadLogs();
+  }, [loadLogs]);
+
+  const columns: ColumnsType<AuditLogDto> = [
+    {
+      title: 'Thời gian',
+      dataIndex: 'createdAt',
+      render: (value: string) => new Date(value).toLocaleString('vi-VN'),
+    },
+    {
+    title: 'Hành động',
+    dataIndex: 'action',
+    render: (value: string) => (
+      <Tag color="blue">{formatAuditAction(value)}</Tag>
+  ),
+    },
+    {
+      title: 'Phân hệ',
+      dataIndex: 'entityType',
+      render: (value?: string | null) => formatAuditModule(value),
+    },
+    {
+      title: 'Người thao tác',
+      dataIndex: 'username',
+    },
+    {
+      title: 'IP',
+      dataIndex: 'ipAddress',
+      render: (value?: string | null) => value || '-',
+    },
+    {
+      title: 'Chi tiết',
+      dataIndex: 'detail',
+      render: (value?: string) => value || '-',
+    },
+    {
+      title: 'Thay đổi',
+      render: (_, row) => (
+      <div className="space-y-3 text-xs">
+        <AuditDataBlock title="Trước" value={row.beforeData} />
+      <AuditDataBlock title="Sau" value={row.afterData} />
+    </div>
+  ),
+},
+  ];
+
+  
+  const auditModuleOptions = [
+  { value: 'AUTH', label: 'Đăng nhập và bảo mật' },
+  { value: 'USER', label: 'Quản lý người dùng' },
+  { value: 'ORDER', label: 'Bán hàng và hóa đơn' },
+  { value: 'ITEM', label: 'Sản phẩm' },
+  { value: 'PURCHASE_ORDER', label: 'Nhập hàng' },
+  { value: 'SCRAP_ORDER', label: 'Hủy hàng' },
+  { value: 'INVENTORY', label: 'Tồn kho' },
+  { value: 'AI', label: 'AI và dự báo' },
+  { value: 'SYSTEM', label: 'Hệ thống' },
+];
+
+  function AuditDataBlock({ title, value }: { title: string; value?: string | null }) {
+  const items = parseAuditData(value);
+
+  if (!items.length) {
+    return (
+      <div>
+        <div className="mb-1 font-semibold text-slate-500">{title}</div>
+        <span className="text-slate-400">Không có dữ liệu</span>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="mb-1 font-semibold text-slate-500">{title}</div>
+      <div className="space-y-1 rounded-lg bg-slate-50 p-2">
+        {items.map((item) => (
+          <div key={item.key} className="flex gap-2">
+            <span className="min-w-[90px] font-medium text-slate-500">{auditFieldLabel(item.key)}:</span>
+            <span className="break-all text-slate-800">{formatAuditValue(item.value)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function parseAuditData(value?: string | null) {
+  if (!value || value === '-') return [];
+
+  return value
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const [key, ...rest] = part.split('=');
+      return {
+        key: key.trim(),
+        value: rest.join('=').trim(),
+      };
+    })
+    .filter((item) => item.key);
+}
+
+function auditFieldLabel(key: string) {
+  const labels: Record<string, string> = {
+    username: 'Tên đăng nhập',
+    email: 'Email',
+    fullName: 'Họ tên',
+    role: 'Vai trò',
+    status: 'Trạng thái',
+  };
+
+  return labels[key] ?? key;
+}
+
+function formatAuditValue(value: string) {
+  if (!value) return '-';
+
+  const roleLabels: Record<string, string> = {
+    ROLE_ADMIN: 'Admin',
+    ROLE_MANAGER: 'Quản lý',
+    ROLE_STAFF: 'Thu ngân',
+    ROLE_WAREHOUSE: 'Kho',
+    ROLE_ANALYST: 'Phân tích',
+  };
+
+  const statusLabels: Record<string, string> = {
+    ACTIVE: 'Hoạt động',
+    LOCKED: 'Đã khóa',
+    INACTIVE: 'Không hoạt động',
+  };
+
+  return roleLabels[value] ?? statusLabels[value] ?? value;
+}
+
+  const resetFilters = () => {
+    setAction(undefined);
+    setUsername(undefined);
+    setEntityType(undefined);
+    setPage(0);
+  };
+
+  return (
+    <Card className="overflow-hidden">
+      <div className="border-b border-line p-5">
+        <h2 className="text-lg font-bold text-ink">Nhật ký hệ thống</h2>
+        <p className="text-sm text-slate-500">
+          Theo dõi các thao tác quan trọng như đăng nhập, tạo người dùng, cập nhật trạng thái và thay đổi dữ liệu.
+        </p>
+      </div>
+
+      <div className="grid gap-3 border-b border-line p-5 md:grid-cols-3">
+  <Select
+    allowClear
+    showSearch
+    placeholder="Phân hệ"
+    value={entityType}
+    optionFilterProp="label"
+    onChange={(value) => {
+      setEntityType(value);
+      setAction(undefined);
+      setPage(0);
+    }}
+    options={auditModuleOptions}
+  />
+
+  <Select
+  allowClear
+  showSearch
+  placeholder="Hành động"
+  value={action}
+  disabled={!entityType}
+  optionFilterProp="label"
+  onChange={(value) => {
+    setAction(value);
+    setPage(0);
+  }}
+  options={actionOptions.map((item) => ({
+    value: item,
+    label: formatAuditAction(item),
+  }))}
+/>
+
+  <Input
+    placeholder="Người thao tác"
+    value={username}
+    onChange={(e) => {
+      setUsername(e.target.value || undefined);
+      setPage(0);
+    }}
+  />
+
+</div>
+
+      <div className="flex justify-end gap-2 px-5 py-3">
+        <Button onClick={resetFilters}>Xóa lọc</Button>
+        <Button type="primary" onClick={loadLogs}>Tải lại</Button>
+      </div>
+
+      <div className="px-5 pb-5">
+        <Table
+          rowKey="id"
+          loading={loading}
+          dataSource={logs}
+          columns={columns}
+          pagination={{
+            current: page + 1,
+            pageSize: size,
+            total,
+            showSizeChanger: true,
+            onChange: (nextPage, nextSize) => {
+              setPage(nextPage - 1);
+              setSize(nextSize);
+            },
+          }}
+        />
+      </div>
+    </Card>
+  );
+}
+function formatAuditModule(entityType?: string | null) {
+  const labels: Record<string, string> = {
+    AUTH: 'Đăng nhập và bảo mật',
+    USER: 'Quản lý người dùng',
+    ORDER: 'Bán hàng và hóa đơn',
+    ITEM: 'Sản phẩm',
+    PURCHASE_ORDER: 'Nhập hàng',
+    SCRAP_ORDER: 'Hủy hàng',
+    INVENTORY: 'Tồn kho',
+    AI: 'AI và dự báo',
+    SYSTEM: 'Hệ thống',
+  };
+
+  return entityType ? labels[entityType] ?? entityType : '-';
+}
+
+function formatAuditAction(action?: string | null) {
+  if (!action) return '-';
+
+  const labels: Record<string, string> = {
+    AUTH_LOGIN: 'Đăng nhập',
+    AUTH_LOGOUT: 'Đăng xuất',
+
+    USER_CREATE: 'Tạo người dùng',
+    USER_UPDATE: 'Cập nhật người dùng',
+    USER_LOCKED: 'Khóa tài khoản',
+    USER_UNLOCKED: 'Mở khóa tài khoản',
+    USER_SOFT_DELETE: 'Ngừng hoạt động tài khoản',
+
+    ORDER_CREATE: 'Tạo hóa đơn',
+    ORDER_CANCEL: 'Hủy hóa đơn',
+
+    ITEM_CREATE: 'Tạo sản phẩm',
+    ITEM_UPDATE: 'Cập nhật sản phẩm',
+    ITEM_DELETE: 'Ngừng kinh doanh sản phẩm',
+
+    PURCHASE_CREATE: 'Tạo phiếu nhập',
+    PURCHASE_RECEIVE: 'Nhận hàng',
+    PURCHASE_CANCEL: 'Hủy phiếu nhập',
+
+    SCRAP_CREATE: 'Tạo phiếu hủy hàng',
+    SCRAP_COMPLETE: 'Hoàn tất hủy hàng',
+
+    AI_FORECAST_RUN: 'Chạy dự báo AI',
+    AI_FORECAST_TRAIN: 'Huấn luyện mô hình AI',
+  };
+
+  return labels[action] ?? action
+    .toLowerCase()
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }
 
 export default App;
