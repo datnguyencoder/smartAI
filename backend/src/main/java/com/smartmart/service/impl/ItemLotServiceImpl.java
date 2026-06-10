@@ -33,7 +33,7 @@ public class ItemLotServiceImpl implements ItemLotService {
         } else if (lotNumber != null) {
             lots = itemLotRepository.findByLotNumberContainingIgnoreCase(lotNumber);
         } else {
-            lots = itemLotRepository.findAll();
+            lots = itemLotRepository.findAllByOrderByIdDesc();
         }
         return lots.stream().map(this::toResponse).toList();
     }

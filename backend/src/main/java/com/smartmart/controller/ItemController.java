@@ -45,7 +45,7 @@ public class ItemController {
         }
         if (page != null) {
             int pageSize = size != null && size > 0 ? Math.min(size, 200) : 50;
-            Pageable pageable = org.springframework.data.domain.PageRequest.of(Math.max(page, 0), pageSize);
+            Pageable pageable = org.springframework.data.domain.PageRequest.of(Math.max(page, 0), pageSize, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id"));
             PageResponse<ItemResponse> result = itemService.listPaged(q, categoryId, active, pageable);
             return ResponseEntity.ok(ApiResponse.success(result));
         }
