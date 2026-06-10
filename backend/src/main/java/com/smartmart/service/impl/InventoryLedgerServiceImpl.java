@@ -198,6 +198,72 @@ public class InventoryLedgerServiceImpl implements com.smartmart.service.Invento
         return currentInventoryRepository.save(ci);
     }
 
-    // record on interface
-    // public record LotAllocation(ItemLot lot, BigDecimal quantity) {}
+    @Override
+    @Transactional
+    public void applyMovementAndUpdateLog(
+            Item item,
+            Location location,
+            ItemLot lot,
+            BigDecimal quantityChange,
+            InventoryActionType actionType,
+            ReferenceType referenceType,
+            Long referenceId,
+            UUID userId,
+            String note) {
+
+        if (quantityChange.compareTo(BigDecimal.ZERO) == 0) {
+            return;
+        }
+
+        Long lotId = lot != null ? lot.getId() : null;
+        CurrentInventory inv = currentInventoryRepository
+                .findByItemLocationLot(item.getId(), location.getId(), lotId)
+                .orElseGet(() -> createEmptyInventory(item, location, lot));
+
+        BigDecimal lotBefore = inv.getQuantity();
+        BigDecimal lotAfter = lotBefore.add(quantityChange);
+
+        if (lotAfter.compareTo(BigDecimal.ZERO) < 0) {
+            throw new InsufficientStockException(
+                    "Không đủ tồn kho cho sản phẩm " + item.getItemName()
+                            + (lot != null ? " (lô " + lot.getLotNumber() + ")" : ""));
+        }
+
+        inv.setQuantity(lotAfter);
+        inv = currentInventoryRepository.save(inv);
+        final Long savedInvId = inv.getId();
+
+        BigDecimal totalBefore = currentInventoryRepository.findByItemId(item.getId()).stream()
+                .filter(ci -> ci.getLocation().getId().equals(location.getId()))
+                .filter(ci -> !ci.getId().equals(savedInvId))
+                .map(CurrentInventory::getQuantity)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .add(lotBefore);
+
+        BigDecimal totalAfter = totalBefore.add(quantityChange);
+
+        InventoryLog log = inventoryLogRepository.findLogForUpdate(referenceType, referenceId, item.getId(), lotId)
+                .orElseGet(() -> InventoryLog.builder()
+                        .item(item)
+                        .location(location)
+                        .lot(lot)
+                        .referenceType(referenceType)
+                        .referenceId(referenceId)
+                        .build());
+                        
+        log.setUserId(userId);
+        log.setActionType(actionType);
+        log.setQuantityBefore(totalBefore);
+        log.setQuantityChange(quantityChange);
+        log.setQuantityAfter(totalAfter);
+        log.setNote(note);
+        
+        inventoryLogRepository.save(log);
+    }
+
+    @Override
+    @Transactional
+    public void deleteLogsByReference(ReferenceType refType, Long refId) {
+        inventoryLogRepository.deleteByReferenceTypeAndReferenceId(refType, refId);
+    }
 }

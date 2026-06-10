@@ -93,6 +93,8 @@ import ImportSlipsPage from './pages/ImportSlipsPage';
 import InventoryLogsPage from './pages/InventoryLogsPage';
 import LocationsPage from './pages/LocationsPage';
 import PosPage from './pages/PosPage';
+import ScrapOrdersPage from './pages/ScrapOrdersPage';
+import ScrapOrderCreatePage from './pages/ScrapOrderCreatePage';
 import { cn } from './lib/utils';
 import { normalizeRole } from './lib/permissions';
 import { itemToProduct, formatMoney, statusTone, type Product } from './lib/itemMapper';
@@ -163,6 +165,8 @@ const navItems: NavItem[] = [
   { key: 'import-create', label: 'Tạo phiếu nhập', icon: FileInput },
   { key: 'import-slips', label: 'Phiếu nhập hàng', icon: ClipboardCheck },
   { key: 'inventory', label: 'Tồn kho', icon: Warehouse },
+  { key: 'scrap-orders', label: 'Quản lý Yêu cầu loại bỏ', icon: Trash2 },
+  { key: 'scrap-create', label: 'Tạo Yêu cầu loại bỏ', icon: Plus },
   { key: 'inventory-alerts', label: 'Cảnh báo tồn kho', icon: AlertTriangle },
   { key: 'inventory-logs', label: 'Lịch sử biến động', icon: ScrollText },
   { key: 'ai-forecast', label: 'Dự báo AI', icon: BrainCircuit },
@@ -453,6 +457,8 @@ const pageTitles: Record<PageKey, { title: string; description: string }> = {
   'import-create': { title: 'Tạo phiếu nhập hàng', description: 'Nhập hàng từ nhà cung cấp với kiểm tra tồn kho tức thời.' },
   'import-slips': { title: 'Phiếu nhập hàng', description: 'Quản lý phiếu nhập, trạng thái duyệt và lịch nhận hàng.' },
   inventory: { title: 'Quản lý tồn kho', description: 'Kiểm soát tồn theo kho, ngưỡng cảnh báo và vòng quay hàng.' },
+  'scrap-orders': { title: 'Quản lý Yêu cầu loại bỏ hàng hóa', description: 'Danh sách và duyệt các yêu cầu xuất hủy hàng hóa.' },
+  'scrap-create': { title: 'Tạo Yêu cầu loại bỏ hàng hóa', description: 'Tạo phiếu xuất hủy hàng hóa hỏng, lỗi, hoặc hết hạn.' },
   'inventory-alerts': { title: 'Cảnh báo tồn kho', description: 'Ưu tiên sản phẩm hết hàng, sắp hết và tồn bất thường.' },
   'inventory-logs': { title: 'Lịch sử biến động kho', description: 'Nhật ký toàn bộ biến động nhập, xuất, hủy và điều chỉnh tồn kho.' },
   'ai-forecast': { title: 'Dự báo AI', description: 'Mô hình dự báo nhu cầu, doanh thu và rủi ro vận hành.' },
@@ -775,6 +781,12 @@ function PageRenderer({
   }
   if (page === 'inventory-logs') {
     return <InventoryLogsPage />;
+  }
+  if (page === 'scrap-orders') {
+    return <ScrapOrdersPage />;
+  }
+  if (page === 'scrap-create') {
+    return <ScrapOrderCreatePage />;
   }
   if (page === 'ai-forecast') {
     return <AiForecastPage productsList={productsList} invoicesList={invoicesList} />;
@@ -1481,6 +1493,7 @@ function InventoryPage({ openProduct, productsList }: { openProduct: (product: P
             sku: row.itemCode,
             name: row.itemName,
             category: row.locationName,
+            categoryId: 0,
             price: 0,
             cost: 0,
             stock,
@@ -1675,6 +1688,7 @@ function ExpiryRiskPage({ productsList, setActivePromotions, setPage }: { produc
           sku: row.itemCode,
           name: row.itemName,
           category: row.locationName,
+          categoryId: 0,
           price: 0,
           cost: 0,
           stock: Math.round(Number(row.availableQuantity)),

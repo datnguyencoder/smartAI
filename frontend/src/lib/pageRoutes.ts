@@ -21,6 +21,8 @@ export const PAGE_PATHS: Record<PageKey, string> = {
   reports: '/reports',
   users: '/users',
   settings: '/settings',
+  'scrap-create': '/scrap-orders/create',
+  'scrap-orders': '/scrap-orders',
 };
 
 const PATH_TO_PAGE = Object.fromEntries(

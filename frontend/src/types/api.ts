@@ -187,3 +187,23 @@ export type InventoryLogDto = {
   createdAt: string;
 };
 
+export type ScrapOrderItemDto = {
+  itemId: number;
+  itemName: string;
+  lotId?: number;
+  lotNumber?: string;
+  quantity: number;
+  reason?: string;
+};
+
+export type ScrapOrderDto = {
+  id: number;
+  locationId: number;
+  locationName: string;
+  createdBy: string;
+  scrapDate: string;
+  status: 'PENDING' | 'COMPLETED' | 'CANCELLED';
+  note?: string;
+  items: ScrapOrderItemDto[];
+};
+
