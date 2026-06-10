@@ -49,11 +49,11 @@ select {
   font-size: 14px;
 }
 
-.ant-table-tbody > tr > td {
+.ant-table-tbody>tr>td {
   transition: background-color 180ms ease;
 }
 
-.ant-table-thead > tr > th {
+.ant-table-thead>tr>th {
   font-size: 12px;
   font-weight: 700 !important;
   letter-spacing: 0.03em;
@@ -124,10 +124,13 @@ select {
 
 /* Glow animation for elements */
 @keyframes pulse-glow {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 0.6;
     transform: scale(1);
   }
+
   50% {
     opacity: 0.9;
     transform: scale(1.05);
@@ -139,6 +142,7 @@ select {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
@@ -154,4 +158,3 @@ select {
     overflow-x: auto;
   }
 }
-

@@ -66,10 +66,10 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query(value = """
         SELECT TO_CHAR(o.order_date, 'YYYY-MM-DD') as period,
                COUNT(DISTINCT o.id) as total_orders,
-               COUNT(DISTINCT o.id) FILTER (WHERE o.status = 'CANCELLED') as cancelled_orders,
-               COALESCE(SUM(oi.subtotal) FILTER (WHERE o.status = 'COMPLETED'), 0) as revenue,
-               COALESCE(SUM(oi.quantity * i.cost_price) FILTER (WHERE o.status = 'COMPLETED'), 0) as cost,
-               COALESCE(SUM(oi.quantity) FILTER (WHERE o.status = 'COMPLETED'), 0) as items_sold
+               COUNT(DISTINCT CASE WHEN o.status = 'CANCELLED' THEN o.id END) as cancelled_orders,
+               COALESCE(SUM(CASE WHEN o.status = 'COMPLETED' THEN oi.subtotal ELSE 0 END), 0) as revenue,
+               COALESCE(SUM(CASE WHEN o.status = 'COMPLETED' THEN oi.quantity * i.cost_price ELSE 0 END), 0) as cost,
+               COALESCE(SUM(CASE WHEN o.status = 'COMPLETED' THEN oi.quantity ELSE 0 END), 0) as items_sold
         FROM orders o
         LEFT JOIN order_items oi ON oi.order_id = o.id
         LEFT JOIN items i ON i.id = oi.item_id
@@ -82,10 +82,10 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query(value = """
         SELECT TO_CHAR(o.order_date, 'YYYY-MM') as period,
                COUNT(DISTINCT o.id) as total_orders,
-               COUNT(DISTINCT o.id) FILTER (WHERE o.status = 'CANCELLED') as cancelled_orders,
-               COALESCE(SUM(oi.subtotal) FILTER (WHERE o.status = 'COMPLETED'), 0) as revenue,
-               COALESCE(SUM(oi.quantity * i.cost_price) FILTER (WHERE o.status = 'COMPLETED'), 0) as cost,
-               COALESCE(SUM(oi.quantity) FILTER (WHERE o.status = 'COMPLETED'), 0) as items_sold
+               COUNT(DISTINCT CASE WHEN o.status = 'CANCELLED' THEN o.id END) as cancelled_orders,
+               COALESCE(SUM(CASE WHEN o.status = 'COMPLETED' THEN oi.subtotal ELSE 0 END), 0) as revenue,
+               COALESCE(SUM(CASE WHEN o.status = 'COMPLETED' THEN oi.quantity * i.cost_price ELSE 0 END), 0) as cost,
+               COALESCE(SUM(CASE WHEN o.status = 'COMPLETED' THEN oi.quantity ELSE 0 END), 0) as items_sold
         FROM orders o
         LEFT JOIN order_items oi ON oi.order_id = o.id
         LEFT JOIN items i ON i.id = oi.item_id
@@ -98,10 +98,10 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query(value = """
         SELECT TO_CHAR(o.order_date, 'YYYY') as period,
                COUNT(DISTINCT o.id) as total_orders,
-               COUNT(DISTINCT o.id) FILTER (WHERE o.status = 'CANCELLED') as cancelled_orders,
-               COALESCE(SUM(oi.subtotal) FILTER (WHERE o.status = 'COMPLETED'), 0) as revenue,
-               COALESCE(SUM(oi.quantity * i.cost_price) FILTER (WHERE o.status = 'COMPLETED'), 0) as cost,
-               COALESCE(SUM(oi.quantity) FILTER (WHERE o.status = 'COMPLETED'), 0) as items_sold
+               COUNT(DISTINCT CASE WHEN o.status = 'CANCELLED' THEN o.id END) as cancelled_orders,
+               COALESCE(SUM(CASE WHEN o.status = 'COMPLETED' THEN oi.subtotal ELSE 0 END), 0) as revenue,
+               COALESCE(SUM(CASE WHEN o.status = 'COMPLETED' THEN oi.quantity * i.cost_price ELSE 0 END), 0) as cost,
+               COALESCE(SUM(CASE WHEN o.status = 'COMPLETED' THEN oi.quantity ELSE 0 END), 0) as items_sold
         FROM orders o
         LEFT JOIN order_items oi ON oi.order_id = o.id
         LEFT JOIN items i ON i.id = oi.item_id

@@ -84,10 +84,10 @@ public interface CurrentInventoryRepository extends JpaRepository<CurrentInvento
         ) inv ON inv.item_id = i.id
         LEFT JOIN (
             SELECT il.item_id,
-                   COALESCE(SUM(il.quantity_change) FILTER (WHERE il.action_type = 'PURCHASE_RECEIVE'), 0) as purchased,
-                   COALESCE(-SUM(il.quantity_change) FILTER (WHERE il.action_type IN ('SALE', 'SALE_CANCEL')), 0) as sold,
-                   COALESCE(-SUM(il.quantity_change) FILTER (WHERE il.action_type = 'SCRAP'), 0) as scrapped,
-                   COALESCE(-SUM(il.quantity_change) FILTER (WHERE il.action_type = 'ADJUSTMENT'), 0) as shrinkage
+                   COALESCE(SUM(CASE WHEN il.action_type = 'PURCHASE_RECEIVE' THEN il.quantity_change ELSE 0 END), 0) as purchased,
+                   COALESCE(SUM(CASE WHEN il.action_type IN ('SALE', 'SALE_CANCEL') THEN -il.quantity_change ELSE 0 END), 0) as sold,
+                   COALESCE(SUM(CASE WHEN il.action_type = 'SCRAP' THEN -il.quantity_change ELSE 0 END), 0) as scrapped,
+                   COALESCE(SUM(CASE WHEN il.action_type = 'ADJUSTMENT' THEN -il.quantity_change ELSE 0 END), 0) as shrinkage
             FROM inventory_logs il
             WHERE il.created_at >= :from AND il.created_at < :to
             GROUP BY il.item_id

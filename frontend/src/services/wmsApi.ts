@@ -6,11 +6,14 @@ import type {
   DashboardSummaryDto,
   InventoryAlertDto,
   InventoryItemDto,
+  InventoryReportDto,
   ItemDto,
   LocationDto,
   OrderDto,
   PageResponseDto,
   PurchaseOrderDto,
+  PurchaseReportDto,
+  SalesReportDto,
   SupplierDto,
   UomDto,
   UserDto,
@@ -270,4 +273,30 @@ export function aiChat(message: string) {
     method: 'POST',
     body: JSON.stringify({ message }),
   });
+}
+
+// --------- Report APIs ---------
+export function fetchSalesReport(from?: string, to?: string, groupBy?: string) {
+  const params = new URLSearchParams();
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  if (groupBy) params.set('groupBy', groupBy);
+  const qs = params.toString();
+  return apiRequest<SalesReportDto[]>(`/api/v1/reports/sales${qs ? `?${qs}` : ''}`);
+}
+
+export function fetchPurchaseReport(from?: string, to?: string) {
+  const params = new URLSearchParams();
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  const qs = params.toString();
+  return apiRequest<PurchaseReportDto[]>(`/api/v1/reports/purchase${qs ? `?${qs}` : ''}`);
+}
+
+export function fetchInventoryReport(from?: string, to?: string) {
+  const params = new URLSearchParams();
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  const qs = params.toString();
+  return apiRequest<InventoryReportDto[]>(`/api/v1/reports/inventory${qs ? `?${qs}` : ''}`);
 }
