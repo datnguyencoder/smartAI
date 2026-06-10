@@ -9,6 +9,7 @@ import java.util.Optional;
 
 public interface ItemLotRepository extends JpaRepository<ItemLot, Long> {
     Optional<ItemLot> findByItemIdAndLotNumber(Long itemId, String lotNumber);
+    List<ItemLot> findAllByOrderByIdDesc();
 
     Optional<ItemLot> findByItemAndLotNumber(com.smartmart.entity.Item item, String lotNumber);
 

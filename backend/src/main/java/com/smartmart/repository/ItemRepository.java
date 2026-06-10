@@ -21,7 +21,8 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
        Page<Item> findByActiveTrue(Pageable pageable);
 
        @Query("SELECT i FROM Item i WHERE i.active = true AND " +
-                     "(LOWER(i.itemName) LIKE LOWER(CONCAT('%', :q, '%')) OR LOWER(i.itemCode) LIKE LOWER(CONCAT('%', :q, '%')))")
+                     "(LOWER(i.itemName) LIKE LOWER(CONCAT('%', :q, '%')) OR LOWER(i.itemCode) LIKE LOWER(CONCAT('%', :q, '%'))) " +
+                     "ORDER BY i.id DESC")
        List<Item> searchActive(String q);
 
        @Query("SELECT i FROM Item i WHERE i.active = true AND " +
@@ -35,7 +36,8 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
                      "(:q = '' OR LOWER(i.itemName) LIKE LOWER(CONCAT('%', :q, '%')) OR LOWER(i.itemCode) LIKE LOWER(CONCAT('%', :q, '%'))) "
                      +
                      "AND (:categoryId IS NULL OR i.category.id = :categoryId) " +
-                     "AND (:active IS NULL OR i.active = :active)")
+                     "AND (:active IS NULL OR i.active = :active) " +
+                     "ORDER BY i.id DESC")
        List<Item> searchFiltered(@org.springframework.data.repository.query.Param("q") String q,
                      @org.springframework.data.repository.query.Param("categoryId") Long categoryId,
                      @org.springframework.data.repository.query.Param("active") Boolean active);

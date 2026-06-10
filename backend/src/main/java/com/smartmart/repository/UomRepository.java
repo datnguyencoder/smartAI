@@ -7,4 +7,5 @@ import java.util.Optional;
 
 public interface UomRepository extends JpaRepository<Uom, Long> {
     Optional<Uom> findByUomName(String uomName);
+    java.util.List<Uom> findAllByOrderByIdDesc();
 }
