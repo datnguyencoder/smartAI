@@ -1,5 +1,6 @@
 package com.smartmart.service.impl;
 
+import com.smartmart.constant.AuditAction;
 import com.smartmart.dto.request.LoginRequest;
 import com.smartmart.dto.request.LogoutRequest;
 import com.smartmart.dto.request.RefreshTokenRequest;
@@ -68,32 +69,6 @@ public class AuthServiceImpl implements com.smartmart.service.AuthService {
         }
     }
 
-//    @Override
-//    public AuthResponse refresh(String bearerToken) {
-//        if (bearerToken == null || !bearerToken.startsWith("Bearer ")) {
-//            throw new UnauthorizedException(ErrorCode.TOKEN_INVALID, "Token không hợp lệ");
-//        }
-//        String token = bearerToken.substring(7);
-//        if (!jwtTokenProvider.validateToken(token)) {
-//            throw new UnauthorizedException(ErrorCode.TOKEN_EXPIRED, ErrorCode.TOKEN_EXPIRED.getMessage());
-//        }
-//        String username = jwtTokenProvider.getUsernameFromJwt(token);
-//        User user = userRepository.findByUsername(username)
-//                .orElseThrow(() -> new NotFoundException("Không tìm thấy người dùng"));
-//        if (user.getStatus() != UserStatus.ACTIVE) {
-//            throw new UnauthorizedException(ErrorCode.ACCOUNT_INACTIVE, ErrorCode.ACCOUNT_INACTIVE.getMessage());
-//        }
-//        Authentication auth = new UsernamePasswordAuthenticationToken(
-//                new CustomUserDetails(user), null, new CustomUserDetails(user).getAuthorities());
-//        return AuthResponse.builder()
-//                .accessToken(jwtTokenProvider.generateToken(auth))
-//                .tokenType("Bearer")
-//                .user(toUserResponse(user))
-//                .build();
-//    }
-
-    // Thu hồi JWT (blacklist) và xóa phiên SecurityContext
-    // Thu hồi JWT (blacklist) và xóa phiên SecurityContext
 
     @Override
     public AuthResponse refresh(RefreshTokenRequest request) {
@@ -151,6 +126,10 @@ public class AuthServiceImpl implements com.smartmart.service.AuthService {
 
         String newAccessToken = jwtTokenProvider.generateAccessToken(auth);
         String newRefreshToken = jwtTokenProvider.generateRefreshToken(auth);
+        auditLogService.log(
+                AuditAction.AUTH_REFRESH,
+                "Làm mới phiên đăng nhập: " + username
+        );
         return AuthResponse.builder()
                 .accessToken(newAccessToken)
                 .refreshToken(newRefreshToken)
@@ -173,7 +152,10 @@ public class AuthServiceImpl implements com.smartmart.service.AuthService {
                 tokenBlacklistService.blacklist(refreshToken, jwtTokenProvider.remainingValidityMs(refreshToken));
             }
         }
-        auditLogService.log("AUTH_LOGOUT", "Đăng xuất JWT");
+        auditLogService.log(
+                AuditAction.AUTH_LOGOUT,
+                "Đăng xuất JWT"
+        );
         SecurityContextHolder.clearContext();
     }
 

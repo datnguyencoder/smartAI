@@ -1,9 +1,12 @@
 package com.smartmart.service.impl;
 
+import com.smartmart.constant.AuditAction;
 import com.smartmart.dto.request.CreateSupplierRequest;
 import com.smartmart.dto.response.SupplierResponse;
 import com.smartmart.entity.Supplier;
 import com.smartmart.repository.SupplierRepository;
+import com.smartmart.service.AuditLogService;
+import com.smartmart.util.AuditData;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,9 +17,11 @@ import java.util.List;
 public class SupplierServiceImpl implements com.smartmart.service.SupplierService {
 
     private final SupplierRepository supplierRepository;
+    private final AuditLogService auditLogService;
 
-    public SupplierServiceImpl(SupplierRepository supplierRepository) {
+    public SupplierServiceImpl(SupplierRepository supplierRepository, AuditLogService auditLogService) {
         this.supplierRepository = supplierRepository;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional(readOnly = true)
@@ -36,20 +41,43 @@ public class SupplierServiceImpl implements com.smartmart.service.SupplierServic
                 .address(req.getAddress())
                 .active(true)
                 .build();
-        return toResponse(supplierRepository.save(supplier));
+        Supplier saved = supplierRepository.save(supplier);
+
+        auditLogService.log(
+                AuditAction.SUPPLIER_CREATE,
+                "SUPPLIER",
+                saved.getId().toString(),
+                "Tạo nhà cung cấp: " + saved.getSupplierName(),
+                null,
+                supplierData(saved)
+        );
+
+        return toResponse(saved);
     }
 
     @Override
     public SupplierResponse update(Long id, com.smartmart.dto.request.UpdateSupplierRequest req) {
         Supplier supplier = supplierRepository.findById(id)
                 .orElseThrow(() -> new com.smartmart.exception.NotFoundException("Không tìm thấy nhà cung cấp"));
+        String beforeData = supplierData(supplier);
         supplier.setSupplierName(req.getSupplierName());
         supplier.setContactPerson(req.getContactPerson());
         supplier.setPhone(req.getPhone());
         supplier.setEmail(req.getEmail());
         supplier.setAddress(req.getAddress());
         supplier.setActive(req.isActive());
-        return toResponse(supplierRepository.save(supplier));
+        Supplier saved = supplierRepository.save(supplier);
+
+        auditLogService.log(
+                AuditAction.SUPPLIER_UPDATE,
+                "SUPPLIER",
+                saved.getId().toString(),
+                "Cập nhật nhà cung cấp: " + saved.getSupplierName(),
+                beforeData,
+                supplierData(saved)
+        );
+
+        return toResponse(saved);
     }
 
     private SupplierResponse toResponse(Supplier s) {
@@ -62,5 +90,15 @@ public class SupplierServiceImpl implements com.smartmart.service.SupplierServic
                 .address(s.getAddress())
                 .active(s.isActive())
                 .build();
+    }
+    private String supplierData(Supplier supplier) {
+        return AuditData.of(
+                "supplierName", supplier.getSupplierName(),
+                "contactPerson", supplier.getContactPerson(),
+                "phone", supplier.getPhone(),
+                "email", supplier.getEmail(),
+                "address", supplier.getAddress(),
+                "active", supplier.isActive()
+        );
     }
 }

@@ -1,5 +1,6 @@
 package com.smartmart.service.impl;
 
+import com.smartmart.constant.AuditAction;
 import com.smartmart.dto.request.CreateUserRequest;
 import com.smartmart.dto.request.UpdateUserRequest;
 import com.smartmart.dto.response.UserResponse;
@@ -77,7 +78,7 @@ public class UserServiceImpl implements com.smartmart.service.UserService {
                 .build();
         User saved = userRepository.save(user);
         auditLogService.log(
-                        "USER_CREATE",
+                        AuditAction.USER_CREATE,
                         "USER",
                         saved.getId().toString(),
                         "Tạo người dùng: " + saved.getUsername(),
@@ -112,7 +113,7 @@ public class UserServiceImpl implements com.smartmart.service.UserService {
         User saved = userRepository.save(user);
 
         auditLogService.log(
-                "USER_UPDATE",
+                AuditAction.USER_UPDATE,
                 "USER",
                 saved.getId().toString(),
                 "Cập nhật người dùng: " + saved.getUsername(),
@@ -141,7 +142,7 @@ public class UserServiceImpl implements com.smartmart.service.UserService {
         userRepository.save(user);
 
         auditLogService.log(
-                "USER_LOCKED",
+                AuditAction.USER_LOCKED,
                 "USER",
                 user.getId().toString(),
                 "Khóa user: " + user.getUsername(),
@@ -174,7 +175,7 @@ public class UserServiceImpl implements com.smartmart.service.UserService {
         userRepository.save(user);
 
         auditLogService.log(
-                "USER_SOFT_DELETE",
+                AuditAction.USER_SOFT_DELETE,
                 "USER",
                 user.getId().toString(),
                 "Xóa mềm người dùng: " + user.getUsername(),
@@ -208,7 +209,7 @@ public class UserServiceImpl implements com.smartmart.service.UserService {
         userRepository.save(user);
 
         auditLogService.log(
-                "USER_UNLOCKED",
+                AuditAction.USER_UNLOCKED,
                 "USER",
                 user.getId().toString(),
                 "Mở khóa user: " + user.getUsername(),

@@ -1,5 +1,6 @@
 package com.smartmart.service.impl;
 
+import com.smartmart.constant.AuditAction;
 import com.smartmart.dto.request.CreatePurchaseOrderRequest;
 import com.smartmart.dto.request.PurchaseLineRequest;
 import com.smartmart.dto.response.PurchaseOrderItemResponse;
@@ -17,6 +18,7 @@ import com.smartmart.service.AuditLogService;
 import com.smartmart.service.InventoryLedgerService;
 import com.smartmart.service.ItemService;
 import com.smartmart.service.PurchaseOrderService;
+import com.smartmart.util.AuditData;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -142,7 +144,19 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         savedPo.setTotalAmount(total);
         purchaseOrderRepository.save(savedPo);
 
-        auditLogService.log("PURCHASE_CREATE", "Tạo phiếu nhập #" + savedPo.getId());
+        auditLogService.log(
+                AuditAction.PURCHASE_CREATE,
+                "PURCHASE_ORDER",
+                savedPo.getId().toString(),
+                "Tạo phiếu nhập #" + savedPo.getId(),
+                null,
+                AuditData.of(
+                        "supplierId", savedPo.getSupplier().getId(),
+                        "locationId", savedPo.getLocation().getId(),
+                        "totalAmount", savedPo.getTotalAmount(),
+                        "status", savedPo.getStatus()
+                )
+        );
         purchaseEventPublisher.publishPurchaseCreated(savedPo.getId());
 
         return toResponse(savedPo);
@@ -199,11 +213,22 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             poi.setReceivedQty(poi.getOrderedQty());
         }
 
+        String beforeData = AuditData.of("status", po.getStatus());
         po.setStatus(PurchaseStatus.COMPLETED);
         po.setCompletedAt(LocalDateTime.now());
 
         purchaseOrderRepository.save(po);
-        auditLogService.log("PURCHASE_RECEIVE", "Nhận hàng phiếu #" + po.getId());
+        auditLogService.log(
+                AuditAction.PURCHASE_RECEIVE,
+                "PURCHASE_ORDER",
+                po.getId().toString(),
+                "Nhận hàng phiếu #" + po.getId(),
+                beforeData,
+                AuditData.of(
+                        "status", po.getStatus(),
+                        "completedAt", po.getCompletedAt()
+                )
+        );
         purchaseEventPublisher.publishPurchaseReceived(po.getId());
 
         return toResponse(po);
@@ -247,6 +272,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         PurchaseOrder po = purchaseOrderRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy phiếu nhập"));
 
+        String beforeData = AuditData.of("status", po.getStatus());
         if (po.getStatus() != PurchaseStatus.PENDING) {
             throw new BadRequestException("Phiếu nhập không ở trạng thái PENDING.");
         }
@@ -268,7 +294,14 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         po.setStatus(PurchaseStatus.CANCELLED);
         purchaseOrderRepository.save(po);
 
-        auditLogService.log("PURCHASE_CANCEL", "Hủy phiếu nhập #" + po.getId());
+        auditLogService.log(
+                AuditAction.PURCHASE_CANCEL,
+                "PURCHASE_ORDER",
+                po.getId().toString(),
+                "Hủy phiếu nhập #" + po.getId(),
+                beforeData,
+                AuditData.of("status", po.getStatus())
+        );
         purchaseEventPublisher.publishPurchaseCancelled(po.getId());
 
         return toResponse(po);
