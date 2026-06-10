@@ -70,6 +70,7 @@ public class AuditLogServiceImpl implements AuditLogService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public PageResponse<AuditLogResponse> listByEntity(String entityType,String entityId, int page, int size) {
         PageRequest pageRequest = PageRequest.of(page, size);
 
@@ -92,6 +93,7 @@ public class AuditLogServiceImpl implements AuditLogService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public PageResponse<AuditLogResponse> listByUsername(String username, int page, int size) {
         String keyword = username == null ? "" : username.trim();
 
@@ -107,6 +109,7 @@ public class AuditLogServiceImpl implements AuditLogService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public PageResponse<AuditLogResponse> listByAction(String action, int page, int size) {
         Page<AuditLog> auditLogs = auditLogRepository.findByActionOrderByCreatedAtDesc(action, PageRequest.of(page, size));
         return PageResponse.of(

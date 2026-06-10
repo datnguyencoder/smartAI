@@ -3,6 +3,7 @@ package com.smartmart.repository;
 import com.smartmart.entity.AuditLog;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -52,6 +53,7 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
         """)
     Page<AuditLog> findByActionOrderByCreatedAtDesc(@Param("action") String action, Pageable pageable);
 
+    @EntityGraph(attributePaths = "user")
     Page<AuditLog> findByEntityTypeAndEntityIdOrderByCreatedAtDesc(@Param("entityType") String entityType, String entityId, Pageable pageable);
 
     @Query("""
@@ -62,6 +64,7 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
         """)
     Page<AuditLog> findAllOrderByCreatedAtDesc(Pageable pageable);
 
+    @EntityGraph(attributePaths = "user")
     Page<AuditLog> findByEntityTypeOrderByCreatedAtDesc(String entityType, Pageable pageable);
 
     @Query("""
