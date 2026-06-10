@@ -71,6 +71,9 @@ ai-service/datasets/processed/uci_online_retail_daily.csv
 ai-service/app/saved_models/*.joblib
 !ai-service/app/saved_models/.gitkeep
 
+# --- ngrok local run (scripts/ngrok-setup.sh) ---
+.ngrok-run/
+
 # --- Cursor (local agent plans; team rules under .cursor/rules stay tracked) ---
 .cursor/plans/
 

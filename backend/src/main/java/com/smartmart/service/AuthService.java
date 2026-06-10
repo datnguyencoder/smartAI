@@ -1,6 +1,7 @@
 package com.smartmart.service;
 
 import com.smartmart.dto.request.LoginRequest;
+import com.smartmart.dto.request.LogoutRequest;
 import com.smartmart.dto.request.RefreshTokenRequest;
 import com.smartmart.dto.response.AuthResponse;
 import com.smartmart.dto.response.UserResponse;
@@ -14,7 +15,7 @@ public interface AuthService {
 
     UserResponse me();
 
-    void logout(String bearerToken);
+    void logout(String bearerToken, LogoutRequest request);
 
     UserResponse toUserResponse(User user);
 }

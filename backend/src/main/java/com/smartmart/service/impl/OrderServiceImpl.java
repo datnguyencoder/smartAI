@@ -3,6 +3,7 @@ package com.smartmart.service.impl;
 import com.smartmart.dto.request.CreateOrderRequest;
 import com.smartmart.dto.request.OrderLineRequest;
 import com.smartmart.dto.response.OrderItemResponse;
+import com.smartmart.dto.response.OrderPrintResponse;
 import com.smartmart.dto.response.OrderResponse;
 import com.smartmart.entity.*;
 import com.smartmart.enums.InventoryActionType;
@@ -13,6 +14,7 @@ import com.smartmart.exception.BadRequestException;
 import com.smartmart.exception.ForbiddenException;
 import com.smartmart.repository.LocationRepository;
 import com.smartmart.repository.OrderRepository;
+import com.smartmart.repository.UserRepository;
 import com.smartmart.security.SecurityUtils;
 import com.smartmart.service.AuditLogService;
 import com.smartmart.service.InventoryAlertService;
@@ -41,6 +43,7 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
     private final OrderEventPublisher orderEventPublisher;
     private final InventoryAlertService inventoryAlertService;
     private final AuditLogService auditLogService;
+    private final UserRepository userRepository;
 
     public OrderServiceImpl(
             OrderRepository orderRepository,
@@ -49,7 +52,8 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
             InventoryLedgerService inventoryLedgerService,
             OrderEventPublisher orderEventPublisher,
             InventoryAlertService inventoryAlertService,
-            AuditLogService auditLogService
+            AuditLogService auditLogService,
+            UserRepository userRepository
     ) {
         this.orderRepository = orderRepository;
         this.itemService = itemService;
@@ -58,6 +62,7 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
         this.orderEventPublisher = orderEventPublisher;
         this.inventoryAlertService = inventoryAlertService;
         this.auditLogService = auditLogService;
+        this.userRepository = userRepository;
     }
 
     // POS: tạo hóa đơn, FEFO trừ tồn, publish event cảnh báo tồn
@@ -163,6 +168,42 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
         if (order.getCreatedBy() == null || !order.getCreatedBy().equals(userId)) {
             throw new ForbiddenException("Bạn không có quyền xem hóa đơn này");
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public OrderPrintResponse getPrint(Long id) {
+        Order order = orderRepository.findByIdWithItems(id)
+                .orElseThrow(() -> new com.smartmart.exception.NotFoundException("Không tìm thấy hóa đơn"));
+        assertStaffCanAccessOrder(order);
+
+        String staffName = "Nhân viên";
+        if (order.getCreatedBy() != null) {
+            staffName = userRepository.findById(order.getCreatedBy())
+                    .map(u -> u.getFullName() != null ? u.getFullName() : u.getUsername())
+                    .orElse(staffName);
+        }
+
+        List<OrderPrintResponse.PrintLine> lines = order.getItems().stream()
+                .map(i -> OrderPrintResponse.PrintLine.builder()
+                        .itemCode(i.getItem().getItemCode())
+                        .itemName(i.getItem().getItemName())
+                        .quantity(i.getQuantity())
+                        .unitPrice(i.getUnitPrice())
+                        .lineTotal(i.getSubtotal())
+                        .build())
+                .toList();
+
+        return OrderPrintResponse.builder()
+                .id(order.getId())
+                .orderCode(order.getOrderCode())
+                .customerName(order.getCustomerName())
+                .orderDate(order.getOrderDate())
+                .staffName(staffName)
+                .totalAmount(order.getTotalAmount())
+                .paymentMethod(order.getPaymentMethod() != null ? order.getPaymentMethod().name() : "CASH")
+                .items(lines)
+                .build();
     }
 
     @Override

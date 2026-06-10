@@ -1,4 +1,5 @@
-import { apiRequest, ApiClientError, setToken } from './apiClient';
+import { getRefreshToken } from '../lib/authSession';
+import { apiRequest, ApiClientError } from './apiClient';
 import type {
   AuthDto,
   CategoryDto,
@@ -23,23 +24,31 @@ export async function login(username: string, password: string) {
     { method: 'POST', body: JSON.stringify({ username, password }) },
     false
   );
-  // Save JWT token for subsequent requests
-  if (data?.accessToken) {
-    setToken(data.accessToken);
-  }
   return data;
 }
 
 export function logout() {
-  return apiRequest<void>('/api/v1/auth/logout', { method: 'POST' });
+  const refreshToken = getRefreshToken();
+  return apiRequest<void>('/api/v1/auth/logout', {
+    method: 'POST',
+    body: JSON.stringify(refreshToken ? { refreshToken } : {}),
+  });
 }
 
 export function fetchMe() {
   return apiRequest<UserDto>('/api/v1/auth/me');
 }
 
-export function refreshAuth(refreshToken: string) {
-  return apiRequest<AuthDto>('/api/v1/auth/refresh', { method: 'POST', body: JSON.stringify({ refreshToken }) }, false);
+export function refreshAuth() {
+  const refreshToken = getRefreshToken();
+  return apiRequest<AuthDto>(
+    '/api/v1/auth/refresh',
+    {
+      method: 'POST',
+      body: JSON.stringify({ refreshToken }),
+    },
+    false
+  );
 }
 
 export function fetchUsers() {
@@ -253,16 +262,31 @@ export function runForecast() {
 }
 
 export function fetchForecastResults() {
-  return apiRequest<Record<string, unknown>[]>('/api/v1/forecast/results');
+  return apiRequest<import('../types/api').ForecastResultDto[]>('/api/v1/forecast/results');
+}
+
+export function fetchForecastItemDetail(itemId: number) {
+  return apiRequest<import('../types/api').ForecastItemDetailDto>(`/api/v1/forecast/results/${itemId}`);
 }
 
 export function fetchReorderRecommendations() {
   return apiRequest<Record<string, unknown>[]>('/api/v1/forecast/recommendations');
 }
 
+export function fetchOrderPrint(orderId: number) {
+  return apiRequest<import('../types/api').OrderPrintDto>(`/api/v1/orders/${orderId}/print`);
+}
+
 export function aiChat(message: string) {
   return apiRequest<string>('/api/v1/ai-insight/chat', {
     method: 'POST',
     body: JSON.stringify({ message }),
+  });
+}
+
+export function aiExplainRisk(payload: Record<string, unknown>) {
+  return apiRequest<string>('/api/v1/ai-insight/explain-risk', {
+    method: 'POST',
+    body: JSON.stringify(payload),
   });
 }

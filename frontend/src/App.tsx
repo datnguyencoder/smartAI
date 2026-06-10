@@ -45,6 +45,8 @@ import {
   Home,
   LayoutDashboard,
   LogOut,
+  Moon,
+  Sun,
   Menu,
   Package,
   Plus,
@@ -90,12 +92,16 @@ import { ProductThumbnail } from './components/ProductThumbnail';
 import { CreateProductModal } from './components/CreateProductModal';
 import ImportCreatePage from './pages/ImportCreatePage';
 import ImportSlipsPage from './pages/ImportSlipsPage';
+import { BarcodeScanner } from './components/BarcodeScanner';
+import { MarkdownMessage } from './components/MarkdownMessage';
 import { cn } from './lib/utils';
 import { itemToProduct, formatMoney, statusTone, type Product } from './lib/itemMapper';
 import type { PageKey } from './types/pages';
 import {
   aiChat,
   createOrder,
+  fetchForecastItemDetail,
+  fetchOrderPrint,
   fetchDashboardSummary,
   fetchInventory,
   fetchInventoryAlerts,
@@ -115,6 +121,7 @@ import {
   updateItem,
   receivePurchaseOrder,
   cancelPurchaseOrder,
+  fetchPurchaseOrders,
   fetchPurchaseOrdersPaged,
   runForecast,
   trainForecast,
@@ -134,6 +141,7 @@ import type {
   UserDto,
   UserStatus, } from './types/api';
 import { useAuth } from './contexts/AuthContext';
+import { useTheme } from './contexts/ThemeContext';
 import { pageFromPath, pathFromPage } from './lib/pageRoutes';
 import {
   allowedPages,
@@ -204,6 +212,7 @@ function ordersToInvoices(orders: Awaited<ReturnType<typeof fetchOrders>>) {
 }
 
 function App() {
+  const { antdAlgorithm, mode: themeMode, toggle: toggleTheme } = useTheme();
   const { authUser, sessionReady, logout: authLogout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -228,6 +237,7 @@ function App() {
 
   const [productsList, setProductsList] = React.useState<Product[]>([]);
   const [invoicesList, setInvoicesList] = React.useState<any[]>([]);
+  const [, setImportSlips] = React.useState<ImportSlipRow[]>([]);
   const [categories, setCategories] = React.useState<CategoryDto[]>([]);
   const [suppliers, setSuppliers] = React.useState<SupplierDto[]>([]);
   const [locations, setLocations] = React.useState<LocationDto[]>([]);
@@ -338,6 +348,7 @@ function App() {
   return (
     <ConfigProvider
       theme={{
+        algorithm: antdAlgorithm,
         token: {
           colorPrimary: '#006c49',
           colorInfo: '#4648d4',
@@ -352,7 +363,7 @@ function App() {
       }}
     >
       <AntdApp>
-        <div className="min-h-screen bg-[#f8fafc] text-ink">
+        <div className={cn('min-h-screen text-ink', themeMode === 'dark' ? 'bg-slate-900' : 'bg-[#f8fafc]')}>
         <Sidebar
           page={page}
           setPage={setPage}
@@ -378,6 +389,8 @@ function App() {
             openMobileNav={() => setMobileNavOpen(true)}
             globalSearch={globalSearch}
             setGlobalSearch={setGlobalSearch}
+            onToggleTheme={toggleTheme}
+            themeMode={themeMode}
           />
           <div ref={pageContentRef} className="mx-auto max-w-[1220px] px-4 py-5 sm:px-6">
             <PageRenderer
@@ -601,6 +614,8 @@ function Topbar({
   openMobileNav,
   globalSearch,
   setGlobalSearch,
+  onToggleTheme,
+  themeMode,
 }: {
   title: string;
   description: string;
@@ -610,6 +625,8 @@ function Topbar({
   openMobileNav: () => void;
   globalSearch: string;
   setGlobalSearch: (val: string) => void;
+  onToggleTheme: () => void;
+  themeMode: 'light' | 'dark';
 }) {
   const showQuickCreate = canQuickCreate(authUser.role, page);
   return (
@@ -624,12 +641,17 @@ function Topbar({
           <p className="text-sm text-muted">{description}</p>
         </div>
         <div className="hidden min-w-[480px] items-center justify-end gap-3 lg:flex">
-          <Input 
-            prefix={<Search size={16} />} 
-            placeholder="Tìm kiếm sản phẩm, hóa đơn, cảnh báo..." 
+          <Input
+            prefix={<Search size={16} />}
+            placeholder="Tìm kiếm sản phẩm, hóa đơn, cảnh báo..."
             value={globalSearch}
             onChange={(e) => setGlobalSearch(e.target.value)}
             allowClear
+          />
+          <Button
+            icon={themeMode === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+            onClick={onToggleTheme}
+            aria-label="Đổi giao diện"
           />
           <Badge dot>
             <Button icon={<Bell size={16} />} />
@@ -1246,6 +1268,7 @@ function PosPage({
   const [appliedPromo, setAppliedPromo] = React.useState<string>('Không có');
   const [receiptOpen, setReceiptOpen] = React.useState(false);
   const [lastInvoice, setLastInvoice] = React.useState<any | null>(null);
+  const [lastOrderId, setLastOrderId] = React.useState<number | null>(null);
   const receiptRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
     if (receiptOpen) animateModalContent(receiptRef.current);
@@ -1344,6 +1367,7 @@ function PosPage({
         vat: Math.round(vat),
       };
       setLastInvoice(newInvoice);
+      setLastOrderId(order.id);
       setReceiptOpen(true);
       setPosCart([]);
       antdMessage.success('Thanh toán đơn hàng thành công!');
@@ -1362,7 +1386,26 @@ function PosPage({
             <h2 className="text-lg font-bold text-ink">Danh sách sản phẩm bán {catalogLoading ? '(đang tải…)' : ''}</h2>
             <p className="text-xs text-slate-400">Click chọn sản phẩm để thêm nhanh vào giỏ hàng POS.</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <BarcodeScanner
+              onScan={async (code) => {
+                if (!code) {
+                  antdMessage.error('Không mở được camera hoặc không quét được mã');
+                  return;
+                }
+                const local = productsList.find((p) => p.sku.toLowerCase() === code.toLowerCase());
+                if (local) {
+                  handleAddToCart(local);
+                  return;
+                }
+                try {
+                  const item = await fetchItemByBarcode(code);
+                  handleAddToCart(itemToProduct(item));
+                } catch {
+                  antdMessage.warning(`Không tìm thấy sản phẩm: ${code}`);
+                }
+              }}
+            />
             {categories.map(cat => (
               <Button
                 key={cat}
@@ -1534,7 +1577,38 @@ function PosPage({
         onCancel={() => setReceiptOpen(false)}
         footer={[
           <Button key="close" onClick={() => setReceiptOpen(false)}>Đóng</Button>,
-          <Button key="print" type="primary" icon={<Printer size={16} />} onClick={() => antdMessage.info('Đang in hóa đơn hóa đơn ảo...')}>
+          <Button
+            key="print"
+            type="primary"
+            icon={<Printer size={16} />}
+            onClick={async () => {
+              if (!lastOrderId) {
+                window.print();
+                return;
+              }
+              try {
+                const printData = await fetchOrderPrint(lastOrderId);
+                setLastInvoice({
+                  key: printData.orderCode,
+                  customer: printData.customerName,
+                  amount: Math.round(Number(printData.totalAmount)),
+                  cashier: printData.staffName,
+                  time: new Date(printData.orderDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+                  items: printData.items.map((it) => ({
+                    name: it.itemName,
+                    qty: Number(it.quantity),
+                    price: Number(it.unitPrice),
+                  })),
+                  subtotal: Math.round(Number(printData.totalAmount)),
+                  discount: 0,
+                  vat: 0,
+                });
+              } catch {
+                // keep current preview
+              }
+              setTimeout(() => window.print(), 300);
+            }}
+          >
             In hóa đơn
           </Button>
         ]}
@@ -1627,6 +1701,7 @@ function InventoryPage({ openProduct, productsList }: { openProduct: (product: P
             supplier: '-',
             status: stock === 0 ? 'Hết hàng' : stock <= 40 ? 'Sắp hết' : 'Còn hàng',
             expiry: row.expiryDate ?? 'Không áp dụng',
+            purchaseRatio: 1,
           };
         });
         setRows(mapped.length ? mapped : productsList);
@@ -1674,9 +1749,11 @@ function InventoryAlertsPage({ setPage }: { productsList: Product[]; setPage: (p
   );
 }
 
-function AiForecastPage({ productsList, invoicesList }: { productsList: Product[]; invoicesList: any[] }) {
+function AiForecastPage({ productsList: _productsList }: { productsList: Product[]; invoicesList: any[] }) {
   const [loading, setLoading] = React.useState(false);
-  const [results, setResults] = React.useState<Record<string, unknown>[]>([]);
+  const [results, setResults] = React.useState<import('./types/api').ForecastResultDto[]>([]);
+  const [selectedItemId, setSelectedItemId] = React.useState<number | null>(null);
+  const [dailyChart, setDailyChart] = React.useState<Array<{ date: string; qty: number }>>([]);
 
   const handleTrain = async () => {
     setLoading(true);
@@ -1690,18 +1767,43 @@ function AiForecastPage({ productsList, invoicesList }: { productsList: Product[
     }
   };
 
+  const loadItemChart = async (itemId: number) => {
+    setSelectedItemId(itemId);
+    try {
+      const detail = await fetchForecastItemDetail(itemId);
+      setDailyChart(
+        (detail.dailySeries || []).map((p) => ({
+          date: p.date.slice(5),
+          qty: Number(p.predictedQty),
+        }))
+      );
+    } catch {
+      setDailyChart([]);
+    }
+  };
+
   const handleRun = async () => {
     setLoading(true);
     try {
       await runForecast();
       const r = await fetchForecastResults();
       setResults(r);
+      if (r.length > 0) {
+        const firstId = Number(r[0].itemId);
+        if (!Number.isNaN(firstId)) await loadItemChart(firstId);
+      }
       antdMessage.success('Dự báo hoàn tất');
     } catch (e) {
       antdMessage.error(e instanceof Error ? e.message : 'Dự báo thất bại — kiểm tra ai-service');
     } finally {
       setLoading(false);
     }
+  };
+
+  const modelLabel = (t?: string) => {
+    if (t === 'random_forest') return <Tag color="blue">RF</Tag>;
+    if (t === 'xgboost') return <Tag color="purple">XGB</Tag>;
+    return <Tag>MA</Tag>;
   };
 
   return (
@@ -1716,44 +1818,43 @@ function AiForecastPage({ productsList, invoicesList }: { productsList: Product[
           <Table
             size="small"
             pagination={false}
-            dataSource={results.map((r, i) => ({ ...r, key: i }))}
+            rowKey="itemId"
+            dataSource={results}
+            onRow={(row) => ({
+              onClick: () => loadItemChart(row.itemId),
+              className: row.itemId === selectedItemId ? 'bg-emerald-50' : 'cursor-pointer',
+            })}
             columns={[
               { title: 'Sản phẩm', dataIndex: 'itemName' },
               { title: '7 ngày', dataIndex: 'pred7d' },
               { title: '14 ngày', dataIndex: 'pred14d' },
               { title: '30 ngày', dataIndex: 'pred30d' },
+              { title: 'Model', dataIndex: 'modelType', render: (v) => modelLabel(String(v)) },
             ]}
           />
         </Card>
       )}
-    <div className="grid gap-4 xl:grid-cols-[1.4fr_0.8fr]">
-      <Card className="hover:shadow-xl transition-all duration-300">
-        <CardHeader title="Dự báo doanh thu & đơn hàng từ AI" description="Mô hình ML (FastAPI) — train/run qua backend." />
-        <div className="h-[360px] px-3 pb-5">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={salesData} margin={{ top: 14, right: 18, bottom: 6, left: 0 }}>
-              <defs>
-                <linearGradient id="forecastRevenue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0.01} />
-                </linearGradient>
-                <linearGradient id="forecastOrders" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#4648d4" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="#4648d4" stopOpacity={0.01} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid stroke="#f1f5f9" strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
-              <ChartTooltip content={<SmartTooltip />} />
-              <Area dataKey="revenue" name="Doanh thu dự báo" stroke="#10b981" strokeWidth={3} fill="url(#forecastRevenue)" type="monotone" dot={false} activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 3 }} isAnimationActive animationDuration={900} />
-              <Area dataKey="orders" name="Đơn hàng dự báo" stroke="#4648d4" strokeWidth={3} fill="url(#forecastOrders)" type="monotone" dot={false} activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 3 }} isAnimationActive animationDuration={1050} />
-            </AreaChart>
-          </ResponsiveContainer>
+      <Card>
+        <CardHeader
+          title="Chuỗi dự báo 30 ngày (daily series)"
+          description={selectedItemId ? `SKU #${selectedItemId}` : 'Chạy dự báo và chọn một dòng trong bảng'}
+        />
+        <div className="h-[320px] px-3 pb-5">
+          {dailyChart.length === 0 ? (
+            <div className="h-full grid place-items-center text-muted text-sm">Chưa có dữ liệu daily series</div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={dailyChart}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis />
+                <ChartTooltip />
+                <Line type="monotone" dataKey="qty" name="SL dự báo" stroke="#006c49" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </Card>
-      <AiSummary setPage={() => {}} />
-    </div>
     </div>
   );
 }
@@ -1791,7 +1892,7 @@ function PurchaseSuggestionsPage({ productsList, setPage }: { productsList: Prod
             { title: 'Tên hàng', dataIndex: 'name', render: (v) => <span className="font-bold text-ink">{v}</span> },
             { title: 'Tồn hiện tại', dataIndex: 'stock' },
             { title: 'Đã bán (7 ngày)', dataIndex: 'sold' },
-            { title: 'Số lượng đề xuất', render: (_, row) => Math.max(80, row.sold * 2) },
+            { title: 'Số lượng đề xuất', dataIndex: 'suggested' },
             { title: 'Độ ưu tiên', render: (_, row) => <Tag color={row.stock === 0 ? 'red' : 'orange'}>{row.stock === 0 ? 'KHẨN CẤP' : 'CAO'}</Tag> },
             { title: 'Hành động', render: () => <Button size="small" type="primary" ghost onClick={() => setPage('import-create')}>Lập phiếu</Button> }
           ]}
@@ -1820,6 +1921,7 @@ function ExpiryRiskPage({ productsList, setActivePromotions, setPage }: { produc
           supplier: '-',
           status: 'Nguy cơ' as const,
           expiry: row.expiryDate ?? '—',
+          purchaseRatio: 1,
         }));
         if (mapped.length) setItems(mapped);
       })
@@ -1967,7 +2069,7 @@ function AssistantPage({
                   : 'bg-slate-100 text-slate-800 shadow-sm border border-slate-200'
               )}
             >
-              <span>{msg.text}</span>
+              {msg.sender === 'ai' ? <MarkdownMessage text={msg.text} /> : <span>{msg.text}</span>}
               {msg.action && (
                 <Button
                   className="mt-3 font-semibold text-xs h-8 bg-white border border-indigo/20 text-indigo hover:text-indigo-700"

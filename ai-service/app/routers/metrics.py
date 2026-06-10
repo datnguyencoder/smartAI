@@ -18,10 +18,17 @@ def get_model_metrics() -> MetricsResponse:
     if isinstance(trained_at, str):
         trained_at = datetime.fromisoformat(trained_at)
 
+    item_types = metrics.get("item_model_types", {})
+    if not item_types:
+        bundle = model_store.load_model_bundle()
+        if bundle:
+            item_types = bundle.get("item_model_types", {})
+
     return MetricsResponse(
         mae=float(metrics["mae"]),
         rmse=float(metrics["rmse"]),
         mape=float(metrics["mape"]),
         model_type=str(metrics["model_type"]),
         trained_at=trained_at,
+        item_model_types={str(k): str(v) for k, v in item_types.items()},
     )
