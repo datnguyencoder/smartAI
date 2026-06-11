@@ -1,4 +1,4 @@
-﻿import {
+import {
   Avatar,
   Badge,
   Button,
@@ -76,6 +76,11 @@ import {
   Send,
   UserCheck,
   FileClock,
+  FolderClosed,
+  MonitorPlay,
+  Users,
+  PlusCircle,
+  Inbox,
 } from 'lucide-react';
 import {
   Area,
@@ -162,6 +167,8 @@ import {
 } from './services/wmsApi';
 import {
   fetchSalesReport,
+  exportReport,
+  exportComprehensiveReport,
   fetchPurchaseReport,
   fetchInventoryReport,
   fetchSettings,
@@ -199,31 +206,30 @@ import {
 type NavItem = { key: PageKey; label: string; icon: typeof LayoutDashboard };
 
 const navItems: NavItem[] = [
-  { key: 'dashboard', label: 'Báº£ng Ä‘iá»u khiá»ƒn', icon: LayoutDashboard },
-  { key: 'products', label: 'Sáº£n pháº©m', icon: Package },
-  { key: 'categories', label: 'Danh má»¥c', icon: Tags },
-  { key: 'suppliers', label: 'NhÃ  cung cáº¥p', icon: Truck },
-  { key: 'locations', label: 'Vá»‹ trÃ­ kho', icon: Building2 },
-  { key: 'pos', label: 'BÃ¡n hÃ ng táº¡i quáº§y', icon: ShoppingCart },
-  { key: 'customers', label: 'KhÃ¡ch hÃ ng', icon: UserCheck },
-  { key: 'invoices', label: 'HÃ³a Ä‘Æ¡n bÃ¡n hÃ ng', icon: ReceiptText },
-  { key: 'import-create', label: 'Táº¡o phiáº¿u nháº­p', icon: FileInput },
-  { key: 'import-slips', label: 'Phiáº¿u nháº­p hÃ ng', icon: ClipboardCheck },
-  { key: 'inventory', label: 'Tá»“n kho', icon: Warehouse },
-  { key: 'scrap-orders', label: 'Quáº£n lÃ½ YÃªu cáº§u loáº¡i bá»', icon: Trash2 },
-  { key: 'scrap-create', label: 'Táº¡o YÃªu cáº§u loáº¡i bá»', icon: Plus },
-  { key: 'inventory-alerts', label: 'Cáº£nh bÃ¡o tá»“n kho', icon: AlertTriangle },
-  { key: 'inventory-logs', label: 'Lá»‹ch sá»­ biáº¿n Ä‘á»™ng', icon: ScrollText },
-  { key: 'ai-forecast', label: 'Dá»± bÃ¡o AI', icon: BrainCircuit },
-  { key: 'purchase-suggestions', label: 'Gá»£i Ã½ nháº­p hÃ ng', icon: Bot },
-  { key: 'expiry-risk', label: 'Rá»§i ro háº¿t háº¡n', icon: CalendarClock },
-  { key: 'promotions', label: 'Äá» xuáº¥t KM (AI)', icon: WandSparkles },
-  { key: 'promotion-manage', label: 'Quáº£n lÃ½ mÃ£ KM', icon: BadgePercent },
-  { key: 'ai-assistant', label: 'Trá»£ lÃ½ AI', icon: Sparkles },
-  { key: 'reports', label: 'BÃ¡o cÃ¡o há»‡ thá»‘ng', icon: BarChart3 },
-  { key: 'users', label: 'NgÆ°á»i dÃ¹ng', icon: UsersRound },
-  { key: 'settings', label: 'CÃ i Ä‘áº·t há»‡ thá»‘ng', icon: Settings },
-  {key: 'audit-logs', label: 'Nháº­t kÃ½ há»‡ thá»‘ng', icon: FileClock },
+  { key: 'dashboard', label: 'Bảng điều khiển', icon: LayoutDashboard },
+  { key: 'products', label: 'Quản lý sản phẩm', icon: Boxes },
+  { key: 'categories', label: 'Danh mục', icon: FolderClosed },
+  { key: 'suppliers', label: 'Nhà cung cấp', icon: Building2 },
+  { key: 'locations', label: 'Vị trí kho', icon: Warehouse },
+  { key: 'pos', label: 'Quầy POS', icon: MonitorPlay },
+  { key: 'customers', label: 'Khách hàng', icon: Users },
+  { key: 'invoices', label: 'Hóa đơn', icon: FileInput },
+  { key: 'import-create', label: 'Tạo phiếu nhập', icon: PlusCircle },
+  { key: 'import-slips', label: 'Phiếu nhập kho', icon: ClipboardCheck },
+  { key: 'inventory', label: 'Tồn kho', icon: Inbox },
+  { key: 'scrap-orders', label: 'Yêu cầu loại bỏ', icon: Trash2 },
+  { key: 'inventory-alerts', label: 'Cảnh báo tồn kho', icon: AlertTriangle },
+  { key: 'inventory-logs', label: 'Lịch sử biến động', icon: ScrollText },
+  { key: 'ai-forecast', label: 'Dự báo AI', icon: BrainCircuit },
+  { key: 'purchase-suggestions', label: 'Gợi ý nhập hàng', icon: Bot },
+  { key: 'expiry-risk', label: 'Rủi ro hết hạn', icon: CalendarClock },
+  { key: 'promotions', label: 'Đề xuất KM (AI)', icon: WandSparkles },
+  { key: 'promotion-manage', label: 'Quản lý mã KM', icon: BadgePercent },
+  { key: 'ai-assistant', label: 'Trợ lý AI', icon: Sparkles },
+  { key: 'reports', label: 'Báo cáo hệ thống', icon: BarChart3 },
+  { key: 'users', label: 'Người dùng', icon: UsersRound },
+  { key: 'settings', label: 'Cài đặt hệ thống', icon: Settings },
+  { key: 'audit-logs', label: 'Nhật ký hệ thống', icon: FileClock },
 ];
 
 const salesData = [
@@ -528,33 +534,33 @@ function App() {
 }
 
 const pageTitles: Record<PageKey, { title: string; description: string }> = {
-  dashboard: { title: 'Báº£ng Ä‘iá»u khiá»ƒn', description: 'Tá»•ng quan doanh thu, tá»“n kho, cáº£nh bÃ¡o vÃ  dá»± bÃ¡o AI.' },
-  products: { title: 'Quáº£n lÃ½ sáº£n pháº©m', description: 'Theo dÃµi SKU, giÃ¡ bÃ¡n, tá»“n kho vÃ  tráº¡ng thÃ¡i kinh doanh.' },
-  categories: { title: 'Quáº£n lÃ½ danh má»¥c', description: 'Tá»• chá»©c nhÃ³m hÃ ng, biÃªn lá»£i nhuáº­n vÃ  sá»‘ lÆ°á»£ng sáº£n pháº©m.' },
-  suppliers: { title: 'Quáº£n lÃ½ nhÃ  cung cáº¥p', description: 'Theo dÃµi Ä‘á»‘i tÃ¡c, cÃ´ng ná»£, lá»‹ch giao hÃ ng vÃ  SLA.' },
-  locations: { title: 'Vá»‹ trÃ­ kho hÃ ng', description: 'SÆ¡ Ä‘á»“ kho, sá»©c chá»©a vÃ  khu vá»±c lÆ°u trá»¯ hÃ ng hÃ³a.' },
-  pos: { title: 'BÃ¡n hÃ ng táº¡i quáº§y POS', description: 'QuÃ©t sáº£n pháº©m, táº¡o giá» hÃ ng vÃ  thanh toÃ¡n nhanh.' },
-  customers: { title: 'Quáº£n lÃ½ khÃ¡ch hÃ ng', description: 'Tra cá»©u SÄT, Ä‘iá»ƒm tÃ­ch lÅ©y vÃ  lá»‹ch sá»­ mua hÃ ng.' },
-  invoices: { title: 'HÃ³a Ä‘Æ¡n bÃ¡n hÃ ng', description: 'Tra cá»©u hÃ³a Ä‘Æ¡n, tráº¡ng thÃ¡i thanh toÃ¡n vÃ  giao dá»‹ch hoÃ n tiá»n.' },
-  'import-create': { title: 'Táº¡o phiáº¿u nháº­p hÃ ng', description: 'Nháº­p hÃ ng tá»« nhÃ  cung cáº¥p vá»›i kiá»ƒm tra tá»“n kho tá»©c thá»i.' },
-  'import-slips': { title: 'Phiáº¿u nháº­p hÃ ng', description: 'Quáº£n lÃ½ phiáº¿u nháº­p, tráº¡ng thÃ¡i duyá»‡t vÃ  lá»‹ch nháº­n hÃ ng.' },
-  inventory: { title: 'Quáº£n lÃ½ tá»“n kho', description: 'Kiá»ƒm soÃ¡t tá»“n theo kho, ngÆ°á»¡ng cáº£nh bÃ¡o vÃ  vÃ²ng quay hÃ ng.' },
-  'scrap-orders': { title: 'Quáº£n lÃ½ YÃªu cáº§u loáº¡i bá» hÃ ng hÃ³a', description: 'Danh sÃ¡ch vÃ  duyá»‡t cÃ¡c yÃªu cáº§u xuáº¥t há»§y hÃ ng hÃ³a.' },
-  'scrap-create': { title: 'Táº¡o YÃªu cáº§u loáº¡i bá» hÃ ng hÃ³a', description: 'Táº¡o phiáº¿u xuáº¥t há»§y hÃ ng hÃ³a há»ng, lá»—i, hoáº·c háº¿t háº¡n.' },
-  'inventory-alerts': { title: 'Cáº£nh bÃ¡o tá»“n kho', description: 'Æ¯u tiÃªn sáº£n pháº©m háº¿t hÃ ng, sáº¯p háº¿t vÃ  tá»“n báº¥t thÆ°á»ng.' },
-  'inventory-logs': { title: 'Lá»‹ch sá»­ biáº¿n Ä‘á»™ng kho', description: 'Nháº­t kÃ½ toÃ n bá»™ biáº¿n Ä‘á»™ng nháº­p, xuáº¥t, há»§y vÃ  Ä‘iá»u chá»‰nh tá»“n kho.' },
-  'ai-forecast': { title: 'Dá»± bÃ¡o AI', description: 'MÃ´ hÃ¬nh dá»± bÃ¡o nhu cáº§u, doanh thu vÃ  rá»§i ro váº­n hÃ nh.' },
-  'purchase-suggestions': { title: 'Gá»£i Ã½ nháº­p hÃ ng', description: 'Äá» xuáº¥t sá»‘ lÆ°á»£ng nháº­p tá»‘i Æ°u dá»±a trÃªn tá»‘c Ä‘á»™ bÃ¡n.' },
-  'expiry-risk': { title: 'Rá»§i ro háº¿t háº¡n', description: 'Theo dÃµi lÃ´ hÃ ng gáº§n háº¿t háº¡n vÃ  Ä‘á» xuáº¥t xá»­ lÃ½.' },
-  promotions: { title: 'Äá» xuáº¥t KM (AI)', description: 'Gemini Ä‘á» xuáº¥t giáº£m giÃ¡ â€” Manager duyá»‡t â†’ mÃ£ KM dÃ¹ng táº¡i POS.' },
-  'promotion-manage': { title: 'Quáº£n lÃ½ mÃ£ KM', description: 'Táº¡o mÃ£ giáº£m giÃ¡, thá»i háº¡n Ã¡p dá»¥ng vÃ  dÃ¹ng ngay táº¡i POS.' },
-  'ai-assistant': { title: 'Trá»£ lÃ½ AI', description: 'Há»i Ä‘Ã¡p nghiá»‡p vá»¥, phÃ¢n tÃ­ch bÃ¡n hÃ ng vÃ  táº¡o tÃ¡c vá»¥ nhanh.' },
-  reports: { title: 'BÃ¡o cÃ¡o há»‡ thá»‘ng', description: 'BÃ¡o cÃ¡o doanh thu, tá»“n kho, nhÃ¢n sá»± vÃ  hiá»‡u quáº£ AI.' },
-  users: { title: 'Quáº£n lÃ½ ngÆ°á»i dÃ¹ng', description: 'PhÃ¢n quyá»n nhÃ¢n viÃªn, vai trÃ² vÃ  nháº­t kÃ½ truy cáº­p.' },
-  settings: { title: 'CÃ i Ä‘áº·t há»‡ thá»‘ng', description: 'Cáº¥u hÃ¬nh cá»­a hÃ ng, AI, cáº£nh bÃ¡o vÃ  tÃ­ch há»£p.' },
+  dashboard: { title: 'Bảng điều khiển', description: 'Tổng quan doanh thu, tồn kho, cảnh báo và dự báo AI.' },
+  products: { title: 'Quản lý sản phẩm', description: 'Theo dõi SKU, giá bán, tồn kho và trạng thái kinh doanh.' },
+  categories: { title: 'Quản lý danh mục', description: 'Tổ chức nhóm hàng, biên lợi nhuận và số lượng sản phẩm.' },
+  suppliers: { title: 'Quản lý nhà cung cấp', description: 'Theo dõi đối tác, công nợ, lịch giao hàng và SLA.' },
+  locations: { title: 'Vị trí kho hàng', description: 'Sơ đồ kho, sức chứa và khu vực lưu trữ hàng hóa.' },
+  pos: { title: 'Bán hàng tại quầy POS', description: 'Quét sản phẩm, tạo giỏ hàng và thanh toán nhanh.' },
+  customers: { title: 'Quản lý khách hàng', description: 'Tra cứu SĐT, điểm tích lũy và lịch sử mua hàng.' },
+  invoices: { title: 'Hóa đơn bán hàng', description: 'Tra cứu hóa đơn, trạng thái thanh toán và giao dịch hoàn tiền.' },
+  'import-create': { title: 'Tạo phiếu nhập hàng', description: 'Nhập hàng từ nhà cung cấp với kiểm tra tồn kho tức thời.' },
+  'import-slips': { title: 'Phiếu nhập hàng', description: 'Quản lý phiếu nhập, trạng thái duyệt và lịch nhận hàng.' },
+  inventory: { title: 'Quản lý tồn kho', description: 'Kiểm soát tồn theo kho, ngưỡng cảnh báo và vòng quay hàng.' },
+  'scrap-orders': { title: 'Quản lý Yêu cầu loại bỏ hàng hóa', description: 'Danh sách và duyệt các yêu cầu xuất hủy hàng hóa.' },
+  'scrap-create': { title: 'Tạo Yêu cầu loại bỏ hàng hóa', description: 'Tạo phiếu xuất hủy hàng hóa hỏng, lỗi, hoặc hết hạn.' },
+  'inventory-alerts': { title: 'Cảnh báo tồn kho', description: 'Ưu tiên sản phẩm hết hàng, sắp hết và tồn bất thường.' },
+  'inventory-logs': { title: 'Lịch sử biến động kho', description: 'Nhật ký toàn bộ biến động nhập, xuất, hủy và điều chỉnh tồn kho.' },
+  'ai-forecast': { title: 'Dự báo AI', description: 'Mô hình dự báo nhu cầu, doanh thu và rủi ro vận hành.' },
+  'purchase-suggestions': { title: 'Gợi ý nhập hàng', description: 'Đề xuất số lượng nhập tối ưu dựa trên tốc độ bán.' },
+  'expiry-risk': { title: 'Rủi ro hết hạn', description: 'Theo dõi lô hàng gần hết hạn và đề xuất xử lý.' },
+  promotions: { title: 'Đề xuất KM (AI)', description: 'Gemini đề xuất giảm giá — Manager duyệt → mã KM dùng tại POS.' },
+  'promotion-manage': { title: 'Quản lý mã KM', description: 'Tạo mã giảm giá, thời hạn áp dụng và dùng ngay tại POS.' },
+  'ai-assistant': { title: 'Trợ lý AI', description: 'Hỏi đáp nghiệp vụ, phân tích bán hàng và tạo tác vụ nhanh.' },
+  reports: { title: 'Báo cáo hệ thống', description: 'Báo cáo doanh thu, tồn kho, nhân sự và hiệu quả AI.' },
+  users: { title: 'Quản lý người dùng', description: 'Phân quyền nhân viên, vai trò và nhật ký truy cập.' },
+  settings: { title: 'Cài đặt hệ thống', description: 'Cấu hình cửa hàng, AI, cảnh báo và tích hợp.' },
   'audit-logs': {
-  title: 'Nháº­t kÃ½ há»‡ thá»‘ng',
-  description: 'Theo dÃµi lá»‹ch sá»­ thao tÃ¡c, thay Ä‘á»•i dá»¯ liá»‡u vÃ  hoáº¡t Ä‘á»™ng ngÆ°á»i dÃ¹ng.',
+    title: 'Nhật ký hệ thống',
+    description: 'Theo dõi lịch sử thao tác, thay đổi dữ liệu và hoạt động người dùng.',
   },
 };
 
@@ -579,7 +585,7 @@ function Sidebar({
         </div>
         <div>
           <h1 className="text-lg font-bold leading-tight text-white">SmartMart AI</h1>
-          <p className="text-xs text-slate-300">Quáº£n lÃ½ siÃªu thá»‹ mini báº±ng AI</p>
+          <p className="text-xs text-slate-300">Quản lý siêu thị mini bằng AI</p>
         </div>
       </div>
       <nav className="flex-1 overflow-y-auto px-2 scrollbar-thin">
@@ -612,7 +618,7 @@ function Sidebar({
       </nav>
       <div className="mx-3 rounded-xl border border-slate-700 bg-slate-800/70 p-4">
         <UiButton variant="secondary" className="mb-4 w-full bg-indigo">
-          <Sparkles size={16} /> NÃ¢ng cáº¥p AI Pro
+          <Sparkles size={16} /> Nâng cấp AI Pro
         </UiButton>
         <p className="mb-2 px-2 text-xs text-slate-400 truncate">
           {authUser.fullName ?? authUser.username} Â· {roleLabel(authUser.role)}
@@ -622,7 +628,7 @@ function Sidebar({
           className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-sm text-slate-300 hover:bg-slate-700 hover:text-white"
           onClick={onLogout}
         >
-          <LogOut size={16} /> ÄÄƒng xuáº¥t
+          <LogOut size={16} /> Đăng xuất
         </button>
       </div>
     </aside>
@@ -653,7 +659,7 @@ function MobileNav({
           </div>
           <div>
             <h1 className="text-lg font-bold leading-tight text-white">SmartMart AI</h1>
-            <p className="text-xs text-slate-300">Quáº£n lÃ½ siÃªu thá»‹ mini báº±ng AI</p>
+            <p className="text-xs text-slate-300">Quản lý siêu thị mini bằng AI</p>
           </div>
         </div>
         <nav className="px-2">
@@ -696,7 +702,7 @@ function MobileNav({
               onClose();
             }}
           >
-            <LogOut size={16} /> ÄÄƒng xuáº¥t
+            <LogOut size={16} /> Đăng xuất
           </button>
         </div>
       </div>
@@ -744,7 +750,7 @@ function Topbar({
         <div className="hidden min-w-[480px] items-center justify-end gap-3 lg:flex">
           <Input
             prefix={<Search size={16} />}
-            placeholder="TÃ¬m kiáº¿m sáº£n pháº©m, hÃ³a Ä‘Æ¡n, cáº£nh bÃ¡o..."
+            placeholder="Tìm kiếm sản phẩm, hóa đơn, cảnh báo..."
             value={globalSearch}
             onChange={(e) => setGlobalSearch(e.target.value)}
             allowClear
@@ -816,18 +822,18 @@ function SystemActivityBell({
     <div className="w-[360px] max-w-[calc(100vw-32px)]">
       <div className="flex items-center justify-between border-b border-slate-100 px-1 pb-3">
         <div>
-          <strong className="text-sm text-ink">Hoáº¡t Ä‘á»™ng há»‡ thá»‘ng</strong>
-          <p className="text-xs text-muted">Tá»± Ä‘á»™ng cáº­p nháº­t má»—i 15 giÃ¢y</p>
+          <strong className="text-sm text-ink">Hoạt động hệ thống</strong>
+          <p className="text-xs text-muted">Tự động cập nhật mỗi 15 giây</p>
         </div>
         <Button type="link" size="small" onClick={() => setPage('inventory-alerts')}>
-          Cáº£nh bÃ¡o kho
+          Cảnh báo kho
         </Button>
       </div>
       <div className="max-h-[420px] overflow-y-auto py-2">
         {loading ? (
           <p className="py-8 text-center text-sm text-muted">Äang táº£i hoáº¡t Ä‘á»™ng...</p>
         ) : activities.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted">ChÆ°a cÃ³ hoáº¡t Ä‘á»™ng má»›i.</p>
+          <p className="py-8 text-center text-sm text-muted">Chưa có hoạt động mới.</p>
         ) : (
           activities.map((activity) => (
             <div className="flex gap-3 border-b border-slate-100 px-1 py-3 last:border-0" key={activity.id}>
@@ -863,7 +869,7 @@ function SystemActivityBell({
       trigger="click"
     >
       <Badge count={unreadCount} size="small" overflowCount={9}>
-        <Button icon={<Bell size={16} />} aria-label="Xem hoáº¡t Ä‘á»™ng há»‡ thá»‘ng" />
+        <Button icon={<Bell size={16} />} aria-label="Xem hoạt động hệ thống" />
       </Badge>
     </Popover>
   );
@@ -872,9 +878,9 @@ function SystemActivityBell({
 function formatActivityTime(value: string) {
   const date = new Date(value);
   const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
-  if (seconds < 60) return 'Vá»«a xong';
+  if (seconds < 60) return 'Vừa xong';
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes} phÃºt trÆ°á»›c`;
+  if (minutes < 60) return `${minutes} phút trước`;
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours} giá» trÆ°á»›c`;
   return date.toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' });
@@ -1410,7 +1416,7 @@ function ProductsPage({
         <Input
           className="max-w-sm"
           prefix={<Search size={16} />}
-          placeholder="TÃ¬m theo tÃªn, SKU, mÃ£ váº¡ch..."
+          placeholder="Tìm theo tên, SKU, mã vạch..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -1450,7 +1456,7 @@ function CategoriesPage({ categories, productsList }: { categories: CategoryDto[
       <Card>
         <div className="p-5 flex items-center justify-between border-b border-slate-100">
           <h2 className="font-semibold text-lg">Danh má»¥c hÃ ng hÃ³a</h2>
-          <Input className="w-64" prefix={<Search size={16} />} placeholder="TÃ¬m kiáº¿m danh má»¥c..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} allowClear />
+          <Input className="w-64" prefix={<Search size={16} />} placeholder="Tìm kiếm danh mục..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} allowClear />
         </div>
         <div className="grid gap-3 px-5 py-5 md:grid-cols-2">
           {filtered.map((cat, idx) => {
@@ -1703,7 +1709,7 @@ function InvoicesPage({
       <CardHeader title="Danh sÃ¡ch hÃ³a Ä‘Æ¡n" className="shrink-0" action={
         <div className="flex gap-2">
           <Input.Search
-            placeholder="TÃ¬m mÃ£, khÃ¡ch hÃ ng..."
+            placeholder="Tìm mã, khách hàng..."
             onSearch={val => { setFilters(f => ({ ...f, search: val })); setPagination(p => ({ ...p, page: 0 })); }}
             style={{ width: 240 }}
             allowClear
@@ -2308,7 +2314,7 @@ function ReportsPage({ productsList, invoicesList }: { productsList: Product[]; 
         setInventoryData(data);
       }
     } catch (e) {
-      antdMessage.error(e instanceof Error ? e.message : 'KhÃ´ng táº£i Ä‘Æ°á»£c bÃ¡o cÃ¡o');
+      antdMessage.error(e instanceof Error ? e.message : 'Không tải được báo cáo');
     } finally {
       setLoading(false);
     }
@@ -2318,6 +2324,47 @@ function ReportsPage({ productsList, invoicesList }: { productsList: Product[]; 
     loadReport();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
+
+  const handleExport = async (format: 'excel' | 'pdf') => {
+    try {
+      const { from, to } = formatRange();
+      const type = activeTab as 'sales' | 'purchase' | 'inventory';
+      const blob = await exportReport(type, format, from, to, type === 'sales' ? groupBy : undefined);
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const ext = format === 'excel' ? 'xlsx' : 'pdf';
+      link.setAttribute('download', `${type}-report-${new Date().toISOString().split('T')[0]}.${ext}`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      antdMessage.success(`Xuất báo cáo ${format.toUpperCase()} thành công!`);
+    } catch (e) {
+      antdMessage.error('Lỗi khi xuất báo cáo: ' + (e instanceof Error ? e.message : String(e)));
+    }
+  };
+
+  const handleExportComprehensive = async (format: 'pdf' | 'excel' = 'pdf') => {
+    try {
+      const { from, to } = formatRange();
+      const blob = await exportComprehensiveReport(format, from, to);
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const ext = format === 'excel' ? 'xlsx' : 'pdf';
+      link.setAttribute('download', `comprehensive-report-${new Date().toISOString().split('T')[0]}.${ext}`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      antdMessage.success(`Xuất Báo Cáo Tổng Hợp (${format.toUpperCase()}) thành công!`);
+    } catch (e) {
+      antdMessage.error('Lỗi khi xuất báo cáo tổng hợp: ' + (e instanceof Error ? e.message : String(e)));
+    }
+  };
 
   const salesTotals = React.useMemo(() => {
     const totalRevenue = salesData.reduce((s, r) => s + r.totalRevenue, 0);
@@ -2345,42 +2392,42 @@ function ReportsPage({ productsList, invoicesList }: { productsList: Product[]; 
   }, [inventoryData]);
 
   const salesColumns: ColumnsType<SalesReportDto> = [
-    { title: 'Ká»³ bÃ¡o cÃ¡o', dataIndex: 'period', width: 130, fixed: 'left' },
-    { title: 'Tá»•ng Ä‘Æ¡n', dataIndex: 'totalOrders', width: 100, sorter: (a, b) => a.totalOrders - b.totalOrders },
-    { title: 'ÄÆ¡n há»§y', dataIndex: 'cancelledOrders', width: 100 },
+    { title: 'Kỳ báo cáo', dataIndex: 'period', width: 130, fixed: 'left' },
+    { title: 'Tổng đơn', dataIndex: 'totalOrders', width: 100, sorter: (a, b) => a.totalOrders - b.totalOrders },
+    { title: 'Đơn hủy', dataIndex: 'cancelledOrders', width: 100 },
     { title: 'Doanh thu', dataIndex: 'totalRevenue', width: 150, render: (v: number) => money(v), sorter: (a, b) => a.totalRevenue - b.totalRevenue },
-    { title: 'GiÃ¡ vá»‘n', dataIndex: 'totalCost', width: 150, render: (v: number) => money(v) },
-    { title: 'Lá»£i nhuáº­n gá»™p', dataIndex: 'grossProfit', width: 150, render: (v: number) => <span className={v >= 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'}>{money(v)}</span>, sorter: (a, b) => a.grossProfit - b.grossProfit },
-    { title: 'SP bÃ¡n ra', dataIndex: 'totalItemsSold', width: 110 },
-    { title: 'Top sáº£n pháº©m', dataIndex: 'topProducts', width: 220, render: (tops: SalesReportDto['topProducts']) => tops?.length ? tops.slice(0, 3).map((t) => t.itemName).join(', ') : 'â€”' },
+    { title: 'Giá vốn', dataIndex: 'totalCost', width: 150, render: (v: number) => money(v) },
+    { title: 'Lợi nhuận gộp', dataIndex: 'grossProfit', width: 150, render: (v: number) => <span className={v >= 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'}>{money(v)}</span>, sorter: (a, b) => a.grossProfit - b.grossProfit },
+    { title: 'SP bán ra', dataIndex: 'totalItemsSold', width: 110 },
+    { title: 'Top sản phẩm', dataIndex: 'topProducts', width: 220, render: (tops: SalesReportDto['topProducts']) => tops?.length ? tops.slice(0, 3).map((t) => t.itemName).join(', ') : '—' },
   ];
 
   const purchaseColumns: ColumnsType<PurchaseReportDto> = [
-    { title: 'NhÃ  cung cáº¥p', dataIndex: 'supplierName', width: 200, fixed: 'left' },
-    { title: 'Sá»‘ Ä‘Æ¡n nháº­p', dataIndex: 'totalOrders', width: 120, sorter: (a, b) => a.totalOrders - b.totalOrders },
-    { title: 'Tá»•ng giÃ¡ trá»‹', dataIndex: 'totalAmount', width: 160, render: (v: number) => money(v), sorter: (a, b) => a.totalAmount - b.totalAmount },
-    { title: 'Loáº¡i SP nháº­p', dataIndex: 'totalItemTypes', width: 120 },
-    { title: 'Tá»•ng SL nháº­p', dataIndex: 'totalQuantity', width: 130, render: (v: number) => Math.round(v).toLocaleString('vi-VN') },
+    { title: 'Nhà cung cấp', dataIndex: 'supplierName', width: 200, fixed: 'left' },
+    { title: 'Số đơn nhập', dataIndex: 'totalOrders', width: 120, sorter: (a, b) => a.totalOrders - b.totalOrders },
+    { title: 'Tổng giá trị', dataIndex: 'totalAmount', width: 160, render: (v: number) => money(v), sorter: (a, b) => a.totalAmount - b.totalAmount },
+    { title: 'Loại SP nhập', dataIndex: 'totalItemTypes', width: 120 },
+    { title: 'Tổng SL nhập', dataIndex: 'totalQuantity', width: 130, render: (v: number) => Math.round(v).toLocaleString('vi-VN') },
   ];
 
   const inventoryColumns: ColumnsType<InventoryReportDto> = [
-    { title: 'MÃ£ SP', dataIndex: 'itemCode', width: 120, fixed: 'left' },
-    { title: 'TÃªn sáº£n pháº©m', dataIndex: 'itemName', width: 200 },
-    { title: 'Danh má»¥c', dataIndex: 'categoryName', width: 140 },
-    { title: 'Tá»“n hiá»‡n táº¡i', dataIndex: 'currentStock', width: 120, render: (v: number) => Math.round(v).toLocaleString('vi-VN'), sorter: (a, b) => a.currentStock - b.currentStock },
-    { title: 'ÄÃ£ nháº­p', dataIndex: 'totalPurchased', width: 110, render: (v: number) => Math.round(v).toLocaleString('vi-VN') },
-    { title: 'ÄÃ£ bÃ¡n', dataIndex: 'totalSold', width: 110, render: (v: number) => Math.round(v).toLocaleString('vi-VN') },
-    { title: 'ÄÃ£ há»§y', dataIndex: 'totalScrapped', width: 110, render: (v: number) => Math.round(v).toLocaleString('vi-VN') },
-    { title: 'Hao há»¥t', dataIndex: 'shrinkage', width: 110, render: (v: number) => <span className={v > 0 ? 'text-red-600 font-semibold' : ''}>{Math.round(v).toLocaleString('vi-VN')}</span> },
-    { title: 'Quay vÃ²ng', dataIndex: 'turnoverRate', width: 110, render: (v: number) => v?.toFixed(2) ?? 'â€”', sorter: (a, b) => a.turnoverRate - b.turnoverRate },
-    { title: 'Háº¡n gáº§n nháº¥t', dataIndex: 'nearestExpiryDate', width: 130, render: (v: string) => v ?? 'â€”' },
-    { title: 'CÃ²n (ngÃ y)', dataIndex: 'daysUntilExpiry', width: 110, render: (v: number | undefined) => v != null ? <Tag color={v <= 7 ? 'red' : v <= 30 ? 'orange' : 'green'}>{v} ngÃ y</Tag> : 'â€”', sorter: (a, b) => (a.daysUntilExpiry ?? 9999) - (b.daysUntilExpiry ?? 9999) },
+    { title: 'Mã SP', dataIndex: 'itemCode', width: 120, fixed: 'left' },
+    { title: 'Tên sản phẩm', dataIndex: 'itemName', width: 200 },
+    { title: 'Danh mục', dataIndex: 'categoryName', width: 140 },
+    { title: 'Tồn hiện tại', dataIndex: 'currentStock', width: 120, render: (v: number) => Math.round(v).toLocaleString('vi-VN'), sorter: (a, b) => a.currentStock - b.currentStock },
+    { title: 'Đã nhập', dataIndex: 'totalPurchased', width: 110, render: (v: number) => Math.round(v).toLocaleString('vi-VN') },
+    { title: 'Đã bán', dataIndex: 'totalSold', width: 110, render: (v: number) => Math.round(v).toLocaleString('vi-VN') },
+    { title: 'Đã hủy', dataIndex: 'totalScrapped', width: 110, render: (v: number) => Math.round(v).toLocaleString('vi-VN') },
+    { title: 'Hao hụt', dataIndex: 'shrinkage', width: 110, render: (v: number) => <span className={v > 0 ? 'text-red-600 font-semibold' : ''}>{Math.round(v).toLocaleString('vi-VN')}</span> },
+    { title: 'Quay vòng', dataIndex: 'turnoverRate', width: 110, render: (v: number) => v?.toFixed(2) ?? '—', sorter: (a, b) => a.turnoverRate - b.turnoverRate },
+    { title: 'Hạn gần nhất', dataIndex: 'nearestExpiryDate', width: 130, render: (v: string) => v ?? '—' },
+    { title: 'Còn (ngày)', dataIndex: 'daysUntilExpiry', width: 110, render: (v: number | undefined) => v != null ? <Tag color={v <= 7 ? 'red' : v <= 30 ? 'orange' : 'green'}>{v} ngày</Tag> : '—', sorter: (a, b) => (a.daysUntilExpiry ?? 9999) - (b.daysUntilExpiry ?? 9999) },
   ];
 
   const StatCard = ({ label, value, color = 'text-slate-800' }: { label: string; value: string | number; color?: string }) => (
     <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm hover:shadow-md transition-shadow">
       <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">{label}</p>
-      <p className={`text-xl font-extrabold ${color}`}>{value}</p>
+      <p className={"text-xl font-extrabold " + (color || 'text-slate-800')}>{value}</p>
     </div>
   );
 
@@ -2391,7 +2438,7 @@ function ReportsPage({ productsList, invoicesList }: { productsList: Product[]; 
           <LocalizationProvider dateAdapter={AdapterDayjs}>
             <div className="flex flex-wrap items-center gap-2">
               <MuiDatePicker
-                label="Tá»« ngÃ y"
+                label="Từ ngày"
                 format="DD/MM/YYYY"
                 value={dateRange && dateRange[0] ? dateRange[0] : null}
                 onChange={(val) => {
@@ -2413,9 +2460,9 @@ function ReportsPage({ productsList, invoicesList }: { productsList: Product[]; 
                   }
                 }}
               />
-              <span className="text-slate-400">â€”</span>
+              <span className="text-slate-400">—</span>
               <MuiDatePicker
-                label="Äáº¿n ngÃ y"
+                label="Đến ngày"
                 format="DD/MM/YYYY"
                 value={dateRange && dateRange[1] ? dateRange[1] : null}
                 onChange={(val) => {
@@ -2442,9 +2489,9 @@ function ReportsPage({ productsList, invoicesList }: { productsList: Product[]; 
           {activeTab === 'sales' && (
             <ReactSelect
               value={[
-                { value: 'day', label: 'Theo ngÃ y' },
-                { value: 'month', label: 'Theo thÃ¡ng' },
-                { value: 'year', label: 'Theo nÄƒm' },
+                { value: 'day', label: 'Theo ngày' },
+                { value: 'month', label: 'Theo tháng' },
+                { value: 'year', label: 'Theo năm' },
               ].find((opt) => opt.value === groupBy)}
               onChange={(newValue) => {
                 if (newValue) {
@@ -2487,14 +2534,43 @@ function ReportsPage({ productsList, invoicesList }: { productsList: Product[]; 
                 }),
               }}
               options={[
-                { value: 'day', label: 'Theo ngÃ y' },
-                { value: 'month', label: 'Theo thÃ¡ng' },
-                { value: 'year', label: 'Theo nÄƒm' },
+                { value: 'day', label: 'Theo ngày' },
+                { value: 'month', label: 'Theo tháng' },
+                { value: 'year', label: 'Theo năm' },
               ]}
             />
           )}
           <Button type="primary" onClick={loadReport} loading={loading}>
-            Táº£i bÃ¡o cÃ¡o
+            Tải báo cáo
+          </Button>
+          <div className="flex-1" />
+          <Button
+            onClick={() => handleExport('excel')}
+            icon={<span className="material-symbols-rounded align-middle mr-1 text-emerald-600">table_view</span>}
+            className="hover:border-emerald-500 hover:text-emerald-600"
+          >
+            Xuất Excel (Tab hiện tại)
+          </Button>
+          <Button
+            onClick={() => handleExport('pdf')}
+            icon={<span className="material-symbols-rounded align-middle mr-1 text-red-500">picture_as_pdf</span>}
+            className="hover:border-red-500 hover:text-red-600"
+          >
+            Xuất PDF (Tab hiện tại)
+          </Button>
+          <Button
+            onClick={() => handleExportComprehensive('excel')}
+            icon={<span className="material-symbols-rounded align-middle mr-1 text-emerald-600">border_all</span>}
+            className="border-emerald-200 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-300 text-emerald-700 font-medium"
+          >
+            Xuất Excel Tổng Hợp (3 Sheet)
+          </Button>
+          <Button
+            onClick={() => handleExportComprehensive('pdf')}
+            icon={<span className="material-symbols-rounded align-middle mr-1 text-red-500">picture_as_pdf</span>}
+            className="border-red-200 bg-red-50 hover:bg-red-100 hover:border-red-300 text-red-700 font-medium"
+          >
+            In Báo Cáo Tổng Hợp (PDF)
           </Button>
         </div>
       </Card>
@@ -2504,17 +2580,17 @@ function ReportsPage({ productsList, invoicesList }: { productsList: Product[]; 
         items={[
           {
             key: 'sales',
-            label: 'BÃ¡o cÃ¡o bÃ¡n hÃ ng',
+            label: 'Báo cáo bán hàng',
             children: (
               <div className="space-y-4">
                 <div className="grid gap-3 md:grid-cols-4">
                   <StatCard label="Doanh thu" value={money(salesTotals.totalRevenue)} color="text-emerald-600" />
-                  <StatCard label="Tá»•ng Ä‘Æ¡n hÃ ng" value={salesTotals.totalOrders.toLocaleString('vi-VN')} />
-                  <StatCard label="Lá»£i nhuáº­n gá»™p" value={money(salesTotals.grossProfit)} color={salesTotals.grossProfit >= 0 ? 'text-emerald-600' : 'text-red-600'} />
-                  <StatCard label="SP bÃ¡n ra" value={salesTotals.totalItemsSold.toLocaleString('vi-VN')} />
+                  <StatCard label="Tổng đơn hàng" value={salesTotals.totalOrders.toLocaleString('vi-VN')} />
+                  <StatCard label="Lợi nhuận gộp" value={money(salesTotals.grossProfit)} color={salesTotals.grossProfit >= 0 ? 'text-emerald-600' : 'text-red-600'} />
+                  <StatCard label="SP bán ra" value={salesTotals.totalItemsSold.toLocaleString('vi-VN')} />
                 </div>
                 <Card>
-                  <CardHeader title="Chi tiáº¿t bÃ¡o cÃ¡o bÃ¡n hÃ ng" description={`${salesData.length} ká»³ bÃ¡o cÃ¡o`} />
+                  <CardHeader title="Chi tiết báo cáo bán hàng" description={`${salesData.length} kỳ báo cáo`} />
                   <div className="px-4 pb-4">
                     <Table loading={loading} dataSource={salesData.map((r, i) => ({ ...r, key: i }))} columns={salesColumns} pagination={{ pageSize: 10 }} scroll={{ x: 1200 }} size="small" />
                   </div>
@@ -2524,17 +2600,17 @@ function ReportsPage({ productsList, invoicesList }: { productsList: Product[]; 
           },
           {
             key: 'purchase',
-            label: 'BÃ¡o cÃ¡o nháº­p hÃ ng',
+            label: 'Báo cáo nhập hàng',
             children: (
               <div className="space-y-4">
                 <div className="grid gap-3 md:grid-cols-4">
-                  <StatCard label="Tá»•ng chi nháº­p" value={money(purchaseTotals.totalAmount)} color="text-blue-600" />
-                  <StatCard label="Sá»‘ Ä‘Æ¡n nháº­p" value={purchaseTotals.totalOrders.toLocaleString('vi-VN')} />
-                  <StatCard label="Tá»•ng SL nháº­p" value={Math.round(purchaseTotals.totalQuantity).toLocaleString('vi-VN')} />
-                  <StatCard label="NhÃ  cung cáº¥p" value={purchaseTotals.supplierCount} />
+                  <StatCard label="Tổng chi nhập" value={money(purchaseTotals.totalAmount)} color="text-blue-600" />
+                  <StatCard label="Số đơn nhập" value={purchaseTotals.totalOrders.toLocaleString('vi-VN')} />
+                  <StatCard label="Tổng SL nhập" value={Math.round(purchaseTotals.totalQuantity).toLocaleString('vi-VN')} />
+                  <StatCard label="Nhà cung cấp" value={purchaseTotals.supplierCount} />
                 </div>
                 <Card>
-                  <CardHeader title="Chi tiáº¿t nháº­p hÃ ng theo NCC" description={`${purchaseData.length} nhÃ  cung cáº¥p`} />
+                  <CardHeader title="Chi tiết nhập hàng theo NCC" description={`${purchaseData.length} nhà cung cấp`} />
                   <div className="px-4 pb-4">
                     <Table loading={loading} dataSource={purchaseData.map((r) => ({ ...r, key: r.supplierId }))} columns={purchaseColumns} pagination={{ pageSize: 10 }} scroll={{ x: 800 }} size="small" />
                   </div>
@@ -2544,17 +2620,17 @@ function ReportsPage({ productsList, invoicesList }: { productsList: Product[]; 
           },
           {
             key: 'inventory',
-            label: 'BÃ¡o cÃ¡o tá»“n kho',
+            label: 'Báo cáo tồn kho',
             children: (
               <div className="space-y-4">
                 <div className="grid gap-3 md:grid-cols-4">
-                  <StatCard label="Tá»•ng tá»“n kho" value={Math.round(inventoryTotals.totalStock).toLocaleString('vi-VN')} />
-                  <StatCard label="Tá»•ng hao há»¥t" value={Math.round(inventoryTotals.totalShrinkage).toLocaleString('vi-VN')} color={inventoryTotals.totalShrinkage > 0 ? 'text-red-600' : 'text-slate-800'} />
-                  <StatCard label="Cáº­n háº¡n (â‰¤30 ngÃ y)" value={inventoryTotals.nearExpiry} color={inventoryTotals.nearExpiry > 0 ? 'text-amber-600' : 'text-slate-800'} />
-                  <StatCard label="Quay vÃ²ng TB" value={inventoryTotals.avgTurnover.toFixed(2)} />
+                  <StatCard label="Tổng tồn kho" value={Math.round(inventoryTotals.totalStock).toLocaleString('vi-VN')} />
+                  <StatCard label="Tổng hao hụt" value={Math.round(inventoryTotals.totalShrinkage).toLocaleString('vi-VN')} color={inventoryTotals.totalShrinkage > 0 ? 'text-red-600' : 'text-slate-800'} />
+                  <StatCard label="Cận hạn (≤30 ngày)" value={inventoryTotals.nearExpiry} color={inventoryTotals.nearExpiry > 0 ? 'text-amber-600' : 'text-slate-800'} />
+                  <StatCard label="Quay vòng TB" value={inventoryTotals.avgTurnover.toFixed(2)} />
                 </div>
                 <Card>
-                  <CardHeader title="Chi tiáº¿t tá»“n kho" description={`${inventoryData.length} sáº£n pháº©m`} />
+                  <CardHeader title="Chi tiết tồn kho" description={`${inventoryData.length} sản phẩm`} />
                   <div className="px-4 pb-4">
                     <Table loading={loading} dataSource={inventoryData.map((r) => ({ ...r, key: r.itemId }))} columns={inventoryColumns} pagination={{ pageSize: 10 }} scroll={{ x: 1500 }} size="small" />
                   </div>
@@ -2567,14 +2643,15 @@ function ReportsPage({ productsList, invoicesList }: { productsList: Product[]; 
     </div>
   );
 }
+
 const userFormValidateMessages = {
-  required: 'Vui lÃ²ng nháº­p ${label}',
+  required: 'Vui lòng nhập ${label}',
   types: {
-    email: '${label} khÃ´ng Ä‘Ãºng Ä‘á»‹nh dáº¡ng',
+    email: '${label} không đúng định dạng',
   },
   string: {
-    min: '${label} pháº£i cÃ³ Ã­t nháº¥t ${min} kÃ½ tá»±',
-    max: '${label} khÃ´ng Ä‘Æ°á»£c vÆ°á»£t quÃ¡ ${max} kÃ½ tá»±',
+    min: '${label} phải có ít nhất ${min} ký tự',
+    max: '${label} không được vượt quá ${max} ký tự',
   },
 };
 function UsersPage() {
@@ -3208,7 +3285,7 @@ function formatAuditValue(value: string) {
   return (
     <Card className="overflow-hidden">
       <div className="border-b border-line p-5">
-        <h2 className="text-lg font-bold text-ink">Nháº­t kÃ½ há»‡ thá»‘ng</h2>
+        <h2 className="text-lg font-bold text-ink">Nhật ký hệ thống</h2>
         <p className="text-sm text-slate-500">
           Theo dÃµi cÃ¡c thao tÃ¡c quan trá»ng nhÆ° Ä‘Äƒng nháº­p, táº¡o ngÆ°á»i dÃ¹ng, cáº­p nháº­t tráº¡ng thÃ¡i vÃ  thay Ä‘á»•i dá»¯ liá»‡u.
         </p>
@@ -3309,7 +3386,7 @@ function formatAuditAction(action?: string | null) {
 
   const labels: Record<string, string> = {
     AUTH_LOGIN: 'ÄÄƒng nháº­p',
-    AUTH_LOGOUT: 'ÄÄƒng xuáº¥t',
+    AUTH_LOGOUT: 'Đăng xuất',
     AUTH_REFRESH: 'LÃ m má»›i phiÃªn Ä‘Äƒng nháº­p',
 
     CUSTOMER_CREATE: 'Táº¡o khÃ¡ch hÃ ng',

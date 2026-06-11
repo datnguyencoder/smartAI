@@ -57,25 +57,16 @@ class PurchaseIntegrationTest {
         }
         if (milkItemId == null) return;
 
+        // Try to create PO without expiryDate for milk (which requires expiry)
         String createPo = """
-            {"supplierId":1,"locationId":1,"items":[{"itemId":%d,"orderedQty":5,"unitPrice":25000}]}
+            {"supplierId":1,"locationId":1,"items":[{"itemId":%d,"quantity":5,"unitPrice":25000}]}
             """.formatted(milkItemId);
-        MvcResult po = mockMvc.perform(post("/api/v1/purchase-orders")
+        mockMvc.perform(post("/api/v1/purchase-orders")
                         .header("Authorization", "Bearer " + warehouseToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(createPo))
-                .andExpect(status().isCreated())
-                .andReturn();
-        long poId = objectMapper.readTree(po.getResponse().getContentAsString())
-                .path("data").path("id").asLong();
-        long lineId = objectMapper.readTree(po.getResponse().getContentAsString())
-                .path("data").path("items").get(0).path("id").asLong();
-
-        mockMvc.perform(post("/api/v1/purchase-orders/" + poId + "/receive")
-                        .header("Authorization", "Bearer " + warehouseToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"lines\":[{\"purchaseItemId\":" + lineId + ",\"receiveQty\":1}]}"))
-                .andExpect(status().is4xxClientError())
-                .andExpect(jsonPath("$.success").value(false));
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Sản phẩm bắt buộc phải nhập HSD và phải lớn hơn ngày hiện tại."));
     }
 }

@@ -1,0 +1,871 @@
+diff --git a/frontend/src/App.tsx b/frontend/src/App.tsx
+index a5eb8d7..1a16afd 100644
+--- a/frontend/src/App.tsx
++++ b/frontend/src/App.tsx
+@@ -1,4 +1,4 @@
+-﻿import {
++import {
+   Avatar,
+   Badge,
+   Button,
+@@ -164,6 +164,8 @@ import {
+   fetchSalesReport,
+   fetchPurchaseReport,
+   fetchInventoryReport,
++  exportReport,
++  exportComprehensiveReport,
+   fetchSettings,
+   updateSetting,
+ } from './services/wmsApi';
+@@ -223,7 +225,7 @@ const navItems: NavItem[] = [
+   { key: 'reports', label: 'BÃ¡o cÃ¡o há»‡ thá»‘ng', icon: BarChart3 },
+   { key: 'users', label: 'NgÆ°á»i dÃ¹ng', icon: UsersRound },
+   { key: 'settings', label: 'CÃ i Ä‘áº·t há»‡ thá»‘ng', icon: Settings },
+-  {key: 'audit-logs', label: 'Nháº­t kÃ½ há»‡ thá»‘ng', icon: FileClock },
++  { key: 'audit-logs', label: 'Nháº­t kÃ½ há»‡ thá»‘ng', icon: FileClock },
+ ];
+ 
+ const salesData = [
+@@ -553,8 +555,8 @@ const pageTitles: Record<PageKey, { title: string; description: string }> = {
+   users: { title: 'Quáº£n lÃ½ ngÆ°á»i dÃ¹ng', description: 'PhÃ¢n quyá»n nhÃ¢n viÃªn, vai trÃ² vÃ  nháº­t kÃ½ truy cáº­p.' },
+   settings: { title: 'CÃ i Ä‘áº·t há»‡ thá»‘ng', description: 'Cáº¥u hÃ¬nh cá»­a hÃ ng, AI, cáº£nh bÃ¡o vÃ  tÃ­ch há»£p.' },
+   'audit-logs': {
+-  title: 'Nháº­t kÃ½ há»‡ thá»‘ng',
+-  description: 'Theo dÃµi lá»‹ch sá»­ thao tÃ¡c, thay Ä‘á»•i dá»¯ liá»‡u vÃ  hoáº¡t Ä‘á»™ng ngÆ°á»i dÃ¹ng.',
++    title: 'Nháº­t kÃ½ há»‡ thá»‘ng',
++    description: 'Theo dÃµi lá»‹ch sá»­ thao tÃ¡c, thay Ä‘á»•i dá»¯ liá»‡u vÃ  hoáº¡t Ä‘á»™ng ngÆ°á»i dÃ¹ng.',
+   },
+ };
+ 
+@@ -1028,7 +1030,7 @@ function PageRenderer({
+     return <UsersPage />;
+   }
+   if (page === 'audit-logs') {
+-  return <AuditLogsPage />;
++    return <AuditLogsPage />;
+   }
+   return <SettingsPage />;
+ }
+@@ -2192,90 +2194,7 @@ function AssistantPage({
+ }: {
+   productsList: Product[];
+   chatHistory: Array<{ sender: 'user' | 'ai'; text: string; action?: { label: string; page: PageKey } }>;
+-  setChatHistory: React.Dispatch<React.SetStateAction<Array<{ sender: 'user' | 'ai'; text: string; action?: { label: string; page: PageKey } }>>>;
+-  setPage: (page: PageKey) => void;
+-}) {
+-  const [typedMessage, setTypedMessage] = React.useState('');
+-  const chatEndRef = React.useRef<HTMLDivElement>(null);
+-
+-  React.useEffect(() => {
+-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+-  }, [chatHistory]);
+-
+-  const handleSendMessage = () => {
+-    if (!typedMessage.trim()) return;
+-
+-    const userMsg = typedMessage;
+-    const newHistory = [...chatHistory, { sender: 'user' as const, text: userMsg }];
+-    setChatHistory(newHistory);
+-    setTypedMessage('');
+-
+-    aiChat(userMsg)
+-      .then((aiText) => {
+-        const lower = userMsg.toLowerCase();
+-        let action: { label: string; page: PageKey } | undefined;
+-        if (lower.includes('nháº­p') || lower.includes('tá»“n')) {
+-          action = { label: 'Táº¡o phiáº¿u nháº­p', page: 'import-create' };
+-        } else if (lower.includes('bÃ¡o cÃ¡o') || lower.includes('doanh thu')) {
+-          action = { label: 'Xem bÃ¡o cÃ¡o', page: 'reports' };
+-        }
+-        setChatHistory([...newHistory, { sender: 'ai' as const, text: aiText, action }]);
+-      })
+-      .catch(() => {
+-        setChatHistory([
+-          ...newHistory,
+-          {
+-            sender: 'ai' as const,
+-            text: 'KhÃ´ng káº¿t ná»‘i Ä‘Æ°á»£c trá»£ lÃ½ AI. Vui lÃ²ng thá»­ láº¡i hoáº·c kiá»ƒm tra quyá»n ADMIN/MANAGER.',
+-          },
+-        ]);
+-      });
+-  };
+-
+-  return (
+-    <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
+-      <Card className="min-h-[580px] flex flex-col justify-between">
+-        <CardHeader title="Trá»£ lÃ½ váº­n hÃ nh thÃ´ng minh AI" description="Há»i Ä‘Ã¡p thá»i gian thá»±c vá» tá»“n kho, Ä‘á» xuáº¥t nháº­p hÃ ng vÃ  hiá»‡u quáº£ doanh thu." />
+-        <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-4 max-h-[380px] scrollbar-thin">
+-          {chatHistory.map((msg, i) => (
+-            <div
+-              key={i}
+-              className={cn(
+-                'flex flex-col max-w-[80%] rounded-2xl p-4 text-sm relative',
+-                msg.sender === 'user'
+-                  ? 'ml-auto bg-primary text-white shadow-md'
+-                  : 'bg-slate-100 text-slate-800 shadow-sm border border-slate-200'
+-              )}
+-            >
+-              {msg.sender === 'ai' ? <MarkdownMessage text={msg.text} /> : <span>{msg.text}</span>}
+-              {msg.action && (
+-                <Button
+-                  className="mt-3 font-semibold text-xs h-8 bg-white border border-indigo/20 text-indigo hover:text-indigo-700"
+-                  onClick={() => setPage(msg.action!.page)}
+-                >
+-                  {msg.action.label}
+-                </Button>
+-              )}
+-            </div>
+-          ))}
+-          <div ref={chatEndRef} />
+-        </div>
+-        <div className="p-4 border-t border-slate-100 bg-slate-50/50 rounded-b-2xl flex gap-2">
+-          <Input
+-            size="large"
+-            placeholder="VÃ­ dá»¥: 'Sáº£n pháº©m nÃ o sáº¯p háº¿t hÃ ng?'..."
+-            value={typedMessage}
+-            onChange={(e) => setTypedMessage(e.target.value)}
+-            onPressEnter={handleSendMessage}
+-          />
+-          <Button type="primary" size="large" icon={<Send size={17} />} onClick={handleSendMessage} />
+-        </div>
+-      </Card>
+-    </div>
+-  );
+-}
+-
+-function ReportsPage({ productsList, invoicesList }: { productsList: Product[]; invoicesList: any[] }) {
++  setChatHistory: React.Dispatch<React.SetStateAction<Array<{ sender: 'user' | 'ai'; text: string; actifunction ReportsPage({ productsList, invoicesList }: { productsList: Product[]; invoicesList: any[] }) {
+   const [activeTab, setActiveTab] = React.useState('sales');
+   const [dateRange, setDateRange] = React.useState<[any, any] | null>(null);
+   const [groupBy, setGroupBy] = React.useState<string>('day');
+@@ -2308,7 +2227,7 @@ function ReportsPage({ productsList, invoicesList }: { productsList: Product[];
+         setInventoryData(data);
+       }
+     } catch (e) {
+-      antdMessage.error(e instanceof Error ? e.message : 'KhÃ´ng táº£i Ä‘Æ°á»£c bÃ¡o cÃ¡o');
++      antdMessage.error(e instanceof Error ? e.message : 'Không tải được báo cáo');
+     } finally {
+       setLoading(false);
+     }
+@@ -2319,6 +2238,47 @@ function ReportsPage({ productsList, invoicesList }: { productsList: Product[];
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, [activeTab]);
+ 
++  const handleExport = async (format: 'excel' | 'pdf') => {
++    try {
++      const { from, to } = formatRange();
++      const type = activeTab as 'sales' | 'purchase' | 'inventory';
++      const blob = await exportReport(type, format, from, to, type === 'sales' ? groupBy : undefined);
++
++      const url = window.URL.createObjectURL(blob);
++      const link = document.createElement('a');
++      link.href = url;
++      const ext = format === 'excel' ? 'xlsx' : 'pdf';
++      link.setAttribute('download', `${type}-report-${new Date().toISOString().split('T')[0]}.${ext}`);
++      document.body.appendChild(link);
++      link.click();
++      link.parentNode?.removeChild(link);
++      window.URL.revokeObjectURL(url);
++      antdMessage.success(`Xuất báo cáo ${format.toUpperCase()} thành công!`);
++    } catch (e) {
++      antdMessage.error('Lỗi khi xuất báo cáo: ' + (e instanceof Error ? e.message : String(e)));
++    }
++  };
++
++  const handleExportComprehensive = async (format: 'pdf' | 'excel' = 'pdf') => {
++    try {
++      const { from, to } = formatRange();
++      const blob = await exportComprehensiveReport(format, from, to);
++
++      const url = window.URL.createObjectURL(blob);
++      const link = document.createElement('a');
++      link.href = url;
++      const ext = format === 'excel' ? 'xlsx' : 'pdf';
++      link.setAttribute('download', `comprehensive-report-${new Date().toISOString().split('T')[0]}.${ext}`);
++      document.body.appendChild(link);
++      link.click();
++      link.parentNode?.removeChild(link);
++      window.URL.revokeObjectURL(url);
++      antdMessage.success(`Xuất Báo Cáo Tổng Hợp (${format.toUpperCase()}) thành công!`);
++    } catch (e) {
++      antdMessage.error('Lỗi khi xuất báo cáo tổng hợp: ' + (e instanceof Error ? e.message : String(e)));
++    }
++  };
++
+   const salesTotals = React.useMemo(() => {
+     const totalRevenue = salesData.reduce((s, r) => s + r.totalRevenue, 0);
+     const totalOrders = salesData.reduce((s, r) => s + r.totalOrders, 0);
+@@ -2345,36 +2305,36 @@ function ReportsPage({ productsList, invoicesList }: { productsList: Product[];
+   }, [inventoryData]);
+ 
+   const salesColumns: ColumnsType<SalesReportDto> = [
+-    { title: 'Ká»³ bÃ¡o cÃ¡o', dataIndex: 'period', width: 130, fixed: 'left' },
+-    { title: 'Tá»•ng Ä‘Æ¡n', dataIndex: 'totalOrders', width: 100, sorter: (a, b) => a.totalOrders - b.totalOrders },
+-    { title: 'ÄÆ¡n há»§y', dataIndex: 'cancelledOrders', width: 100 },
++    { title: 'Kỳ báo cáo', dataIndex: 'period', width: 130, fixed: 'left' },
++    { title: 'Tổng đơn', dataIndex: 'totalOrders', width: 100, sorter: (a, b) => a.totalOrders - b.totalOrders },
++    { title: 'Đơn hủy', dataIndex: 'cancelledOrders', width: 100 },
+     { title: 'Doanh thu', dataIndex: 'totalRevenue', width: 150, render: (v: number) => money(v), sorter: (a, b) => a.totalRevenue - b.totalRevenue },
+-    { title: 'GiÃ¡ vá»‘n', dataIndex: 'totalCost', width: 150, render: (v: number) => money(v) },
+-    { title: 'Lá»£i nhuáº­n gá»™p', dataIndex: 'grossProfit', width: 150, render: (v: number) => <span className={v >= 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'}>{money(v)}</span>, sorter: (a, b) => a.grossProfit - b.grossProfit },
+-    { title: 'SP bÃ¡n ra', dataIndex: 'totalItemsSold', width: 110 },
+-    { title: 'Top sáº£n pháº©m', dataIndex: 'topProducts', width: 220, render: (tops: SalesReportDto['topProducts']) => tops?.length ? tops.slice(0, 3).map((t) => t.itemName).join(', ') : 'â€”' },
++    { title: 'Giá vốn', dataIndex: 'totalCost', width: 150, render: (v: number) => money(v) },
++    { title: 'Lợi nhuận gộp', dataIndex: 'grossProfit', width: 150, render: (v: number) => <span className={v >= 0 ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'}>{money(v)}</span>, sorter: (a, b) => a.grossProfit - b.grossProfit },
++    { title: 'SP bán ra', dataIndex: 'totalItemsSold', width: 110 },
++    { title: 'Top sản phẩm', dataIndex: 'topProducts', width: 220, render: (tops: SalesReportDto['topProducts']) => tops?.length ? tops.slice(0, 3).map((t) => t.itemName).join(', ') : '—' },
+   ];
+ 
+   const purchaseColumns: ColumnsType<PurchaseReportDto> = [
+-    { title: 'NhÃ  cung cáº¥p', dataIndex: 'supplierName', width: 200, fixed: 'left' },
+-    { title: 'Sá»‘ Ä‘Æ¡n nháº­p', dataIndex: 'totalOrders', width: 120, sorter: (a, b) => a.totalOrders - b.totalOrders },
+-    { title: 'Tá»•ng giÃ¡ trá»‹', dataIndex: 'totalAmount', width: 160, render: (v: number) => money(v), sorter: (a, b) => a.totalAmount - b.totalAmount },
+-    { title: 'Loáº¡i SP nháº­p', dataIndex: 'totalItemTypes', width: 120 },
+-    { title: 'Tá»•ng SL nháº­p', dataIndex: 'totalQuantity', width: 130, render: (v: number) => Math.round(v).toLocaleString('vi-VN') },
++    { title: 'Nhà cung cấp', dataIndex: 'supplierName', width: 200, fixed: 'left' },
++    { title: 'Số đơn nhập', dataIndex: 'totalOrders', width: 120, sorter: (a, b) => a.totalOrders - b.totalOrders },
++    { title: 'Tổng giá trị', dataIndex: 'totalAmount', width: 160, render: (v: number) => money(v), sorter: (a, b) => a.totalAmount - b.totalAmount },
++    { title: 'Loại SP nhập', dataIndex: 'totalItemTypes', width: 120 },
++    { title: 'Tổng SL nhập', dataIndex: 'totalQuantity', width: 130, render: (v: number) => Math.round(v).toLocaleString('vi-VN') },
+   ];
+ 
+   const inventoryColumns: ColumnsType<InventoryReportDto> = [
+-    { title: 'MÃ£ SP', dataIndex: 'itemCode', width: 120, fixed: 'left' },
+-    { title: 'TÃªn sáº£n pháº©m', dataIndex: 'itemName', width: 200 },
+-    { title: 'Danh má»¥c', dataIndex: 'categoryName', width: 140 },
+-    { title: 'Tá»“n hiá»‡n táº¡i', dataIndex: 'currentStock', width: 120, render: (v: number) => Math.round(v).toLocaleString('vi-VN'), sorter: (a, b) => a.currentStock - b.currentStock },
+-    { title: 'ÄÃ£ nháº­p', dataIndex: 'totalPurchased', width: 110, render: (v: number) => Math.round(v).toLocaleString('vi-VN') },
+-    { title: 'ÄÃ£ bÃ¡n', dataIndex: 'totalSold', width: 110, render: (v: number) => Math.round(v).toLocaleString('vi-VN') },
+-    { title: 'ÄÃ£ há»§y', dataIndex: 'totalScrapped', width: 110, render: (v: number) => Math.round(v).toLocaleString('vi-VN') },
+-    { title: 'Hao há»¥t', dataIndex: 'shrinkage', width: 110, render: (v: number) => <span className={v > 0 ? 'text-red-600 font-semibold' : ''}>{Math.round(v).toLocaleString('vi-VN')}</span> },
+-    { title: 'Quay vÃ²ng', dataIndex: 'turnoverRate', width: 110, render: (v: number) => v?.toFixed(2) ?? 'â€”', sorter: (a, b) => a.turnoverRate - b.turnoverRate },
+-    { title: 'Háº¡n gáº§n nháº¥t', dataIndex: 'nearestExpiryDate', width: 130, render: (v: string) => v ?? 'â€”' },
+-    { title: 'CÃ²n (ngÃ y)', dataIndex: 'daysUntilExpiry', width: 110, render: (v: number | undefined) => v != null ? <Tag color={v <= 7 ? 'red' : v <= 30 ? 'orange' : 'green'}>{v} ngÃ y</Tag> : 'â€”', sorter: (a, b) => (a.daysUntilExpiry ?? 9999) - (b.daysUntilExpiry ?? 9999) },
++    { title: 'Mã SP', dataIndex: 'itemCode', width: 120, fixed: 'left' },
++    { title: 'Tên sản phẩm', dataIndex: 'itemName', width: 200 },
++    { title: 'Danh mục', dataIndex: 'categoryName', width: 140 },
++    { title: 'Tồn hiện tại', dataIndex: 'currentStock', width: 120, render: (v: number) => Math.round(v).toLocaleString('vi-VN'), sorter: (a, b) => a.currentStock - b.currentStock },
++    { title: 'Đã nhập', dataIndex: 'totalPurchased', width: 110, render: (v: number) => Math.round(v).toLocaleString('vi-VN') },
++    { title: 'Đã bán', dataIndex: 'totalSold', width: 110, render: (v: number) => Math.round(v).toLocaleString('vi-VN') },
++    { title: 'Đã hủy', dataIndex: 'totalScrapped', width: 110, render: (v: number) => Math.round(v).toLocaleString('vi-VN') },
++    { title: 'Hao hụt', dataIndex: 'shrinkage', width: 110, render: (v: number) => <span className={v > 0 ? 'text-red-600 font-semibold' : ''}>{Math.round(v).toLocaleString('vi-VN')}</span> },
++    { title: 'Quay vòng', dataIndex: 'turnoverRate', width: 110, render: (v: number) => v?.toFixed(2) ?? '—', sorter: (a, b) => a.turnoverRate - b.turnoverRate },
++    { title: 'Hạn gần nhất', dataIndex: 'nearestExpiryDate', width: 130, render: (v: string) => v ?? '—' },
++    { title: 'Còn (ngày)', dataIndex: 'daysUntilExpiry', width: 110, render: (v: number | undefined) => v != null ? <Tag color={v <= 7 ? 'red' : v <= 30 ? 'orange' : 'green'}>{v} ngày</Tag> : '—', sorter: (a, b) => (a.daysUntilExpiry ?? 9999) - (b.daysUntilExpiry ?? 9999) },
+   ];
+ 
+   const StatCard = ({ label, value, color = 'text-slate-800' }: { label: string; value: string | number; color?: string }) => (
+@@ -2391,7 +2351,7 @@ function ReportsPage({ productsList, invoicesList }: { productsList: Product[];
+           <LocalizationProvider dateAdapter={AdapterDayjs}>
+             <div className="flex flex-wrap items-center gap-2">
+               <MuiDatePicker
+-                label="Tá»« ngÃ y"
++                label="Từ ngày"
+                 format="DD/MM/YYYY"
+                 value={dateRange && dateRange[0] ? dateRange[0] : null}
+                 onChange={(val) => {
+@@ -2413,9 +2373,9 @@ function ReportsPage({ productsList, invoicesList }: { productsList: Product[];
+                   }
+                 }}
+               />
+-              <span className="text-slate-400">â€”</span>
++              <span className="text-slate-400">—</span>
+               <MuiDatePicker
+-                label="Äáº¿n ngÃ y"
++                label="Đến ngày"
+                 format="DD/MM/YYYY"
+                 value={dateRange && dateRange[1] ? dateRange[1] : null}
+                 onChange={(val) => {
+@@ -2442,9 +2402,9 @@ function ReportsPage({ productsList, invoicesList }: { productsList: Product[];
+           {activeTab === 'sales' && (
+             <ReactSelect
+               value={[
+-                { value: 'day', label: 'Theo ngÃ y' },
+-                { value: 'month', label: 'Theo thÃ¡ng' },
+-                { value: 'year', label: 'Theo nÄƒm' },
++                { value: 'day', label: 'Theo ngày' },
++                { value: 'month', label: 'Theo tháng' },
++                { value: 'year', label: 'Theo năm' },
+               ].find((opt) => opt.value === groupBy)}
+               onChange={(newValue) => {
+                 if (newValue) {
+@@ -2487,14 +2447,43 @@ function ReportsPage({ productsList, invoicesList }: { productsList: Product[];
+                 }),
+               }}
+               options={[
+-                { value: 'day', label: 'Theo ngÃ y' },
+-                { value: 'month', label: 'Theo thÃ¡ng' },
+-                { value: 'year', label: 'Theo nÄƒm' },
++                { value: 'day', label: 'Theo ngày' },
++                { value: 'month', label: 'Theo tháng' },
++                { value: 'year', label: 'Theo năm' },
+               ]}
+             />
+           )}
+           <Button type="primary" onClick={loadReport} loading={loading}>
+-            Táº£i bÃ¡o cÃ¡o
++            Tải báo cáo
++          </Button>
++          <div className="flex-1" />
++          <Button
++            onClick={() => handleExport('excel')}
++            icon={<span className="material-symbols-rounded align-middle mr-1 text-emerald-600">table_view</span>}
++            className="hover:border-emerald-500 hover:text-emerald-600"
++          >
++            Xuất Excel (Tab hiện tại)
++          </Button>
++          <Button
++            onClick={() => handleExport('pdf')}
++            icon={<span className="material-symbols-rounded align-middle mr-1 text-red-500">picture_as_pdf</span>}
++            className="hover:border-red-500 hover:text-red-600"
++          >
++            Xuất PDF (Tab hiện tại)
++          </Button>
++          <Button
++            onClick={() => handleExportComprehensive('excel')}
++            icon={<span className="material-symbols-rounded align-middle mr-1 text-emerald-600">border_all</span>}
++            className="border-emerald-200 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-300 text-emerald-700 font-medium"
++          >
++            Xuất Excel Tổng Hợp (3 Sheet)
++          </Button>
++          <Button
++            onClick={() => handleExportComprehensive('pdf')}
++            icon={<span className="material-symbols-rounded align-middle mr-1 text-red-500">picture_as_pdf</span>}
++            className="border-red-200 bg-red-50 hover:bg-red-100 hover:border-red-300 text-red-700 font-medium"
++          >
++            In Báo Cáo Tổng Hợp (PDF)
+           </Button>
+         </div>
+       </Card>
+@@ -2504,6 +2493,69 @@ function ReportsPage({ productsList, invoicesList }: { productsList: Product[];
+         items={[
+           {
+             key: 'sales',
++            label: 'Báo cáo bán hàng',
++            children: (
++              <div className="space-y-4">
++                <div className="grid gap-3 md:grid-cols-4">
++                  <StatCard label="Doanh thu" value={money(salesTotals.totalRevenue)} color="text-emerald-600" />
++                  <StatCard label="Tổng đơn hàng" value={salesTotals.totalOrders.toLocaleString('vi-VN')} />
++                  <StatCard label="Lợi nhuận gộp" value={money(salesTotals.grossProfit)} color={salesTotals.grossProfit >= 0 ? 'text-emerald-600' : 'text-red-600'} />
++                  <StatCard label="SP bán ra" value={salesTotals.totalItemsSold.toLocaleString('vi-VN')} />
++                </div>
++                <Card>
++                  <CardHeader title="Chi tiết báo cáo bán hàng" description={`${salesData.length} kỳ báo cáo`} />
++                  <div className="px-4 pb-4">
++                    <Table loading={loading} dataSource={salesData.map((r, i) => ({ ...r, key: i }))} columns={salesColumns} pagination={{ pageSize: 10 }} scroll={{ x: 1200 }} size="small" />
++                  </div>
++                </Card>
++              </div>
++            ),
++          },
++          {
++            key: 'purchase',
++            label: 'Báo cáo nhập hàng',
++            children: (
++              <div className="space-y-4">
++                <div className="grid gap-3 md:grid-cols-4">
++                  <StatCard label="Tổng chi nhập" value={money(purchaseTotals.totalAmount)} color="text-blue-600" />
++                  <StatCard label="Số đơn nhập" value={purchaseTotals.totalOrders.toLocaleString('vi-VN')} />
++                  <StatCard label="Tổng SL nhập" value={Math.round(purchaseTotals.totalQuantity).toLocaleString('vi-VN')} />
++                  <StatCard label="Nhà cung cấp" value={purchaseTotals.supplierCount} />
++                </div>
++                <Card>
++                  <CardHeader title="Chi tiết nhập hàng theo NCC" description={`${purchaseData.length} nhà cung cấp`} />
++                  <div className="px-4 pb-4">
++                    <Table loading={loading} dataSource={purchaseData.map((r) => ({ ...r, key: r.supplierId }))} columns={purchaseColumns} pagination={{ pageSize: 10 }} scroll={{ x: 800 }} size="small" />
++                  </div>
++                </Card>
++              </div>
++            ),
++          },
++          {
++            key: 'inventory',
++            label: 'Báo cáo tồn kho',
++            children: (
++              <div className="space-y-4">
++                <div className="grid gap-3 md:grid-cols-4">
++                  <StatCard label="Tổng tồn kho" value={Math.round(inventoryTotals.totalStock).toLocaleString('vi-VN')} />
++                  <StatCard label="Tổng hao hụt" value={Math.round(inventoryTotals.totalShrinkage).toLocaleString('vi-VN')} color={inventoryTotals.totalShrinkage > 0 ? 'text-red-600' : 'text-slate-800'} />
++                  <StatCard label="Cận hạn (≤30 ngày)" value={inventoryTotals.nearExpiry} color={inventoryTotals.nearExpiry > 0 ? 'text-amber-600' : 'text-slate-800'} />
++                  <StatCard label="Quay vòng TB" value={inventoryTotals.avgTurnover.toFixed(2)} />
++                </div>
++                <Card>
++                  <CardHeader title="Chi tiết tồn kho" description={`${inventoryData.length} sản phẩm`} />
++                  <div className="px-4 pb-4">
++                    <Table loading={loading} dataSource={inventoryData.map((r) => ({ ...r, key: r.itemId }))} columns={inventoryColumns} pagination={{ pageSize: 10 }} scroll={{ x: 1500 }} size="small" />
++                  </div>
++                </Card>
++              </div>
++            ),
++          },
++        ]}
++      />
++    </div>
++  );
++}ales',
+             label: 'BÃ¡o cÃ¡o bÃ¡n hÃ ng',
+             children: (
+               <div className="space-y-4">
+@@ -2683,7 +2735,7 @@ function UsersPage() {
+                     antdMessage.success('KhÃ³a tÃ i khoáº£n thÃ nh cÃ´ng');
+                     loadUsers();
+                   } catch (e) {
+-                  antdMessage.error(e instanceof Error ? e.message : 'KhÃ´ng thá»ƒ khÃ³a tÃ i khoáº£n');
++                    antdMessage.error(e instanceof Error ? e.message : 'KhÃ´ng thá»ƒ khÃ³a tÃ i khoáº£n');
+                   }
+                 },
+               });
+@@ -2703,11 +2755,11 @@ function UsersPage() {
+                   antdMessage.success('Má»Ÿ khÃ³a tÃ i khoáº£n thÃ nh cÃ´ng');
+                   loadUsers();
+                 },
+-          });
+-    }}
+->
+-  Má»Ÿ khÃ³a
+-</Button>
++              });
++            }}
++          >
++            Má»Ÿ khÃ³a
++          </Button>
+           <Button
+             size="small"
+             danger
+@@ -2981,15 +3033,15 @@ function AuditLogsPage() {
+   const [actionOptions, setActionOptions] = React.useState<string[]>([]);
+ 
+   React.useEffect(() => {
+-  if (!entityType) {
+-    setActionOptions([]);
+-    return;
+-  }
++    if (!entityType) {
++      setActionOptions([]);
++      return;
++    }
+ 
+-  fetchAuditLogActions(entityType)
+-    .then(setActionOptions)
+-    .catch(() => setActionOptions([]));
+-}, [entityType]);
++    fetchAuditLogActions(entityType)
++      .then(setActionOptions)
++      .catch(() => setActionOptions([]));
++  }, [entityType]);
+ 
+   const loadLogs = React.useCallback(async () => {
+     setLoading(true);
+@@ -3028,11 +3080,11 @@ function AuditLogsPage() {
+       render: (value: string) => new Date(value).toLocaleString('vi-VN'),
+     },
+     {
+-    title: 'HÃ nh Ä‘á»™ng',
+-    dataIndex: 'action',
+-    render: (value: string) => (
+-      <Tag color="blue">{formatAuditAction(value)}</Tag>
+-  ),
++      title: 'HÃ nh Ä‘á»™ng',
++      dataIndex: 'action',
++      render: (value: string) => (
++        <Tag color="blue">{formatAuditAction(value)}</Tag>
++      ),
+     },
+     {
+       title: 'PhÃ¢n há»‡',
+@@ -3056,147 +3108,147 @@ function AuditLogsPage() {
+     {
+       title: 'Thay Ä‘á»•i',
+       render: (_, row) => (
+-      <div className="space-y-3 text-xs">
+-        <AuditDataBlock title="TrÆ°á»›c" value={row.beforeData} />
+-      <AuditDataBlock title="Sau" value={row.afterData} />
+-    </div>
+-  ),
+-},
++        <div className="space-y-3 text-xs">
++          <AuditDataBlock title="TrÆ°á»›c" value={row.beforeData} />
++          <AuditDataBlock title="Sau" value={row.afterData} />
++        </div>
++      ),
++    },
+   ];
+ 
+ 
+   const auditModuleOptions = [
+-  { value: 'AUTH', label: 'ÄÄƒng nháº­p vÃ  báº£o máº­t' },
+-  { value: 'USER', label: 'Quáº£n lÃ½ ngÆ°á»i dÃ¹ng' },
+-  { value: 'CUSTOMER', label: 'KhÃ¡ch hÃ ng' },
+-  { value: 'CATEGORY', label: 'Danh má»¥c' },
+-  { value: 'ITEM', label: 'Sáº£n pháº©m' },
+-  { value: 'SUPPLIER', label: 'NhÃ  cung cáº¥p' },
+-  { value: 'LOCATION', label: 'Kho vÃ  vá»‹ trÃ­' },
+-  { value: 'UOM', label: 'ÄÆ¡n vá»‹ tÃ­nh' },
+-  { value: 'ORDER', label: 'BÃ¡n hÃ ng vÃ  hÃ³a Ä‘Æ¡n' },
+-  { value: 'PURCHASE_ORDER', label: 'Nháº­p hÃ ng' },
+-  { value: 'SCRAP_ORDER', label: 'Há»§y hÃ ng' },
+-  { value: 'INVENTORY_ALERT', label: 'Cáº£nh bÃ¡o tá»“n kho' },
+-  { value: 'PROMOTION', label: 'Khuyáº¿n mÃ£i' },
+-  { value: 'SYSTEM', label: 'Há»‡ thá»‘ng' },
+-  { value: 'PROMOTION', label: 'Khuyáº¿n mÃ£i' },
+-];
++    { value: 'AUTH', label: 'ÄÄƒng nháº­p vÃ  báº£o máº­t' },
++    { value: 'USER', label: 'Quáº£n lÃ½ ngÆ°á»i dÃ¹ng' },
++    { value: 'CUSTOMER', label: 'KhÃ¡ch hÃ ng' },
++    { value: 'CATEGORY', label: 'Danh má»¥c' },
++    { value: 'ITEM', label: 'Sáº£n pháº©m' },
++    { value: 'SUPPLIER', label: 'NhÃ  cung cáº¥p' },
++    { value: 'LOCATION', label: 'Kho vÃ  vá»‹ trÃ­' },
++    { value: 'UOM', label: 'ÄÆ¡n vá»‹ tÃ­nh' },
++    { value: 'ORDER', label: 'BÃ¡n hÃ ng vÃ  hÃ³a Ä‘Æ¡n' },
++    { value: 'PURCHASE_ORDER', label: 'Nháº­p hÃ ng' },
++    { value: 'SCRAP_ORDER', label: 'Há»§y hÃ ng' },
++    { value: 'INVENTORY_ALERT', label: 'Cáº£nh bÃ¡o tá»“n kho' },
++    { value: 'PROMOTION', label: 'Khuyáº¿n mÃ£i' },
++    { value: 'SYSTEM', label: 'Há»‡ thá»‘ng' },
++    { value: 'PROMOTION', label: 'Khuyáº¿n mÃ£i' },
++  ];
+ 
+   function AuditDataBlock({ title, value }: { title: string; value?: string | null }) {
+-  const items = parseAuditData(value);
++    const items = parseAuditData(value);
++
++    if (!items.length) {
++      return (
++        <div>
++          <div className="mb-1 font-semibold text-slate-500">{title}</div>
++          <span className="text-slate-400">KhÃ´ng cÃ³ dá»¯ liá»‡u</span>
++        </div>
++      );
++    }
+ 
+-  if (!items.length) {
+     return (
+       <div>
+         <div className="mb-1 font-semibold text-slate-500">{title}</div>
+-        <span className="text-slate-400">KhÃ´ng cÃ³ dá»¯ liá»‡u</span>
++        <div className="space-y-1 rounded-lg bg-slate-50 p-2">
++          {items.map((item) => (
++            <div key={item.key} className="flex gap-2">
++              <span className="min-w-[90px] font-medium text-slate-500">{auditFieldLabel(item.key)}:</span>
++              <span className="break-all text-slate-800">{formatAuditValue(item.value)}</span>
++            </div>
++          ))}
++        </div>
+       </div>
+     );
+   }
+ 
+-  return (
+-    <div>
+-      <div className="mb-1 font-semibold text-slate-500">{title}</div>
+-      <div className="space-y-1 rounded-lg bg-slate-50 p-2">
+-        {items.map((item) => (
+-          <div key={item.key} className="flex gap-2">
+-            <span className="min-w-[90px] font-medium text-slate-500">{auditFieldLabel(item.key)}:</span>
+-            <span className="break-all text-slate-800">{formatAuditValue(item.value)}</span>
+-          </div>
+-        ))}
+-      </div>
+-    </div>
+-  );
+-}
+-
+-function parseAuditData(value?: string | null) {
+-  if (!value || value === '-') return [];
+-
+-  return value
+-    .split(',')
+-    .map((part) => part.trim())
+-    .filter(Boolean)
+-    .map((part) => {
+-      const [key, ...rest] = part.split('=');
+-      return {
+-        key: key.trim(),
+-        value: rest.join('=').trim(),
+-      };
+-    })
+-    .filter((item) => item.key);
+-}
++  function parseAuditData(value?: string | null) {
++    if (!value || value === '-') return [];
++
++    return value
++      .split(',')
++      .map((part) => part.trim())
++      .filter(Boolean)
++      .map((part) => {
++        const [key, ...rest] = part.split('=');
++        return {
++          key: key.trim(),
++          value: rest.join('=').trim(),
++        };
++      })
++      .filter((item) => item.key);
++  }
+ 
+-function auditFieldLabel(key: string) {
+-  const labels: Record<string, string> = {
+-    username: 'TÃªn Ä‘Äƒng nháº­p',
+-    email: 'Email',
+-    fullName: 'Há» tÃªn',
+-    role: 'Vai trÃ²',
+-    status: 'Tráº¡ng thÃ¡i',
+-    itemCode: 'MÃ£ sáº£n pháº©m',
+-    itemName: 'TÃªn sáº£n pháº©m',
+-    itemType: 'Loáº¡i sáº£n pháº©m',
+-    categoryId: 'Danh má»¥c',
+-    supplierName: 'NhÃ  cung cáº¥p',
+-    contactPerson: 'NgÆ°á»i liÃªn há»‡',
+-    phone: 'Sá»‘ Ä‘iá»‡n thoáº¡i',
+-    address: 'Äá»‹a chá»‰',
+-    locationName: 'TÃªn kho',
+-    locationType: 'Loáº¡i kho',
+-    parentId: 'PhÃ¢n cáº¥p cha',
+-    uomName: 'ÄÆ¡n vá»‹ tÃ­nh',
+-    conversionRatio: 'Tá»· lá»‡ quy Ä‘á»•i',
+-    baseUnit: 'ÄÆ¡n vá»‹ cÆ¡ sá»Ÿ',
+-    costPrice: 'GiÃ¡ nháº­p',
+-    sellingPrice: 'GiÃ¡ bÃ¡n',
+-    minimumStock: 'Tá»“n tá»‘i thiá»ƒu',
+-    hasExpiry: 'CÃ³ háº¡n sá»­ dá»¥ng',
+-    active: 'Hoáº¡t Ä‘á»™ng',
+-    orderCode: 'MÃ£ hÃ³a Ä‘Æ¡n',
+-    customerName: 'KhÃ¡ch hÃ ng',
+-    paymentMethod: 'Thanh toÃ¡n',
+-    discountAmount: 'Giáº£m giÃ¡',
+-    totalAmount: 'Tá»•ng tiá»n',
+-    loyaltyPoints: 'Äiá»ƒm tÃ­ch lÅ©y',
+-    tier: 'Háº¡ng thÃ nh viÃªn',
+-    alertType: 'Loáº¡i cáº£nh bÃ¡o',
+-    severity: 'Má»©c Ä‘á»™',
+-    resolved: 'ÄÃ£ xá»­ lÃ½',
+-    itemCount: 'Sá»‘ máº·t hÃ ng',
+-    note: 'Ghi chÃº',
+-    reason: 'LÃ½ do',
+-    name: 'TÃªn khuyáº¿n mÃ£i',
+-    code: 'MÃ£ khuyáº¿n mÃ£i',
+-    type: 'Loáº¡i khuyáº¿n mÃ£i',
+-    value: 'GiÃ¡ trá»‹',
+-    minOrder: 'ÄÆ¡n hÃ ng tá»‘i thiá»ƒu',
+-    startDate: 'NgÃ y báº¯t Ä‘áº§u',
+-    endDate: 'NgÃ y káº¿t thÃºc',
+-  };
++  function auditFieldLabel(key: string) {
++    const labels: Record<string, string> = {
++      username: 'TÃªn Ä‘Äƒng nháº­p',
++      email: 'Email',
++      fullName: 'Há» tÃªn',
++      role: 'Vai trÃ²',
++      status: 'Tráº¡ng thÃ¡i',
++      itemCode: 'MÃ£ sáº£n pháº©m',
++      itemName: 'TÃªn sáº£n pháº©m',
++      itemType: 'Loáº¡i sáº£n pháº©m',
++      categoryId: 'Danh má»¥c',
++      supplierName: 'NhÃ  cung cáº¥p',
++      contactPerson: 'NgÆ°á»i liÃªn há»‡',
++      phone: 'Sá»‘ Ä‘iá»‡n thoáº¡i',
++      address: 'Äá»‹a chá»‰',
++      locationName: 'TÃªn kho',
++      locationType: 'Loáº¡i kho',
++      parentId: 'PhÃ¢n cáº¥p cha',
++      uomName: 'ÄÆ¡n vá»‹ tÃ­nh',
++      conversionRatio: 'Tá»· lá»‡ quy Ä‘á»•i',
++      baseUnit: 'ÄÆ¡n vá»‹ cÆ¡ sá»Ÿ',
++      costPrice: 'GiÃ¡ nháº­p',
++      sellingPrice: 'GiÃ¡ bÃ¡n',
++      minimumStock: 'Tá»“n tá»‘i thiá»ƒu',
++      hasExpiry: 'CÃ³ háº¡n sá»­ dá»¥ng',
++      active: 'Hoáº¡t Ä‘á»™ng',
++      orderCode: 'MÃ£ hÃ³a Ä‘Æ¡n',
++      customerName: 'KhÃ¡ch hÃ ng',
++      paymentMethod: 'Thanh toÃ¡n',
++      discountAmount: 'Giáº£m giÃ¡',
++      totalAmount: 'Tá»•ng tiá»n',
++      loyaltyPoints: 'Äiá»ƒm tÃ­ch lÅ©y',
++      tier: 'Háº¡ng thÃ nh viÃªn',
++      alertType: 'Loáº¡i cáº£nh bÃ¡o',
++      severity: 'Má»©c Ä‘á»™',
++      resolved: 'ÄÃ£ xá»­ lÃ½',
++      itemCount: 'Sá»‘ máº·t hÃ ng',
++      note: 'Ghi chÃº',
++      reason: 'LÃ½ do',
++      name: 'TÃªn khuyáº¿n mÃ£i',
++      code: 'MÃ£ khuyáº¿n mÃ£i',
++      type: 'Loáº¡i khuyáº¿n mÃ£i',
++      value: 'GiÃ¡ trá»‹',
++      minOrder: 'ÄÆ¡n hÃ ng tá»‘i thiá»ƒu',
++      startDate: 'NgÃ y báº¯t Ä‘áº§u',
++      endDate: 'NgÃ y káº¿t thÃºc',
++    };
+ 
+-  return labels[key] ?? key;
+-}
++    return labels[key] ?? key;
++  }
+ 
+-function formatAuditValue(value: string) {
+-  if (!value) return '-';
++  function formatAuditValue(value: string) {
++    if (!value) return '-';
+ 
+-  const roleLabels: Record<string, string> = {
+-    ROLE_ADMIN: 'Admin',
+-    ROLE_MANAGER: 'Quáº£n lÃ½',
+-    ROLE_STAFF: 'Thu ngÃ¢n',
+-    ROLE_WAREHOUSE: 'Kho',
+-    ROLE_ANALYST: 'PhÃ¢n tÃ­ch',
+-  };
++    const roleLabels: Record<string, string> = {
++      ROLE_ADMIN: 'Admin',
++      ROLE_MANAGER: 'Quáº£n lÃ½',
++      ROLE_STAFF: 'Thu ngÃ¢n',
++      ROLE_WAREHOUSE: 'Kho',
++      ROLE_ANALYST: 'PhÃ¢n tÃ­ch',
++    };
+ 
+-  const statusLabels: Record<string, string> = {
+-    ACTIVE: 'Hoáº¡t Ä‘á»™ng',
+-    LOCKED: 'ÄÃ£ khÃ³a',
+-    INACTIVE: 'KhÃ´ng hoáº¡t Ä‘á»™ng',
+-  };
++    const statusLabels: Record<string, string> = {
++      ACTIVE: 'Hoáº¡t Ä‘á»™ng',
++      LOCKED: 'ÄÃ£ khÃ³a',
++      INACTIVE: 'KhÃ´ng hoáº¡t Ä‘á»™ng',
++    };
+ 
+-  return roleLabels[value] ?? statusLabels[value] ?? value;
+-}
++    return roleLabels[value] ?? statusLabels[value] ?? value;
++  }
+ 
+   const resetFilters = () => {
+     setAction(undefined);
+@@ -3215,47 +3267,47 @@ function formatAuditValue(value: string) {
+       </div>
+ 
+       <div className="grid gap-3 border-b border-line p-5 md:grid-cols-3">
+-  <Select
+-    allowClear
+-    showSearch
+-    placeholder="PhÃ¢n há»‡"
+-    value={entityType}
+-    optionFilterProp="label"
+-    onChange={(value) => {
+-      setEntityType(value);
+-      setAction(undefined);
+-      setPage(0);
+-    }}
+-    options={auditModuleOptions}
+-  />
+-
+-  <Select
+-  allowClear
+-  showSearch
+-  placeholder="HÃ nh Ä‘á»™ng"
+-  value={action}
+-  disabled={!entityType}
+-  optionFilterProp="label"
+-  onChange={(value) => {
+-    setAction(value);
+-    setPage(0);
+-  }}
+-  options={actionOptions.map((item) => ({
+-    value: item,
+-    label: formatAuditAction(item),
+-  }))}
+-/>
+-
+-  <Input
+-    placeholder="NgÆ°á»i thao tÃ¡c"
+-    value={username}
+-    onChange={(e) => {
+-      setUsername(e.target.value || undefined);
+-      setPage(0);
+-    }}
+-  />
+-
+-</div>
++        <Select
++          allowClear
++          showSearch
++          placeholder="PhÃ¢n há»‡"
++          value={entityType}
++          optionFilterProp="label"
++          onChange={(value) => {
++            setEntityType(value);
++            setAction(undefined);
++            setPage(0);
++          }}
++          options={auditModuleOptions}
++        />
++
++        <Select
++          allowClear
++          showSearch
++          placeholder="HÃ nh Ä‘á»™ng"
++          value={action}
++          disabled={!entityType}
++          optionFilterProp="label"
++          onChange={(value) => {
++            setAction(value);
++            setPage(0);
++          }}
++          options={actionOptions.map((item) => ({
++            value: item,
++            label: formatAuditAction(item),
++          }))}
++        />
++
++        <Input
++          placeholder="NgÆ°á»i thao tÃ¡c"
++          value={username}
++          onChange={(e) => {
++            setUsername(e.target.value || undefined);
++            setPage(0);
++          }}
++        />
++
++      </div>
+ 
+       <div className="flex justify-end gap-2 px-5 py-3">
+         <Button onClick={resetFilters}>XÃ³a lá»c</Button>
+@@ -3285,21 +3337,21 @@ function formatAuditValue(value: string) {
+ }
+ function formatAuditModule(entityType?: string | null) {
+   const labels: Record<string, string> = {
+-  AUTH: 'ÄÄƒng nháº­p vÃ  báº£o máº­t',
+-  USER: 'Quáº£n lÃ½ ngÆ°á»i dÃ¹ng',
+-  CUSTOMER: 'KhÃ¡ch hÃ ng',
+-  CATEGORY: 'Danh má»¥c',
+-  ITEM: 'Sáº£n pháº©m',
+-  SUPPLIER: 'NhÃ  cung cáº¥p',
+-  LOCATION: 'Kho vÃ  vá»‹ trÃ­',
+-  UOM: 'ÄÆ¡n vá»‹ tÃ­nh',
+-  ORDER: 'BÃ¡n hÃ ng vÃ  hÃ³a Ä‘Æ¡n',
+-  PURCHASE_ORDER: 'Nháº­p hÃ ng',
+-  SCRAP_ORDER: 'Há»§y hÃ ng',
+-  INVENTORY_ALERT: 'Cáº£nh bÃ¡o tá»“n kho',
+-  PROMOTION: 'Khuyáº¿n mÃ£i',
+-  SYSTEM: 'Há»‡ thá»‘ng',
+-};
++    AUTH: 'ÄÄƒng nháº­p vÃ  báº£o máº­t',
++    USER: 'Quáº£n lÃ½ ngÆ°á»i dÃ¹ng',
++    CUSTOMER: 'KhÃ¡ch hÃ ng',
++    CATEGORY: 'Danh má»¥c',
++    ITEM: 'Sáº£n pháº©m',
++    SUPPLIER: 'NhÃ  cung cáº¥p',
++    LOCATION: 'Kho vÃ  vá»‹ trÃ­',
++    UOM: 'ÄÆ¡n vá»‹ tÃ­nh',
++    ORDER: 'BÃ¡n hÃ ng vÃ  hÃ³a Ä‘Æ¡n',
++    PURCHASE_ORDER: 'Nháº­p hÃ ng',
++    SCRAP_ORDER: 'Há»§y hÃ ng',
++    INVENTORY_ALERT: 'Cáº£nh bÃ¡o tá»“n kho',
++    PROMOTION: 'Khuyáº¿n mÃ£i',
++    SYSTEM: 'Há»‡ thá»‘ng',
++  };
+ 
+   return entityType ? labels[entityType] ?? entityType : '-';
+ }

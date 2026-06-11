@@ -547,3 +547,31 @@ export function fetchAuditLogActions(entityType?: string) {
 
 }
 
+
+export function exportReport(type: 'sales' | 'purchase' | 'inventory', format: 'excel' | 'pdf', from?: string, to?: string, groupBy?: string) {
+  const params = new URLSearchParams();
+  params.set('type', type);
+  params.set('format', format);
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  if (groupBy) params.set('groupBy', groupBy);
+
+  const qs = params.toString();
+  // Using a custom apiClient download function to handle the binary Blob instead of JSON parsing
+  // This needs to be imported from apiClient
+  return import('./apiClient').then(({ apiDownloadBlob }) =>
+    apiDownloadBlob(`/api/v1/reports/export?${qs}`)
+  );
+}
+
+export function exportComprehensiveReport(format: 'pdf' | 'excel' = 'pdf', from?: string, to?: string) {
+  const params = new URLSearchParams();
+  params.set('format', format);
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+
+  const qs = params.toString();
+  return import('./apiClient').then(({ apiDownloadBlob }) =>
+    apiDownloadBlob(`/api/v1/reports/comprehensive?${qs}`)
+  );
+}
