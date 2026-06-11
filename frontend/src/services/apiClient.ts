@@ -125,3 +125,35 @@ export async function ignoreForbidden<T>(promise: Promise<T>, fallback: T): Prom
     throw e;
   }
 }
+
+export async function apiDownloadBlob(
+  path: string,
+  options: RequestInit = {},
+  auth = true,
+  retried = false
+): Promise<Blob> {
+  const headers: Record<string, string> = {
+    ...(options.headers as Record<string, string>),
+  };
+  if (auth) {
+    const token = getAccessToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+
+  if (!res.ok) {
+    if (res.status === 401 && auth && !retried) {
+      const newToken = await tryRefreshToken();
+      if (newToken) {
+        return apiDownloadBlob(path, options, auth, true);
+      }
+      clearSession();
+    } else if (res.status === 401) {
+      clearSession();
+    }
+    throw new ApiClientError('Failed to download file', res.status);
+  }
+  
+  return await res.blob();
+}

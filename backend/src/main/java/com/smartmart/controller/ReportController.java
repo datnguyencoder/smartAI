@@ -59,4 +59,71 @@ public class ReportController {
         List<InventoryReportResponse> data = reportService.getInventoryReport(from, to);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
+
+    @GetMapping("/export")
+    @Operation(summary = "Xuất báo cáo dưới dạng Excel hoặc PDF")
+    public ResponseEntity<org.springframework.core.io.Resource> exportReport(
+            @RequestParam String type,
+            @RequestParam String format,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) String groupBy
+    ) {
+        byte[] data;
+        String fileName = type + "-report-" + LocalDate.now();
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+
+        if ("pdf".equalsIgnoreCase(format)) {
+            data = reportService.exportPdf(type, from, to, groupBy);
+            fileName += ".pdf";
+            headers.setContentType(org.springframework.http.MediaType.APPLICATION_PDF);
+        } else if ("excel".equalsIgnoreCase(format)) {
+            data = reportService.exportExcel(type, from, to, groupBy);
+            fileName += ".xlsx";
+            headers.setContentType(org.springframework.http.MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+        } else {
+            return ResponseEntity.badRequest().build();
+        }
+
+        headers.setContentDispositionFormData("attachment", fileName);
+        headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .contentLength(data.length)
+                .body(new org.springframework.core.io.ByteArrayResource(data));
+    }
+
+    @GetMapping("/comprehensive")
+    @Operation(summary = "Xuất báo cáo quản trị tổng hợp (PDF hoặc Excel 3 sheet)")
+    public ResponseEntity<org.springframework.core.io.Resource> exportComprehensiveReport(
+            @RequestParam(defaultValue = "pdf") String format,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) String groupBy
+    ) {
+        byte[] data;
+        String fileName = "comprehensive-report-" + LocalDate.now();
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+
+        if ("pdf".equalsIgnoreCase(format)) {
+            data = reportService.exportComprehensivePdf(from, to, groupBy);
+            fileName += ".pdf";
+            headers.setContentType(org.springframework.http.MediaType.APPLICATION_PDF);
+        } else if ("excel".equalsIgnoreCase(format)) {
+            data = reportService.exportComprehensiveExcel(from, to, groupBy);
+            fileName += ".xlsx";
+            headers.setContentType(org.springframework.http.MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+        } else {
+            return ResponseEntity.badRequest().build();
+        }
+
+        headers.setContentDispositionFormData("attachment", fileName);
+        headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .contentLength(data.length)
+                .body(new org.springframework.core.io.ByteArrayResource(data));
+    }
 }

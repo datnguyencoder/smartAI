@@ -26,15 +26,21 @@ public class ReportServiceImpl implements ReportService {
     private final OrderRepository orderRepository;
     private final PurchaseOrderRepository purchaseOrderRepository;
     private final CurrentInventoryRepository currentInventoryRepository;
+    private final ExcelReportGenerator excelReportGenerator;
+    private final PdfReportGenerator pdfReportGenerator;
 
     public ReportServiceImpl(
             OrderRepository orderRepository,
             PurchaseOrderRepository purchaseOrderRepository,
-            CurrentInventoryRepository currentInventoryRepository
+            CurrentInventoryRepository currentInventoryRepository,
+            ExcelReportGenerator excelReportGenerator,
+            PdfReportGenerator pdfReportGenerator
     ) {
         this.orderRepository = orderRepository;
         this.purchaseOrderRepository = purchaseOrderRepository;
         this.currentInventoryRepository = currentInventoryRepository;
+        this.excelReportGenerator = excelReportGenerator;
+        this.pdfReportGenerator = pdfReportGenerator;
     }
 
     @Override
@@ -213,5 +219,67 @@ public class ReportServiceImpl implements ReportService {
             return ((Number) obj).longValue();
         }
         return Long.parseLong(obj.toString());
+    }
+
+    @Override
+    public byte[] exportExcel(String type, LocalDate from, LocalDate to, String groupBy) {
+        try {
+            switch (type.toLowerCase()) {
+                case "sales":
+                    return excelReportGenerator.generateSalesReport(getSalesReport(from, to, groupBy), from, to);
+                case "purchase":
+                    return excelReportGenerator.generatePurchaseReport(getPurchaseReport(from, to), from, to);
+                case "inventory":
+                    return excelReportGenerator.generateInventoryReport(getInventoryReport(from, to), from, to);
+                default:
+                    throw new IllegalArgumentException("Unknown report type: " + type);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Error generating Excel report", e);
+        }
+    }
+
+    @Override
+    public byte[] exportPdf(String type, LocalDate from, LocalDate to, String groupBy) {
+        try {
+            switch (type.toLowerCase()) {
+                case "sales":
+                    return pdfReportGenerator.generateSalesReport(getSalesReport(from, to, groupBy), from, to);
+                case "purchase":
+                    return pdfReportGenerator.generatePurchaseReport(getPurchaseReport(from, to), from, to);
+                case "inventory":
+                    return pdfReportGenerator.generateInventoryReport(getInventoryReport(from, to), from, to);
+                default:
+                    throw new IllegalArgumentException("Unknown report type: " + type);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Error generating PDF report", e);
+        }
+    }
+
+    @Override
+    public byte[] exportComprehensivePdf(LocalDate from, LocalDate to, String groupBy) {
+        try {
+            List<SalesReportResponse> sales = getSalesReport(from, to, groupBy);
+            List<PurchaseReportResponse> purchases = getPurchaseReport(from, to);
+            List<InventoryReportResponse> inventory = getInventoryReport(from, to);
+            
+            return pdfReportGenerator.generateComprehensiveReport(sales, purchases, inventory, from, to);
+        } catch (Exception e) {
+            throw new RuntimeException("Error generating Comprehensive PDF report", e);
+        }
+    }
+
+    @Override
+    public byte[] exportComprehensiveExcel(LocalDate from, LocalDate to, String groupBy) {
+        try {
+            List<SalesReportResponse> sales = getSalesReport(from, to, groupBy);
+            List<PurchaseReportResponse> purchases = getPurchaseReport(from, to);
+            List<InventoryReportResponse> inventory = getInventoryReport(from, to);
+            
+            return excelReportGenerator.generateComprehensiveExcel(sales, purchases, inventory, from, to);
+        } catch (Exception e) {
+            throw new RuntimeException("Error generating Comprehensive Excel report", e);
+        }
     }
 }

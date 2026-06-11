@@ -72,7 +72,7 @@ class InventoryLedgerServiceTest {
         CurrentInventory invEarly = CurrentInventory.builder()
                 .item(item).location(loc).lot(lotEarly)
                 .quantity(new BigDecimal("3")).reservedQuantity(BigDecimal.ZERO).build();
-        when(currentInventoryRepository.findByItemId(1L)).thenReturn(List.of(invEarly));
+        when(currentInventoryRepository.findAvailableInventoryForUpdate(1L, 2L)).thenReturn(List.of(invEarly));
 
         List<InventoryLedgerService.LotAllocation> allocations =
                 ledgerService.allocateFefo(item, loc, new BigDecimal("2"));
