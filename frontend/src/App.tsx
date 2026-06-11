@@ -243,11 +243,11 @@ const salesData = [
 ];
 
 const categoryData = [
-  { name: 'Äá»“ uá»‘ng', value: 34, color: '#10b981' },
-  { name: 'BÃ¡nh káº¹o', value: 22, color: '#4648d4' },
-  { name: 'Thá»±c pháº©m', value: 18, color: '#f59e0b' },
-  { name: 'Gia dá»¥ng', value: 14, color: '#0ea5e9' },
-  { name: 'KhÃ¡c', value: 12, color: '#94a3b8' },
+  { name: 'Đồ uống', value: 34, color: '#10b981' },
+  { name: 'Bánh kẹo', value: 22, color: '#4648d4' },
+  { name: 'Thực phẩm', value: 18, color: '#f59e0b' },
+  { name: 'Gia dụng', value: 14, color: '#0ea5e9' },
+  { name: 'Khác', value: 12, color: '#94a3b8' },
 ];
 
 const money = formatMoney;
@@ -259,8 +259,8 @@ function ordersToInvoices(orders: Awaited<ReturnType<typeof fetchOrders>>) {
     rawStatus: o.status,
     customer: o.customerName,
     amount: Number(o.totalAmount),
-    cashier: o.cashierName || 'Há»‡ thá»‘ng',
-    status: o.status === 'CANCELLED' ? 'ÄÃ£ há»§y' : 'ÄÃ£ thanh toÃ¡n',
+    cashier: o.cashierName || 'Hệ thống',
+    status: o.status === 'CANCELLED' ? 'Đã hủy' : 'Đã thanh toán',
     time: new Date(o.orderDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
     subtotal: Number(o.totalAmount) / 1.08,
     discount: Number(o.discountAmount || 0),
@@ -306,7 +306,7 @@ function App() {
   >([
     {
       sender: 'ai',
-      text: 'ChÃ o báº¡n! TÃ´i lÃ  trá»£ lÃ½ váº­n hÃ nh AI. Báº¡n cáº§n tÃ´i phÃ¢n tÃ­ch hÃ ng tá»“n kho, láº­p chiáº¿n dá»‹ch khuyáº¿n mÃ£i giáº£m giÃ¡ hay lÃªn phiáº¿u nháº­p hÃ ng giÃºp khÃ´ng?',
+      text: 'Chào bạn! Tôi là trợ lý vận hành AI. Bạn cần tôi phân tích hàng tồn kho, lập chiến dịch khuyến mãi giảm giá hay lên phiếu nhập hàng giúp không?',
     },
   ]);
   const [posCart, setPosCart] = React.useState<Array<{ product: Product; quantity: number }>>([]);
@@ -328,7 +328,7 @@ function App() {
     setPosCart([]);
     clearCatalog();
     setPage('dashboard');
-    antdMessage.success('ÄÃ£ Ä‘Äƒng xuáº¥t');
+    antdMessage.success('Đã đăng xuất');
   }, [authLogout, clearCatalog, setPage]);
 
   const visibleNavItems = React.useMemo(
@@ -341,7 +341,7 @@ function App() {
     if (!canAccessPage(authUser.role, page)) {
       const fallback = defaultPageForRole(authUser.role);
       setPage(fallback);
-      antdMessage.warning('Báº¡n khÃ´ng cÃ³ quyá»n truy cáº­p má»¥c nÃ y');
+      antdMessage.warning('Bạn không có quyền truy cập mục này');
     }
   }, [authUser, page]);
 
@@ -387,9 +387,9 @@ function App() {
         const prod = itemToProduct(item);
         if (stockMap[item.id] !== undefined) {
           prod.stock = Math.round(stockMap[item.id]);
-          if (prod.stock === 0) prod.status = 'Háº¿t hÃ ng';
-          else if (prod.stock <= (item.minimumStock ?? 0)) prod.status = 'Sáº¯p háº¿t';
-          else prod.status = 'CÃ²n hÃ ng';
+          if (prod.stock === 0) prod.status = 'Hết hàng';
+          else if (prod.stock <= (item.minimumStock ?? 0)) prod.status = 'Sắp hết';
+          else prod.status = 'Còn hàng';
         }
         return prod;
       }));
@@ -400,7 +400,7 @@ function App() {
       setUoms(extractArray(uomList));
       console.log('Catalog loaded TEXT:', JSON.stringify({ items, orders, cats, sups, locs, uomList }).substring(0, 500));
     } catch (e) {
-      antdMessage.error(e instanceof Error ? e.message : 'KhÃ´ng táº£i Ä‘Æ°á»£c dá»¯ liá»‡u API');
+      antdMessage.error(e instanceof Error ? e.message : 'Không tải được dữ liệu API');
     } finally {
       setCatalogLoading(false);
     }
@@ -421,7 +421,7 @@ function App() {
   }, [page, authUser]);
 
   if (!sessionReady) {
-    return <div className="min-h-screen grid place-items-center text-slate-500">Äang táº£iâ€¦</div>;
+    return <div className="min-h-screen grid place-items-center text-slate-500">Đang tải…</div>;
   }
 
   if (!authUser || !localStorage.getItem('smartmart_token')) {
@@ -621,7 +621,7 @@ function Sidebar({
           <Sparkles size={16} /> Nâng cấp AI Pro
         </UiButton>
         <p className="mb-2 px-2 text-xs text-slate-400 truncate">
-          {authUser.fullName ?? authUser.username} Â· {roleLabel(authUser.role)}
+          {authUser.fullName ?? authUser.username} · {roleLabel(authUser.role)}
         </p>
         <button
           type="button"
@@ -739,7 +739,7 @@ function Topbar({
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-[#f8fafc]/88 backdrop-blur">
       <div className="mx-auto flex max-w-[1220px] items-center justify-between gap-4 px-4 py-4 sm:px-6">
-        <Button className="md:hidden" icon={<Menu size={17} />} onClick={openMobileNav} aria-label="Má»Ÿ menu" />
+        <Button className="md:hidden" icon={<Menu size={17} />} onClick={openMobileNav} aria-label="Mở menu" />
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex items-center gap-2 text-xs font-semibold text-muted">
             <Home size={14} /> SmartMart AI <ChevronRight size={14} /> {title}
@@ -758,19 +758,19 @@ function Topbar({
           <Button
             icon={themeMode === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             onClick={onToggleTheme}
-            aria-label="Äá»•i giao diá»‡n"
+            aria-label="Đổi giao diện"
           />
           <SystemActivityBell authUser={authUser} setPage={setPage} />
           {showQuickCreate && (
             <Button type="primary" icon={<Plus size={16} />} onClick={() => setModalOpen(true)}>
-              Táº¡o nhanh
+              Tạo nhanh
             </Button>
           )}
           <span className="text-xs font-medium text-muted hidden xl:inline">{roleLabel(authUser.role)}</span>
         </div>
         {showQuickCreate && (
           <Button className="lg:hidden" type="primary" icon={<Plus size={16} />} onClick={() => setModalOpen(true)}>
-            Táº¡o
+            Tạo
           </Button>
         )}
       </div>
@@ -831,7 +831,7 @@ function SystemActivityBell({
       </div>
       <div className="max-h-[420px] overflow-y-auto py-2">
         {loading ? (
-          <p className="py-8 text-center text-sm text-muted">Äang táº£i hoáº¡t Ä‘á»™ng...</p>
+          <p className="py-8 text-center text-sm text-muted">Đang tải hoạt động...</p>
         ) : activities.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted">Chưa có hoạt động mới.</p>
         ) : (
@@ -850,7 +850,7 @@ function SystemActivityBell({
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-slate-800">{activity.detail || activity.action}</p>
                 <p className="mt-1 text-xs text-muted">
-                  {activity.username} Â· {formatActivityTime(activity.createdAt)}
+                  {activity.username} · {formatActivityTime(activity.createdAt)}
                 </p>
               </div>
             </div>
@@ -882,7 +882,7 @@ function formatActivityTime(value: string) {
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes} phút trước`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} giá» trÆ°á»›c`;
+  if (hours < 24) return `${hours} giờ trước`;
   return date.toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' });
 }
 
@@ -930,9 +930,9 @@ function PageRenderer({
   if (!canAccessPage(authUser.role, page)) {
     return (
       <Card>
-        <CardHeader title="KhÃ´ng cÃ³ quyá»n truy cáº­p" description="LiÃªn há»‡ quáº£n trá»‹ Ä‘á»ƒ Ä‘Æ°á»£c cáº¥p quyá»n." />
+        <CardHeader title="Không có quyền truy cập" description="Liên hệ quản trị để được cấp quyền." />
         <p className="px-5 pb-5 text-sm text-muted">
-          Vai trÃ² hiá»‡n táº¡i: {roleLabel(authUser.role)}. CÃ¡c má»¥c Ä‘Æ°á»£c phÃ©p:{' '}
+          Vai trò hiện tại: {roleLabel(authUser.role)}. Các mục được phép:{' '}
           {allowedPages(authUser.role).join(', ')}.
         </p>
       </Card>
@@ -1082,15 +1082,15 @@ function Dashboard({
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3">
         <Button type="primary" icon={<ShoppingCart size={16} />} onClick={() => setPage('pos')}>
-          Táº¡o hÃ³a Ä‘Æ¡n POS
+          Tạo hóa đơn POS
         </Button>
         {canAccessPage(authUser.role, 'import-create') && (
           <Button icon={<FileInput size={16} />} onClick={() => setPage('import-create')}>
-            Táº¡o phiáº¿u nháº­p hÃ ng
+            Tạo phiếu nhập hàng
           </Button>
         )}
         <Button className="ml-auto" type="primary" ghost icon={<Sparkles size={16} />} onClick={() => setPage('ai-forecast')}>
-          Cháº¡y dá»± bÃ¡o AI
+          Chạy dự báo AI
         </Button>
       </div>
       <KpiGrid productsList={productsList} invoicesList={invoicesList} useApiSummary={authUser.role === 'ROLE_ADMIN' || authUser.role === 'ROLE_MANAGER'} />
@@ -1101,7 +1101,7 @@ function Dashboard({
         </div>
       )}
       <div className="grid gap-4 xl:grid-cols-[1.35fr_0.95fr]">
-        <ProductsTable title="Sáº£n pháº©m bÃ¡n cháº¡y (7 ngÃ y)" rows={topRows} openProduct={openProduct} />
+        <ProductsTable title="Sản phẩm bán chạy (7 ngày)" rows={topRows} openProduct={openProduct} />
         <UrgentAlerts productsList={productsList} />
       </div>
       <IntegrationsStrip />
@@ -1139,14 +1139,14 @@ function KpiGrid({
   const outOfStockCount = productsList.filter((p) => p.stock === 0).length;
 
   const items = [
-    { label: 'Doanh thu thá»±c táº¿', value: money(todayRevenue), delta: 'HÃ´m nay', icon: ChartNoAxesCombined, tone: 'emerald' },
-    { label: 'ÄÆ¡n hÃ ng hÃ´m nay', value: todayOrders.toString(), delta: 'HÃ´m nay', icon: ShoppingCart, tone: 'indigo' },
-    { label: 'Sáº¯p háº¿t hÃ ng', value: lowStockCount.toString(), delta: 'Cáº§n nháº­p', icon: AlertTriangle, tone: 'amber' },
-    { label: 'Háº¿t hÃ ng (Nguy cÆ¡)', value: outOfStockCount.toString(), delta: 'Æ¯u tiÃªn', icon: Gauge, tone: 'red' },
+    { label: 'Doanh thu thực tế', value: money(todayRevenue), delta: 'Hôm nay', icon: ChartNoAxesCombined, tone: 'emerald' },
+    { label: 'Đơn hàng hôm nay', value: todayOrders.toString(), delta: 'Hôm nay', icon: ShoppingCart, tone: 'indigo' },
+    { label: 'Sắp hết hàng', value: lowStockCount.toString(), delta: 'Cần nhập', icon: AlertTriangle, tone: 'amber' },
+    { label: 'Hết hàng (Nguy cơ)', value: outOfStockCount.toString(), delta: 'Ưu tiên', icon: Gauge, tone: 'red' },
     {
-      label: 'Cáº£nh bÃ¡o tá»“n',
+      label: 'Cảnh báo tồn',
       value: String(summary?.activeAlerts ?? lowStockCount + outOfStockCount),
-      delta: 'ChÆ°a xá»­ lÃ½',
+      delta: 'Chưa xử lý',
       icon: BrainCircuit,
       tone: 'ai',
     },
@@ -1224,8 +1224,8 @@ function RevenueCard({ invoicesList: _invoicesList }: { invoicesList: any[] }) {
   return (
     <Card className="chart-card overflow-hidden hover:shadow-xl transition-all duration-300">
       <CardHeader
-        title="Doanh thu 7 ngÃ y gáº§n nháº¥t"
-        description="So sÃ¡nh doanh thu thá»±c táº¿ vÃ  dá»± bÃ¡o thÃ´ng minh tá»« AI."
+        title="Doanh thu 7 ngày gần nhất"
+        description="So sánh doanh thu thực tế và dự báo thông minh từ AI."
         action={<Button type="text" className="hover:bg-slate-100 rounded-lg">...</Button>}
       />
       <div className="h-[310px] px-3 pb-5">
@@ -1250,7 +1250,7 @@ function RevenueCard({ invoicesList: _invoicesList }: { invoicesList: any[] }) {
             />
             <Bar
               dataKey="revenue"
-              name="Doanh thu thá»±c táº¿"
+              name="Doanh thu thực tế"
               fill="url(#revenueBar)"
               radius={[6, 6, 0, 0]}
               barSize={28}
@@ -1260,7 +1260,7 @@ function RevenueCard({ invoicesList: _invoicesList }: { invoicesList: any[] }) {
             />
             <Area
               dataKey="forecast"
-              name="Dá»± bÃ¡o AI"
+              name="Dự báo AI"
               stroke="#10b981"
               strokeWidth={3}
               fill="url(#forecastArea)"
@@ -1298,7 +1298,7 @@ function SmartTooltip({ active, payload, label }: { active?: boolean; payload?: 
               {entry.name}
             </span>
             <strong className="text-slate-900 font-bold text-base">
-              {entry.dataKey === 'revenue' || entry.dataKey === 'forecast' ? `${entry.value} triá»‡u` : entry.value}
+              {entry.dataKey === 'revenue' || entry.dataKey === 'forecast' ? `${entry.value} triệu` : entry.value}
             </strong>
           </div>
         ))}
@@ -1309,14 +1309,14 @@ function SmartTooltip({ active, payload, label }: { active?: boolean; payload?: 
 
 export function AiSummary({ setPage }: { setPage: (page: PageKey) => void }) {
   const insights = [
-    ['Cáº§n nháº­p hÃ ng', '12', 'warning'],
-    ['Nguy cÆ¡ háº¿t hÃ ng', '7', 'danger'],
-    ['Tá»“n kho dÆ° thá»«a', '5', 'ai'],
-    ['Sáº¯p háº¿t háº¡n', '8', 'neutral'],
+    ['Cần nhập hàng', '12', 'warning'],
+    ['Nguy cơ hết hàng', '7', 'danger'],
+    ['Tồn kho dư thừa', '5', 'ai'],
+    ['Sắp hết hạn', '8', 'neutral'],
   ] as const;
   return (
     <Card className="border-t-4 border-t-indigo">
-      <CardHeader title="TÃ³m táº¯t AI Forecast" description="Nháº­n diá»‡n Æ°u tiÃªn váº­n hÃ nh trong ngÃ y." action={<Sparkles className="text-indigo animate-pulse" size={22} />} />
+      <CardHeader title="Tóm tắt AI Forecast" description="Nhận diện ưu tiên vận hành trong ngày." action={<Sparkles className="text-indigo animate-pulse" size={22} />} />
       <div className="space-y-3 px-5 pb-5">
         {insights.map(([label, value, tone]) => (
           <motion.div
@@ -1330,7 +1330,7 @@ export function AiSummary({ setPage }: { setPage: (page: PageKey) => void }) {
           </motion.div>
         ))}
         <UiButton variant="secondary" className="w-full" onClick={() => setPage('purchase-suggestions')}>
-          Xem gá»£i Ã½ nháº­p hÃ ng
+          Xem gợi ý nhập hàng
         </UiButton>
       </div>
     </Card>
@@ -1341,7 +1341,7 @@ function UrgentAlerts({ productsList }: { productsList: Product[] }) {
   const lowStock = productsList.filter(p => p.stock <= 20);
   return (
     <Card>
-      <CardHeader title="Cáº£nh bÃ¡o kháº©n" description="CÃ¡c váº¥n Ä‘á» cáº§n xá»­ lÃ½ trÆ°á»›c ca tá»‘i." />
+      <CardHeader title="Cảnh báo khẩn" description="Các vấn đề cần xử lý trước ca tối." />
       <div className="space-y-3 px-5 pb-5">
         {lowStock.slice(0, 3).map((item) => (
           <div className="rounded-xl border border-red-100 bg-red-50 p-4" key={item.key}>
@@ -1351,15 +1351,15 @@ function UrgentAlerts({ productsList }: { productsList: Product[] }) {
             </div>
             <p className="mt-2 text-sm text-red-700">
               {item.stock === 0
-                ? 'CÃ²n 0 sáº£n pháº©m trong kho, nguy cÆ¡ máº¥t doanh sá»‘ cao!'
-                : `Chá»‰ cÃ²n ${item.stock} sáº£n pháº©m, dá»± bÃ¡o háº¿t hÃ ng trong vÃ²ng 1.2 ngÃ y tá»›i.`}
+                ? 'Còn 0 sản phẩm trong kho, nguy cơ mất doanh số cao!'
+                : `Chỉ còn ${item.stock} sản phẩm, dự báo hết hàng trong vòng 1.2 ngày tới.`}
             </p>
           </div>
         ))}
         {lowStock.length === 0 && (
           <div className="flex flex-col items-center justify-center p-6 text-center text-slate-400">
             <CheckCircle2 size={36} className="text-emerald text-center mb-2" />
-            <span className="text-sm">Má»i máº·t hÃ ng Ä‘á»u Ä‘Æ°á»£c cáº¥p Ä‘áº§y Ä‘á»§!</span>
+            <span className="text-sm">Mọi mặt hàng đều được cấp đầy đủ!</span>
           </div>
         )}
       </div>
@@ -1370,7 +1370,7 @@ function UrgentAlerts({ productsList }: { productsList: Product[] }) {
 function IntegrationsStrip() {
   return (
     <Card>
-      <CardHeader title="TÃ­ch há»£p" />
+      <CardHeader title="Tích hợp" />
       <div className="grid gap-3 px-5 pb-5 md:grid-cols-4">
         {['Momo Pay', 'Zalo OA', 'KiotViet', 'Google Sheets'].map((name) => (
           <div className="flex items-center justify-between rounded-xl border border-line bg-slate-50 px-4 py-3" key={name}>
@@ -1380,7 +1380,7 @@ function IntegrationsStrip() {
               </div>
               <strong className="text-sm font-semibold">{name}</strong>
             </div>
-            <StatusChip tone="success">ÄÃ£ káº¿t ná»‘i</StatusChip>
+            <StatusChip tone="success">Đã kết nối</StatusChip>
           </div>
         ))}
       </div>
@@ -1425,16 +1425,16 @@ function ProductsPage({
           value={selectedCat}
           onChange={(e) => setSelectedCat(e.target.value)}
         >
-          <option value="all">Táº¥t cáº£ danh má»¥c</option>
+          <option value="all">Tất cả danh mục</option>
           {uniqueCategories.map(cat => (
             <option key={cat} value={cat}>{cat}</option>
           ))}
         </select>
         <Button className="ml-auto" type="primary" icon={<Plus size={16} />} onClick={openModal}>
-          ThÃªm má»›i sáº£n pháº©m
+          Thêm mới sản phẩm
         </Button>
       </Card>
-      <ProductsTable title="Danh sÃ¡ch sáº£n pháº©m" rows={filtered} openProduct={openProduct} />
+      <ProductsTable title="Danh sách sản phẩm" rows={filtered} openProduct={openProduct} />
     </div>
   );
 }
@@ -1455,7 +1455,7 @@ function CategoriesPage({ categories, productsList }: { categories: CategoryDto[
     <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
       <Card>
         <div className="p-5 flex items-center justify-between border-b border-slate-100">
-          <h2 className="font-semibold text-lg">Danh má»¥c hÃ ng hÃ³a</h2>
+          <h2 className="font-semibold text-lg">Danh mục hàng hóa</h2>
           <Input className="w-64" prefix={<Search size={16} />} placeholder="Tìm kiếm danh mục..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} allowClear />
         </div>
         <div className="grid gap-3 px-5 py-5 md:grid-cols-2">
@@ -1467,17 +1467,17 @@ function CategoriesPage({ categories, productsList }: { categories: CategoryDto[
                   <div className="grid h-10 w-10 place-items-center rounded-lg bg-emerald-50 text-primary">
                     <Tags size={18} />
                   </div>
-                  <StatusChip tone={cat.active ? 'success' : 'warning'}>{cat.active ? 'Äang bÃ¡n' : 'NgÆ°ng'}</StatusChip>
+                  <StatusChip tone={cat.active ? 'success' : 'warning'}>{cat.active ? 'Đang bán' : 'Ngưng'}</StatusChip>
                 </div>
                 <strong className="text-ink text-base">{cat.categoryName}</strong>
-                <p className="mt-1 text-sm text-muted">{count} sáº£n pháº©m Ä‘ang bÃ y bÃ¡n Â· BiÃªn lá»£i nhuáº­n {15 + idx}%</p>
+                <p className="mt-1 text-sm text-muted">{count} sản phẩm đang bày bán · Biên lợi nhuận {15 + idx}%</p>
               </motion.div>
             );
           })}
         </div>
       </Card>
       <AiSummary setPage={() => { }} />
-      <Modal title={`Sáº£n pháº©m trong danh má»¥c: ${selectedCat?.categoryName}`} open={!!selectedCat} onCancel={() => setSelectedCat(null)} footer={null} width={900}>
+      <Modal title={`Sản phẩm trong danh mục: ${selectedCat?.categoryName}`} open={!!selectedCat} onCancel={() => setSelectedCat(null)} footer={null} width={900}>
         {selectedCat && <ProductsTable title="" rows={productsList.filter((p) => p.category === selectedCat.categoryName)} openProduct={() => { }} />}
       </Modal>
     </div>
@@ -1525,12 +1525,12 @@ function SuppliersPage({ suppliers, productsList, authUser, reloadCatalog }: { s
         setLoading(true);
         try {
           await updateSupplier(selectedSup.id, values);
-          antdMessage.success('Cáº­p nháº­t nhÃ  cung cáº¥p thÃ nh cÃ´ng');
+          antdMessage.success('Cập nhật nhà cung cấp thành công');
           setIsEditing(false);
           setSelectedSup(null);
           if (reloadCatalog) await reloadCatalog();
         } catch (e: any) {
-          antdMessage.error(e.message || 'Lá»—i khi cáº­p nháº­t');
+          antdMessage.error(e.message || 'Lỗi khi cập nhật');
         } finally {
           setLoading(false);
         }
@@ -1538,10 +1538,10 @@ function SuppliersPage({ suppliers, productsList, authUser, reloadCatalog }: { s
 
       if (selectedSup.active && !isActive) {
         Modal.confirm({
-          title: 'XÃ¡c nháº­n ngá»«ng hoáº¡t Ä‘á»™ng',
-          content: 'Ngá»«ng hoáº¡t Ä‘á»™ng nhÃ  cung cáº¥p nÃ y cÃ³ thá»ƒ áº£nh hÆ°á»Ÿng Ä‘áº¿n viá»‡c nháº­p hÃ ng. Báº¡n cÃ³ cháº¯c cháº¯n?',
-          okText: 'Äá»“ng Ã½',
-          cancelText: 'Há»§y',
+          title: 'Xác nhận ngừng hoạt động',
+          content: 'Ngừng hoạt động nhà cung cấp này có thể ảnh hưởng đến việc nhập hàng. Bạn có chắc chắn?',
+          okText: 'Đồng ý',
+          cancelText: 'Hủy',
           onOk: doUpdate
         });
       } else {
@@ -1556,8 +1556,8 @@ function SuppliersPage({ suppliers, productsList, authUser, reloadCatalog }: { s
     <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
       <Card>
         <div className="p-5 flex items-center justify-between border-b border-slate-100">
-          <h2 className="font-semibold text-lg">NhÃ  cung cáº¥p Ä‘á»‘i tÃ¡c</h2>
-          <Input className="w-64" prefix={<Search size={16} />} placeholder="TÃ¬m theo tÃªn, SÄT..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} allowClear />
+          <h2 className="font-semibold text-lg">Nhà cung cấp đối tác</h2>
+          <Input className="w-64" prefix={<Search size={16} />} placeholder="Tìm theo tên, SĐT..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} allowClear />
         </div>
         <div className="grid gap-3 px-5 py-5 md:grid-cols-2">
           {filteredSuppliers.map((sup) => (
@@ -1566,12 +1566,12 @@ function SuppliersPage({ suppliers, productsList, authUser, reloadCatalog }: { s
                 <div className="grid h-10 w-10 place-items-center rounded-lg bg-indigo-50 text-indigo">
                   <Truck size={18} />
                 </div>
-                <StatusChip tone={sup.active ? 'success' : 'warning'}>{sup.active ? 'Hoáº¡t Ä‘á»™ng' : 'NgÆ°ng'}</StatusChip>
+                <StatusChip tone={sup.active ? 'success' : 'warning'}>{sup.active ? 'Hoạt động' : 'Ngưng'}</StatusChip>
               </div>
               <strong className="text-ink text-base">{sup.supplierName}</strong>
-              <p className="text-xs text-muted mt-0.5">{sup.contactPerson ?? 'â€”'} Â· {sup.phone ?? 'â€”'}</p>
+              <p className="text-xs text-muted mt-0.5">{sup.contactPerson ?? '—'} · {sup.phone ?? '—'}</p>
               <div className="mt-3 border-t border-slate-100 pt-2 text-xs text-slate-500">
-                {productsList.length} SKU trong há»‡ thá»‘ng
+                {productsList.length} SKU trong hệ thống
               </div>
             </motion.div>
           ))}
@@ -1579,56 +1579,56 @@ function SuppliersPage({ suppliers, productsList, authUser, reloadCatalog }: { s
       </Card>
       <AiSummary setPage={() => { }} />
       <Modal
-        title={isEditing ? 'Sá»­a thÃ´ng tin NhÃ  cung cáº¥p' : `Chi tiáº¿t: ${selectedSup?.supplierName}`}
+        title={isEditing ? 'Sửa thông tin Nhà cung cấp' : `Chi tiết: ${selectedSup?.supplierName}`}
         open={!!selectedSup}
         onCancel={() => { setSelectedSup(null); setIsEditing(false); }}
         footer={
           isEditing ? (
             <div className="flex justify-end gap-2">
-              <UiButton variant="secondary" onClick={() => setIsEditing(false)} disabled={loading}>Há»§y</UiButton>
-              <UiButton variant="primary" onClick={handleUpdate} disabled={loading}>{loading ? 'Äang lÆ°u...' : 'LÆ°u thay Ä‘á»•i'}</UiButton>
+              <UiButton variant="secondary" onClick={() => setIsEditing(false)} disabled={loading}>Hủy</UiButton>
+              <UiButton variant="primary" onClick={handleUpdate} disabled={loading}>{loading ? 'Đang lưu...' : 'Lưu thay đổi'}</UiButton>
             </div>
           ) : (
-            canEdit ? <UiButton variant="primary" onClick={() => setIsEditing(true)}>Chá»‰nh sá»­a</UiButton> : null
+            canEdit ? <UiButton variant="primary" onClick={() => setIsEditing(true)}>Chỉnh sửa</UiButton> : null
           )
         }
         forceRender
       >
         {selectedSup && !isEditing && (
           <div className="space-y-3 mt-4 text-sm text-slate-700">
-            <div className="grid grid-cols-[120px_1fr] border-b border-slate-100 pb-2"><span className="font-semibold text-slate-500">TÃªn NCC:</span><span>{selectedSup.supplierName}</span></div>
-            <div className="grid grid-cols-[120px_1fr] border-b border-slate-100 pb-2"><span className="font-semibold text-slate-500">NgÆ°á»i liÃªn há»‡:</span><span>{selectedSup.contactPerson || 'â€”'}</span></div>
-            <div className="grid grid-cols-[120px_1fr] border-b border-slate-100 pb-2"><span className="font-semibold text-slate-500">SÄT:</span><span>{selectedSup.phone || 'â€”'}</span></div>
-            <div className="grid grid-cols-[120px_1fr] border-b border-slate-100 pb-2"><span className="font-semibold text-slate-500">Email:</span><span>{selectedSup.email || 'â€”'}</span></div>
-            <div className="grid grid-cols-[120px_1fr]"><span className="font-semibold text-slate-500">Äá»‹a chá»‰:</span><span>{selectedSup.address || 'â€”'}</span></div>
+            <div className="grid grid-cols-[120px_1fr] border-b border-slate-100 pb-2"><span className="font-semibold text-slate-500">Tên NCC:</span><span>{selectedSup.supplierName}</span></div>
+            <div className="grid grid-cols-[120px_1fr] border-b border-slate-100 pb-2"><span className="font-semibold text-slate-500">Người liên hệ:</span><span>{selectedSup.contactPerson || '—'}</span></div>
+            <div className="grid grid-cols-[120px_1fr] border-b border-slate-100 pb-2"><span className="font-semibold text-slate-500">SĐT:</span><span>{selectedSup.phone || '—'}</span></div>
+            <div className="grid grid-cols-[120px_1fr] border-b border-slate-100 pb-2"><span className="font-semibold text-slate-500">Email:</span><span>{selectedSup.email || '—'}</span></div>
+            <div className="grid grid-cols-[120px_1fr]"><span className="font-semibold text-slate-500">Địa chỉ:</span><span>{selectedSup.address || '—'}</span></div>
           </div>
         )}
 
         {selectedSup && isEditing && (
           <Form form={form} layout="vertical" className="mt-4">
-            <Form.Item name="supplierName" label="TÃªn nhÃ  cung cáº¥p" rules={[{ required: true, message: 'Vui lÃ²ng nháº­p tÃªn nhÃ  cung cáº¥p' }]}>
-              <Input placeholder="Nháº­p tÃªn" />
+            <Form.Item name="supplierName" label="Tên nhà cung cấp" rules={[{ required: true, message: 'Vui lòng nhập tên nhà cung cấp' }]}>
+              <Input placeholder="Nhập tên" />
             </Form.Item>
             <div className="grid grid-cols-2 gap-3">
-              <Form.Item name="contactPerson" label="NgÆ°á»i liÃªn há»‡">
-                <Input placeholder="TÃªn ngÆ°á»i Ä‘áº¡i diá»‡n" />
+              <Form.Item name="contactPerson" label="Người liên hệ">
+                <Input placeholder="Tên người đại diện" />
               </Form.Item>
-              <Form.Item name="phone" label="Sá»‘ Ä‘iá»‡n thoáº¡i">
-                <Input placeholder="Nháº­p SÄT" />
+              <Form.Item name="phone" label="Số điện thoại">
+                <Input placeholder="Nhập SĐT" />
               </Form.Item>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Form.Item name="email" label="Email" className="col-span-2">
-                <Input type="email" placeholder="Nháº­p email" />
+                <Input type="email" placeholder="Nhập email" />
               </Form.Item>
             </div>
-            <Form.Item name="address" label="Äá»‹a chá»‰">
-              <Input placeholder="Nháº­p Ä‘á»‹a chá»‰" />
+            <Form.Item name="address" label="Địa chỉ">
+              <Input placeholder="Nhập địa chỉ" />
             </Form.Item>
-            <Form.Item name="active" label="Tráº¡ng thÃ¡i">
+            <Form.Item name="active" label="Trạng thái">
               <select className="h-[34px] w-full px-3 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-indigo-500 bg-white">
-                <option value="true">Hoáº¡t Ä‘á»™ng</option>
-                <option value="false">NgÆ°ng</option>
+                <option value="true">Hoạt động</option>
+                <option value="false">Ngưng</option>
               </select>
             </Form.Item>
           </Form>
@@ -1664,24 +1664,24 @@ function InvoicesPage({
         }
       })
       .catch(e => {
-        if (active) antdMessage.error('Lá»—i táº£i hÃ³a Ä‘Æ¡n');
+        if (active) antdMessage.error('Lỗi tải hóa đơn');
       })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [pagination.page, pagination.size, filters.search, filters.status, filters.fromDate, filters.toDate, reloadTick]);
 
   const columns = [
-    { title: 'MÃ£ hÃ³a Ä‘Æ¡n', dataIndex: 'key', render: (v: string, row: any) => <button className="font-bold text-primary hover:text-emerald" onClick={() => setSelectedInvoice(row)}>{v}</button> },
-    { title: 'KhÃ¡ch hÃ ng', dataIndex: 'customer' },
-    { title: 'Thu ngÃ¢n', dataIndex: 'cashier' },
-    { title: 'Tá»•ng thanh toÃ¡n', dataIndex: 'amount', render: (v: number) => money(v) },
-    { title: 'Thá»i gian', dataIndex: 'time' },
-    { title: 'Tráº¡ng thÃ¡i', dataIndex: 'status', render: (v: string) => <StatusChip tone={v.includes('toÃ¡n') ? 'success' : 'warning'}>{v}</StatusChip> },
+    { title: 'Mã hóa đơn', dataIndex: 'key', render: (v: string, row: any) => <button className="font-bold text-primary hover:text-emerald" onClick={() => setSelectedInvoice(row)}>{v}</button> },
+    { title: 'Khách hàng', dataIndex: 'customer' },
+    { title: 'Thu ngân', dataIndex: 'cashier' },
+    { title: 'Tổng thanh toán', dataIndex: 'amount', render: (v: number) => money(v) },
+    { title: 'Thời gian', dataIndex: 'time' },
+    { title: 'Trạng thái', dataIndex: 'status', render: (v: string) => <StatusChip tone={v.includes('toán') ? 'success' : 'warning'}>{v}</StatusChip> },
     {
-      title: 'HÃ nh Ä‘á»™ng',
+      title: 'Hành động',
       render: (_: any, row: any) => (
         <div className="flex gap-2">
-          <Button size="small" onClick={() => setSelectedInvoice(row)}>Chi tiáº¿t</Button>
+          <Button size="small" onClick={() => setSelectedInvoice(row)}>Chi tiết</Button>
           {canCancel && row.rawStatus === 'COMPLETED' && (
             <Button
               size="small"
@@ -1689,14 +1689,14 @@ function InvoicesPage({
               onClick={async () => {
                 try {
                   await cancelOrder(row.orderId);
-                  antdMessage.success('ÄÃ£ há»§y hÃ³a Ä‘Æ¡n');
+                  antdMessage.success('Đã hủy hóa đơn');
                   setReloadTick((t) => t + 1);
                 } catch (e) {
-                  antdMessage.error(e instanceof Error ? e.message : 'Há»§y tháº¥t báº¡i');
+                  antdMessage.error(e instanceof Error ? e.message : 'Hủy thất bại');
                 }
               }}
             >
-              Há»§y
+              Hủy
             </Button>
           )}
         </div>
@@ -1706,7 +1706,7 @@ function InvoicesPage({
 
   return (
     <Card className="flex flex-col h-[calc(100vh-120px)] overflow-hidden">
-      <CardHeader title="Danh sÃ¡ch hÃ³a Ä‘Æ¡n" className="shrink-0" action={
+      <CardHeader title="Danh sách hóa đơn" className="shrink-0" action={
         <div className="flex gap-2">
           <Input.Search
             placeholder="Tìm mã, khách hàng..."
@@ -1719,16 +1719,16 @@ function InvoicesPage({
             value={filters.status}
             onChange={e => { setFilters(f => ({ ...f, status: e.target.value })); setPagination(p => ({ ...p, page: 0 })); }}
           >
-            <option value="ALL">Táº¥t cáº£ tráº¡ng thÃ¡i</option>
-            <option value="COMPLETED">ÄÃ£ thanh toÃ¡n</option>
-            <option value="CANCELLED">ÄÃ£ há»§y</option>
+            <option value="ALL">Tất cả trạng thái</option>
+            <option value="COMPLETED">Đã thanh toán</option>
+            <option value="CANCELLED">Đã hủy</option>
           </select>
           <DatePicker
-            placeholder="Tá»« ngÃ y"
+            placeholder="Từ ngày"
             onChange={(_, dateStr) => { setFilters(f => ({ ...f, fromDate: dateStr ? (dateStr as string) + 'T00:00:00' : '' })); setPagination(p => ({ ...p, page: 0 })); }}
           />
           <DatePicker
-            placeholder="Äáº¿n ngÃ y"
+            placeholder="Đến ngày"
             onChange={(_, dateStr) => { setFilters(f => ({ ...f, toDate: dateStr ? (dateStr as string) + 'T23:59:59' : '' })); setPagination(p => ({ ...p, page: 0 })); }}
           />
         </div>
@@ -1775,8 +1775,8 @@ function InventoryPage({ openProduct, productsList }: { openProduct: (product: P
             stock,
             sold: 0,
             supplier: '-',
-            status: stock === 0 ? 'Háº¿t hÃ ng' : stock <= 40 ? 'Sáº¯p háº¿t' : 'CÃ²n hÃ ng',
-            expiry: row.expiryDate ?? 'KhÃ´ng Ã¡p dá»¥ng',
+            status: stock === 0 ? 'Hết hàng' : stock <= 40 ? 'Sắp hết' : 'Còn hàng',
+            expiry: row.expiryDate ?? 'Không áp dụng',
             purchaseRatio: 1,
           };
         });
@@ -1787,8 +1787,8 @@ function InventoryPage({ openProduct, productsList }: { openProduct: (product: P
   }, [productsList]);
   return (
     <div className="space-y-4">
-      {loading && <p className="text-sm text-muted">Äang táº£i tá»“n kho tá»« APIâ€¦</p>}
-      <ProductsTable title="Tá»“n kho theo vá»‹ trÃ­ / lÃ´" rows={rows} openProduct={openProduct} />
+      {loading && <p className="text-sm text-muted">Đang tải tồn kho từ API…</p>}
+      <ProductsTable title="Tồn kho theo vị trí / lô" rows={rows} openProduct={openProduct} />
     </div>
   );
 }
@@ -1802,8 +1802,8 @@ function InventoryAlertsPage({ setPage }: { productsList: Product[]; setPage: (p
       .catch(() => setAlerts([]))
       .finally(() => setLoading(false));
   }, []);
-  if (loading) return <p className="text-sm text-muted">Äang táº£i cáº£nh bÃ¡oâ€¦</p>;
-  if (!alerts.length) return <p className="text-sm text-muted">KhÃ´ng cÃ³ cáº£nh bÃ¡o chÆ°a xá»­ lÃ½.</p>;
+  if (loading) return <p className="text-sm text-muted">Đang tải cảnh báo…</p>;
+  if (!alerts.length) return <p className="text-sm text-muted">Không có cảnh báo chưa xử lý.</p>;
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {alerts.map((alert) => (
@@ -1817,7 +1817,7 @@ function InventoryAlertsPage({ setPage }: { productsList: Product[]; setPage: (p
             <p className="mt-2 text-sm text-slate-500 font-medium">{alert.message}</p>
           </div>
           <Button className="w-full mt-3" type="primary" onClick={() => setPage('import-create')}>
-            Táº¡o phiáº¿u nháº­p Ä‘á»‘i tÃ¡c
+            Tạo phiếu nhập đối tác
           </Button>
         </Card>
       ))}
@@ -1888,9 +1888,9 @@ function AiForecastPage({ productsList: _productsList }: { productsList: Product
       await trainForecast();
       await refreshResults();
       await refreshStatus();
-      antdMessage.success('Huáº¥n luyá»‡n mÃ´ hÃ¬nh thÃ nh cÃ´ng');
+      antdMessage.success('Huấn luyện mô hình thành công');
     } catch (e) {
-      antdMessage.error(e instanceof Error ? e.message : 'Huáº¥n luyá»‡n tháº¥t báº¡i');
+      antdMessage.error(e instanceof Error ? e.message : 'Huấn luyện thất bại');
     } finally {
       setLoading(false);
     }
@@ -1917,9 +1917,9 @@ function AiForecastPage({ productsList: _productsList }: { productsList: Product
       await runForecast();
       await refreshResults();
       await refreshStatus();
-      antdMessage.success('Dá»± bÃ¡o hoÃ n táº¥t');
+      antdMessage.success('Dự báo hoàn tất');
     } catch (e) {
-      antdMessage.error(e instanceof Error ? e.message : 'Dá»± bÃ¡o tháº¥t báº¡i â€” kiá»ƒm tra ai-service');
+      antdMessage.error(e instanceof Error ? e.message : 'Dự báo thất bại — kiểm tra ai-service');
     } finally {
       setLoading(false);
     }
@@ -1932,7 +1932,7 @@ function AiForecastPage({ productsList: _productsList }: { productsList: Product
   };
 
   const formatTrainedAt = (iso?: string) => {
-    if (!iso) return 'ChÆ°a huáº¥n luyá»‡n';
+    if (!iso) return 'Chưa huấn luyện';
     const d = new Date(iso);
     return d.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
@@ -1940,35 +1940,35 @@ function AiForecastPage({ productsList: _productsList }: { productsList: Product
   return (
     <div className="space-y-4">
       <Card>
-        <CardHeader title="Tráº¡ng thÃ¡i AI" description="FastAPI ML service + backend orchestration" />
+        <CardHeader title="Trạng thái AI" description="FastAPI ML service + backend orchestration" />
         <div className="px-5 pb-5 flex flex-wrap gap-4 items-center">
           <Tag color={aiStatus?.aiOnline ? 'success' : 'error'}>
             {aiStatus?.aiOnline ? 'AI Online' : 'AI Offline'}
           </Tag>
           <Tag color={aiStatus?.modelLoaded ? 'processing' : 'default'}>
-            {aiStatus?.modelLoaded ? 'Model loaded' : 'ChÆ°a cÃ³ model'}
+            {aiStatus?.modelLoaded ? 'Model loaded' : 'Chưa có model'}
           </Tag>
           <span className="text-sm text-slate-500">
-            Version: <strong>{aiStatus?.aiVersion ?? 'â€”'}</strong>
+            Version: <strong>{aiStatus?.aiVersion ?? '—'}</strong>
           </span>
           <span className="text-sm text-slate-500">
-            Model: <strong>{aiStatus?.modelType ?? 'â€”'}</strong>
+            Model: <strong>{aiStatus?.modelType ?? '—'}</strong>
           </span>
           <span className="text-sm text-slate-500">
-            Huáº¥n luyá»‡n láº§n cuá»‘i: <strong>{formatTrainedAt(aiStatus?.lastTrainedAt)}</strong>
+            Huấn luyện lần cuối: <strong>{formatTrainedAt(aiStatus?.lastTrainedAt)}</strong>
           </span>
           <span className="text-sm text-slate-500">
-            SKU Ä‘Ã£ dá»± bÃ¡o: <strong>{aiStatus?.totalForecasts ?? 0}</strong>
+            SKU đã dự báo: <strong>{aiStatus?.totalForecasts ?? 0}</strong>
           </span>
         </div>
       </Card>
       <div className="flex gap-2">
-        <Button type="primary" loading={loading} onClick={handleTrain}>Huáº¥n luyá»‡n AI</Button>
-        <Button loading={loading} onClick={handleRun}>Cháº¡y dá»± bÃ¡o</Button>
+        <Button type="primary" loading={loading} onClick={handleTrain}>Huấn luyện AI</Button>
+        <Button loading={loading} onClick={handleRun}>Chạy dự báo</Button>
       </div>
       {results.length > 0 ? (
         <Card>
-          <CardHeader title="Káº¿t quáº£ dá»± bÃ¡o theo SKU" description={`${results.length} sáº£n pháº©m`} />
+          <CardHeader title="Kết quả dự báo theo SKU" description={`${results.length} sản phẩm`} />
           <Table
             size="small"
             pagination={false}
@@ -1979,16 +1979,16 @@ function AiForecastPage({ productsList: _productsList }: { productsList: Product
               className: row.itemId === selectedItemId ? 'bg-emerald-50' : 'cursor-pointer',
             })}
             columns={[
-              { title: 'Sáº£n pháº©m', dataIndex: 'itemName' },
-              { title: '7 ngÃ y', dataIndex: 'pred7d' },
-              { title: '14 ngÃ y', dataIndex: 'pred14d' },
-              { title: '30 ngÃ y', dataIndex: 'pred30d' },
+              { title: 'Sản phẩm', dataIndex: 'itemName' },
+              { title: '7 ngày', dataIndex: 'pred7d' },
+              { title: '14 ngày', dataIndex: 'pred14d' },
+              { title: '30 ngày', dataIndex: 'pred30d' },
               {
-                title: 'Khoáº£ng tin cáº­y (30d)',
+                title: 'Khoảng tin cậy (30d)',
                 render: (_, r) =>
                   r.confidenceLow != null
-                    ? `${Number(r.confidenceLow).toFixed(0)} â€“ ${Number(r.confidenceHigh ?? 0).toFixed(0)}`
-                    : 'â€”',
+                    ? `${Number(r.confidenceLow).toFixed(0)} – ${Number(r.confidenceHigh ?? 0).toFixed(0)}`
+                    : '—',
               },
               { title: 'Model', dataIndex: 'modelType', render: (v) => modelLabel(String(v)) },
             ]}
@@ -1998,18 +1998,18 @@ function AiForecastPage({ productsList: _productsList }: { productsList: Product
         <Alert
           type="info"
           showIcon
-          message="ChÆ°a cÃ³ káº¿t quáº£ dá»± bÃ¡o"
-          description="Nháº¥n Huáº¥n luyá»‡n AI Ä‘á»ƒ train model vÃ  cháº¡y dá»± bÃ¡o tá»± Ä‘á»™ng."
+          message="Chưa có kết quả dự báo"
+          description="Nhấn Huấn luyện AI để train model và chạy dự báo tự động."
         />
       )}
       <Card>
         <CardHeader
-          title="Chuá»—i dá»± bÃ¡o 30 ngÃ y (daily series)"
-          description={selectedItemId ? `SKU #${selectedItemId}` : 'Cháº¡y dá»± bÃ¡o vÃ  chá»n má»™t dÃ²ng trong báº£ng'}
+          title="Chuỗi dự báo 30 ngày (daily series)"
+          description={selectedItemId ? `SKU #${selectedItemId}` : 'Chạy dự báo và chọn một dòng trong bảng'}
         />
         <div className="h-[320px] px-3 pb-5">
           {dailyChart.length === 0 ? (
-            <div className="h-full grid place-items-center text-muted text-sm">ChÆ°a cÃ³ dá»¯ liá»‡u daily series</div>
+            <div className="h-full grid place-items-center text-muted text-sm">Chưa có dữ liệu daily series</div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={dailyChart}>
@@ -2017,7 +2017,7 @@ function AiForecastPage({ productsList: _productsList }: { productsList: Product
                 <XAxis dataKey="date" />
                 <YAxis />
                 <ChartTooltip />
-                <Line type="monotone" dataKey="qty" name="SL dá»± bÃ¡o" stroke="#006c49" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="qty" name="SL dự báo" stroke="#006c49" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           )}
@@ -2025,10 +2025,10 @@ function AiForecastPage({ productsList: _productsList }: { productsList: Product
       </Card>
       <div className="grid gap-4 xl:grid-cols-[1.4fr_0.8fr]">
         <Card className="hover:shadow-xl transition-all duration-300">
-          <CardHeader title="Doanh thu & Ä‘Æ¡n hÃ ng thá»±c táº¿" description="Dá»¯ liá»‡u tá»« bÃ¡o cÃ¡o bÃ¡n hÃ ng 30 ngÃ y gáº§n nháº¥t." />
+          <CardHeader title="Doanh thu & đơn hàng thực tế" description="Dữ liệu từ báo cáo bán hàng 30 ngày gần nhất." />
           <div className="h-[360px] px-3 pb-5">
             {revenueChart.length === 0 ? (
-              <div className="h-full grid place-items-center text-muted text-sm">ChÆ°a cÃ³ dá»¯ liá»‡u doanh thu</div>
+              <div className="h-full grid place-items-center text-muted text-sm">Chưa có dữ liệu doanh thu</div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={revenueChart} margin={{ top: 14, right: 18, bottom: 6, left: 0 }}>
@@ -2047,7 +2047,7 @@ function AiForecastPage({ productsList: _productsList }: { productsList: Product
                   <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
                   <ChartTooltip content={<SmartTooltip />} />
                   <Area dataKey="revenue" name="Doanh thu" stroke="#10b981" strokeWidth={3} fill="url(#forecastRevenue)" type="monotone" dot={false} activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 3 }} isAnimationActive animationDuration={900} />
-                  <Area dataKey="orders" name="ÄÆ¡n hÃ ng" stroke="#4648d4" strokeWidth={3} fill="url(#forecastOrders)" type="monotone" dot={false} activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 3 }} isAnimationActive animationDuration={1050} />
+                  <Area dataKey="orders" name="Đơn hàng" stroke="#4648d4" strokeWidth={3} fill="url(#forecastOrders)" type="monotone" dot={false} activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 3 }} isAnimationActive animationDuration={1050} />
                 </AreaChart>
               </ResponsiveContainer>
             )}
@@ -2077,11 +2077,11 @@ function PurchaseSuggestionsPage({ productsList: _productsList, setPage }: { pro
     <Card className="overflow-hidden">
       <div className="p-4 border-b border-slate-100 flex items-center justify-between">
         <div>
-          <h2 className="text-base font-bold text-ink">AI Äá» xuáº¥t nháº­p thÃªm hÃ ng</h2>
-          <p className="text-xs text-slate-400">ÄÆ°á»£c Ä‘á» xuáº¥t tá»± Ä‘á»™ng dá»±a theo tá»‘c Ä‘á»™ bÃ¡n hÃ ng vÃ  chu ká»³ váº­n chuyá»ƒn.</p>
+          <h2 className="text-base font-bold text-ink">AI Đề xuất nhập thêm hàng</h2>
+          <p className="text-xs text-slate-400">Được đề xuất tự động dựa theo tốc độ bán hàng và chu kỳ vận chuyển.</p>
         </div>
         {suggestions.length > 0 && (
-          <Button type="primary" onClick={() => setPage('import-create')}>Láº­p phiáº¿u táº¥t cáº£</Button>
+          <Button type="primary" onClick={() => setPage('import-create')}>Lập phiếu tất cả</Button>
         )}
       </div>
       <div className="px-5 pb-5">
@@ -2089,14 +2089,14 @@ function PurchaseSuggestionsPage({ productsList: _productsList, setPage }: { pro
           <Alert
             type="warning"
             showIcon
-            message="ChÆ°a cÃ³ Ä‘á» xuáº¥t nháº­p hÃ ng"
+            message="Chưa có đề xuất nhập hàng"
             description={
               <span>
-                HÃ£y cháº¡y{' '}
+                Hãy chạy{' '}
                 <Button type="link" size="small" className="p-0 h-auto" onClick={() => setPage('ai-forecast')}>
-                  Huáº¥n luyá»‡n AI
+                  Huấn luyện AI
                 </Button>{' '}
-                trÃªn trang Dá»± bÃ¡o AI trÆ°á»›c.
+                trên trang Dự báo AI trước.
               </span>
             }
           />
@@ -2104,13 +2104,13 @@ function PurchaseSuggestionsPage({ productsList: _productsList, setPage }: { pro
           <Table
             dataSource={suggestions}
             columns={[
-              { title: 'TÃªn hÃ ng', dataIndex: 'name', render: (v) => <span className="font-bold text-ink">{v}</span> },
-              { title: 'Tá»“n hiá»‡n táº¡i', dataIndex: 'stock' },
-              { title: 'Nhu cáº§u (14 ngÃ y)', dataIndex: 'sold' },
-              { title: 'Sá»‘ lÆ°á»£ng Ä‘á» xuáº¥t', dataIndex: 'suggested' },
-              { title: 'Nguá»“n', dataIndex: 'source', render: (v) => <Tag color={v === 'AI' ? 'green' : 'orange'}>{v}</Tag> },
-              { title: 'Äá»™ Æ°u tiÃªn', render: (_, row) => <Tag color={row.stock === 0 ? 'red' : 'orange'}>{row.stock === 0 ? 'KHáº¨N Cáº¤P' : 'CAO'}</Tag> },
-              { title: 'HÃ nh Ä‘á»™ng', render: () => <Button size="small" type="primary" ghost onClick={() => setPage('import-create')}>Láº­p phiáº¿u</Button> }
+              { title: 'Tên hàng', dataIndex: 'name', render: (v) => <span className="font-bold text-ink">{v}</span> },
+              { title: 'Tồn hiện tại', dataIndex: 'stock' },
+              { title: 'Nhu cầu (14 ngày)', dataIndex: 'sold' },
+              { title: 'Số lượng đề xuất', dataIndex: 'suggested' },
+              { title: 'Nguồn', dataIndex: 'source', render: (v) => <Tag color={v === 'AI' ? 'green' : 'orange'}>{v}</Tag> },
+              { title: 'Độ ưu tiên', render: (_, row) => <Tag color={row.stock === 0 ? 'red' : 'orange'}>{row.stock === 0 ? 'KHẨN CẤP' : 'CAO'}</Tag> },
+              { title: 'Hành động', render: () => <Button size="small" type="primary" ghost onClick={() => setPage('import-create')}>Lập phiếu</Button> }
             ]}
             pagination={false}
             rowKey="key"
@@ -2140,8 +2140,8 @@ function ExpiryRiskPage({ productsList: _productsList, setPage }: { productsList
           stock: Math.round(Number(row.availableQuantity)),
           sold: 0,
           supplier: '-',
-          status: 'Nguy cÆ¡' as const,
-          expiry: row.expiryDate ?? 'â€”',
+          status: 'Nguy cơ' as const,
+          expiry: row.expiryDate ?? '—',
           purchaseRatio: 1,
         }));
         if (active) setItems(mapped);
@@ -2154,13 +2154,13 @@ function ExpiryRiskPage({ productsList: _productsList, setPage }: { productsList
   }, []);
 
   if (loading) {
-    return <Card className="p-8 text-center text-muted">Äang táº£i danh sÃ¡ch cáº­n háº¡n...</Card>;
+    return <Card className="p-8 text-center text-muted">Đang tải danh sách cận hạn...</Card>;
   }
 
   if (items.length === 0) {
     return (
       <Card className="p-8 text-center text-slate-500">
-        KhÃ´ng cÃ³ máº·t hÃ ng cáº­n háº¡n sá»­ dá»¥ng (API tráº£ vá» 0). VÃ o <Button type="link" className="p-0 h-auto" onClick={() => setPage('promotions')}>Äá» xuáº¥t KM (AI)</Button> Ä‘á»ƒ táº¡o KM thá»§ cÃ´ng.
+        Không có mặt hàng cận hạn sử dụng (API trả về 0). Vào <Button type="link" className="p-0 h-auto" onClick={() => setPage('promotions')}>Đề xuất KM (AI)</Button> để tạo KM thủ công.
       </Card>
     );
   }
@@ -2174,15 +2174,15 @@ function ExpiryRiskPage({ productsList: _productsList, setPage }: { productsList
               <div className="grid h-11 w-11 place-items-center rounded-xl bg-indigo-50 text-indigo shadow-[0_2px_8px_rgba(70,72,212,0.1)]">
                 <CalendarClock size={20} />
               </div>
-              <StatusChip tone="warning">Cáº­n háº¡n</StatusChip>
+              <StatusChip tone="warning">Cận hạn</StatusChip>
             </div>
             <h3 className="font-semibold text-base line-clamp-1">{item.name}</h3>
             <p className="mt-2 text-sm text-slate-500 font-medium">
-              HSD: {item.expiry} Â· Tá»“n: {item.stock}. DÃ¹ng AI Ä‘á» xuáº¥t KM Ä‘á»ƒ xáº£ hÃ ng.
+              HSD: {item.expiry} · Tồn: {item.stock}. Dùng AI đề xuất KM để xả hàng.
             </p>
           </div>
           <Button className="w-full mt-3 font-semibold" type="primary" ghost onClick={() => setPage('promotions')}>
-            Äá» xuáº¥t KM (AI)
+            Đề xuất KM (AI)
           </Button>
         </Card>
       ))}
@@ -2220,10 +2220,10 @@ function AssistantPage({
       .then((aiText) => {
         const lower = userMsg.toLowerCase();
         let action: { label: string; page: PageKey } | undefined;
-        if (lower.includes('nháº­p') || lower.includes('tá»“n')) {
-          action = { label: 'Táº¡o phiáº¿u nháº­p', page: 'import-create' };
-        } else if (lower.includes('bÃ¡o cÃ¡o') || lower.includes('doanh thu')) {
-          action = { label: 'Xem bÃ¡o cÃ¡o', page: 'reports' };
+        if (lower.includes('nhập') || lower.includes('tồn')) {
+          action = { label: 'Tạo phiếu nhập', page: 'import-create' };
+        } else if (lower.includes('báo cáo') || lower.includes('doanh thu')) {
+          action = { label: 'Xem báo cáo', page: 'reports' };
         }
         setChatHistory([...newHistory, { sender: 'ai' as const, text: aiText, action }]);
       })
@@ -2232,7 +2232,7 @@ function AssistantPage({
           ...newHistory,
           {
             sender: 'ai' as const,
-            text: 'KhÃ´ng káº¿t ná»‘i Ä‘Æ°á»£c trá»£ lÃ½ AI. Vui lÃ²ng thá»­ láº¡i hoáº·c kiá»ƒm tra quyá»n ADMIN/MANAGER.',
+            text: 'Không kết nối được trợ lý AI. Vui lòng thử lại hoặc kiểm tra quyền ADMIN/MANAGER.',
           },
         ]);
       });
@@ -2241,7 +2241,7 @@ function AssistantPage({
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
       <Card className="min-h-[580px] flex flex-col justify-between">
-        <CardHeader title="Trá»£ lÃ½ váº­n hÃ nh thÃ´ng minh AI" description="Há»i Ä‘Ã¡p thá»i gian thá»±c vá» tá»“n kho, Ä‘á» xuáº¥t nháº­p hÃ ng vÃ  hiá»‡u quáº£ doanh thu." />
+        <CardHeader title="Trợ lý vận hành thông minh AI" description="Hỏi đáp thời gian thực về tồn kho, đề xuất nhập hàng và hiệu quả doanh thu." />
         <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-4 max-h-[380px] scrollbar-thin">
           {chatHistory.map((msg, i) => (
             <div
@@ -2269,7 +2269,7 @@ function AssistantPage({
         <div className="p-4 border-t border-slate-100 bg-slate-50/50 rounded-b-2xl flex gap-2">
           <Input
             size="large"
-            placeholder="VÃ­ dá»¥: 'Sáº£n pháº©m nÃ o sáº¯p háº¿t hÃ ng?'..."
+            placeholder="Ví dụ: 'Sản phẩm nào sắp hết hàng?'..."
             value={typedMessage}
             onChange={(e) => setTypedMessage(e.target.value)}
             onPressEnter={handleSendMessage}
@@ -2665,7 +2665,7 @@ function UsersPage() {
     setLoading(true);
     fetchUsers()
       .then(setUsers)
-      .catch((e) => antdMessage.error(e instanceof Error ? e.message : 'KhÃ´ng táº£i Ä‘Æ°á»£c danh sÃ¡ch ngÆ°á»i dÃ¹ng'))
+      .catch((e) => antdMessage.error(e instanceof Error ? e.message : 'Không tải được danh sách người dùng'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -2697,7 +2697,7 @@ function UsersPage() {
           fullName: fullName || undefined,
           email: email || undefined,
         });
-        antdMessage.success('Cáº­p nháº­t ngÆ°á»i dÃ¹ng thÃ nh cÃ´ng');
+        antdMessage.success('Cập nhật người dùng thành công');
       } else {
         await createUser({
           username: values.username.trim(),
@@ -2706,12 +2706,12 @@ function UsersPage() {
           fullName: values.fullName?.trim() || undefined,
           role: values.role,
         });
-        antdMessage.success('Táº¡o ngÆ°á»i dÃ¹ng thÃ nh cÃ´ng');
+        antdMessage.success('Tạo người dùng thành công');
       }
       setModalOpen(false);
       loadUsers();
     } catch (e) {
-      antdMessage.error(e instanceof Error ? e.message : 'Thao tÃ¡c tháº¥t báº¡i');
+      antdMessage.error(e instanceof Error ? e.message : 'Thao tác thất bại');
     }
   };
 
@@ -2726,64 +2726,64 @@ function UsersPage() {
       case 'ROLE_ADMIN':
         return 'ADMIN';
       case 'ROLE_MANAGER':
-        return 'QUáº¢N LÃ';
+        return 'QUẢN LÝ';
       case 'ROLE_STAFF':
-        return 'THU NGÃ‚N';
+        return 'THU NGÂN';
       case 'ROLE_WAREHOUSE':
         return 'KHO';
       case 'ROLE_ANALYST':
-        return 'PHÃ‚N TÃCH';
+        return 'PHÂN TÍCH';
     }
   };
   const columns: ColumnsType<UserDto> = [
-    { title: 'TÃªn Ä‘Äƒng nháº­p', dataIndex: 'username' },
-    { title: 'Há» tÃªn', dataIndex: 'fullName' },
+    { title: 'Tên đăng nhập', dataIndex: 'username' },
+    { title: 'Họ tên', dataIndex: 'fullName' },
     { title: 'Email', dataIndex: 'email' },
-    { title: 'Vai trÃ²', dataIndex: 'role', render: roleText },
-    { title: 'Tráº¡ng thÃ¡i', dataIndex: 'status', render: statusTag },
+    { title: 'Vai trò', dataIndex: 'role', render: roleText },
+    { title: 'Trạng thái', dataIndex: 'status', render: statusTag },
     {
-      title: 'Thao tÃ¡c',
+      title: 'Thao tác',
       render: (_, user) => (
         <div className="flex gap-2">
-          <Button size="small" onClick={() => openEdit(user)}>Sá»­a</Button>
+          <Button size="small" onClick={() => openEdit(user)}>Sửa</Button>
           <Button
             size="small"
             danger
             disabled={user.status === 'LOCKED' || user.status === 'INACTIVE'}
             onClick={() => {
               Modal.confirm({
-                title: 'KhÃ³a tÃ i khoáº£n?',
-                content: `Báº¡n muá»‘n khÃ³a ${user.username}?`,
+                title: 'Khóa tài khoản?',
+                content: `Bạn muốn khóa ${user.username}?`,
                 onOk: async () => {
                   try {
                     await lockUser(user.id);
-                    antdMessage.success('KhÃ³a tÃ i khoáº£n thÃ nh cÃ´ng');
+                    antdMessage.success('Khóa tài khoản thành công');
                     loadUsers();
                   } catch (e) {
-                  antdMessage.error(e instanceof Error ? e.message : 'KhÃ´ng thá»ƒ khÃ³a tÃ i khoáº£n');
+                  antdMessage.error(e instanceof Error ? e.message : 'Không thể khóa tài khoản');
                   }
                 },
               });
             }}
           >
-            KhÃ³a
+            Khóa
           </Button>
           <Button
             size="small"
             disabled={user.status !== 'LOCKED'}
             onClick={() => {
               Modal.confirm({
-                title: 'Má»Ÿ khÃ³a tÃ i khoáº£n?',
-                content: `Báº¡n muá»‘n má»Ÿ khÃ³a ${user.username}?`,
+                title: 'Mở khóa tài khoản?',
+                content: `Bạn muốn mở khóa ${user.username}?`,
                 onOk: async () => {
                   await unlockUser(user.id);
-                  antdMessage.success('Má»Ÿ khÃ³a tÃ i khoáº£n thÃ nh cÃ´ng');
+                  antdMessage.success('Mở khóa tài khoản thành công');
                   loadUsers();
                 },
           });
     }}
 >
-  Má»Ÿ khÃ³a
+  Mở khóa
 </Button>
           <Button
             size="small"
@@ -2791,17 +2791,17 @@ function UsersPage() {
             disabled={user.status !== 'LOCKED'}
             onClick={() => {
               Modal.confirm({
-                title: 'XÃ³a má»m tÃ i khoáº£n?',
-                content: 'Backend yÃªu cáº§u tÃ i khoáº£n pháº£i LOCKED trÆ°á»›c khi chuyá»ƒn sang INACTIVE.',
+                title: 'Xóa mềm tài khoản?',
+                content: 'Backend yêu cầu tài khoản phải LOCKED trước khi chuyển sang INACTIVE.',
                 onOk: async () => {
                   await softDeleteUser(user.id);
-                  antdMessage.success('XÃ³a má»m thÃ nh cÃ´ng');
+                  antdMessage.success('Xóa mềm thành công');
                   loadUsers();
                 },
               });
             }}
           >
-            XÃ³a má»m
+            Xóa mềm
           </Button>
         </div>
       ),
@@ -2811,9 +2811,9 @@ function UsersPage() {
   return (
     <Card>
       <CardHeader
-        title="NgÆ°á»i dÃ¹ng há»‡ thá»‘ng"
-        description="Admin táº¡o tÃ i khoáº£n, cáº­p nháº­t vai trÃ², khÃ³a vÃ  xÃ³a má»m nhÃ¢n sá»±."
-        action={<Button type="primary" icon={<Plus size={16} />} onClick={openCreate}>Táº¡o má»›i</Button>}
+        title="Người dùng hệ thống"
+        description="Admin tạo tài khoản, cập nhật vai trò, khóa và xóa mềm nhân sự."
+        action={<Button type="primary" icon={<Plus size={16} />} onClick={openCreate}>Tạo mới</Button>}
       />
 
       <div className="px-5 pb-5">
@@ -2821,27 +2821,27 @@ function UsersPage() {
       </div>
 
       <Modal
-        title={editingUser ? 'Sá»­a thÃ´ng tin' : 'ThÃªm ngÆ°á»i dÃ¹ng má»›i'}
+        title={editingUser ? 'Sửa thông tin' : 'Thêm người dùng mới'}
         open={modalOpen}
         onCancel={() => setModalOpen(false)}
         onOk={handleSubmit}
-        okText={editingUser ? 'Cáº­p nháº­t' : 'Táº¡o má»›i'}
-        cancelText="Há»§y"
+        okText={editingUser ? 'Cập nhật' : 'Tạo mới'}
+        cancelText="Hủy"
         forceRender
       >
         <Form form={form} layout="vertical" validateMessages={userFormValidateMessages}>
           {!editingUser && (
             <>
-              <Form.Item name="username" label="TÃªn Ä‘Äƒng nháº­p" messageVariables={{ label: 'tÃªn Ä‘Äƒng nháº­p' }} rules={[{ required: true }, { min: 4 }, { max: 50 }, { pattern: /^[a-zA-Z0-9_.]+$/, message: 'TÃªn Ä‘Äƒng nháº­p chá»‰ Ä‘Æ°á»£c chá»©a chá»¯, sá»‘ vÃ  gáº¡ch dÆ°á»›i hoáº·c dáº¥u cháº¥m' }]}>
+              <Form.Item name="username" label="Tên đăng nhập" messageVariables={{ label: 'tên đăng nhập' }} rules={[{ required: true }, { min: 4 }, { max: 50 }, { pattern: /^[a-zA-Z0-9_.]+$/, message: 'Tên đăng nhập chỉ được chứa chữ, số và gạch dưới hoặc dấu chấm' }]}>
                 <Input />
               </Form.Item>
-              <Form.Item name="password" label="Máº­t kháº©u" messageVariables={{ label: 'máº­t kháº©u' }} rules={[{ required: true }, { min: 6 }]}>
+              <Form.Item name="password" label="Mật khẩu" messageVariables={{ label: 'mật khẩu' }} rules={[{ required: true }, { min: 6 }]}>
                 <Input.Password />
               </Form.Item>
             </>
           )}
 
-          <Form.Item name="fullName" label="Há» tÃªn" messageVariables={{ label: 'há» tÃªn' }} rules={[{ max: 100 }]}>
+          <Form.Item name="fullName" label="Họ tên" messageVariables={{ label: 'họ tên' }} rules={[{ max: 100 }]}>
             <Input />
           </Form.Item>
 
@@ -2860,17 +2860,17 @@ function UsersPage() {
           {!editingUser && (
             <Form.Item
               name="role"
-              label="Vai trÃ²"
-              messageVariables={{ label: 'vai trÃ²' }}
+              label="Vai trò"
+              messageVariables={{ label: 'vai trò' }}
               rules={[{ required: true }]}
             >
               <Select
                 options={[
                   { value: 'ROLE_ADMIN' satisfies Role, label: 'Admin' },
-                  { value: 'ROLE_MANAGER' satisfies Role, label: 'Quáº£n lÃ½' },
-                  { value: 'ROLE_STAFF' satisfies Role, label: 'Thu ngÃ¢n' },
+                  { value: 'ROLE_MANAGER' satisfies Role, label: 'Quản lý' },
+                  { value: 'ROLE_STAFF' satisfies Role, label: 'Thu ngân' },
                   { value: 'ROLE_WAREHOUSE' satisfies Role, label: 'Kho' },
-                  { value: 'ROLE_ANALYST' satisfies Role, label: 'PhÃ¢n tÃ­ch' },
+                  { value: 'ROLE_ANALYST' satisfies Role, label: 'Phân tích' },
                 ]}
               />
             </Form.Item>
@@ -2895,21 +2895,21 @@ function SettingsPage() {
   const handleSave = async (key: string, value: string) => {
     try {
       await updateSetting(key, value);
-      antdMessage.success('ÄÃ£ lÆ°u cáº¥u hÃ¬nh');
+      antdMessage.success('Đã lưu cấu hình');
       setSettings((prev) => prev.map((s) => (s.key === key ? { ...s, value } : s)));
     } catch (e) {
-      antdMessage.error(e instanceof Error ? e.message : 'LÆ°u tháº¥t báº¡i');
+      antdMessage.error(e instanceof Error ? e.message : 'Lưu thất bại');
     }
   };
 
   if (loading) {
-    return <Card className="p-8 text-center text-muted">Äang táº£i cáº¥u hÃ¬nh...</Card>;
+    return <Card className="p-8 text-center text-muted">Đang tải cấu hình...</Card>;
   }
 
   if (settings.length === 0) {
     return (
       <Card className="p-8 text-center text-muted">
-        ChÆ°a cÃ³ cáº¥u hÃ¬nh trong há»‡ thá»‘ng. ThÃªm báº£n ghi vÃ o báº£ng settings (Flyway V3).
+        Chưa có cấu hình trong hệ thống. Thêm bản ghi vào bảng settings (Flyway V3).
       </Card>
     );
   }
@@ -2921,10 +2921,10 @@ function SettingsPage() {
           <h3 className="text-lg font-semibold mb-1">{setting.key}</h3>
           {setting.description && <p className="text-sm text-muted mb-4">{setting.description}</p>}
           <Form layout="vertical" onFinish={(vals) => handleSave(setting.key, vals.value)}>
-            <Form.Item label="GiÃ¡ trá»‹" name="value" initialValue={setting.value}>
+            <Form.Item label="Giá trị" name="value" initialValue={setting.value}>
               <Input />
             </Form.Item>
-            <Button type="primary" htmlType="submit">LÆ°u</Button>
+            <Button type="primary" htmlType="submit">Lưu</Button>
           </Form>
         </Card>
       ))}
@@ -2947,7 +2947,7 @@ function InvoiceDrawer({
 
   const handlePrint = async () => {
     if (!invoice?.orderId) {
-      antdMessage.warning('KhÃ´ng cÃ³ mÃ£ Ä‘Æ¡n Ä‘á»ƒ in');
+      antdMessage.warning('Không có mã đơn để in');
       return;
     }
     try {
@@ -2956,13 +2956,13 @@ function InvoiceDrawer({
         `<tr><td>${it.itemName}</td><td style="text-align:center">${it.quantity}</td><td style="text-align:right">${money(it.unitPrice)}</td><td style="text-align:right">${money(it.lineTotal)}</td></tr>`
       ).join('');
       const html = `<html><head><title>${data.orderCode}</title></head><body style="font-family:monospace;padding:16px">
-        <h2>SMARTMART AI</h2><p>MÃ£ HÄ: ${data.orderCode}</p><p>KH: ${data.customerName}</p><p>NV: ${data.staffName}</p>
-        <table width="100%" border="1" cellpadding="4"><tr><th>SP</th><th>SL</th><th>ÄG</th><th>TT</th></tr>${lines}</table>
-        <p><strong>Tá»•ng: ${money(data.totalAmount)}</strong></p></body></html>`;
+        <h2>SMARTMART AI</h2><p>Mã HĐ: ${data.orderCode}</p><p>KH: ${data.customerName}</p><p>NV: ${data.staffName}</p>
+        <table width="100%" border="1" cellpadding="4"><tr><th>SP</th><th>SL</th><th>ĐG</th><th>TT</th></tr>${lines}</table>
+        <p><strong>Tổng: ${money(data.totalAmount)}</strong></p></body></html>`;
       const w = window.open('', '_blank');
       if (w) { w.document.write(html); w.document.close(); w.print(); }
     } catch (e) {
-      antdMessage.error(e instanceof Error ? e.message : 'In hÃ³a Ä‘Æ¡n tháº¥t báº¡i');
+      antdMessage.error(e instanceof Error ? e.message : 'In hóa đơn thất bại');
     }
   };
 
@@ -2970,11 +2970,11 @@ function InvoiceDrawer({
     if (!invoice?.orderId) return;
     try {
       await cancelOrder(invoice.orderId);
-      antdMessage.success('ÄÃ£ há»§y hÃ³a Ä‘Æ¡n');
+      antdMessage.success('Đã hủy hóa đơn');
       onCancelled?.();
       onClose();
     } catch (e) {
-      antdMessage.error(e instanceof Error ? e.message : 'Há»§y tháº¥t báº¡i');
+      antdMessage.error(e instanceof Error ? e.message : 'Hủy thất bại');
     }
   };
   const bodyRef = React.useRef<HTMLDivElement>(null);
@@ -2982,23 +2982,23 @@ function InvoiceDrawer({
     if (invoice) animateDrawer(bodyRef.current, true);
   }, [invoice]);
   return (
-    <Drawer open={Boolean(invoice)} onClose={onClose} title="Chi tiáº¿t hÃ³a Ä‘Æ¡n bÃ¡n hÃ ng" width={450}>
+    <Drawer open={Boolean(invoice)} onClose={onClose} title="Chi tiết hóa đơn bán hàng" width={450}>
       {invoice ? (
         <div ref={bodyRef} className="space-y-5">
           <div className="border border-slate-100 rounded-2xl p-5 bg-slate-50 space-y-4">
             <div className="flex justify-between border-b border-slate-200 pb-2">
               <strong className="text-slate-800 text-lg">{invoice.key}</strong>
-              <StatusChip tone={invoice.status.includes('toÃ¡n') ? 'success' : 'warning'}>{invoice.status}</StatusChip>
+              <StatusChip tone={invoice.status.includes('toán') ? 'success' : 'warning'}>{invoice.status}</StatusChip>
             </div>
             <div className="grid grid-cols-2 gap-y-2 text-sm text-slate-600">
-              <span>KhÃ¡ch hÃ ng:</span><span className="font-bold text-slate-800 text-right">{invoice.customer}</span>
-              <span>Thá»i gian mua:</span><span className="text-slate-800 text-right">{invoice.time} - HÃ´m nay</span>
-              <span>Thu ngÃ¢n:</span><span className="text-slate-800 text-right">{invoice.cashier}</span>
+              <span>Khách hàng:</span><span className="font-bold text-slate-800 text-right">{invoice.customer}</span>
+              <span>Thời gian mua:</span><span className="text-slate-800 text-right">{invoice.time} - Hôm nay</span>
+              <span>Thu ngân:</span><span className="text-slate-800 text-right">{invoice.cashier}</span>
             </div>
           </div>
 
           <div className="space-y-3">
-            <h4 className="font-bold text-sm text-slate-700 uppercase tracking-wide">Chi tiáº¿t sáº£n pháº©m</h4>
+            <h4 className="font-bold text-sm text-slate-700 uppercase tracking-wide">Chi tiết sản phẩm</h4>
             <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1 scrollbar-thin">
               {invoice.items?.map((it: any, idx: number) => (
                 <div className="flex justify-between items-center rounded-xl bg-slate-50 p-3 text-sm border border-slate-100" key={idx}>
@@ -3014,29 +3014,29 @@ function InvoiceDrawer({
 
           <div className="space-y-2 text-sm border-t border-slate-200 pt-4 bg-slate-50/50 p-4 rounded-xl">
             <div className="flex justify-between text-slate-500">
-              <span>Táº¡m tÃ­nh</span>
+              <span>Tạm tính</span>
               <span>{money(invoice.subtotal || invoice.amount)}</span>
             </div>
             {invoice.discount > 0 && (
               <div className="flex justify-between text-red-600">
-                <span>Giáº£m giÃ¡ KM</span>
+                <span>Giảm giá KM</span>
                 <span>-{money(invoice.discount)}</span>
               </div>
             )}
             <div className="flex justify-between text-slate-500">
-              <span>Thuáº¿ VAT (8%)</span>
+              <span>Thuế VAT (8%)</span>
               <span>{money(invoice.vat || 0)}</span>
             </div>
             <div className="flex justify-between text-base font-extrabold text-slate-800 border-t border-slate-200 pt-2 mt-2">
-              <span>Tá»•ng sá»‘ tiá»n:</span>
+              <span>Tổng số tiền:</span>
               <span className="text-primary text-lg">{money(invoice.amount)}</span>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3 pt-3">
-            <Button icon={<Printer size={16} />} onClick={handlePrint}>In hÃ³a Ä‘Æ¡n</Button>
+            <Button icon={<Printer size={16} />} onClick={handlePrint}>In hóa đơn</Button>
             {canCancel && invoice.rawStatus === 'COMPLETED' && (
-              <Button danger onClick={handleCancel}>Há»§y hÃ³a Ä‘Æ¡n</Button>
+              <Button danger onClick={handleCancel}>Hủy hóa đơn</Button>
             )}
           </div>
         </div>
@@ -3086,7 +3086,7 @@ function AuditLogsPage() {
       setLogs(res.content);
       setTotal(res.totalElements);
     } catch (e) {
-      antdMessage.error(e instanceof Error ? e.message : 'KhÃ´ng táº£i Ä‘Æ°á»£c nháº­t kÃ½ há»‡ thá»‘ng');
+      antdMessage.error(e instanceof Error ? e.message : 'Không tải được nhật ký hệ thống');
       setLogs([]);
       setTotal(0);
     } finally {
@@ -3100,24 +3100,24 @@ function AuditLogsPage() {
 
   const columns: ColumnsType<AuditLogDto> = [
     {
-      title: 'Thá»i gian',
+      title: 'Thời gian',
       dataIndex: 'createdAt',
       render: (value: string) => new Date(value).toLocaleString('vi-VN'),
     },
     {
-    title: 'HÃ nh Ä‘á»™ng',
+    title: 'Hành động',
     dataIndex: 'action',
     render: (value: string) => (
       <Tag color="blue">{formatAuditAction(value)}</Tag>
   ),
     },
     {
-      title: 'PhÃ¢n há»‡',
+      title: 'Phân hệ',
       dataIndex: 'entityType',
       render: (value?: string | null) => formatAuditModule(value),
     },
     {
-      title: 'NgÆ°á»i thao tÃ¡c',
+      title: 'Người thao tác',
       dataIndex: 'username',
     },
     {
@@ -3126,15 +3126,15 @@ function AuditLogsPage() {
       render: (value?: string | null) => value || '-',
     },
     {
-      title: 'Chi tiáº¿t',
+      title: 'Chi tiết',
       dataIndex: 'detail',
       render: (value?: string) => value || '-',
     },
     {
-      title: 'Thay Ä‘á»•i',
+      title: 'Thay đổi',
       render: (_, row) => (
       <div className="space-y-3 text-xs">
-        <AuditDataBlock title="TrÆ°á»›c" value={row.beforeData} />
+        <AuditDataBlock title="Trước" value={row.beforeData} />
       <AuditDataBlock title="Sau" value={row.afterData} />
     </div>
   ),
@@ -3143,21 +3143,20 @@ function AuditLogsPage() {
 
 
   const auditModuleOptions = [
-  { value: 'AUTH', label: 'ÄÄƒng nháº­p vÃ  báº£o máº­t' },
-  { value: 'USER', label: 'Quáº£n lÃ½ ngÆ°á»i dÃ¹ng' },
-  { value: 'CUSTOMER', label: 'KhÃ¡ch hÃ ng' },
-  { value: 'CATEGORY', label: 'Danh má»¥c' },
-  { value: 'ITEM', label: 'Sáº£n pháº©m' },
-  { value: 'SUPPLIER', label: 'NhÃ  cung cáº¥p' },
-  { value: 'LOCATION', label: 'Kho vÃ  vá»‹ trÃ­' },
-  { value: 'UOM', label: 'ÄÆ¡n vá»‹ tÃ­nh' },
-  { value: 'ORDER', label: 'BÃ¡n hÃ ng vÃ  hÃ³a Ä‘Æ¡n' },
-  { value: 'PURCHASE_ORDER', label: 'Nháº­p hÃ ng' },
-  { value: 'SCRAP_ORDER', label: 'Há»§y hÃ ng' },
-  { value: 'INVENTORY_ALERT', label: 'Cáº£nh bÃ¡o tá»“n kho' },
-  { value: 'PROMOTION', label: 'Khuyáº¿n mÃ£i' },
-  { value: 'SYSTEM', label: 'Há»‡ thá»‘ng' },
-  { value: 'PROMOTION', label: 'Khuyáº¿n mÃ£i' },
+  { value: 'AUTH', label: 'Đăng nhập và bảo mật' },
+  { value: 'USER', label: 'Quản lý người dùng' },
+  { value: 'CUSTOMER', label: 'Khách hàng' },
+  { value: 'CATEGORY', label: 'Danh mục' },
+  { value: 'ITEM', label: 'Sản phẩm' },
+  { value: 'SUPPLIER', label: 'Nhà cung cấp' },
+  { value: 'LOCATION', label: 'Kho và vị trí' },
+  { value: 'UOM', label: 'Đơn vị tính' },
+  { value: 'ORDER', label: 'Bán hàng và hóa đơn' },
+  { value: 'PURCHASE_ORDER', label: 'Nhập hàng' },
+  { value: 'SCRAP_ORDER', label: 'Hủy hàng' },
+  { value: 'INVENTORY_ALERT', label: 'Cảnh báo tồn kho' },
+  { value: 'PROMOTION', label: 'Khuyến mãi' },
+  { value: 'SYSTEM', label: 'Hệ thống' },
 ];
 
   function AuditDataBlock({ title, value }: { title: string; value?: string | null }) {
@@ -3167,7 +3166,7 @@ function AuditLogsPage() {
     return (
       <div>
         <div className="mb-1 font-semibold text-slate-500">{title}</div>
-        <span className="text-slate-400">KhÃ´ng cÃ³ dá»¯ liá»‡u</span>
+        <span className="text-slate-400">Không có dữ liệu</span>
       </div>
     );
   }
@@ -3206,50 +3205,50 @@ function parseAuditData(value?: string | null) {
 
 function auditFieldLabel(key: string) {
   const labels: Record<string, string> = {
-    username: 'TÃªn Ä‘Äƒng nháº­p',
+    username: 'Tên đăng nhập',
     email: 'Email',
-    fullName: 'Há» tÃªn',
-    role: 'Vai trÃ²',
-    status: 'Tráº¡ng thÃ¡i',
-    itemCode: 'MÃ£ sáº£n pháº©m',
-    itemName: 'TÃªn sáº£n pháº©m',
-    itemType: 'Loáº¡i sáº£n pháº©m',
-    categoryId: 'Danh má»¥c',
-    supplierName: 'NhÃ  cung cáº¥p',
-    contactPerson: 'NgÆ°á»i liÃªn há»‡',
-    phone: 'Sá»‘ Ä‘iá»‡n thoáº¡i',
-    address: 'Äá»‹a chá»‰',
-    locationName: 'TÃªn kho',
-    locationType: 'Loáº¡i kho',
-    parentId: 'PhÃ¢n cáº¥p cha',
-    uomName: 'ÄÆ¡n vá»‹ tÃ­nh',
-    conversionRatio: 'Tá»· lá»‡ quy Ä‘á»•i',
-    baseUnit: 'ÄÆ¡n vá»‹ cÆ¡ sá»Ÿ',
-    costPrice: 'GiÃ¡ nháº­p',
-    sellingPrice: 'GiÃ¡ bÃ¡n',
-    minimumStock: 'Tá»“n tá»‘i thiá»ƒu',
-    hasExpiry: 'CÃ³ háº¡n sá»­ dá»¥ng',
-    active: 'Hoáº¡t Ä‘á»™ng',
-    orderCode: 'MÃ£ hÃ³a Ä‘Æ¡n',
-    customerName: 'KhÃ¡ch hÃ ng',
-    paymentMethod: 'Thanh toÃ¡n',
-    discountAmount: 'Giáº£m giÃ¡',
-    totalAmount: 'Tá»•ng tiá»n',
-    loyaltyPoints: 'Äiá»ƒm tÃ­ch lÅ©y',
-    tier: 'Háº¡ng thÃ nh viÃªn',
-    alertType: 'Loáº¡i cáº£nh bÃ¡o',
-    severity: 'Má»©c Ä‘á»™',
-    resolved: 'ÄÃ£ xá»­ lÃ½',
-    itemCount: 'Sá»‘ máº·t hÃ ng',
-    note: 'Ghi chÃº',
-    reason: 'LÃ½ do',
-    name: 'TÃªn khuyáº¿n mÃ£i',
-    code: 'MÃ£ khuyáº¿n mÃ£i',
-    type: 'Loáº¡i khuyáº¿n mÃ£i',
-    value: 'GiÃ¡ trá»‹',
-    minOrder: 'ÄÆ¡n hÃ ng tá»‘i thiá»ƒu',
-    startDate: 'NgÃ y báº¯t Ä‘áº§u',
-    endDate: 'NgÃ y káº¿t thÃºc',
+    fullName: 'Họ tên',
+    role: 'Vai trò',
+    status: 'Trạng thái',
+    itemCode: 'Mã sản phẩm',
+    itemName: 'Tên sản phẩm',
+    itemType: 'Loại sản phẩm',
+    categoryId: 'Danh mục',
+    supplierName: 'Nhà cung cấp',
+    contactPerson: 'Người liên hệ',
+    phone: 'Số điện thoại',
+    address: 'Địa chỉ',
+    locationName: 'Tên kho',
+    locationType: 'Loại kho',
+    parentId: 'Phân cấp cha',
+    uomName: 'Đơn vị tính',
+    conversionRatio: 'Tỷ lệ quy đổi',
+    baseUnit: 'Đơn vị cơ sở',
+    costPrice: 'Giá nhập',
+    sellingPrice: 'Giá bán',
+    minimumStock: 'Tồn tối thiểu',
+    hasExpiry: 'Có hạn sử dụng',
+    active: 'Hoạt động',
+    orderCode: 'Mã hóa đơn',
+    customerName: 'Khách hàng',
+    paymentMethod: 'Thanh toán',
+    discountAmount: 'Giảm giá',
+    totalAmount: 'Tổng tiền',
+    loyaltyPoints: 'Điểm tích lÅ©y',
+    tier: 'Hạng thành viên',
+    alertType: 'Loại cảnh báo',
+    severity: 'Mức độ',
+    resolved: 'Đã xử lý',
+    itemCount: 'Số mặt hàng',
+    note: 'Ghi chú',
+    reason: 'Lý do',
+    name: 'Tên khuyến mãi',
+    code: 'Mã khuyến mãi',
+    type: 'Loại khuyến mãi',
+    value: 'Giá trị',
+    minOrder: 'Đơn hàng tối thiểu',
+    startDate: 'Ngày bắt đầu',
+    endDate: 'Ngày kết thúc',
   };
 
   return labels[key] ?? key;
@@ -3260,16 +3259,16 @@ function formatAuditValue(value: string) {
 
   const roleLabels: Record<string, string> = {
     ROLE_ADMIN: 'Admin',
-    ROLE_MANAGER: 'Quáº£n lÃ½',
-    ROLE_STAFF: 'Thu ngÃ¢n',
+    ROLE_MANAGER: 'Quản lý',
+    ROLE_STAFF: 'Thu ngân',
     ROLE_WAREHOUSE: 'Kho',
-    ROLE_ANALYST: 'PhÃ¢n tÃ­ch',
+    ROLE_ANALYST: 'Phân tích',
   };
 
   const statusLabels: Record<string, string> = {
-    ACTIVE: 'Hoáº¡t Ä‘á»™ng',
-    LOCKED: 'ÄÃ£ khÃ³a',
-    INACTIVE: 'KhÃ´ng hoáº¡t Ä‘á»™ng',
+    ACTIVE: 'Hoạt động',
+    LOCKED: 'Đã khóa',
+    INACTIVE: 'Không hoạt động',
   };
 
   return roleLabels[value] ?? statusLabels[value] ?? value;
@@ -3287,7 +3286,7 @@ function formatAuditValue(value: string) {
       <div className="border-b border-line p-5">
         <h2 className="text-lg font-bold text-ink">Nhật ký hệ thống</h2>
         <p className="text-sm text-slate-500">
-          Theo dÃµi cÃ¡c thao tÃ¡c quan trá»ng nhÆ° Ä‘Äƒng nháº­p, táº¡o ngÆ°á»i dÃ¹ng, cáº­p nháº­t tráº¡ng thÃ¡i vÃ  thay Ä‘á»•i dá»¯ liá»‡u.
+          Theo dõi các thao tác quan trọng như đăng nhập, tạo người dùng, cập nhật trạng thái và thay đổi dữ liệu.
         </p>
       </div>
 
@@ -3295,7 +3294,7 @@ function formatAuditValue(value: string) {
   <Select
     allowClear
     showSearch
-    placeholder="PhÃ¢n há»‡"
+    placeholder="Phân hệ"
     value={entityType}
     optionFilterProp="label"
     onChange={(value) => {
@@ -3309,7 +3308,7 @@ function formatAuditValue(value: string) {
   <Select
   allowClear
   showSearch
-  placeholder="HÃ nh Ä‘á»™ng"
+  placeholder="Hành động"
   value={action}
   disabled={!entityType}
   optionFilterProp="label"
@@ -3324,7 +3323,7 @@ function formatAuditValue(value: string) {
 />
 
   <Input
-    placeholder="NgÆ°á»i thao tÃ¡c"
+    placeholder="Người thao tác"
     value={username}
     onChange={(e) => {
       setUsername(e.target.value || undefined);
@@ -3335,8 +3334,8 @@ function formatAuditValue(value: string) {
 </div>
 
       <div className="flex justify-end gap-2 px-5 py-3">
-        <Button onClick={resetFilters}>XÃ³a lá»c</Button>
-        <Button type="primary" onClick={loadLogs}>Táº£i láº¡i</Button>
+        <Button onClick={resetFilters}>Xóa lọc</Button>
+        <Button type="primary" onClick={loadLogs}>Tải lại</Button>
       </div>
 
       <div className="px-5 pb-5">
@@ -3362,20 +3361,20 @@ function formatAuditValue(value: string) {
 }
 function formatAuditModule(entityType?: string | null) {
   const labels: Record<string, string> = {
-  AUTH: 'ÄÄƒng nháº­p vÃ  báº£o máº­t',
-  USER: 'Quáº£n lÃ½ ngÆ°á»i dÃ¹ng',
-  CUSTOMER: 'KhÃ¡ch hÃ ng',
-  CATEGORY: 'Danh má»¥c',
-  ITEM: 'Sáº£n pháº©m',
-  SUPPLIER: 'NhÃ  cung cáº¥p',
-  LOCATION: 'Kho vÃ  vá»‹ trÃ­',
-  UOM: 'ÄÆ¡n vá»‹ tÃ­nh',
-  ORDER: 'BÃ¡n hÃ ng vÃ  hÃ³a Ä‘Æ¡n',
-  PURCHASE_ORDER: 'Nháº­p hÃ ng',
-  SCRAP_ORDER: 'Há»§y hÃ ng',
-  INVENTORY_ALERT: 'Cáº£nh bÃ¡o tá»“n kho',
-  PROMOTION: 'Khuyáº¿n mÃ£i',
-  SYSTEM: 'Há»‡ thá»‘ng',
+  AUTH: 'Đăng nhập và bảo mật',
+  USER: 'Quản lý người dùng',
+  CUSTOMER: 'Khách hàng',
+  CATEGORY: 'Danh mục',
+  ITEM: 'Sản phẩm',
+  SUPPLIER: 'Nhà cung cấp',
+  LOCATION: 'Kho và vị trí',
+  UOM: 'Đơn vị tính',
+  ORDER: 'Bán hàng và hóa đơn',
+  PURCHASE_ORDER: 'Nhập hàng',
+  SCRAP_ORDER: 'Hủy hàng',
+  INVENTORY_ALERT: 'Cảnh báo tồn kho',
+  PROMOTION: 'Khuyến mãi',
+  SYSTEM: 'Hệ thống',
 };
 
   return entityType ? labels[entityType] ?? entityType : '-';
@@ -3385,49 +3384,49 @@ function formatAuditAction(action?: string | null) {
   if (!action) return '-';
 
   const labels: Record<string, string> = {
-    AUTH_LOGIN: 'ÄÄƒng nháº­p',
+    AUTH_LOGIN: 'Đăng nhập',
     AUTH_LOGOUT: 'Đăng xuất',
-    AUTH_REFRESH: 'LÃ m má»›i phiÃªn Ä‘Äƒng nháº­p',
+    AUTH_REFRESH: 'Làm mới phiên đăng nhập',
 
-    CUSTOMER_CREATE: 'Táº¡o khÃ¡ch hÃ ng',
-    CUSTOMER_UPDATE: 'Cáº­p nháº­t khÃ¡ch hÃ ng',
-    CUSTOMER_POINTS_EARNED: 'Cá»™ng Ä‘iá»ƒm khÃ¡ch hÃ ng',
+    CUSTOMER_CREATE: 'Tạo khách hàng',
+    CUSTOMER_UPDATE: 'Cập nhật khách hàng',
+    CUSTOMER_POINTS_EARNED: 'Cộng điểm khách hàng',
 
-    USER_CREATE: 'Táº¡o ngÆ°á»i dÃ¹ng',
-    USER_UPDATE: 'Cáº­p nháº­t ngÆ°á»i dÃ¹ng',
-    USER_LOCKED: 'KhÃ³a tÃ i khoáº£n',
-    USER_UNLOCKED: 'Má»Ÿ khÃ³a tÃ i khoáº£n',
-    USER_SOFT_DELETE: 'Ngá»«ng hoáº¡t Ä‘á»™ng tÃ i khoáº£n',
+    USER_CREATE: 'Tạo người dùng',
+    USER_UPDATE: 'Cập nhật người dùng',
+    USER_LOCKED: 'Khóa tài khoản',
+    USER_UNLOCKED: 'Mở khóa tài khoản',
+    USER_SOFT_DELETE: 'Ngừng hoạt động tài khoản',
 
-    SUPPLIER_CREATE: 'Táº¡o nhÃ  cung cáº¥p',
-    SUPPLIER_UPDATE: 'Cáº­p nháº­t nhÃ  cung cáº¥p',
+    SUPPLIER_CREATE: 'Tạo nhà cung cấp',
+    SUPPLIER_UPDATE: 'Cập nhật nhà cung cấp',
 
-    LOCATION_CREATE: 'Táº¡o kho',
-    LOCATION_UPDATE: 'Cáº­p nháº­t kho',
+    LOCATION_CREATE: 'Tạo kho',
+    LOCATION_UPDATE: 'Cập nhật kho',
 
-    UOM_CREATE: 'Táº¡o Ä‘Æ¡n vá»‹ tÃ­nh',
+    UOM_CREATE: 'Tạo đơn vị tính',
 
-    ORDER_CREATE: 'Táº¡o hÃ³a Ä‘Æ¡n',
-    ORDER_CANCEL: 'Há»§y hÃ³a Ä‘Æ¡n',
+    ORDER_CREATE: 'Tạo hóa đơn',
+    ORDER_CANCEL: 'Hủy hóa đơn',
 
-    INVENTORY_ALERT_CREATE: 'Táº¡o cáº£nh bÃ¡o tá»“n kho',
-    INVENTORY_ALERT_RESOLVE: 'Xá»­ lÃ½ cáº£nh bÃ¡o tá»“n kho',
+    INVENTORY_ALERT_CREATE: 'Tạo cảnh báo tồn kho',
+    INVENTORY_ALERT_RESOLVE: 'Xử lý cảnh báo tồn kho',
 
-    ITEM_CREATE: 'Táº¡o sáº£n pháº©m',
-    ITEM_UPDATE: 'Cáº­p nháº­t sáº£n pháº©m',
-    ITEM_DELETE: 'Ngá»«ng kinh doanh sáº£n pháº©m',
+    ITEM_CREATE: 'Tạo sản phẩm',
+    ITEM_UPDATE: 'Cập nhật sản phẩm',
+    ITEM_DELETE: 'Ngừng kinh doanh sản phẩm',
 
-    PURCHASE_CREATE: 'Táº¡o phiáº¿u nháº­p',
-    PURCHASE_RECEIVE: 'Nháº­n hÃ ng',
-    PURCHASE_CANCEL: 'Há»§y phiáº¿u nháº­p',
+    PURCHASE_CREATE: 'Tạo phiếu nhập',
+    PURCHASE_RECEIVE: 'Nhận hàng',
+    PURCHASE_CANCEL: 'Hủy phiếu nhập',
 
-    SCRAP_CREATE: 'Táº¡o phiáº¿u há»§y hÃ ng',
-    SCRAP_APPROVE: 'Duyá»‡t phiáº¿u há»§y hÃ ng',
-    SCRAP_CANCEL: 'Tá»« chá»‘i phiáº¿u há»§y hÃ ng',
+    SCRAP_CREATE: 'Tạo phiếu hủy hàng',
+    SCRAP_APPROVE: 'Duyệt phiếu hủy hàng',
+    SCRAP_CANCEL: 'Từ chối phiếu hủy hàng',
 
-    PROMOTION_CREATE: 'Táº¡o khuyáº¿n mÃ£i',
-    PROMOTION_UPDATE: 'Cáº­p nháº­t khuyáº¿n mÃ£i',
-    PROMOTION_DELETE: 'XÃ³a khuyáº¿n mÃ£i',
+    PROMOTION_CREATE: 'Tạo khuyến mãi',
+    PROMOTION_UPDATE: 'Cập nhật khuyến mãi',
+    PROMOTION_DELETE: 'Xóa khuyến mãi',
   };
 
   return labels[action] ?? action
