@@ -1,0 +1,115 @@
+SmartMart AI — Multi-Dataset Benchmark
+Run at: 2026-06-14T15:54:20.064894
+Built UK CSV: /Users/datdev312/Documents/smartAi/ai-service/datasets/processed/uk_benchmark_daily.csv
+
+######################################################################
+# DATASET: Vietnam (Synthetic FMCG) (Vietnam)
+# File: /Users/datdev312/Documents/smartAi/backend/src/main/resources/data/retail/vn_synthetic_daily.csv
+######################################################################
+Rows: 18250 | SKUs: 50 | Days: 365
+Period: 2025-06-10 00:00:00 → 2026-06-09 00:00:00
+
+======================================================================
+TABLE I — Model Comparison (MAE / RMSE / MAPE)
+======================================================================
+Model                         MAE       RMSE     MAPE (%)
+----------------------------------------------------
+Moving Average             7.1167     9.4480        17.50
+Random Forest              5.2896     7.2673        12.80
+XGBoost                    5.3166     7.2516        12.82
+
+N_items evaluated: 50
+
+======================================================================
+TABLE II — Ablation: Vietnamese Calendar Features (XGBoost)
+======================================================================
+Feature Setting                            MAE       RMSE     MAPE (%)
+-------------------------------------------------------------------
+Without VN calendar features            5.3379     7.1928        13.11
+With VN calendar features               5.3166     7.2516        12.82
+
+MAPE change with VN features: +2.2%
+
+######################################################################
+# DATASET: UK (UCI Online Retail) (United Kingdom)
+# File: /Users/datdev312/Documents/smartAi/ai-service/datasets/processed/uk_benchmark_daily.csv
+######################################################################
+Rows: 1673 | SKUs: 50 | Days: 127
+Period: 2011-08-06 00:00:00 → 2011-12-10 00:00:00
+
+======================================================================
+TABLE I — Model Comparison (MAE / RMSE / MAPE)
+======================================================================
+Model                         MAE       RMSE     MAPE (%)
+----------------------------------------------------
+Moving Average            18.4125    44.9832       332.05
+Random Forest             19.4610    43.8495       368.94
+XGBoost                   18.6425    49.3896       382.09
+
+N_items evaluated: 49
+
+======================================================================
+TABLE II — Ablation: VN calendar on non-VN data (expected minimal effect)
+======================================================================
+Feature Setting                            MAE       RMSE     MAPE (%)
+-------------------------------------------------------------------
+Without VN calendar features           18.6249    49.3851       381.47
+With VN calendar features              18.6425    49.3896       382.09
+
+MAPE change with VN features: -0.2%
+
+======================================================================
+TABLE III — LLM Explanation Evaluation (Likert 1-5)
+======================================================================
+Criteria: Clarity | Usefulness | Correctness | Actionability
+Scoring: rubric-based auto-score (verify with human raters for final paper).
+
+Fetching 30 Gemini responses (10 items in DB)...
+
+Label                         Clarity   Useful  Correct   Action
+------------------------------------------------------------
+item10-forecast-r0                4.5      4.5      4.5      4.5
+item10-promo-r0                   4.5      4.0      4.0      5.0
+item10-risk-stockout-r0           4.5      4.5      3.5      3.5
+item9-forecast-r0                 4.5      4.5      4.5      5.0
+item9-promo-r0                    4.5      4.0      4.0      5.0
+item9-risk-stockout-r0            4.5      4.5      3.5      3.5
+item8-forecast-r0                 4.5      4.5      4.0      5.0
+item8-promo-r0                    4.5      4.0      4.0      5.0
+item8-risk-stockout-r0            4.5      4.5      3.5      3.5
+item7-forecast-r0                 4.5      4.5      4.5      4.5
+item7-promo-r0                    4.5      4.0      4.0      5.0
+item7-risk-stockout-r0            4.5      4.5      4.0      4.0
+item6-forecast-r0                 4.5      4.5      4.0      4.5
+item6-promo-r0                    4.5      4.0      4.0      5.0
+item6-risk-stockout-r0            4.5      4.5      3.5      5.0
+item5-forecast-r0                 4.5      4.5      4.5      4.5
+item5-promo-r0                    4.5      4.0      4.0      5.0
+item5-risk-stockout-r0            2.0      2.0      2.0      2.0
+item4-forecast-r0                 4.5      4.5      4.5      5.0
+item4-promo-r0                    4.5      4.0      4.0      5.0
+item4-risk-stockout-r0            2.0      2.0      2.0      2.0
+item3-forecast-r0                 4.5      4.5      4.5      4.5
+item3-promo-r0                    2.0      2.0      2.0      2.0
+item3-risk-stockout-r0            4.5      4.0      3.5      4.0
+item2-forecast-r0                 4.5      4.5      4.5      5.0
+item2-promo-r0                    2.0      2.0      2.0      2.0
+item2-risk-stockout-r0            2.0      2.0      2.0      2.0
+item1-forecast-r0                 4.5      4.5      4.5      5.0
+item1-promo-r0                    2.0      2.0      2.0      2.0
+item1-risk-stockout-r0            1.0      1.0      1.0      1.0
+
+MEAN       3.88     3.75     3.55     3.97
+
+LaTeX TABLE III:
+Clarity      & 3.88 \\
+Usefulness   & 3.75 \\
+Correctness  & 3.55 \\
+Actionability& 3.97 \\
+
+Full samples saved: /Users/datdev312/Documents/smartAi/ai-service/benchmark_llm_samples.txt
+
+Saved summary: /Users/datdev312/Documents/smartAi/ai-service/TONG_KET_BENCHMARK_QUOC_TE.md
+Saved summary: /Users/datdev312/Documents/smartAi/ai-service/TONG_KET_BENCHMARK.md
+
+Saved: /Users/datdev312/Documents/smartAi/ai-service/benchmark_results.txt

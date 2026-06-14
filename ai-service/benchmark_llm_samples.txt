@@ -1,0 +1,552 @@
+# LLM explanation samples
+Run: 2026-06-14T15:55:00.739774
+Scenarios: 30 (target n=30)
+
+## item10-forecast-r0 (explain-forecast, itemId=10)
+Dưới đây là phân tích sản phẩm "WHITE HANGING HEART T-LIGHT HOLDER":
+
+1. **Đánh giá trạng thái tồn kho:**
+ Trạng thái tồn kho hiện tại là **thiếu hàng trầm trọng**. Tồn kho thực tế là 0 cái, trong khi ngưỡng tồn kho tối thiểu là 10 cái. Điều này cho thấy sản phẩm đang hoàn toàn hết hàng và không thể đáp ứng nhu cầu ngay lập tức.
+
+2. **Giải thích ý nghĩa dự báo học máy:**
+ Dự báo học máy sử dụng mô hình `random_forest` cho thấy nhu cầu rất cao đối với sản phẩm này trong các khoảng thời gian tới. Cụ thể:
+ * **Trong 7 ngày tới:** Dự kiến bán được khoảng 575 sản phẩm.
+ * **Trong 14 ngày tới:** Dự kiến bán được khoảng 1101 sản phẩm.
+ * **Trong 30 ngày tới:** Dự kiến bán được khoảng 4899 sản phẩm.
+ Điều này cho thấy sản phẩm có tiềm năng doanh số lớn và nhu cầu thị trường đang tăng mạnh.
+
+3. **Khuyến nghị nhập hàng cụ thể:**
+ * **Thời điểm:** Cần nhập hàng **ngay lập tức**.
+ * **Số lượng:** Với tồn kho hiện tại là 0 và dự báo nhu cầu rất cao, khuyến nghị nhập khoảng **2500 sản phẩm** trong đợt đầu tiên. Số lượng này sẽ giúp đáp ứng nhu cầu dự kiến trong khoảng 2-3 tuần tới, vượt xa ngưỡng tồn kho tối thiểu và đảm bảo không bị gián đoạn nguồn cung trong bối cảnh nhu cầu tăng cao.
+
+4. **Nếu cận date, đề xuất khuyến mãi:**
+ Sản phẩm này không có hạn sử dụng (HSD lô gần nhất: Không có / không áp dụng), do đó không cần áp dụng các chương trình khuyến mãi do cận date.
+
+Scores: clarity=4.5, usefulness=4.5, correctness=4.5, actionability=4.5
+
+## item10-promo-r0 (suggest-promotion, itemId=10)
+**Đề xuất Chương trình Khuyến mãi**
+
+**Sản phẩm:** WHITE HANGING HEART T-LIGHT HOLDER
+
+**Lưu ý quan trọng:**
+Sản phẩm hiện đang hết hàng (Tồn: 0 Cái). Do đó, chương trình khuyến mãi không thể triển khai ngay lập tức. Đề xuất dưới đây sẽ được áp dụng khi sản phẩm được bổ sung tồn kho.
+
+**Mục tiêu:**
+Kích cầu mạnh mẽ và khai thác nhu cầu cao (Dự báo 7 ngày: 574.5422) ngay khi sản phẩm có hàng trở lại.
+
+**Chương trình Khuyến mãi cụ thể (áp dụng khi có hàng):**
+
+- **% Giảm:**
+ - Giảm 20% trên giá bán lẻ.
+ - Giá sau giảm: 12.000 VND/cái.
+
+- **Thời hạn:**
+ - Áp dụng trong 05 ngày đầu tiên kể từ thời điểm sản phẩm được nhập kho trở lại và hiển thị trạng thái có hàng trên hệ thống.
+
+- **Combo bán kèm:**
+ - **Ưu đãi combo "Trang trí ấm cúng":**
+ - Khi mua 01 sản phẩm WHITE HANGING HEART T-LIGHT HOLDER (đã giảm 20%), khách hàng có thể mua kèm 01 gói nến tealight (10 viên) với giá ưu đãi cố định 10.000 VND (thay vì giá gốc).
+
+Scores: clarity=4.5, usefulness=4.0, correctness=4.0, actionability=5.0
+
+## item10-risk-stockout-r0 (explain-risk, itemId=10)
+**Phân tích rủi ro tồn kho**
+
+Dữ liệu sản phẩm: WHITE HANGING HEART T-LIGHT HOLDER (Mã: 10)
+
+- **Rủi ro thiếu hàng (Stockout):** Rất cao. Tồn kho hiện tại là 0, trong khi ngưỡng tồn kho tối thiểu là 10. Sản phẩm đã hoàn toàn hết hàng tại siêu thị, gây nguy cơ mất doanh thu và trải nghiệm tiêu cực cho khách hàng.
+- **Rủi ro ứ đọng (Overstock):** Không có. Với tồn kho hiện tại bằng 0, không tồn tại nguy cơ hàng hóa bị ứ đọng.
+- **Rủi ro hết hạn (Expiration):** Không có dữ liệu liên quan để đánh giá rủi ro này. Với loại sản phẩm là đồ trang trí, nguy cơ hết hạn thường không đáng kể.
+
+**Khuyến nghị hành động**
+
+1. **Ưu tiên khẩn cấp:** Lập tức đặt hàng bổ sung sản phẩm WHITE HANGING HEART T-LIGHT HOLDER. Cân nhắc phương án đặt hàng gấp để khôi phục tồn kho nhanh nhất có thể.
+2. **Điều tra nguyên nhân gốc rễ:** Phân tích tại sao tồn kho lại về 0 trong khi ngưỡng tối thiểu là 10. Kiểm tra quy trình đặt hàng, dự báo nhu cầu, và hiệu suất của nhà cung cấp.
+3. **Cập nhật thông tin:** Thông báo tình trạng hết hàng cho bộ phận bán hàng và marketing để quản lý kỳ vọng của khách hàng và chuẩn bị cho các phương án thay thế nếu cần.
+
+Scores: clarity=4.5, usefulness=4.5, correctness=3.5, actionability=3.5
+
+## item9-forecast-r0 (explain-forecast, itemId=9)
+Dưới đây là phân tích sản phẩm "JUMBO BAG RED RETROSPOT":
+
+1. **Đánh giá trạng thái tồn kho**
+ * Sản phẩm đang trong tình trạng hết hàng nghiêm trọng (0 cái), thấp hơn nhiều so với ngưỡng tồn kho tối thiểu (10 cái). Tình trạng này có thể dẫn đến mất doanh thu và ảnh hưởng đến trải nghiệm khách hàng.
+
+2. **Giải thích ý nghĩa dự báo học máy**
+ * Dự báo học máy sử dụng mô hình `random_forest` để ước tính nhu cầu hoặc doanh số dự kiến của sản phẩm trong các khoảng thời gian cụ thể.
+ * - **7 ngày tới**: Dự kiến nhu cầu là 337.96 cái.
+ * - **14 ngày tới**: Dự kiến nhu cầu là 571.99 cái.
+ * - **30 ngày tới**: Dự kiến nhu cầu là 1220.01 cái.
+ * Những con số này cho thấy sản phẩm có nhu cầu thị trường rất cao và liên tục, là cơ sở để lập kế hoạch nhập hàng.
+
+3. **Khuyến nghị nhập hàng cụ thể**
+ * **Số lượng:** Cần nhập một lượng lớn để bù đắp tình trạng hết hàng và đáp ứng nhu cầu dự kiến cao. Đề xuất nhập tối thiểu 1220 - 1300 cái để đảm bảo đủ hàng cho ít nhất 30 ngày tới, đồng thời có một biên độ an toàn.
+ * **Thời điểm:** Ngay lập tức. Do sản phẩm đang hết hàng hoàn toàn và nhu cầu dự kiến rất cao, việc đặt hàng cần được thực hiện khẩn cấp để tránh bỏ lỡ doanh thu tiềm năng.
+
+4. **Nếu cận date, đề xuất khuyến mãi**
+ * Thông tin sản phẩm chỉ ra rằng "HSD lô gần nhất: Không có / không áp dụng (hasExpiry=false)". Do đó, khuyến mãi dựa trên lý do cận date không áp dụng cho sản phẩm này.
+
+Scores: clarity=4.5, usefulness=4.5, correctness=4.5, actionability=5.0
+
+## item9-promo-r0 (suggest-promotion, itemId=9)
+**Đề xuất Chương trình Khuyến mãi cho JUMBO BAG RED RETROSPOT**
+
+Dựa trên thông tin sản phẩm cung cấp:
+- Tên sản phẩm: JUMBO BAG RED RETROSPOT
+- Tồn kho: 0 Cái
+- Giá bán: 15.000 VND
+- Dự báo 7 ngày: 337.9640
+
+**Phân tích và Đề xuất:**
+
+Với tình trạng tồn kho hiện tại là **0 Cái**, việc triển khai chương trình khuyến mãi bán hàng trực tiếp (giảm giá, combo) là không khả thi và không hiệu quả. Một chương trình khuyến mãi trong trường hợp này sẽ gây thất vọng cho khách hàng do không có sản phẩm để bán, mặc dù dự báo cho thấy nhu cầu thị trường đối với sản phẩm này là cao.
+
+**Kiến nghị khẩn cấp:**
+- Ưu tiên hàng đầu là **kiểm tra lại tồn kho và tiến hành nhập hàng** ngay lập tức để đáp ứng nhu cầu dự kiến.
+
+**Đề xuất chương trình khuyến mãi (áp dụng sau khi sản phẩm có hàng trở lại):**
+
+Khi sản phẩm đã được nhập kho và sẵn sàng bán, dựa trên mức độ dự báo nhu cầu cao, chương trình khuyến mãi có thể được thiết kế như sau để tối đa hóa doanh số:
+
+- **% giảm:** Giảm giá **15%**
+ - Giá sau giảm: 12.750 VND
+ - Mục tiêu: Kích thích mua hàng nhanh chóng và tận dụng nhu cầu cao đã được dự báo.
+- **Thời hạn:** **7 ngày** kể từ khi sản phẩm có mặt trên kệ.
+ - Mục tiêu: Tạo cảm giác khẩn cấp và phù hợp với chu kỳ dự báo nhu cầu ngắn hạn.
+- **Combo bán kèm:**
+ - **Combo 1:** Mua 2 túi JUMBO BAG RED RETROSPOT với giá ưu đãi **23.000 VND** (tiết kiệm thêm so với mua 2 chiếc riêng lẻ với giá khuyến mãi 15%).
+ - **Combo 2:** Mua 1 túi JUMBO BAG RED RETROSPOT kèm bất kỳ sản phẩm đồ uống nào (từ danh mục "Đồ uống & bán lẻ") có giá trị từ 50.000 VND trở lên sẽ được giảm thêm **5%** trên tổng hóa đơn.
+ - Mục tiêu: Tăng giá trị đơn hàng trung bình và khuyến khích khách hàng mua sắm các sản phẩm liên quan.
+
+Scores: clarity=4.5, usefulness=4.0, correctness=4.0, actionability=5.0
+
+## item9-risk-stockout-r0 (explain-risk, itemId=9)
+**Phân tích Rủi ro Tồn kho - Mã sản phẩm 9: JUMBO BAG RED RETROSPOT**
+
+**1. Rủi ro thiếu hàng (Stockout)**
+- Sản phẩm JUMBO BAG RED RETROSPOT đang trong tình trạng thiếu hàng nghiêm trọng với tồn kho hiện tại là 0, trong khi mức tồn kho tối thiểu yêu cầu là 10.
+- Rủi ro thiếu hàng được đánh giá là cao, gây ảnh hưởng trực tiếp đến khả năng đáp ứng nhu cầu khách hàng và doanh thu.
+
+**2. Rủi ro ứ đọng (Overstock)**
+- Không có rủi ro ứ đọng tồn kho cho sản phẩm này do mức tồn kho hiện tại bằng 0.
+
+**3. Rủi ro hết hạn (Expiration)**
+- Dữ liệu cung cấp không đủ để đánh giá rủi ro hết hạn. Với tên sản phẩm "JUMBO BAG", giả định đây là mặt hàng không có hạn sử dụng hoặc có thời hạn sử dụng dài, nên rủi ro hết hạn có thể thấp.
+
+**4. Khuyến nghị hành động**
+- **Ưu tiên hàng đầu:** Lập tức tiến hành đặt hàng bổ sung khẩn cấp sản phẩm JUMBO BAG RED RETROSPOT để đảm bảo đạt được mức tồn kho tối thiểu.
+- **Điều tra nguyên nhân:** Phân tích nguyên nhân dẫn đến tình trạng thiếu hàng nghiêm trọng này (ví dụ: lỗi dự báo, vấn đề chuỗi cung ứng) để áp dụng biện pháp phòng ngừa.
+- **Đánh giá lại mức tồn kho tối thiểu:** Xem xét tính phù hợp của `minStockLevel=10` dựa trên nhu cầu thực tế và thời gian giao hàng.
+
+Scores: clarity=4.5, usefulness=4.5, correctness=3.5, actionability=3.5
+
+## item8-forecast-r0 (explain-forecast, itemId=8)
+**Phân tích sản phẩm: ASSORTED COLOUR BIRD ORNAMENT**
+
+1. **Đánh giá trạng thái tồn kho**
+ Sản phẩm hiện tại **hết hàng (0 Cái)**, trong khi ngưỡng tồn kho tối thiểu là 10 Cái. Điều này cho thấy tình trạng thiếu hụt trầm trọng, cần được ưu tiên xử lý ngay lập tức để tránh mất doanh số và làm ảnh hưởng đến trải nghiệm khách hàng.
+
+2. **Giải thích ý nghĩa dự báo học máy**
+ Dự báo học máy sử dụng mô hình Random Forest để ước tính nhu cầu bán hàng của sản phẩm trong các khoảng thời gian tới, dựa trên dữ liệu lịch sử.
+ - **7 ngày:** Ước tính bán được khoảng **224** sản phẩm.
+ - **14 ngày:** Ước tính bán được khoảng **341** sản phẩm.
+ - **30 ngày:** Ước tính bán được khoảng **986** sản phẩm.
+ Các con số này cho thấy nhu cầu dự kiến của sản phẩm là rất cao trong tháng tới, đặc biệt khi sản phẩm đang hết hàng.
+
+3. **Khuyến nghị nhập hàng cụ thể**
+ * **Số lượng:** Dựa trên tình trạng hết hàng và nhu cầu dự báo cao (gần 1000 sản phẩm trong 30 ngày), khuyến nghị nhập khoảng **1000 - 1200 Cái**. Số lượng này sẽ giúp bù đắp lượng tồn kho thiếu hụt, đáp ứng đủ nhu cầu dự kiến trong 30 ngày tới và duy trì một lượng tồn kho an toàn trên ngưỡng tối thiểu.
+ * **Thời điểm:** Cần tiến hành đặt hàng **ngay lập tức** do sản phẩm đang hết hàng và có dự báo nhu cầu cao. Ưu tiên quy trình nhập hàng nhanh nhất có thể.
+
+4. **Nếu cận date, đề xuất khuyến mãi**
+ Thông tin sản phẩm cho thấy **không có Hạn sử dụng (hasExpiry=false)**. Do đó, các đề xuất khuyến mãi dành cho sản phẩm cận date là không cần thiết trong trường hợp này.
+
+Scores: clarity=4.5, usefulness=4.5, correctness=4.0, actionability=5.0
+
+## item8-promo-r0 (suggest-promotion, itemId=8)
+**Phân tích & Đề xuất Khuyến mãi**
+
+Sản phẩm "ASSORTED COLOUR BIRD ORNAMENT" hiện đang có tồn kho 0 Cái. Do đó, chương trình khuyến mãi trực tiếp nhằm thúc đẩy doanh số bán hàng ngay lập tức không khả thi.
+
+Tuy nhiên, với dự báo nhu cầu 7 ngày là 223.8728 sản phẩm, cho thấy tiềm năng tiêu thụ cao khi có hàng trở lại. Chúng tôi đề xuất chương trình khuyến mãi khi sản phẩm được tái nhập kho hoặc dưới hình thức đặt trước như sau:
+
+- **% giảm giá:** 15% trên giá bán lẻ 15.000 VND.
+ - *Lý do:* Mức giảm hấp dẫn kích thích mua hàng ngay khi sản phẩm có sẵn, tận dụng nhu cầu cao đã được dự báo.
+- **Thời hạn áp dụng:** 5 ngày kể từ ngày sản phẩm có mặt tại kho hoặc bắt đầu nhận đặt trước.
+ - *Lý do:* Tạo tính cấp bách và thúc đẩy quyết định mua nhanh chóng trong thời gian ngắn.
+- **Chương trình combo/kèm:**
+ - **Mua từ 2 sản phẩm:** Giảm thêm 5% trên tổng hóa đơn cho các sản phẩm "ASSORTED COLOUR BIRD ORNAMENT" tiếp theo (áp dụng cho đơn hàng mua từ 2 sản phẩm trở lên).
+ - *Lý do:* Khuyến khích khách hàng mua số lượng lớn hơn 1 sản phẩm, tối đa hóa doanh số bán ra cho mỗi giao dịch, phù hợp với tính chất đồ trang trí.
+
+Scores: clarity=4.5, usefulness=4.0, correctness=4.0, actionability=5.0
+
+## item8-risk-stockout-r0 (explain-risk, itemId=8)
+**Phân tích Rủi ro Tồn kho - SmartMart**
+
+**Sản phẩm:** ASSORTED COLOUR BIRD ORNAMENT (itemId=8)
+
+**1. Rủi ro thiếu hàng (Stockout Risk)**
+* **Phân tích:** Rủi ro thiếu hàng là **cao** và đã xảy ra. Tồn kho hiện tại là 0, trong khi mức tồn kho tối thiểu là 10. Điều này có nghĩa sản phẩm đang hoàn toàn hết hàng và không thể đáp ứng nhu cầu của khách hàng.
+
+**2. Rủi ro ứ đọng (Overstock Risk)**
+* **Phân tích:** Với tồn kho hiện tại là 0, không có rủi ro ứ đọng cho mặt hàng này tại thời điểm hiện tại.
+
+**3. Rủi ro hết hạn (Expiration Risk)**
+* **Phân tích:** Dựa trên tên sản phẩm "ASSORTED COLOUR BIRD ORNAMENT", đây là mặt hàng trang trí không phải thực phẩm hoặc sản phẩm có thời hạn sử dụng. Do đó, rủi ro hết hạn là **không áp dụng**.
+
+**4. Khuyến nghị hành động**
+1. **Đặt hàng khẩn cấp:** Lập tức lên đơn đặt hàng bổ sung để đưa sản phẩm trở lại mức tồn kho an toàn (ít nhất 10 đơn vị) nhằm tránh mất doanh thu và sự hài lòng của khách hàng.
+2. **Ưu tiên vận chuyển:** Xem xét các phương án vận chuyển nhanh (nếu khả thi và hiệu quả về chi phí) để rút ngắn thời gian giao hàng.
+3. **Điều tra nguyên nhân:** Phân tích nguyên nhân gốc rễ của việc hết hàng nghiêm trọng này để cải thiện quy trình dự báo và quản lý chuỗi cung ứng, ngăn chặn tái diễn trong tương lai.
+
+Scores: clarity=4.5, usefulness=4.5, correctness=3.5, actionability=3.5
+
+## item7-forecast-r0 (explain-forecast, itemId=7)
+**Phân tích sản phẩm: WORLD WAR 2 GLIDERS ASSTD DESIGNS**
+
+1. **Đánh giá trạng thái tồn kho**
+ Sản phẩm hiện đang **hết hàng** (tồn kho thực tế 0 cái), trong khi ngưỡng tồn kho tối thiểu là 10 cái. Điều này cho thấy sản phẩm đang trong tình trạng **thiếu nghiêm trọng** và không thể đáp ứng bất kỳ nhu cầu nào từ khách hàng.
+
+2. **Giải thích ý nghĩa dự báo học máy**
+ Dự báo học máy sử dụng mô hình xgboost cho thấy tiềm năng bán hàng mạnh mẽ của sản phẩm trong các khoảng thời gian tới:
+ - **7 ngày tới:** Dự kiến bán được khoảng 69 sản phẩm.
+ - **14 ngày tới:** Dự kiến bán được khoảng 71 sản phẩm.
+ - **30 ngày tới:** Dự kiến bán được khoảng 318 sản phẩm.
+ Các con số này chỉ ra nhu cầu thị trường đáng kể đối với sản phẩm. Việc không có tồn kho đồng nghĩa với việc bỏ lỡ toàn bộ doanh số tiềm năng được dự báo.
+
+3. **Khuyến nghị nhập hàng cụ thể**
+ - **Thời điểm nhập:** Cần tiến hành nhập hàng **ngay lập tức** để khôi phục tồn kho và đáp ứng nhu cầu thị trường.
+ - **Số lượng nhập:** Để đáp ứng nhu cầu dự kiến trong 30 ngày tới và đảm bảo duy trì lượng tồn kho an toàn trên ngưỡng tối thiểu, khuyến nghị nhập khoảng **320 - 350 sản phẩm**. Số lượng này sẽ giúp đáp ứng phần lớn nhu cầu mạnh mẽ (dự kiến 318 sản phẩm trong 30 ngày) và có một lượng dự phòng nhất định.
+
+4. **Đề xuất khuyến mãi (nếu cận date)**
+ Thông tin sản phẩm cho biết "HSD lô gần nhất: Không có / không áp dụng (hasExpiry=false)". Do sản phẩm không có hạn sử dụng, **không cần thiết** áp dụng khuyến mãi cận date.
+
+Scores: clarity=4.5, usefulness=4.5, correctness=4.5, actionability=4.5
+
+## item7-promo-r0 (suggest-promotion, itemId=7)
+**Phân tích sản phẩm:**
+- Tồn kho hiện tại: 0 Cái.
+- Dự báo nhu cầu 7 ngày: 68.7 đơn vị (nhu cầu cao).
+- HSD lô gần nhất: Không có / không áp dụng.
+
+**Khuyến nghị quan trọng:** Do sản phẩm không có tồn kho, đề xuất ưu tiên bổ sung hàng hóa để đáp ứng nhu cầu thị trường. Chương trình khuyến mãi dưới đây được thiết kế để áp dụng *ngay sau khi sản phẩm có sẵn trong kho*.
+
+**Đề xuất chương trình khuyến mãi:**
+
+- **% giảm:**
+ - Giảm 10% trên giá bán lẻ cho mỗi sản phẩm đơn lẻ "WORLD WAR 2 GLIDERS ASSTD DESIGNS".
+ - Giá sau giảm: 13.500 VND.
+
+- **Thời hạn:**
+ - Áp dụng trong 05 ngày liên tiếp, bắt đầu từ ngày sản phẩm được bổ sung tồn kho và hiển thị trên hệ thống bán hàng.
+
+- **Combo bán kèm:**
+ - **Combo "Phi Đội Tiên Phong":** Mua từ 03 sản phẩm "WORLD WAR 2 GLIDERS ASSTD DESIGNS" (khách hàng có thể chọn các thiết kế khác nhau nếu có), được giảm thêm 5% trên tổng giá trị combo.
+ - **Combo "Sưu Tập Trọn Bộ":** Mua từ 05 sản phẩm "WORLD WAR 2 GLIDERS ASSTD DESIGNS" (khách hàng có thể chọn các thiết kế khác nhau nếu có), được giảm thêm 10% trên tổng giá trị combo.
+
+Scores: clarity=4.5, usefulness=4.0, correctness=4.0, actionability=5.0
+
+## item7-risk-stockout-r0 (explain-risk, itemId=7)
+**Phân tích Rủi ro Tồn kho - SmartMart**
+
+**Sản phẩm:** WORLD WAR 2 GLIDERS ASSTD DESIGNS (itemId=7)
+
+**1. Rủi ro thiếu hàng (Stockout)**
+- **Hiện trạng:** Rủi ro thiếu hàng ở mức cao (severity=high). Hàng tồn kho hiện tại là 0, trong khi mức tồn kho tối thiểu yêu cầu là 10. Sản phẩm đã hết hàng hoàn toàn.
+- **Tác động:** Khả năng mất doanh thu, giảm sự hài lòng của khách hàng và ảnh hưởng tiêu cực đến hình ảnh siêu thị do không thể đáp ứng nhu cầu.
+
+**2. Rủi ro ứ đọng (Overstock)**
+- **Hiện trạng:** Không có rủi ro ứ đọng tồn kho. Với số lượng tồn kho hiện tại là 0, sản phẩm không có nguy cơ dư thừa.
+
+**3. Rủi ro hết hạn (Expiration)**
+- **Hiện trạng:** Dữ liệu cung cấp không đủ để đánh giá rủi ro hết hạn. Không có thông tin về ngày sản xuất, hạn sử dụng hoặc tính chất sản phẩm (ví dụ: dễ hỏng).
+
+**4. Khuyến nghị hành động**
+- **Ưu tiên cao nhất:** Lập tức đặt hàng bổ sung sản phẩm WORLD WAR 2 GLIDERS ASSTD DESIGNS để khôi phục tồn kho và đáp ứng nhu cầu.
+- **Kiểm tra nhu cầu:** Rà soát lịch sử bán hàng và dự báo nhu cầu để xác định số lượng đặt hàng tối ưu, tránh tái diễn tình trạng thiếu hàng trong tương lai.
+- **Đánh giá nhà cung cấp:** Xác định thời gian giao hàng (lead time) của nhà cung cấp và đánh giá hiệu quả chuỗi cung ứng để đảm bảo nguồn cung ổn định.
+- **Rà soát mức tồn kho tối thiểu:** Xem xét lại mức tồn kho tối thiểu (minStockLevel) 10 để đảm bảo đủ lượng hàng dự phòng cho những biến động về nhu cầu hoặc thời gian giao hàng.
+
+Scores: clarity=4.5, usefulness=4.5, correctness=4.0, actionability=4.0
+
+## item6-forecast-r0 (explain-forecast, itemId=6)
+Phân tích sản phẩm: PAPER CRAFT, LITTLE BIRDIE
+
+1. **Đánh giá trạng thái tồn kho:**
+ * Sản phẩm đang trong tình trạng thiếu hụt nghiêm trọng. Tồn kho thực tế là 0 cái, trong khi ngưỡng tối thiểu yêu cầu là 10 cái.
+
+2. **Giải thích ý nghĩa dự báo học máy:**
+ * Dự báo học máy cho thấy số lượng bán ra dự kiến là 0 trong các khoảng thời gian 7, 14 và 30 ngày tới. Điều này có thể xuất phát từ việc không có dữ liệu bán hàng trong quá khứ, sản phẩm không còn được bán, hoặc mô hình không tìm thấy bất kỳ tín hiệu nhu cầu nào.
+ * Lưu ý: Thông tin về "Model: N/A" cho thấy hệ thống có thể chưa áp dụng được một mô hình dự báo cụ thể hoặc không có đủ dữ liệu để tạo dự báo ý nghĩa.
+ * Ngoài ra, cần xem xét sự không nhất quán giữa tên sản phẩm "PAPER CRAFT" và danh mục "Đồ uống & bán lẻ". Nếu đây là một sản phẩm thủ công mỹ nghệ, việc đặt trong danh mục "Đồ uống & bán lẻ" có thể làm sai lệch dữ liệu và dự báo.
+
+3. **Khuyến nghị nhập hàng cụ thể:**
+ * **Số lượng:** Để đạt ngưỡng tồn kho tối thiểu, cần nhập ít nhất 10 cái.
+ * **Thời điểm:** Nhập hàng cần được thực hiện ngay lập tức để đáp ứng ngưỡng tồn kho tối thiểu và sẵn sàng bán hàng.
+ * **Lưu ý bổ sung:** Mặc dù dự báo học máy cho thấy nhu cầu bằng 0, việc tồn kho ở mức 0 và có ngưỡng tối thiểu 10 cho thấy sản phẩm vẫn được kỳ vọng có sẵn để bán. Do đó, khuyến nghị nhập hàng để đạt ngưỡng tối thiểu là cần thiết cho hoạt động. Tuy nhiên, khuyến nghị nên kiểm tra lại lịch sử bán hàng thực tế của sản phẩm này và xác minh lại danh mục sản phẩm để đảm bảo dự báo và các thông tin khác là chính xác.
+
+4. **Khuyến mãi (nếu cận date):**
+ * Mục này không áp dụng do HSD lô gần nhất là "Không có / không áp dụng (hasExpiry=false)". Sản phẩm này không có hạn sử dụng, do đó không cần đề xuất khuyến mãi do cận date.
+
+Scores: clarity=4.5, usefulness=4.5, correctness=4.0, actionability=4.5
+
+## item6-promo-r0 (suggest-promotion, itemId=6)
+**Thông báo quan trọng:**
+Sản phẩm "PAPER CRAFT , LITTLE BIRDIE" hiện có tồn kho 0 Cái và dự báo 7 ngày là 0. Do đó, không thể triển khai chương trình khuyến mãi ngay lập tức. Để chương trình hiệu quả, cần đảm bảo có đủ tồn kho trước khi thực hiện.
+
+**Đề xuất chương trình khuyến mãi (áp dụng khi sản phẩm có tồn kho):**
+
+* **Tên chương trình:** Ưu đãi Sáng tạo Giấy: Combo Tiết kiệm
+* **Mục tiêu:** Kích cầu sản phẩm thủ công, khuyến khích mua kèm để tăng giá trị đơn hàng.
+
+* **Chi tiết khuyến mãi:**
+ * **Combo bán kèm:** Giảm 20% cho tổng giá trị khi mua 01 sản phẩm "PAPER CRAFT , LITTLE BIRDIE" kèm bất kỳ 01 sản phẩm thủ công nào khác (ví dụ: kéo, keo dán, bộ giấy màu, các mẫu Paper Craft khác) có giá trị từ 10.000 VND trở lên.
+ * **% giảm (áp dụng riêng lẻ):** Nếu khách hàng chỉ mua riêng sản phẩm "PAPER CRAFT , LITTLE BIRDIE", sẽ được giảm 10% giá bán.
+ * **Thời hạn:** 10 ngày kể từ ngày sản phẩm có sẵn hàng tại cửa hàng/kho.
+
+Scores: clarity=4.5, usefulness=4.0, correctness=4.0, actionability=5.0
+
+## item6-risk-stockout-r0 (explain-risk, itemId=6)
+**Phân tích Rủi ro Tồn kho cho sản phẩm: PAPER CRAFT , LITTLE BIRDIE (ID: 6)**
+
+* **Rủi ro thiếu hàng:**
+ * **Phân tích:** Sản phẩm đang ở tình trạng hết hàng hoàn toàn (`currentStock=0`), thấp hơn nhiều so với mức tồn kho tối thiểu đề xuất là 10. Hệ thống đã xác định đây là rủi ro thiếu hàng với mức độ nghiêm trọng cao.
+ * **Tác động:** Mất doanh thu trực tiếp, giảm sự hài lòng của khách hàng và có thể ảnh hưởng đến trải nghiệm mua sắm tổng thể.
+
+* **Rủi ro ứ đọng:**
+ * **Phân tích:** Không có rủi ro ứ đọng hiện tại do sản phẩm không có sẵn trong kho (`currentStock=0`).
+
+* **Rủi ro hết hạn:**
+ * **Phân tích:** Không có rủi ro hết hạn ngay lập tức vì không có sản phẩm nào trong kho. Đối với mặt hàng thủ công, rủi ro hết hạn thường thấp hơn so với các sản phẩm tiêu dùng nhanh.
+
+**Khuyến nghị hành động:**
+
+1. **Ưu tiên bổ sung hàng khẩn cấp:** Lập tức đặt hàng hoặc đẩy nhanh quy trình nhập kho sản phẩm "PAPER CRAFT , LITTLE BIRDIE" để khôi phục tồn kho lên trên mức tối thiểu.
+2. **Điều tra nguyên nhân gốc rễ:** Phân tích lý do tại sao sản phẩm lại cạn kiệt hoàn toàn (ví dụ: dự báo nhu cầu không chính xác, sự cố chuỗi cung ứng, thời gian đặt hàng lại bị bỏ qua).
+3. **Đánh giá mức tồn kho tối thiểu:** Xem xét lại `minStockLevel=10` có còn phù hợp với nhu cầu và chu kỳ nhập hàng thực tế hay không để ngăn chặn tình trạng thiếu hàng tái diễn.
+
+Scores: clarity=4.5, usefulness=4.5, correctness=3.5, actionability=5.0
+
+## item5-forecast-r0 (explain-forecast, itemId=5)
+Dưới đây là phân tích sản phẩm MINI PAINT SET VINTAGE:
+
+1. **Đánh giá trạng thái tồn kho:**
+ * Trạng thái: **Thiếu hụt nghiêm trọng** (Out of stock).
+ * Giải thích: Tồn kho thực tế là 0 Cái, trong khi ngưỡng tồn kho tối thiểu là 10 Cái. Sản phẩm đang không có sẵn để bán, dẫn đến mất doanh thu tiềm năng.
+
+2. **Giải thích ý nghĩa dự báo học máy:**
+ * Các con số 192.5445 (7 ngày), 263.0504 (14 ngày), 674.1119 (30 ngày) là dự báo số lượng sản phẩm dự kiến sẽ được bán ra trong các khoảng thời gian tương ứng (7 ngày, 14 ngày, 30 ngày) kể từ hiện tại.
+ * Dự báo này được tạo ra bởi mô hình học máy "random_forest", một thuật toán phân tích dữ liệu lịch sử để ước tính nhu cầu tương lai, giúp doanh nghiệp chuẩn bị hàng hóa phù hợp.
+
+3. **Khuyến nghị nhập hàng cụ thể:**
+ * **Thời điểm:** Ngay lập tức.
+ * **Số lượng:**
+ * Để đáp ứng nhu cầu tối thiểu và dự báo trong 2 tuần tới, đồng thời thiết lập lại mức tồn kho an toàn:
+ * Tổng lượng dự báo 14 ngày là khoảng 263 Cái.
+ * Cần bổ sung ít nhất 10 Cái để đạt ngưỡng tối thiểu.
+ * Khuyến nghị nhập khoảng **270 - 300 Cái** để bù đắp lượng tồn kho đang thiếu hụt và đáp ứng nhu cầu dự kiến trong khoảng 2-3 tuần tới, có tính đến thời gian vận chuyển và sự dao động của nhu cầu.
+
+4. **Nếu cận date, đề xuất khuyến mãi:**
+ * Không áp dụng. Thông tin sản phẩm cho thấy "HSD lô gần nhất: Không có / không áp dụng (hasExpiry=false)", do đó không cần đề xuất khuyến mãi cận date.
+
+Scores: clarity=4.5, usefulness=4.5, correctness=4.5, actionability=4.5
+
+## item5-promo-r0 (suggest-promotion, itemId=5)
+Kính gửi Quý đối tác,
+
+Chúng tôi nhận thấy sản phẩm MINI PAINT SET VINTAGE hiện đang **hết hàng (tồn: 0 cái)**. Do đó, không thể triển khai chương trình khuyến mãi cho sản phẩm này tại thời điểm hiện tại.
+
+Với dự báo nhu cầu cao (192.5445 trong 7 ngày), chúng tôi khuyến nghị ưu tiên bổ sung hàng tồn kho cho sản phẩm MINI PAINT SET VINTAGE càng sớm càng tốt để đáp ứng nhu cầu thị trường.
+
+Sau khi sản phẩm được bổ sung đầy đủ, chúng tôi đề xuất chương trình khuyến mãi như sau:
+
+**Chương trình khuyến mãi đề xuất (áp dụng khi có hàng):**
+
+- **% giảm:** Giảm 10% giá bán lẻ.
+- **Thời hạn:** 5 ngày kể từ ngày sản phẩm có sẵn hàng trên hệ thống.
+- **Combo bán kèm:**
+ - **Combo 1:** Mua kèm 01 bộ cọ vẽ hoặc 01 tập giấy vẽ nhỏ, giảm thêm 5% tổng giá trị combo.
+ - **Combo 2:** Mua từ 03 bộ MINI PAINT SET VINTAGE, được giảm 15% trên tổng giá trị 03 bộ.
+
+Trân trọng.
+
+Scores: clarity=4.5, usefulness=4.0, correctness=4.0, actionability=5.0
+
+## item5-risk-stockout-r0 (explain-risk, itemId=5)
+Gemini tạm thời quá tải (rate limit). Vui lòng thử lại sau 1–2 phút.
+
+Scores: clarity=2.0, usefulness=2.0, correctness=2.0, actionability=2.0
+
+## item4-forecast-r0 (explain-forecast, itemId=4)
+Dưới đây là phân tích sản phẩm "SMALL POPCORN HOLDER":
+
+1. **Đánh giá trạng thái tồn kho**
+ Sản phẩm đang trong tình trạng **hết hàng nghiêm trọng**. Tồn kho thực tế là 0 Cái, thấp hơn nhiều so với ngưỡng tồn kho tối thiểu (10 Cái).
+
+2. **Giải thích ý nghĩa dự báo học máy**
+ Dự báo học máy sử dụng mô hình `random_forest` cung cấp ước tính nhu cầu dự kiến cho sản phẩm trong các khoảng thời gian cụ thể:
+ - **7 ngày tới:** Nhu cầu dự kiến khoảng 1092 chiếc.
+ - **14 ngày tới:** Nhu cầu dự kiến khoảng 2214 chiếc.
+ - **30 ngày tới:** Nhu cầu dự kiến khoảng 4825 chiếc.
+ Các số liệu này cho thấy sản phẩm có nhu cầu rất cao và ổn định trong tương lai gần.
+
+3. **Khuyến nghị nhập hàng cụ thể**
+ Với tồn kho hiện tại là 0 và nhu cầu dự kiến rất cao, khuyến nghị nhập hàng **ngay lập tức**.
+ - **Số lượng:** Đề xuất nhập tối thiểu **2215 chiếc** để đáp ứng nhu cầu dự kiến trong 14 ngày tới (2214.3658 chiếc) và đảm bảo có đủ hàng bán cho giai đoạn tiếp theo. Cần xem xét lại ngưỡng tồn kho tối thiểu 10 chiếc vì con số này không phù hợp với nhu cầu thực tế rất cao của sản phẩm.
+ - **Thời điểm:** Ngay lập tức.
+
+4. **Nếu cận date, đề xuất khuyến mãi (% giảm hoặc combo)**
+ Thông tin HSD lô gần nhất cho thấy sản phẩm không áp dụng hạn sử dụng (`hasExpiry=false`). Do đó, không cần đề xuất khuyến mãi do cận date.
+
+Scores: clarity=4.5, usefulness=4.5, correctness=4.5, actionability=5.0
+
+## item4-promo-r0 (suggest-promotion, itemId=4)
+Đề xuất Chương trình Khuyến mãi: SMALL POPCORN HOLDER
+
+**Lưu ý quan trọng:**
+Sản phẩm hiện đang có tồn kho 0 Cái nhưng có dự báo nhu cầu rất cao (1091.6503 trong 7 ngày tới). Chương trình khuyến mãi dưới đây được đề xuất áp dụng sau khi sản phẩm được tái nhập và có đủ lượng tồn kho để đáp ứng nhu cầu thị trường.
+
+**Đề xuất chương trình khuyến mãi cụ thể:**
+
+- **Tên chương trình:** "Trọn Vẹn Vị Ngon Cùng Bắp"
+
+- **Thời hạn áp dụng:** 07 ngày kể từ ngày sản phẩm có sẵn tại điểm bán.
+
+- **Chi tiết khuyến mãi:**
+ - **% giảm:** Giảm 33% cho SMALL POPCORN HOLDER khi mua kèm combo.
+ - **Combo bán kèm:**
+ - Khi khách hàng mua bất kỳ Combo Bắp & Nước (từ cỡ M trở lên), có thể mua kèm 01 SMALL POPCORN HOLDER với giá ưu đãi chỉ 10.000 VND (giá gốc 15.000 VND).
+ - **Mục tiêu:** Kích thích doanh số combo bắp nước và tăng doanh thu phụ kiện, đồng thời đáp ứng nhu cầu của khách hàng đối với sản phẩm hot.
+
+Scores: clarity=4.5, usefulness=4.0, correctness=4.0, actionability=5.0
+
+## item4-risk-stockout-r0 (explain-risk, itemId=4)
+Gemini tạm thời quá tải (rate limit). Vui lòng thử lại sau 1–2 phút.
+
+Scores: clarity=2.0, usefulness=2.0, correctness=2.0, actionability=2.0
+
+## item3-forecast-r0 (explain-forecast, itemId=3)
+Dưới đây là phân tích sản phẩm "PACK OF 72 RETROSPOT CAKE CASES":
+
+1. **Đánh giá trạng thái tồn kho:**
+ * Sản phẩm đang trong tình trạng hết hàng hoàn toàn (tồn kho thực tế: 0 Cái).
+ * Điều này nghiêm trọng hơn cả thiếu hàng, vì ngưỡng tồn kho tối thiểu là 10 Cái. Sản phẩm không có sẵn để bán, dẫn đến mất doanh thu tiềm năng.
+
+2. **Giải thích ý nghĩa dự báo học máy:**
+ * Các số liệu dự báo (7 ngày=128.0248, 14 ngày=139.9948, 30 ngày=567.0365) thể hiện ước tính số lượng sản phẩm dự kiến sẽ được bán ra trong các khoảng thời gian tương ứng (7 ngày, 14 ngày, 30 ngày tới).
+ * Mô hình "random_forest" là thuật toán được sử dụng để tạo ra các dự báo này, cho thấy đây là một phương pháp dựa trên dữ liệu lịch sử và các yếu tố khác để dự đoán nhu cầu trong tương lai. Các con số này cho thấy nhu cầu đối với sản phẩm là khá cao.
+
+3. **Khuyến nghị nhập hàng cụ thể:**
+ * **Số lượng:** Dựa trên nhu cầu dự kiến cho 30 ngày tới là 567 Cái và ngưỡng tối thiểu 10 Cái, cùng với tình trạng hết hàng hiện tại, khuyến nghị nhập một lượng lớn để đáp ứng nhu cầu và có đủ tồn kho dự phòng. Số lượng nhập hàng hợp lý là khoảng **580 - 600 Cái**. Lượng này sẽ giúp đáp ứng nhu cầu trong 30 ngày tới và duy trì mức tồn kho trên ngưỡng tối thiểu.
+ * **Thời điểm:** Cần nhập hàng **ngay lập tức** do sản phẩm đang hết hàng và có nhu cầu cao.
+
+4. **Nếu cận date, đề xuất khuyến mãi:**
+ * Mục "HSD lô gần nhất: Không có / không áp dụng (hasExpiry=false)" cho thấy sản phẩm này không có hạn sử dụng hoặc hạn sử dụng không phải là yếu tố cần xem xét.
+ * Do đó, khuyến mãi dựa trên "cận date" không áp dụng trong trường hợp này.
+
+Scores: clarity=4.5, usefulness=4.5, correctness=4.5, actionability=4.5
+
+## item3-promo-r0 (suggest-promotion, itemId=3)
+Gemini tạm thời quá tải (rate limit). Vui lòng thử lại sau 1–2 phút.
+
+Scores: clarity=2.0, usefulness=2.0, correctness=2.0, actionability=2.0
+
+## item3-risk-stockout-r0 (explain-risk, itemId=3)
+**Phân tích rủi ro tồn kho**
+
+**Sản phẩm:** PACK OF 72 RETROSPOT CAKE CASES (Mã sản phẩm: 3)
+
+- **Rủi ro thiếu hàng (Stockout):**
+ - Sản phẩm hiện đang hết hàng (currentStock = 0), trong khi mức tồn kho tối thiểu là 10.
+ - Rủi ro được xác định là **nghiêm trọng (high)**.
+ - Tác động: Gây mất doanh thu tức thời và giảm sự hài lòng của khách hàng.
+- **Rủi ro ứ đọng (Overstock):**
+ - Không có rủi ro ứ đọng do tồn kho hiện tại bằng 0.
+- **Rủi ro hết hạn:**
+ - Dữ liệu cung cấp không đủ thông tin về hạn sử dụng để đánh giá rủi ro này.
+
+**Khuyến nghị hành động:**
+
+- **Khẩn cấp đặt hàng:** Lập tức thực hiện lệnh đặt hàng khẩn cấp để bổ sung tồn kho.
+- **Phân tích nguyên nhân:** Điều tra nguyên nhân gây ra tình trạng hết hàng đột ngột để có biện pháp khắc phục và phòng ngừa.
+- **Đánh giá lại chính sách tồn kho:** Xem xét lại mức tồn kho tối thiểu (minStockLevel) và tần suất đặt hàng để đảm bảo đáp ứng nhu cầu thị trường.
+
+Scores: clarity=4.5, usefulness=4.0, correctness=3.5, actionability=4.0
+
+## item2-forecast-r0 (explain-forecast, itemId=2)
+Phân tích sản phẩm: Nước Lavie 500ml
+
+**1. Đánh giá trạng thái tồn kho**
+Sản phẩm Nước Lavie 500ml đang ở trạng thái **ứ đọng nghiêm trọng**.
+- Tồn kho thực tế là 499.000 Cái, cao hơn rất nhiều so với ngưỡng tối thiểu (50 Cái).
+- Dự báo nhu cầu trong 30 ngày tới chỉ là 30 Cái. Với tồn kho hiện tại, sản phẩm này có thể đáp ứng nhu cầu thị trường trong nhiều năm tới mà không cần nhập thêm.
+
+**2. Giải thích ý nghĩa dự báo học máy**
+Dự báo học máy (ML Forecast) cho sản phẩm này sử dụng mô hình "moving_average" (trung bình trượt).
+- Nó dự đoán lượng hàng sẽ được bán ra trong các khoảng thời gian cụ thể dựa trên dữ liệu bán hàng trong quá khứ.
+- Cụ thể:
+ - 7 ngày tới: Dự kiến bán 7 Cái.
+ - 14 ngày tới: Dự kiến bán 14 Cái.
+ - 30 ngày tới: Dự kiến bán 30 Cái.
+- Dự báo này cho thấy nhu cầu tiêu thụ sản phẩm hiện đang rất thấp.
+
+**3. Khuyến nghị nhập hàng cụ thể**
+- Với tồn kho thực tế lên tới 499.000 Cái và dự báo nhu cầu rất thấp, **không có khuyến nghị nhập hàng mới** tại thời điểm hiện tại.
+- Lượng hàng tồn kho hiện tại đủ để đáp ứng nhu cầu thị trường trong một khoảng thời gian cực kỳ dài (hàng chục năm) dựa trên tốc độ tiêu thụ dự kiến.
+
+**4. Nếu cận date, đề xuất khuyến mãi (% giảm hoặc combo)**
+- Thông tin sản phẩm cho thấy: "HSD lô gần nhất: Không có / không áp dụng (hasExpiry=false)".
+- Do sản phẩm này **không áp dụng hạn sử dụng**, việc đề xuất khuyến mãi do "cận date" là không phù hợp.
+
+Scores: clarity=4.5, usefulness=4.5, correctness=4.5, actionability=5.0
+
+## item2-promo-r0 (suggest-promotion, itemId=2)
+Gemini tạm thời quá tải (rate limit). Vui lòng thử lại sau 1–2 phút.
+
+Scores: clarity=2.0, usefulness=2.0, correctness=2.0, actionability=2.0
+
+## item2-risk-stockout-r0 (explain-risk, itemId=2)
+Gemini tạm thời quá tải (rate limit). Vui lòng thử lại sau 1–2 phút.
+
+Scores: clarity=2.0, usefulness=2.0, correctness=2.0, actionability=2.0
+
+## item1-forecast-r0 (explain-forecast, itemId=1)
+Dưới đây là phân tích sản phẩm Sữa Vinamilk 1L:
+
+**1. Đánh giá trạng thái tồn kho**
+
+Trạng thái tồn kho: **Ứ đọng nghiêm trọng**.
+- Tồn kho thực tế (118.000 Cái) cao hơn gấp nhiều lần so với Ngưỡng tối thiểu (20 Cái).
+- Ngay cả khi tính đến dự báo bán hàng trong 30 ngày tới (60.000 Cái), lượng tồn kho vẫn còn 58.000 Cái, vẫn rất lớn so với ngưỡng tối thiểu. Điều này cho thấy có sự tích trữ quá mức hoặc dự báo nhu cầu trước đây không chính xác.
+
+**2. Giải thích ý nghĩa dự báo học máy**
+
+Dự báo học máy (Model: `moving_average`) cung cấp ước tính số lượng sản phẩm dự kiến sẽ được bán ra trong các khoảng thời gian cụ thể:
+- **7 ngày tới:** Dự kiến bán 14.000 Cái.
+- **14 ngày tới:** Dự kiến bán 28.000 Cái.
+- **30 ngày tới:** Dự kiến bán 60.000 Cái.
+Ý nghĩa: Các số liệu này giúp doanh nghiệp lập kế hoạch bán hàng, tối ưu hóa mức tồn kho, quản lý dòng tiền và đưa ra quyết định nhập hàng một cách chủ động, dựa trên xu hướng bán hàng lịch sử đã được phân tích.
+
+**3. Khuyến nghị nhập hàng cụ thể**
+
+- **Thời điểm:** Hiện tại, không cần nhập thêm hàng.
+- **Số lượng:** 0 Cái.
+- **Giải thích:** Với tồn kho thực tế là 118.000 Cái và dự báo bán ra 60.000 Cái trong 30 ngày tới, lượng tồn kho sau 30 ngày vẫn còn 58.000 Cái, cao hơn rất nhiều so với ngưỡng tối thiểu. Do đó, doanh nghiệp nên tập trung đẩy mạnh bán hàng để giảm lượng tồn kho hiện có thay vì nhập thêm.
+
+**4. Nếu cận date, đề xuất khuyến mãi**
+
+- **HSD lô gần nhất:** 2026-09-10.
+- **Đánh giá:** Sản phẩm không bị "cận date" vì hạn sử dụng còn rất dài (hơn 2 năm kể từ thời điểm hiện tại).
+- **Đề xuất khuyến mãi:** Không cần áp dụng khuyến mãi do yếu tố cận date.
+
+Scores: clarity=4.5, usefulness=4.5, correctness=4.5, actionability=5.0
+
+## item1-promo-r0 (suggest-promotion, itemId=1)
+Gemini tạm thời quá tải (rate limit). Vui lòng thử lại sau 1–2 phút.
+
+Scores: clarity=2.0, usefulness=2.0, correctness=2.0, actionability=2.0
+
+## item1-risk-stockout-r0 (explain-risk, itemId=1)
+Gemini lỗi 503. Vui lòng thử lại sau.
+
+Scores: clarity=1.0, usefulness=1.0, correctness=1.0, actionability=1.0
