@@ -21,4 +21,6 @@ public class InventoryResponse {
     private BigDecimal quantity;
     private BigDecimal reservedQuantity;
     private BigDecimal availableQuantity;
+    private Integer daysUntilExpiry;
+    private BigDecimal riskQuantity;
 }

@@ -1,4 +1,4 @@
-import type { PurchaseOrderDto } from '../types/api';
+import type { PurchaseOrderDto } from '@/types/api';
 
 const statusLabel: Record<string, string> = {
   PENDING: 'Chờ nhận',

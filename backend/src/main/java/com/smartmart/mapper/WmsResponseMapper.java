@@ -13,6 +13,14 @@ public final class WmsResponseMapper {
     }
 
     public static InventoryResponse toInventoryResponse(CurrentInventory inv) {
+        return toInventoryResponse(inv, null, null);
+    }
+
+    public static InventoryResponse toInventoryResponse(
+            CurrentInventory inv,
+            Integer daysUntilExpiry,
+            BigDecimal riskQuantity
+    ) {
         BigDecimal available = inv.getQuantity().subtract(inv.getReservedQuantity());
         ItemLot lot = inv.getLot();
         return InventoryResponse.builder()
@@ -28,6 +36,8 @@ public final class WmsResponseMapper {
                 .quantity(inv.getQuantity())
                 .reservedQuantity(inv.getReservedQuantity())
                 .availableQuantity(available)
+                .daysUntilExpiry(daysUntilExpiry)
+                .riskQuantity(riskQuantity)
                 .build();
     }
 
@@ -102,5 +112,145 @@ public final class WmsResponseMapper {
 
     public static List<ScrapOrderResponse> toScrapOrderResponses(List<ScrapOrder> list) {
         return list.stream().map(WmsResponseMapper::toScrapOrderResponse).toList();
+    }
+
+    public static StocktakeResponse toStocktakeResponse(Stocktake st) {
+        List<StocktakeItemResponse> items = st.getItems().stream()
+                .map(i -> StocktakeItemResponse.builder()
+                        .itemId(i.getItem().getId())
+                        .itemName(i.getItem().getItemName())
+                        .itemCode(i.getItem().getItemCode())
+                        .lotId(i.getLot() != null ? i.getLot().getId() : null)
+                        .lotNumber(i.getLot() != null ? i.getLot().getLotNumber() : null)
+                        .systemQuantity(i.getSystemQuantity())
+                        .actualQuantity(i.getActualQuantity())
+                        .variance(i.getVariance())
+                        .note(i.getNote())
+                        .build())
+                .toList();
+        return StocktakeResponse.builder()
+                .id(st.getId())
+                .locationId(st.getLocation().getId())
+                .locationName(st.getLocation().getLocationName())
+                .createdBy(st.getCreatedBy())
+                .stocktakeDate(st.getStocktakeDate())
+                .status(st.getStatus())
+                .note(st.getNote())
+                .confirmedAt(st.getConfirmedAt())
+                .items(items)
+                .build();
+    }
+
+    public static List<StocktakeResponse> toStocktakeResponses(List<Stocktake> list) {
+        return list.stream().map(WmsResponseMapper::toStocktakeResponse).toList();
+    }
+
+    public static TransferOrderResponse toTransferOrderResponse(TransferOrder order) {
+        List<TransferOrderItemResponse> items = order.getItems().stream()
+                .map(i -> TransferOrderItemResponse.builder()
+                        .itemId(i.getItem().getId())
+                        .itemName(i.getItem().getItemName())
+                        .lotId(i.getLot() != null ? i.getLot().getId() : null)
+                        .lotNumber(i.getLot() != null ? i.getLot().getLotNumber() : null)
+                        .quantity(i.getQuantity())
+                        .note(i.getNote())
+                        .build())
+                .toList();
+        return TransferOrderResponse.builder()
+                .id(order.getId())
+                .fromLocationId(order.getFromLocation().getId())
+                .fromLocationName(order.getFromLocation().getLocationName())
+                .toLocationId(order.getToLocation().getId())
+                .toLocationName(order.getToLocation().getLocationName())
+                .createdBy(order.getCreatedBy())
+                .transferDate(order.getTransferDate())
+                .status(order.getStatus())
+                .note(order.getNote())
+                .completedAt(order.getCompletedAt())
+                .items(items)
+                .build();
+    }
+
+    public static List<TransferOrderResponse> toTransferOrderResponses(List<TransferOrder> list) {
+        return list.stream().map(WmsResponseMapper::toTransferOrderResponse).toList();
+    }
+
+    public static ReturnOrderResponse toReturnOrderResponse(ReturnOrder order) {
+        List<ReturnOrderItemResponse> items = order.getItems().stream()
+                .map(i -> ReturnOrderItemResponse.builder()
+                        .itemId(i.getItem().getId())
+                        .itemName(i.getItem().getItemName())
+                        .lotId(i.getLot() != null ? i.getLot().getId() : null)
+                        .lotNumber(i.getLot() != null ? i.getLot().getLotNumber() : null)
+                        .quantity(i.getQuantity())
+                        .unitPrice(i.getUnitPrice())
+                        .subtotal(i.getSubtotal())
+                        .build())
+                .toList();
+        return ReturnOrderResponse.builder()
+                .id(order.getId())
+                .originalOrderId(order.getOriginalOrder().getId())
+                .originalOrderCode(order.getOriginalOrder().getOrderCode())
+                .createdBy(order.getCreatedBy())
+                .returnDate(order.getReturnDate())
+                .status(order.getStatus())
+                .reason(order.getReason())
+                .refundAmount(order.getRefundAmount())
+                .note(order.getNote())
+                .items(items)
+                .build();
+    }
+
+    public static List<ReturnOrderResponse> toReturnOrderResponses(List<ReturnOrder> list) {
+        return list.stream().map(WmsResponseMapper::toReturnOrderResponse).toList();
+    }
+
+    public static ShiftResponse toShiftResponse(Shift shift, String cashierName) {
+        return ShiftResponse.builder()
+                .id(shift.getId())
+                .cashierId(shift.getCashierId())
+                .cashierName(cashierName)
+                .openedAt(shift.getOpenedAt())
+                .closedAt(shift.getClosedAt())
+                .openingCash(shift.getOpeningCash())
+                .closingCash(shift.getClosingCash())
+                .expectedCash(shift.getExpectedCash())
+                .cashVariance(shift.getCashVariance())
+                .totalOrders(shift.getTotalOrders())
+                .totalRevenue(shift.getTotalRevenue())
+                .status(shift.getStatus())
+                .note(shift.getNote())
+                .build();
+    }
+
+    public static SupplierDebtResponse toSupplierDebtResponse(SupplierDebt debt) {
+        List<DebtPaymentResponse> payments = debt.getPayments().stream()
+                .map(p -> DebtPaymentResponse.builder()
+                        .id(p.getId())
+                        .amount(p.getAmount())
+                        .paymentDate(p.getPaymentDate())
+                        .paymentMethod(p.getPaymentMethod())
+                        .note(p.getNote())
+                        .createdBy(p.getCreatedBy())
+                        .build())
+                .toList();
+        BigDecimal remaining = debt.getAmount().subtract(debt.getPaidAmount());
+        return SupplierDebtResponse.builder()
+                .id(debt.getId())
+                .supplierId(debt.getSupplier().getId())
+                .supplierName(debt.getSupplier().getSupplierName())
+                .purchaseOrderId(debt.getPurchaseOrder() != null ? debt.getPurchaseOrder().getId() : null)
+                .amount(debt.getAmount())
+                .paidAmount(debt.getPaidAmount())
+                .remainingAmount(remaining)
+                .dueDate(debt.getDueDate())
+                .status(debt.getStatus())
+                .note(debt.getNote())
+                .payments(payments)
+                .build();
+    }
+
+    public static List<SupplierDebtResponse> toSupplierDebtResponses(List<SupplierDebt> list) {
+        return list.stream().map(WmsResponseMapper::toSupplierDebtResponse).toList();
     }
 }

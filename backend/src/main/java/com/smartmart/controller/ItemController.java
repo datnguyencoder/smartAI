@@ -81,4 +81,30 @@ public class ItemController {
     ) {
         return ResponseEntity.ok(ApiResponse.success("Cập nhật sản phẩm thành công", itemService.update(id, request)));
     }
+
+    @GetMapping(value = "/{id}/barcode-label", produces = "image/svg+xml")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE','STAFF')")
+    @Operation(summary = "In nhãn barcode SVG")
+    public ResponseEntity<String> barcodeLabel(@PathVariable Long id) {
+        ItemResponse item = itemService.getById(id);
+        String barcode = item.getItemCode() != null ? item.getItemCode() : String.valueOf(item.getId());
+        String name = item.getItemName() != null ? item.getItemName() : "";
+        String price = item.getSellingPrice() != null ? item.getSellingPrice().toPlainString() : "0";
+        String svg = """
+                <svg xmlns="http://www.w3.org/2000/svg" width="280" height="120">
+                  <rect width="280" height="120" fill="white" stroke="#333"/>
+                  <text x="10" y="20" font-size="12" font-family="Arial">%s</text>
+                  <text x="10" y="55" font-family="monospace" font-size="22">%s</text>
+                  <text x="10" y="85" font-size="14" font-family="Arial">%s VND</text>
+                  <text x="10" y="105" font-size="10" font-family="Arial">SmartMart</text>
+                </svg>
+                """.formatted(escapeXml(name), escapeXml(barcode), price);
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "inline; filename=\"label-" + id + ".svg\"")
+                .body(svg);
+    }
+
+    private static String escapeXml(String s) {
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
+    }
 }

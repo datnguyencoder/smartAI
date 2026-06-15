@@ -1,4 +1,4 @@
-import type { UserDto } from '../types/api';
+import type { UserDto } from '@/types/api';
 
 const TOKEN_KEY = 'smartmart_token';
 const REFRESH_KEY = 'smartmart_refresh_token';

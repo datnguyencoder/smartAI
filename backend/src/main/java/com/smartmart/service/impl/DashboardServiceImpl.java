@@ -42,12 +42,23 @@ public class DashboardServiceImpl implements com.smartmart.service.DashboardServ
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         long lowStock = currentInventoryRepository.findLowStock().size();
         long nearExpiry = currentInventoryRepository.findNearExpiry(LocalDate.now().plusDays(30)).size();
+        long totalInventoryRows = currentInventoryRepository.findAll().size();
+
+        BigDecimal grossProfit = BigDecimal.ZERO;
+        for (com.smartmart.entity.Order o : todayOrders) {
+            for (com.smartmart.entity.OrderItem oi : o.getItems()) {
+                BigDecimal cost = oi.getItem().getCostPrice() != null ? oi.getItem().getCostPrice() : BigDecimal.ZERO;
+                grossProfit = grossProfit.add(oi.getSubtotal().subtract(cost.multiply(oi.getQuantity())));
+            }
+        }
 
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("todayRevenue", revenue);
         m.put("todayOrders", todayOrders.size());
+        m.put("todayGrossProfit", grossProfit);
         m.put("lowStockCount", lowStock);
         m.put("nearExpiryCount", nearExpiry);
+        m.put("expiryRiskRatio", totalInventoryRows > 0 ? (double) nearExpiry / totalInventoryRows : 0.0);
         return m;
     }
 

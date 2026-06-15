@@ -53,7 +53,7 @@ public class InventoryController {
     @Operation(summary = "Sản phẩm cận hạn")
     public ResponseEntity<ApiResponse<List<InventoryResponse>>> nearExpiry() {
         return ResponseEntity.ok(ApiResponse.success(
-                WmsResponseMapper.toInventoryResponses(inventoryQueryService.nearExpiry())));
+                inventoryQueryService.nearExpiryWithRisk()));
     }
 
     @GetMapping("/logs")

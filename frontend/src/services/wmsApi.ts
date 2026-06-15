@@ -1,5 +1,5 @@
-import { getRefreshToken } from '../lib/authSession';
-import { apiRequest, ApiClientError } from './apiClient';
+import { getRefreshToken } from '@/lib/authSession';
+import { apiRequest, ApiClientError } from '@/services/apiClient';
 import type {
   AuditLogDto,
   AuthDto,
@@ -25,7 +25,13 @@ import type {
   UserDto,
   CreateUserPayload,
   UpdateUserPayload,
-} from '../types/api';
+  ScrapOrderDto,
+  StocktakeDto,
+  TransferOrderDto,
+  ReturnOrderDto,
+  ShiftDto,
+  SupplierDebtDto,
+} from '@/types/api';
 
 export async function login(username: string, password: string) {
   const data = await apiRequest<AuthDto>(
@@ -109,7 +115,6 @@ export function fetchItems(search?: string, categoryId?: number) {
   if (categoryId) params.set('categoryId', String(categoryId));
   const query = params.toString() ? `?${params.toString()}` : '';
   return apiRequest<ItemDto[]>(`/api/v1/items${query}`);
-
 }
 
 export function fetchItemsPaged(page = 0, size = 50, search?: string) {
@@ -163,6 +168,8 @@ export function createOrder(payload: {
   customerPhone?: string;
   promotionCode?: string;
   paymentMethod?: string;
+  loyaltyPointsRedeemed?: number;
+  payments?: { paymentMethod: string; amount: number }[];
   items: { itemId: number; quantity: number }[];
 }) {
   return apiRequest<OrderDto>('/api/v1/orders', {
@@ -323,6 +330,7 @@ export function fetchUoms() {
 export function createPurchaseOrder(payload: {
   supplierId: number;
   locationId: number;
+  paymentDeferred?: boolean;
   items: { itemId: number; quantity: number; unitPrice: number; expiryDate?: string }[];
 }) {
   return apiRequest<PurchaseOrderDto>('/api/v1/purchase-orders', {
@@ -410,6 +418,12 @@ export function fetchDashboardSummary() {
 
 export function fetchDashboardRevenue() {
   return apiRequest<{ day: string; revenue: number }[]>('/api/v1/dashboard/revenue');
+}
+
+export function fetchDashboardForecastSummary() {
+  return apiRequest<{ itemsWithForecast?: number; highRiskCount?: number }>(
+    '/api/v1/dashboard/forecast-summary'
+  );
 }
 
 export function trainForecast() {
@@ -574,4 +588,128 @@ export function exportComprehensiveReport(format: 'pdf' | 'excel' = 'pdf', from?
   return import('./apiClient').then(({ apiDownloadBlob }) =>
     apiDownloadBlob(`/api/v1/reports/comprehensive?${qs}`)
   );
+}
+
+// Stocktake
+export function fetchStocktakes(status?: string) {
+  const qs = status ? `?status=${status}` : '';
+  return apiRequest<StocktakeDto[]>(`/api/v1/stocktakes${qs}`);
+}
+
+export function createStocktake(payload: {
+  locationId: number;
+  note?: string;
+  items: { itemId: number; lotId?: number; actualQuantity?: number; note?: string }[];
+}) {
+  return apiRequest<StocktakeDto>('/api/v1/stocktakes', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export function confirmStocktake(id: number, items?: { itemId: number; lotId?: number; actualQuantity: number }[]) {
+  return apiRequest<StocktakeDto>(`/api/v1/stocktakes/${id}/confirm`, {
+    method: 'POST',
+    body: JSON.stringify(items && items.length > 0 ? { items } : {}),
+  });
+}
+
+export function cancelStocktake(id: number) {
+  return apiRequest<StocktakeDto>(`/api/v1/stocktakes/${id}/cancel`, { method: 'POST' });
+}
+
+// Transfer orders
+export function fetchTransferOrders(status?: string) {
+  const qs = status ? `?status=${status}` : '';
+  return apiRequest<TransferOrderDto[]>(`/api/v1/transfer-orders${qs}`);
+}
+
+export function createTransferOrder(payload: {
+  fromLocationId: number;
+  toLocationId: number;
+  note?: string;
+  items: { itemId: number; lotId?: number; quantity: number; note?: string }[];
+}) {
+  return apiRequest<TransferOrderDto>('/api/v1/transfer-orders', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export function completeTransferOrder(id: number) {
+  return apiRequest<TransferOrderDto>(`/api/v1/transfer-orders/${id}/complete`, { method: 'POST' });
+}
+
+export function cancelTransferOrder(id: number) {
+  return apiRequest<TransferOrderDto>(`/api/v1/transfer-orders/${id}/cancel`, { method: 'POST' });
+}
+
+// Return orders
+export function fetchReturnOrders() {
+  return apiRequest<ReturnOrderDto[]>('/api/v1/return-orders');
+}
+
+export function createReturnOrder(payload: {
+  originalOrderId: number;
+  reason?: string;
+  note?: string;
+  items: { itemId: number; lotId?: number; quantity: number }[];
+}) {
+  return apiRequest<ReturnOrderDto>('/api/v1/return-orders', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+// Shifts
+export function fetchShifts() {
+  return apiRequest<ShiftDto[]>('/api/v1/shifts');
+}
+
+export function fetchCurrentShift() {
+  return apiRequest<ShiftDto | null>('/api/v1/shifts/current');
+}
+
+export function openShift(openingCash: number, note?: string) {
+  return apiRequest<ShiftDto>('/api/v1/shifts/open', {
+    method: 'POST',
+    body: JSON.stringify({ openingCash, note }),
+  });
+}
+
+export function closeShift(id: number, closingCash: number, note?: string) {
+  return apiRequest<ShiftDto>(`/api/v1/shifts/${id}/close`, {
+    method: 'POST',
+    body: JSON.stringify({ closingCash, note }),
+  });
+}
+
+// Supplier debts
+export function fetchSupplierDebts(status?: string) {
+  const qs = status ? `?status=${status}` : '';
+  return apiRequest<SupplierDebtDto[]>(`/api/v1/supplier-debts${qs}`);
+}
+
+export function fetchSupplierDebtsBySupplier(supplierId: number) {
+  return apiRequest<SupplierDebtDto[]>(`/api/v1/supplier-debts/supplier/${supplierId}`);
+}
+
+export function recordDebtPayment(debtId: number, payload: { amount: number; paymentMethod?: string; note?: string }) {
+  return apiRequest<SupplierDebtDto>(`/api/v1/supplier-debts/${debtId}/payments`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getBarcodeLabelUrl(itemId: number) {
+  const base = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+  return `${base}/api/v1/items/${itemId}/barcode-label`;
+}
+
+export async function downloadBarcodeLabel(itemId: number) {
+  const { apiDownloadBlob } = await import('./apiClient');
+  return apiDownloadBlob(`/api/v1/items/${itemId}/barcode-label`);
+}
+
+export function fetchItemLots(itemId?: number, lotNumber?: string) {
+  const params = new URLSearchParams();
+  if (itemId) params.set('itemId', String(itemId));
+  if (lotNumber) params.set('lotNumber', lotNumber);
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  return apiRequest<import('@/types/api').ItemLotDto[]>(`/api/v1/item-lots${qs}`);
+}
+
+export function fetchItemLotById(id: number) {
+  return apiRequest<import('@/types/api').ItemLotDto>(`/api/v1/item-lots/${id}`);
 }

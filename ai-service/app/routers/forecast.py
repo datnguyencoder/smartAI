@@ -1,19 +1,14 @@
 from app.schemas.requests import ForecastAllRequest
 from app.schemas.responses import ForecastAllResponse, ItemForecast
-from app.services import model_store, predict as predict_service
+from app.services import predict as predict_service
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 router = APIRouter(tags=["forecast"])
 
 
 @router.post("/ai/forecast/all", response_model=ForecastAllResponse)
 def forecast_all(request: ForecastAllRequest) -> ForecastAllResponse:
-    if not model_store.is_model_loaded():
-        raise HTTPException(
-            status_code=503,
-            detail="No trained model available; forecast will use moving_average after train",
-        )
     payload = [
         {
             "item_id": item.item_id,

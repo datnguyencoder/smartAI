@@ -62,9 +62,23 @@ public interface CurrentInventoryRepository extends JpaRepository<CurrentInvento
     @Query("""
             SELECT ci FROM CurrentInventory ci
             JOIN ci.lot l
-            WHERE l.expiryDate IS NOT NULL AND l.expiryDate <= :deadline
+            WHERE l.expiryDate IS NOT NULL
+              AND l.expiryDate > CURRENT_DATE
+              AND l.expiryDate <= :deadline
             """)
     List<CurrentInventory> findNearExpiry(@Param("deadline") LocalDate deadline);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            SELECT ci FROM CurrentInventory ci
+            WHERE (:itemId IS NULL OR ci.item.id = :itemId)
+            AND (:locationId IS NULL OR ci.location.id = :locationId)
+            AND (:lotId IS NULL OR ci.lot.id = :lotId)
+            """)
+    List<CurrentInventory> findFilteredForUpdate(
+            @Param("itemId") Long itemId,
+            @Param("locationId") Long locationId,
+            @Param("lotId") Long lotId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT c FROM CurrentInventory c LEFT JOIN FETCH c.lot l " +

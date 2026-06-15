@@ -42,4 +42,19 @@ public final class AuditAction {
     public static final String PROMOTION_UPDATE = "PROMOTION_UPDATE";
     public static final String PROMOTION_DELETE = "PROMOTION_DELETE";
 
+    public static final String STOCKTAKE_CREATE = "STOCKTAKE_CREATE";
+    public static final String STOCKTAKE_CONFIRM = "STOCKTAKE_CONFIRM";
+    public static final String STOCKTAKE_CANCEL = "STOCKTAKE_CANCEL";
+
+    public static final String TRANSFER_CREATE = "TRANSFER_CREATE";
+    public static final String TRANSFER_COMPLETE = "TRANSFER_COMPLETE";
+    public static final String TRANSFER_CANCEL = "TRANSFER_CANCEL";
+
+    public static final String RETURN_CREATE = "RETURN_CREATE";
+
+    public static final String SHIFT_OPEN = "SHIFT_OPEN";
+    public static final String SHIFT_CLOSE = "SHIFT_CLOSE";
+
+    public static final String DEBT_PAYMENT = "DEBT_PAYMENT";
+
 }

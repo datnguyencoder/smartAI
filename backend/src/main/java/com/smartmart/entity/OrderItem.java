@@ -30,6 +30,10 @@ public class OrderItem {
     @JoinColumn(name = "lot_id")
     private ItemLot lot;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "location_id")
+    private Location location;
+
     @Column(nullable = false)
     private BigDecimal quantity;
 

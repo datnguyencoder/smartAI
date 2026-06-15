@@ -1,4 +1,4 @@
-package com.smartmart.service.ai.impl;
+package com.smartmart.service.impl;
 
 import com.smartmart.entity.ForecastResult;
 import com.smartmart.entity.Item;
@@ -21,6 +21,10 @@ import java.util.Map;
 
 @Service
 public class ReorderRecommendationServiceImpl implements com.smartmart.service.ai.ReorderRecommendationService {
+
+    private static final int MAX_LEAD_TIME_DAYS = 7;
+    private static final int AVG_LEAD_TIME_DAYS = 3;
+    private static final int SALES_WINDOW_DAYS = 30;
 
     private final ReorderRecommendationRepository reorderRepository;
     private final ForecastResultRepository forecastResultRepository;
@@ -48,57 +52,103 @@ public class ReorderRecommendationServiceImpl implements com.smartmart.service.a
         reorderRepository.deleteAll();
         List<ForecastResult> forecasts = forecastResultRepository.findAll();
 
+        Map<Long, BigDecimal> avgDailyByItem = loadAvgDailySales();
+        Map<Long, BigDecimal> maxDailyByItem = loadMaxDailySales();
+
         if (forecasts.isEmpty()) {
-            recomputeFallbackFromSalesAverage();
+            recomputeFallbackFromSalesAverage(avgDailyByItem, maxDailyByItem);
             return;
         }
 
         for (ForecastResult fr : forecasts) {
             BigDecimal pred14 = fr.getPredictedQty14d() != null ? fr.getPredictedQty14d() : BigDecimal.ZERO;
+            BigDecimal pred7 = fr.getPredictedQty7d() != null ? fr.getPredictedQty7d() : pred14;
             saveRecommendation(
                     fr.getItem(),
                     pred14,
+                    pred7,
+                    avgDailyByItem,
+                    maxDailyByItem,
                     "AI",
                     "Calculated from ML forecast (14d demand)"
             );
         }
     }
 
-    private void recomputeFallbackFromSalesAverage() {
-        LocalDateTime since = LocalDateTime.now().minusDays(30);
-        Map<Long, BigDecimal> soldByItem = new HashMap<>();
-        for (Object[] row : orderItemRepository.sumSalesByItemSince(since)) {
-            Long itemId = ((Number) row[0]).longValue();
-            BigDecimal totalSold = BigDecimal.valueOf(((Number) row[1]).doubleValue());
-            soldByItem.put(itemId, totalSold.divide(BigDecimal.valueOf(30), 4, RoundingMode.HALF_UP));
-        }
-
+    private void recomputeFallbackFromSalesAverage(
+            Map<Long, BigDecimal> avgDailyByItem,
+            Map<Long, BigDecimal> maxDailyByItem
+    ) {
         for (Item item : itemRepository.findAll()) {
-            BigDecimal avgDaily = soldByItem.getOrDefault(item.getId(), BigDecimal.ZERO);
+            BigDecimal avgDaily = avgDailyByItem.getOrDefault(item.getId(), BigDecimal.ZERO);
             BigDecimal pred14 = avgDaily.multiply(BigDecimal.valueOf(14));
+            BigDecimal pred7 = avgDaily.multiply(BigDecimal.valueOf(7));
             saveRecommendation(
                     item,
                     pred14,
+                    pred7,
+                    avgDailyByItem,
+                    maxDailyByItem,
                     "FALLBACK",
                     "AI offline - calculated from 30d average (14d demand)"
             );
         }
     }
 
-    private void saveRecommendation(Item item, BigDecimal predictedDemand, String source, String reason) {
+    private Map<Long, BigDecimal> loadAvgDailySales() {
+        LocalDateTime since = LocalDateTime.now().minusDays(SALES_WINDOW_DAYS);
+        Map<Long, BigDecimal> soldByItem = new HashMap<>();
+        for (Object[] row : orderItemRepository.sumSalesByItemSince(since)) {
+            Long itemId = ((Number) row[0]).longValue();
+            BigDecimal totalSold = BigDecimal.valueOf(((Number) row[1]).doubleValue());
+            soldByItem.put(itemId, totalSold.divide(BigDecimal.valueOf(SALES_WINDOW_DAYS), 4, RoundingMode.HALF_UP));
+        }
+        return soldByItem;
+    }
+
+    private Map<Long, BigDecimal> loadMaxDailySales() {
+        LocalDateTime since = LocalDateTime.now().minusDays(SALES_WINDOW_DAYS);
+        Map<Long, BigDecimal> maxByItem = new HashMap<>();
+        for (Object[] row : orderItemRepository.maxDailySalesByItemSince(since)) {
+            maxByItem.put(((Number) row[0]).longValue(), BigDecimal.valueOf(((Number) row[1]).doubleValue()));
+        }
+        return maxByItem;
+    }
+
+    private BigDecimal computeSafetyStock(
+            Long itemId,
+            Map<Long, BigDecimal> avgDailyByItem,
+            Map<Long, BigDecimal> maxDailyByItem
+    ) {
+        BigDecimal avgDaily = avgDailyByItem.getOrDefault(itemId, BigDecimal.ZERO);
+        BigDecimal maxDaily = maxDailyByItem.getOrDefault(itemId, avgDaily);
+        return maxDaily.multiply(BigDecimal.valueOf(MAX_LEAD_TIME_DAYS))
+                .subtract(avgDaily.multiply(BigDecimal.valueOf(AVG_LEAD_TIME_DAYS)))
+                .max(BigDecimal.ZERO);
+    }
+
+    private void saveRecommendation(
+            Item item,
+            BigDecimal predictedDemand14d,
+            BigDecimal predictedDemand7d,
+            Map<Long, BigDecimal> avgDailyByItem,
+            Map<Long, BigDecimal> maxDailyByItem,
+            String source,
+            String reason
+    ) {
         BigDecimal available = currentInventoryRepository.sumAvailableByItemId(item.getId())
                 .orElse(BigDecimal.ZERO);
-        BigDecimal safety = BigDecimal.valueOf(item.getMinimumStock());
-        BigDecimal suggested = predictedDemand.add(safety).subtract(available).max(BigDecimal.ZERO);
+        BigDecimal safety = computeSafetyStock(item.getId(), avgDailyByItem, maxDailyByItem);
+        BigDecimal suggested = predictedDemand14d.add(safety).subtract(available).max(BigDecimal.ZERO);
 
-        String risk = available.compareTo(predictedDemand) < 0 ? "HIGH"
-                : available.compareTo(predictedDemand.add(safety)) < 0 ? "MEDIUM" : "LOW";
+        String risk = available.compareTo(predictedDemand7d) < 0 ? "HIGH"
+                : available.compareTo(predictedDemand7d.add(safety)) < 0 ? "MEDIUM" : "LOW";
 
         reorderRepository.save(ReorderRecommendation.builder()
                 .item(item)
                 .suggestedQty(suggested.setScale(2, RoundingMode.HALF_UP))
                 .currentAvailable(available)
-                .predictedDemand7d(predictedDemand.setScale(2, RoundingMode.HALF_UP))
+                .predictedDemand7d(predictedDemand7d.setScale(2, RoundingMode.HALF_UP))
                 .riskLevel(risk)
                 .source(source)
                 .reason(reason)

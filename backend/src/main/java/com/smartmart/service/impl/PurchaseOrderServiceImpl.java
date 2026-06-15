@@ -48,6 +48,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     private final AuditLogService auditLogService;
     private final ItemLotRepository itemLotRepository;
     private final ItemRepository itemRepository;
+    private final com.smartmart.service.SupplierDebtService supplierDebtService;
 
     public PurchaseOrderServiceImpl(
             PurchaseOrderRepository purchaseOrderRepository,
@@ -60,7 +61,8 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             PurchaseEventPublisher purchaseEventPublisher,
             AuditLogService auditLogService,
             ItemLotRepository itemLotRepository,
-            ItemRepository itemRepository) {
+            ItemRepository itemRepository,
+            com.smartmart.service.SupplierDebtService supplierDebtService) {
         this.purchaseOrderRepository = purchaseOrderRepository;
         this.supplierRepository = supplierRepository;
         this.locationRepository = locationRepository;
@@ -72,6 +74,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         this.auditLogService = auditLogService;
         this.itemLotRepository = itemLotRepository;
         this.itemRepository = itemRepository;
+        this.supplierDebtService = supplierDebtService;
     }
 
     @Override
@@ -95,6 +98,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                 .status(PurchaseStatus.PENDING)
                 .purchaseDate(LocalDateTime.now())
                 .totalAmount(BigDecimal.ZERO)
+                .paymentDeferred(Boolean.TRUE.equals(request.getPaymentDeferred()))
                 .build();
 
         PurchaseOrder savedPo = purchaseOrderRepository.save(po);
@@ -229,6 +233,9 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                         "completedAt", po.getCompletedAt()
                 )
         );
+        if (po.isPaymentDeferred()) {
+            supplierDebtService.createFromPurchaseOrder(po.getId(), LocalDate.now().plusDays(30));
+        }
         purchaseEventPublisher.publishPurchaseReceived(po.getId());
 
         return toResponse(po);

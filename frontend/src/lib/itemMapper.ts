@@ -1,4 +1,4 @@
-import type { ItemDto } from '../types/api';
+import type { ItemDto } from '@/types/api';
 
 export type Product = {
   key: string;

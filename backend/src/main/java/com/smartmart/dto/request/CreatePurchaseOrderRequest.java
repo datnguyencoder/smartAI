@@ -15,6 +15,7 @@ public class CreatePurchaseOrderRequest {
     private Long supplierId;
     @NotNull
     private Long locationId;
+    private Boolean paymentDeferred;
     @NotEmpty
     @Valid
     private List<PurchaseLineRequest> items;

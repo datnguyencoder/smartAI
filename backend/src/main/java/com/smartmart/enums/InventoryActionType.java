@@ -8,5 +8,8 @@ public enum InventoryActionType {
     SCRAP_PENDING,
     SCRAP_COMPLETED,
     SCRAP_CANCELLED,
-    ADJUSTMENT
+    ADJUSTMENT,
+    TRANSFER_OUT,
+    TRANSFER_IN,
+    SALE_RETURN
 }

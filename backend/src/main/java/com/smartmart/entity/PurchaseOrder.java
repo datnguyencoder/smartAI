@@ -43,6 +43,10 @@ public class PurchaseOrder extends LongAuditableEntity {
     @Column(name = "total_amount", nullable = false)
     private BigDecimal totalAmount;
 
+    @Column(name = "payment_deferred", nullable = false)
+    @Builder.Default
+    private boolean paymentDeferred = false;
+
     @OneToMany(mappedBy = "purchaseOrder", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<PurchaseOrderItem> items = new ArrayList<>();

@@ -59,4 +59,16 @@ public interface InventoryLedgerService {
     );
 
     void deleteLogsByReference(ReferenceType refType, Long refId);
+
+    void applyTransfer(
+            Item item,
+            ItemLot lot,
+            Location fromLocation,
+            Location toLocation,
+            BigDecimal quantity,
+            ReferenceType referenceType,
+            Long referenceId,
+            Long userId,
+            String note
+    );
 }
