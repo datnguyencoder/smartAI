@@ -3,9 +3,9 @@ import {
   getAccessToken,
   getRefreshToken,
   updateTokens,
-} from '../lib/authSession';
-import { mapErrorCode } from '../lib/errorMessages';
-import type { ApiEnvelope, AuthDto } from '../types/api';
+} from '@/lib/authSession';
+import { mapErrorCode } from '@/lib/errorMessages';
+import type { ApiEnvelope, AuthDto } from '@/types/api';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8080';
 

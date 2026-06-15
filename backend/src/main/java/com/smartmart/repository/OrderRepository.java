@@ -60,6 +60,8 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         SELECT o FROM Order o
         LEFT JOIN FETCH o.items oi
         LEFT JOIN FETCH oi.item
+        LEFT JOIN FETCH oi.lot
+        LEFT JOIN FETCH oi.location
         WHERE o.id = :id
         """)
     Optional<Order> findByIdWithItems(Long id);
@@ -154,5 +156,14 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         LIMIT 5
         """, nativeQuery = true)
     List<Object[]> reportTopProducts(LocalDateTime from, LocalDateTime to);
+
+    List<Order> findByShiftId(Long shiftId);
+
+    @Query("""
+        SELECT o FROM Order o
+        LEFT JOIN FETCH o.payments
+        WHERE o.shift.id = :shiftId AND o.status = com.smartmart.enums.OrderStatus.COMPLETED
+        """)
+    List<Order> findCompletedByShiftId(@Param("shiftId") Long shiftId);
 }
 

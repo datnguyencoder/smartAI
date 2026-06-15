@@ -16,6 +16,9 @@ public class CreateOrderRequest {
     private String promotionCode;
     private PaymentMethod paymentMethod;
     private String note;
+    private Integer loyaltyPointsRedeemed;
+    @Valid
+    private List<OrderPaymentRequest> payments;
     @NotEmpty
     @Valid
     private List<OrderLineRequest> items;

@@ -1,4 +1,4 @@
-import type { PageKey } from '../types/pages';
+import type { PageKey } from '@/types/pages';
 
 export type AppRole = 'ROLE_ADMIN' | 'ROLE_MANAGER' | 'ROLE_STAFF' | 'ROLE_WAREHOUSE' | string;
 
@@ -27,6 +27,10 @@ const ALL_PAGES: PageKey[] = [
   'settings',
   'scrap-orders',
   'scrap-create',
+  'stocktake',
+  'transfer-orders',
+  'shifts',
+  'item-lots',
   'audit-logs',
 ];
 
@@ -34,7 +38,7 @@ const ALL_PAGES: PageKey[] = [
 const ROLE_PAGES: Record<string, PageKey[]> = {
   ROLE_ADMIN: ALL_PAGES,
   ROLE_MANAGER: ALL_PAGES.filter((p) => p !== 'users' && p !== 'settings' && p !== 'audit-logs'),
-  ROLE_STAFF: ['dashboard', 'products', 'pos', 'customers', 'invoices', 'inventory-alerts'],
+  ROLE_STAFF: ['dashboard', 'products', 'pos', 'customers', 'invoices', 'inventory-alerts', 'shifts'],
   ROLE_WAREHOUSE: [
     'products',
     'categories',
@@ -49,7 +53,11 @@ const ROLE_PAGES: Record<string, PageKey[]> = {
     'expiry-risk',
     'scrap-orders',
     'scrap-create',
+    'stocktake',
+    'transfer-orders',
+    'item-lots',
   ],
+  ROLE_ANALYST: ['dashboard', 'reports', 'ai-forecast', 'purchase-suggestions', 'expiry-risk', 'ai-assistant'],
 };
 
 const QUICK_CREATE_PAGES: Partial<Record<PageKey, string[]>> = {
@@ -102,6 +110,8 @@ export function roleLabel(role?: string): string {
       return 'Quản lý';
     case 'ROLE_WAREHOUSE':
       return 'Kho';
+    case 'ROLE_ANALYST':
+      return 'Phân tích';
     default:
       return 'Thu ngân';
   }

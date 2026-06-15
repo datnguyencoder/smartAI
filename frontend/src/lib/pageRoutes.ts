@@ -1,4 +1,4 @@
-import type { PageKey } from '../types/pages';
+import type { PageKey } from '@/types/pages';
 
 export const PAGE_PATHS: Record<PageKey, string> = {
   dashboard: '/',
@@ -25,6 +25,10 @@ export const PAGE_PATHS: Record<PageKey, string> = {
   settings: '/settings',
   'scrap-create': '/scrap-orders/create',
   'scrap-orders': '/scrap-orders',
+  stocktake: '/stocktake',
+  'transfer-orders': '/transfer-orders',
+  shifts: '/shifts',
+  'item-lots': '/item-lots',
   'audit-logs': '/audit-logs'
 };
 

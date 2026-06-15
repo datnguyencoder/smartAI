@@ -56,7 +56,6 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = "items", key = "'all:' + (#search == null ? '' : #search) + ':' + (#categoryId == null ? '' : #categoryId) + ':' + (#active == null ? '' : #active)")
     public List<ItemResponse> listAll(String search, Long categoryId, Boolean active) {
         String q = (search == null || search.isBlank()) ? "" : search.trim();
         List<Item> items = itemRepository.searchFiltered(q, categoryId, active);
@@ -65,7 +64,6 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = "itemsPage", key = "'p:' + #pageable.pageNumber + ':' + #pageable.pageSize + ':' + (#search == null ? '' : #search) + ':' + (#categoryId == null ? '' : #categoryId) + ':' + (#active == null ? '' : #active)")
     public PageResponse<ItemResponse> listPaged(String search, Long categoryId, Boolean active, Pageable pageable) {
         String q = (search == null || search.isBlank()) ? "" : search.trim();
         Page<Item> page = itemRepository.searchFilteredPaged(q, categoryId, active, pageable);

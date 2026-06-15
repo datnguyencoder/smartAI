@@ -179,10 +179,22 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
         List<ForecastItemDetailResponse.DailyPoint> series = forecastDailyPointRepository
                 .findByForecastResultIdOrderByPointDateAsc(fr.getId())
                 .stream()
-                .map(dp -> ForecastItemDetailResponse.DailyPoint.builder()
-                        .date(dp.getPointDate().toString())
-                        .predictedQty(dp.getPredictedQty())
-                        .build())
+                .map(dp -> {
+                    BigDecimal qty = dp.getPredictedQty();
+                    BigDecimal ratio = fr.getPredictedQty30d() != null && fr.getPredictedQty30d().compareTo(BigDecimal.ZERO) > 0
+                            ? qty.divide(fr.getPredictedQty30d(), 6, java.math.RoundingMode.HALF_UP)
+                            : BigDecimal.ONE;
+                    BigDecimal low = fr.getConfidenceLow() != null
+                            ? fr.getConfidenceLow().multiply(ratio) : qty;
+                    BigDecimal high = fr.getConfidenceHigh() != null
+                            ? fr.getConfidenceHigh().multiply(ratio) : qty;
+                    return ForecastItemDetailResponse.DailyPoint.builder()
+                            .date(dp.getPointDate().toString())
+                            .predictedQty(qty)
+                            .confidenceLow(low)
+                            .confidenceHigh(high)
+                            .build();
+                })
                 .toList();
 
         return ForecastItemDetailResponse.builder()
@@ -193,6 +205,8 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
                 .pred30d(fr.getPredictedQty30d())
                 .modelType(fr.getModelType())
                 .forecastDate(fr.getForecastDate())
+                .confidenceLow(fr.getConfidenceLow())
+                .confidenceHigh(fr.getConfidenceHigh())
                 .dailySeries(series)
                 .build();
     }

@@ -1,7 +1,7 @@
 import * as React from 'react';
-import { clearSession, getAccessToken, getRefreshToken, loadStoredUser, persistSession } from '../lib/authSession';
-import { fetchMe, login as loginApi, logout as logoutApi } from '../services/wmsApi';
-import type { UserDto } from '../types/api';
+import { clearSession, getAccessToken, getRefreshToken, loadStoredUser, persistSession } from '@/lib/authSession';
+import { fetchMe, login as loginApi, logout as logoutApi } from '@/services/wmsApi';
+import type { UserDto } from '@/types/api';
 
 type AuthContextValue = {
   authUser: UserDto | null;
@@ -26,9 +26,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     fetchMe()
       .then((user) => {
-        const cleanUser = { ...user, role: user.role?.replace('ROLE_', '') || user.role } as UserDto;
-        setAuthUser(cleanUser);
-        localStorage.setItem('smartmart_user', JSON.stringify(cleanUser));
+        setAuthUser(user);
+        localStorage.setItem('smartmart_user', JSON.stringify(user));
       })
       .catch(() => {
         clearSession();

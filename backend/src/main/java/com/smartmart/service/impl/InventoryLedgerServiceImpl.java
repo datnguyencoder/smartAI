@@ -265,4 +265,27 @@ public class InventoryLedgerServiceImpl implements com.smartmart.service.Invento
     public void deleteLogsByReference(ReferenceType refType, Long refId) {
         inventoryLogRepository.deleteByReferenceTypeAndReferenceId(refType, refId);
     }
+
+    @Override
+    @Transactional
+    public void applyTransfer(
+            Item item,
+            ItemLot lot,
+            Location fromLocation,
+            Location toLocation,
+            BigDecimal quantity,
+            ReferenceType referenceType,
+            Long referenceId,
+            Long userId,
+            String note
+    ) {
+        applyMovement(
+                item, fromLocation, lot, quantity.negate(),
+                InventoryActionType.TRANSFER_OUT, referenceType, referenceId, userId, note
+        );
+        applyMovement(
+                item, toLocation, lot, quantity,
+                InventoryActionType.TRANSFER_IN, referenceType, referenceId, userId, note
+        );
+    }
 }

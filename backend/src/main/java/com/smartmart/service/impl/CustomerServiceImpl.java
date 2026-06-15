@@ -170,6 +170,26 @@ public class CustomerServiceImpl implements CustomerService {
         );
     }
 
+    @Override
+    public BigDecimal redeemPoints(Long customerId, int pointsToRedeem) {
+        if (customerId == null || pointsToRedeem <= 0) {
+            return BigDecimal.ZERO;
+        }
+        Customer customer = findCustomer(customerId);
+        if (customer.getLoyaltyPoints() < pointsToRedeem) {
+            throw new BadRequestException("Khách hàng không đủ điểm để đổi");
+        }
+        int redeemRate = settingService.getIntValue("LOYALTY_REDEEM_RATE", 1);
+        if (redeemRate <= 0) {
+            redeemRate = 1;
+        }
+        BigDecimal discount = BigDecimal.valueOf((long) pointsToRedeem * redeemRate);
+        customer.setLoyaltyPoints(customer.getLoyaltyPoints() - pointsToRedeem);
+        customer.setTier(resolveTier(customer.getLoyaltyPoints()));
+        customerRepository.save(customer);
+        return discount;
+    }
+
     private Customer findCustomer(Long id) {
         return customerRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy khách hàng"));

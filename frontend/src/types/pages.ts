@@ -23,4 +23,8 @@ export type PageKey =
   | 'settings'
   | 'scrap-create'
   | 'scrap-orders'
+  | 'stocktake'
+  | 'transfer-orders'
+  | 'shifts'
+  | 'item-lots'
   | 'audit-logs';

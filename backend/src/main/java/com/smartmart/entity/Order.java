@@ -41,6 +41,7 @@ public class Order extends LongAuditableEntity {
     private Promotion promotion;
 
     @Column(name = "discount_amount", nullable = false)
+    @Builder.Default
     private BigDecimal discountAmount = BigDecimal.ZERO;
 
     @Column(name = "order_date", nullable = false)
@@ -57,7 +58,19 @@ public class Order extends LongAuditableEntity {
     @Column(name = "payment_method")
     private PaymentMethod paymentMethod;
 
+    @Column(name = "loyalty_points_redeemed", nullable = false)
+    @Builder.Default
+    private Integer loyaltyPointsRedeemed = 0;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "shift_id")
+    private Shift shift;
+
     private String note;
+
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<OrderPayment> payments = new ArrayList<>();
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

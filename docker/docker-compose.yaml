@@ -11,6 +11,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-smartmart_admin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-SuperSecurePassword2026}
     ports:
+      # Host 5433 avoids conflict with local Postgres on 5432
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -102,7 +103,7 @@ services:
       - JWT_SECRET=${JWT_SECRET:-9a78a63584828f73b889312c1c38d6f5e8e89f81a7b8e910a11c12d13e14f15a}
       # Spring configurations
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
-      - SPRING_CACHE_TYPE=simple
+      - SPRING_CACHE_TYPE=redis
       # AI service (Docker internal DNS)
       - AI_SERVICE_URL=http://ai-service:8000
     depends_on:
@@ -161,10 +162,14 @@ services:
     build:
       context: ../frontend
       dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
     container_name: smartmart_frontend
     restart: always
     ports:
       - "5173:5173"
+    environment:
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:8080}
     depends_on:
       backend:
         condition: service_healthy

@@ -1,5 +1,6 @@
 package com.smartmart.service;
 
+import com.smartmart.dto.response.InventoryResponse;
 import com.smartmart.entity.CurrentInventory;
 import com.smartmart.entity.InventoryLog;
 import com.smartmart.enums.InventoryActionType;
@@ -15,6 +16,8 @@ public interface InventoryQueryService {
     List<CurrentInventory> lowStock();
 
     List<CurrentInventory> nearExpiry();
+
+    List<InventoryResponse> nearExpiryWithRisk();
 
     Page<InventoryLog> logs(Long itemId, Pageable pageable);
 

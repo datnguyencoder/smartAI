@@ -5,8 +5,10 @@ import com.smartmart.dto.response.PromotionRecommendationResponse;
 import com.smartmart.dto.response.PromotionResponse;
 import com.smartmart.entity.Item;
 import com.smartmart.entity.PromotionRecommendation;
+import com.smartmart.enums.AlertType;
 import com.smartmart.exception.BadRequestException;
 import com.smartmart.exception.NotFoundException;
+import com.smartmart.repository.InventoryAlertRepository;
 import com.smartmart.repository.ItemRepository;
 import com.smartmart.repository.PromotionRecommendationRepository;
 import com.smartmart.service.AuditLogService;
@@ -29,17 +31,20 @@ public class PromotionRecommendationServiceImpl implements PromotionRecommendati
 
     private final PromotionRecommendationRepository promotionRepository;
     private final ItemRepository itemRepository;
+    private final InventoryAlertRepository inventoryAlertRepository;
     private final AuditLogService auditLogService;
     private final PromotionService promotionService;
 
     public PromotionRecommendationServiceImpl(
             PromotionRecommendationRepository promotionRepository,
             ItemRepository itemRepository,
+            InventoryAlertRepository inventoryAlertRepository,
             AuditLogService auditLogService,
             PromotionService promotionService
     ) {
         this.promotionRepository = promotionRepository;
         this.itemRepository = itemRepository;
+        this.inventoryAlertRepository = inventoryAlertRepository;
         this.auditLogService = auditLogService;
         this.promotionService = promotionService;
     }
@@ -48,6 +53,12 @@ public class PromotionRecommendationServiceImpl implements PromotionRecommendati
     public PromotionRecommendation saveSuggestion(Long itemId, String geminiText) {
         Item item = itemRepository.findById(itemId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy sản phẩm"));
+
+        if (inventoryAlertRepository.existsByItemIdAndAlertTypeInAndResolvedFalse(
+                itemId, List.of(AlertType.LOW_STOCK.name(), AlertType.HIGH_RISK.name()))) {
+            throw new BadRequestException(
+                    "Không thể đề xuất KM cho sản phẩm đang LOW_STOCK hoặc HIGH_RISK (PROMO-04)");
+        }
 
         BigDecimal discount = extractDiscount(geminiText);
         String reason = geminiText != null && geminiText.length() > 500

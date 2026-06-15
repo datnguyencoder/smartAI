@@ -25,7 +25,6 @@ import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
-// Seed lịch sử bán UCI vào orders (không trừ tồn) — phục vụ train AI
 @Component
 @Profile({"local", "prod"})
 @org.springframework.core.annotation.Order(2)
@@ -34,7 +33,6 @@ public class RetailSalesHistorySeeder implements CommandLineRunner {
     private static final Logger log = LoggerFactory.getLogger(RetailSalesHistorySeeder.class);
     private static final String DEFAULT_CSV = "data/retail/uci_online_retail_daily.csv";
     private static final String ORDER_PREFIX = "RETAIL-";
-    /** Ngày cuối trong file UCI — dùng để map lịch sử 2011 vào cửa sổ gần hiện tại cho AI train. */
     private static final LocalDate CSV_DATA_END = LocalDate.of(2011, 12, 10);
 
     private final OrderRepository orderRepository;
@@ -123,6 +121,7 @@ public class RetailSalesHistorySeeder implements CommandLineRunner {
                             .status(OrderStatus.COMPLETED)
                             .paymentMethod(PaymentMethod.CASH)
                             .note("Imported from " + cols.get(0).trim())
+                            .discountAmount(BigDecimal.ZERO)
                             .totalAmount(BigDecimal.ZERO)
                             .build();
                     return orderRepository.save(o);

@@ -71,7 +71,7 @@ export type OrderDto = {
   status: string;
   totalAmount: number;
   paymentMethod?: string;
-  items?: Array<{ itemName: string; quantity: number; unitPrice: number }>;
+  items?: Array<{ itemId?: number; itemName: string; quantity: number; unitPrice: number }>;
 };
 
 export type CustomerDto = {
@@ -112,7 +112,7 @@ export type SettingDto = {
   description?: string;
 };
 
-export type ForecastDailyPointDto = { date: string; predictedQty: number };
+export type ForecastDailyPointDto = { date: string; predictedQty: number; confidenceLow?: number; confidenceHigh?: number };
 
 export type ForecastItemDetailDto = {
   itemId: number;
@@ -122,6 +122,8 @@ export type ForecastItemDetailDto = {
   pred30d: number;
   modelType?: string;
   forecastDate?: string;
+  confidenceLow?: number;
+  confidenceHigh?: number;
   dailySeries: ForecastDailyPointDto[];
 };
 
@@ -188,6 +190,17 @@ export type InventoryItemDto = {
   quantity: number;
   reservedQuantity: number;
   availableQuantity: number;
+  daysUntilExpiry?: number;
+  riskQuantity?: number;
+};
+
+export type ItemLotDto = {
+  id: number;
+  itemId: number;
+  itemName: string;
+  lotNumber: string;
+  expiryDate?: string;
+  createdAt: string;
 };
 
 export type InventoryAlertDto = {
@@ -219,6 +232,7 @@ export type DashboardSummaryDto = {
   todayRevenue?: number;
   todayOrders?: number;
   lowStockCount?: number;
+  nearExpiryCount?: number;
   activeAlerts?: number;
   [key: string]: unknown;
 };
@@ -360,5 +374,114 @@ export type ScrapOrderDto = {
   status: 'PENDING' | 'COMPLETED' | 'CANCELLED';
   note?: string;
   items: ScrapOrderItemDto[];
+};
+
+export type StocktakeItemDto = {
+  itemId: number;
+  itemName: string;
+  itemCode: string;
+  lotId?: number;
+  lotNumber?: string;
+  systemQuantity: number;
+  actualQuantity?: number;
+  variance?: number;
+  note?: string;
+};
+
+export type StocktakeDto = {
+  id: number;
+  locationId: number;
+  locationName: string;
+  createdBy?: number;
+  stocktakeDate: string;
+  status: 'DRAFT' | 'CONFIRMED' | 'CANCELLED';
+  note?: string;
+  confirmedAt?: string;
+  items: StocktakeItemDto[];
+};
+
+export type TransferOrderItemDto = {
+  itemId: number;
+  itemName: string;
+  lotId?: number;
+  lotNumber?: string;
+  quantity: number;
+  note?: string;
+};
+
+export type TransferOrderDto = {
+  id: number;
+  fromLocationId: number;
+  fromLocationName: string;
+  toLocationId: number;
+  toLocationName: string;
+  createdBy?: number;
+  transferDate: string;
+  status: 'PENDING' | 'COMPLETED' | 'CANCELLED';
+  note?: string;
+  completedAt?: string;
+  items: TransferOrderItemDto[];
+};
+
+export type ReturnOrderItemDto = {
+  itemId: number;
+  itemName: string;
+  lotId?: number;
+  lotNumber?: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+};
+
+export type ReturnOrderDto = {
+  id: number;
+  originalOrderId: number;
+  originalOrderCode: string;
+  createdBy?: number;
+  returnDate: string;
+  status: string;
+  reason?: string;
+  refundAmount: number;
+  note?: string;
+  items: ReturnOrderItemDto[];
+};
+
+export type ShiftDto = {
+  id: number;
+  cashierId: number;
+  cashierName?: string;
+  openedAt: string;
+  closedAt?: string;
+  openingCash: number;
+  closingCash?: number;
+  expectedCash?: number;
+  cashVariance?: number;
+  totalOrders: number;
+  totalRevenue: number;
+  status: 'OPEN' | 'CLOSED';
+  note?: string;
+};
+
+export type DebtPaymentDto = {
+  id: number;
+  amount: number;
+  paymentDate: string;
+  paymentMethod?: string;
+  note?: string;
+  createdBy?: number;
+};
+
+export type SupplierDebtDto = {
+  id: number;
+  supplierId: number;
+  supplierName: string;
+  purchaseOrderId?: number;
+  amount: number;
+  paidAmount: number;
+  remainingAmount: number;
+  dueDate?: string;
+  status: 'UNPAID' | 'PARTIAL' | 'PAID';
+  note?: string;
+  payments?: DebtPaymentDto[];
 };
 

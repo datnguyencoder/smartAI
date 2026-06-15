@@ -23,5 +23,7 @@ public class OrderResponse {
     private OrderStatus status;
     private BigDecimal totalAmount;
     private PaymentMethod paymentMethod;
+    private Integer loyaltyPointsRedeemed;
+    private List<OrderPaymentResponse> payments;
     private List<OrderItemResponse> items;
 }
