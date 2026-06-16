@@ -21,4 +21,12 @@ public interface AuditLogService {
     PageResponse<AuditLogResponse> listByAction(String action, int page, int size);
 
     List<String> listActions(String entityType);
+
+    PageResponse<AuditLogResponse> search(
+            String entityType,
+            String action,
+            String username,
+            int page,
+            int size
+    );
 }

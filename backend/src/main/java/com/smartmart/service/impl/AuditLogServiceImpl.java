@@ -8,6 +8,8 @@ import com.smartmart.repository.AuditLogRepository;
 import com.smartmart.repository.UserRepository;
 import com.smartmart.security.SecurityUtils;
 import com.smartmart.service.AuditLogService;
+import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Predicate;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -16,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -123,6 +126,49 @@ public class AuditLogServiceImpl implements AuditLogService {
     public List<String> listActions(String entityType) {
         String type = entityType == null || entityType.isBlank() ? null : entityType.trim();
         return auditLogRepository.findDistinctActions(type);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<AuditLogResponse> search(
+            String entityType,
+            String action,
+            String username,
+            int page,
+            int size
+    ) {
+        String type = entityType == null || entityType.isBlank() ? null : entityType.trim();
+        String act = action == null || action.isBlank() ? null : action.trim();
+        String userKeyword = username == null || username.isBlank() ? null : username.trim().toLowerCase();
+
+        Page<AuditLog> auditLogs = auditLogRepository.findAll((root, query, cb) -> {
+            if (query.getResultType() != Long.class && query.getResultType() != long.class) {
+                root.fetch("user", JoinType.LEFT);
+                query.distinct(true);
+            }
+
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (type != null) {
+                predicates.add(cb.equal(root.get("entityType"), type));
+            }
+
+            if (act != null) {
+                predicates.add(cb.equal(root.get("action"), act));
+            }
+
+            if (userKeyword != null) {
+                var userJoin = root.join("user", JoinType.LEFT);
+                predicates.add(cb.like(cb.lower(userJoin.get("username")), "%" + userKeyword + "%"));
+            }
+
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        }, PageRequest.of(page, size));
+
+        return PageResponse.of(
+                auditLogs,
+                auditLogs.getContent().stream().map(this::toResponse).toList()
+        );
     }
 
     private AuditLogResponse toResponse(AuditLog auditLog) {

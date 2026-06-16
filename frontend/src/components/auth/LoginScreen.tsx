@@ -37,12 +37,20 @@ export function LoginScreen({ onSuccess }: Props) {
           </div>
         </div>
         <Form layout="vertical" onFinish={handleFinish}>
-          <Form.Item name="username" label="Tài khoản" rules={[{ required: true }]}>
+          <Form.Item
+            name="username"
+            label="Tài khoản"
+            rules={[{ required: true, message: 'Vui lòng nhập tài khoản' }]}
+          >
             <Input size="large" />
           </Form.Item>
-          <Form.Item name="password" label="Mật khẩu" rules={[{ required: true }]}>
-            <Input.Password size="large" />
-          </Form.Item>
+          <Form.Item
+            name="password"
+            label="Mật khẩu"
+            rules={[{ required: true, message: 'Vui lòng nhập mật khẩu' }]}
+          >
+    <Input.Password size="large" />
+  </Form.Item>
           <Button type="primary" htmlType="submit" loading={loading} block size="large" className="!bg-[#006c49]">
             Đăng nhập
           </Button>

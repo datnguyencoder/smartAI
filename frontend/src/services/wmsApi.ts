@@ -713,3 +713,24 @@ export function fetchItemLots(itemId?: number, lotNumber?: string) {
 export function fetchItemLotById(id: number) {
   return apiRequest<import('@/types/api').ItemLotDto>(`/api/v1/item-lots/${id}`);
 }
+
+export function searchAuditLogs(params: {
+  entityType?: string;
+  action?: string;
+  username?: string;
+  page?: number;
+  size?: number;
+}) {
+  const query = new URLSearchParams();
+
+  query.set('page', String(params.page ?? 0));
+  query.set('size', String(params.size ?? 10));
+
+  if (params.entityType) query.set('entityType', params.entityType);
+  if (params.action) query.set('action', params.action);
+  if (params.username?.trim()) query.set('username', params.username.trim());
+
+  return apiRequest<PageResponseDto<AuditLogDto>>(
+    `/api/v1/audit-logs/search?${query}`
+  );
+}
