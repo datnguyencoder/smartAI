@@ -98,4 +98,19 @@ public class AuditLogController {
         return ResponseEntity.ok(ApiResponse.success(auditLogService.listActions(entityType)));
     }
 
+    @GetMapping("/search")
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    @Operation(summary = "Lọc audit log theo phân hệ, hành động và người thao tác")
+    public ResponseEntity<ApiResponse<PageResponse<AuditLogResponse>>> search(
+            @RequestParam(required = false) String entityType,
+            @RequestParam(required = false) String action,
+            @RequestParam(required = false) String username,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(
+                auditLogService.search(entityType, action, username, page, size)
+        ));
+    }
+
 }

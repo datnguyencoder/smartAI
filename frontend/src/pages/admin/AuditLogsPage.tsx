@@ -4,10 +4,7 @@ import * as React from 'react';
 import { Card } from '@/components/ui';
 import {
   fetchAuditLogActions,
-  fetchAuditLogs,
-  fetchAuditLogsByAction,
-  fetchAuditLogsByEntity,
-  fetchAuditLogsByUsername,
+  searchAuditLogs,
 } from '@/services/wmsApi';
 import type { AuditLogDto } from '@/types/api';
 import {
@@ -30,31 +27,21 @@ export default function AuditLogsPage() {
   const [actionOptions, setActionOptions] = React.useState<string[]>([]);
 
   React.useEffect(() => {
-    if (!entityType) {
-      setActionOptions([]);
-      return;
-    }
-
-    fetchAuditLogActions(entityType)
-      .then(setActionOptions)
-      .catch(() => setActionOptions([]));
-  }, [entityType]);
+  fetchAuditLogActions(entityType)
+    .then(setActionOptions)
+    .catch(() => setActionOptions([]));
+}, [entityType]);
 
   const loadLogs = React.useCallback(async () => {
     setLoading(true);
     try {
-      let res;
-
-      if (action) {
-        res = await fetchAuditLogsByAction(action, page, size);
-      } else if (entityType) {
-        res = await fetchAuditLogsByEntity(entityType, undefined, page, size);
-      } else if (username) {
-        res = await fetchAuditLogsByUsername(username, page, size);
-      } else {
-        res = await fetchAuditLogs(page, size);
-      }
-
+      const res = await searchAuditLogs({
+        entityType,
+        action,
+        username,
+        page,
+        size,
+  });
       setLogs(res.content);
       setTotal(res.totalElements);
     } catch (e) {
@@ -147,7 +134,6 @@ export default function AuditLogsPage() {
           showSearch
           placeholder="Hành động"
           value={action}
-          disabled={!entityType}
           optionFilterProp="label"
           onChange={(value) => {
             setAction(value);
