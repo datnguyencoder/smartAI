@@ -19,6 +19,10 @@ public class ShiftResponse {
     private BigDecimal closingCash;
     private BigDecimal expectedCash;
     private BigDecimal cashVariance;
+    private String varianceReason;
+    private Long reviewedBy;
+    private LocalDateTime reviewedAt;
+    private String reviewNote;
     private Integer totalOrders;
     private BigDecimal totalRevenue;
     private ShiftStatus status;

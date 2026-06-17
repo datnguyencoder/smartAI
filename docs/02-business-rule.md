@@ -37,7 +37,7 @@
 *   **SYS-07: Rollback tự động khi lỗi:** Nếu bất kỳ bước nào trong Transaction bị lỗi (ví dụ: trừ kho lỗi, không lưu được chi tiết hóa đơn), toàn bộ Transaction phải được rollback ngay lập tức để tránh tình trạng sai lệch dữ liệu.
 *   **SYS-08: Ghi nhật ký vận hành (Audit Log):** Mọi thao tác làm thay đổi dữ liệu cốt lõi (thay đổi giá bán sản phẩm, duyệt khuyến mãi, khóa tài khoản, tạo phiếu nhập) bắt buộc phải ghi lại Audit Log với thông tin: Actor, Hành động, Thời gian và Dữ liệu trước/sau khi thay đổi.
 *   **SYS-09: Xác thực dữ liệu hai lớp (Double Validation):** Dữ liệu đầu vào phải được kiểm tra (Validate) nghiêm ngặt tại cả Frontend (để tối ưu UX) và Backend (để đảm bảo an ninh, tránh bypass API).
-*   **SYS-10: Cơ chế cô lập lỗi AI (AI Isolation):** Nếu FastAPI AI Service hoặc Gemini API bị lỗi, toàn bộ các chức năng cốt lõi của siêu thị (Bán hàng POS, Nhập kho, Quản lý tồn kho) phải hoạt động bình thường mà không bị gián đoạn.
+*   **SYS-10: Cơ chế cô lập lỗi AI (AI Isolation):** Nếu FastAPI AI Service hoặc Gemini API bị lỗi, toàn bộ các chức năng cốt lõi của siêu thị (Bán hàng POS, Nhập kho, Quản lý tồn kho) phải hoạt động bình thường mà không bị gián đoạn. Riêng gợi ý nhập hàng phải fallback về công thức trung bình bán 30 ngày.
 
 ---
 
@@ -87,7 +87,7 @@ sequenceDiagram
     activate BE
     BE->>DB: Bắt đầu Transaction
     BE->>DB: Kiểm tra sản phẩm (Tồn tại, ACTIVE, Chưa hết hạn)
-    BE->>Led: allocateFefo + kiểm tra available >= quantity
+    BE->>Led: allocateFefo tại "Kho bán" + kiểm tra available >= quantity
     
     alt Kho không đủ hàng
         BE->>DB: Rollback Transaction
@@ -113,8 +113,17 @@ sequenceDiagram
 *   **SALE-02:** Hệ thống từ chối bán các sản phẩm có trạng thái `INACTIVE` hoặc sản phẩm đã vượt quá hạn sử dụng (`expiryDate < today`).
 *   **SALE-03:** Giá bán của sản phẩm trong hóa đơn được chốt cố định tại thời điểm tạo hóa đơn, không thay đổi theo biến động giá niêm yết sau này.
 *   **SALE-04:** Sau khi giao dịch bán hàng thành công, hệ thống phải publish ngay một sự kiện Kafka bất đồng bộ để kiểm tra xem sản phẩm có rơi vào trạng thái cần cảnh báo tồn kho hay không.
+*   **SALE-05:** POS phase 1 chỉ được trừ tồn từ location **"Kho bán"**. Hàng ở kho tổng phải được chuyển sang "Kho bán" bằng phiếu chuyển kho trước khi bán.
 
 ---
+
+### 4.1. Quy trình Ca bán & Đối soát tiền
+
+*   **SHIFT-01:** Thu ngân phải mở ca trước khi bán để đơn hàng được gắn `shiftId`; mỗi thu ngân chỉ có tối đa 1 ca `OPEN`.
+*   **SHIFT-02:** Tiền mặt kỳ vọng cuối ca = `openingCash + tổng thanh toán CASH trong ca`.
+*   **SHIFT-03:** Khi đóng ca, nếu `closingCash` lệch `expectedCash` từ 0.01 VND trở lên, nhân viên bắt buộc nhập `varianceReason`.
+*   **SHIFT-04:** Ca lệch tiền không được đóng thẳng; trạng thái chuyển sang `PENDING_REVIEW` để Admin/Manager duyệt đối soát.
+*   **SHIFT-05:** Sau khi Admin/Manager duyệt, ca chuyển sang `CLOSED`, lưu `reviewedBy`, `reviewedAt`, `reviewNote` và audit log.
 
 ### 5. Quy trình Nhập kho (Purchase Order Workflow)
 
@@ -153,6 +162,14 @@ sequenceDiagram
 *   **PUR-02:** Giá trị nhập kho (`importPrice`) của sản phẩm phải là số dương lớn hơn 0.
 *   **PUR-03:** Đối với các sản phẩm có thuộc tính quản lý hạn sử dụng (`hasExpiry = true`), người dùng bắt buộc phải điền hạn sử dụng (`expiryDate`) cho lô hàng nhập. Hạn sử dụng bắt buộc phải lớn hơn ngày hiện tại (`expiryDate > today`).
 *   **PUR-04:** Sau khi hoàn tất nhập kho, hệ thống tự động ghi nhận luồng biến động kho tăng tương ứng và tính toán lại giá nhập trung bình của sản phẩm để cập nhật Master Data.
+*   **PUR-05:** Nếu phiếu nhập có `paymentDeferred = true`, khi nhận hàng thành công hệ thống tự động sinh công nợ nhà cung cấp với hạn thanh toán mặc định 30 ngày.
+
+#### Quy tắc Công nợ Nhà cung cấp
+*   **DEBT-01:** Một phiếu nhập chỉ được sinh tối đa một công nợ.
+*   **DEBT-02:** Trạng thái công nợ gồm `UNPAID`, `PARTIAL`, `OVERDUE`, `PAID`.
+*   **DEBT-03:** Công nợ chưa thanh toán đủ và có `dueDate < today` tự động chuyển sang `OVERDUE` khi truy vấn.
+*   **DEBT-04:** Thanh toán công nợ phải là số dương và không được vượt quá số tiền còn lại.
+*   **DEBT-05:** Khi tổng thanh toán đạt đủ số nợ, trạng thái chuyển sang `PAID` và `remainingAmount = 0`.
 
 ---
 
@@ -212,6 +229,7 @@ Hệ thống tự động xếp hạng rủi ro đứt hàng của từng sản 
 *   **HIGH RISK (Rủi ro cao):** $\text{currentStock} < \text{predictedQuantity7Days}$. Tồn kho hiện tại không đủ bán cho 7 ngày tới.
 *   **MEDIUM RISK (Rủi ro trung bình):** $\text{predictedQuantity7Days} \le \text{currentStock} < \text{predictedQuantity7Days} + \text{safetyStock}$.
 *   **LOW RISK (An toàn):** Các trường hợp còn lại.
+*   API gợi ý nhập hàng phải trả riêng `predictedDemand7d` và `predictedDemand14d`; số lượng đề xuất mặc định dùng nhu cầu 14 ngày cộng tồn an toàn.
 
 ---
 

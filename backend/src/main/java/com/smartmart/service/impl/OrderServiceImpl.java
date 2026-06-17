@@ -123,12 +123,12 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
                 throw new BadRequestException("Sản phẩm không hoạt động: " + item.getItemName());
             }
 
-            List<InventoryLedgerService.GlobalLotAllocation> allocations =
-                    inventoryLedgerService.allocateGlobalFefo(item, line.getQuantity());
+            List<InventoryLedgerService.LotAllocation> allocations =
+                    inventoryLedgerService.allocateFefo(item, location, line.getQuantity());
 
-            for (InventoryLedgerService.GlobalLotAllocation alloc : allocations) {
+            for (InventoryLedgerService.LotAllocation alloc : allocations) {
                 inventoryLedgerService.applyMovement(
-                        item, alloc.location(), alloc.lot(),
+                        item, location, alloc.lot(),
                         alloc.quantity().negate(),
                         InventoryActionType.SALE,
                         ReferenceType.ORDER,
@@ -142,7 +142,7 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
                         .order(order)
                         .item(item)
                         .lot(alloc.lot())
-                        .location(alloc.location())
+                        .location(location)
                         .quantity(alloc.quantity())
                         .unitPrice(item.getSellingPrice())
                         .subtotal(subtotal)

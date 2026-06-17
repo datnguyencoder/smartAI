@@ -54,7 +54,9 @@ public final class AuditAction {
 
     public static final String SHIFT_OPEN = "SHIFT_OPEN";
     public static final String SHIFT_CLOSE = "SHIFT_CLOSE";
+    public static final String SHIFT_REVIEW = "SHIFT_REVIEW";
 
+    public static final String DEBT_CREATE = "DEBT_CREATE";
     public static final String DEBT_PAYMENT = "DEBT_PAYMENT";
 
 }

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Tag, Button, Modal, InputNumber, message, Statistic, Row, Col } from 'antd';
-import { closeShift, fetchCurrentShift, fetchShifts, openShift } from '@/services/wmsApi';
+import { Table, Tag, Button, Modal, InputNumber, message, Statistic, Row, Col, Input } from 'antd';
+import { closeShift, fetchCurrentShift, fetchShifts, openShift, reviewShift } from '@/services/wmsApi';
 import { useAuth } from '@/contexts/AuthContext';
 import { normalizeRole } from '@/lib/permissions';
 import type { ShiftDto } from '@/types/api';
@@ -20,6 +20,7 @@ export default function ShiftsPage() {
   const [closeModal, setCloseModal] = useState(false);
   const [openingCash, setOpeningCash] = useState(0);
   const [closingCash, setClosingCash] = useState(0);
+  const [varianceReason, setVarianceReason] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -55,13 +56,30 @@ export default function ShiftsPage() {
   const handleClose = async () => {
     if (!current) return;
     try {
-      await closeShift(current.id, closingCash);
-      message.success('Đóng ca thành công');
+      const closed = await closeShift(current.id, closingCash, undefined, varianceReason);
+      message.success(closed.status === 'PENDING_REVIEW' ? 'Ca lệch tiền, đã gửi quản lý duyệt' : 'Đóng ca thành công');
       setCloseModal(false);
+      setVarianceReason('');
       load();
     } catch (e: unknown) {
       message.error(e instanceof Error ? e.message : 'Đóng ca thất bại');
     }
+  };
+
+  const handleReview = async (shift: ShiftDto) => {
+    try {
+      await reviewShift(shift.id, 'Đã đối soát và xác nhận chênh lệch');
+      message.success('Đã duyệt đối soát ca');
+      load();
+    } catch (e: unknown) {
+      message.error(e instanceof Error ? e.message : 'Duyệt ca thất bại');
+    }
+  };
+
+  const statusTag = (status: ShiftDto['status']) => {
+    if (status === 'OPEN') return <Tag color="green">Đang mở</Tag>;
+    if (status === 'PENDING_REVIEW') return <Tag color="orange">Chờ duyệt lệch</Tag>;
+    return <Tag>Đã đóng</Tag>;
   };
 
   const columns = [
@@ -74,7 +92,7 @@ export default function ShiftsPage() {
     {
       title: 'Trạng thái',
       dataIndex: 'status',
-      render: (s: string) => <Tag color={s === 'OPEN' ? 'green' : 'default'}>{s === 'OPEN' ? 'Đang mở' : 'Đã đóng'}</Tag>,
+      render: (s: ShiftDto['status']) => statusTag(s),
     },
     {
       title: 'Chênh lệch tiền mặt',
@@ -82,6 +100,19 @@ export default function ShiftsPage() {
       render: (v?: number) => v != null ? (
         <span className={Number(v) >= 0 ? 'text-green-600' : 'text-red-600'}>{formatMoney(v)}</span>
       ) : '—',
+    },
+    {
+      title: 'Lý do lệch',
+      dataIndex: 'varianceReason',
+      render: (v?: string) => v || '—',
+    },
+    {
+      title: 'Thao tác',
+      render: (_: unknown, row: ShiftDto) => (
+        canListAll && row.status === 'PENDING_REVIEW'
+          ? <Button size="small" type="primary" onClick={() => handleReview(row)}>Duyệt</Button>
+          : null
+      ),
     },
   ];
 
@@ -92,7 +123,7 @@ export default function ShiftsPage() {
         description="Mở/đóng ca, đối chiếu tiền mặt cuối ca"
         action={
           current ? (
-            <Button type="primary" danger onClick={() => { setClosingCash(0); setCloseModal(true); }}>Đóng ca hiện tại</Button>
+            <Button type="primary" danger onClick={() => { setClosingCash(0); setVarianceReason(''); setCloseModal(true); }}>Đóng ca hiện tại</Button>
           ) : (
             <Button type="primary" onClick={() => { setOpeningCash(0); setOpenModal(true); }}>Mở ca mới</Button>
           )
@@ -121,6 +152,14 @@ export default function ShiftsPage() {
       <Modal title="Đóng ca làm việc" open={closeModal} onCancel={() => setCloseModal(false)} onOk={handleClose}>
         <label className="text-sm">Tiền mặt thực tế cuối ca (VND)</label>
         <InputNumber className="w-full mt-2" min={0} value={closingCash} onChange={(v) => setClosingCash(Number(v) || 0)} />
+        <label className="text-sm block mt-4">Lý do nếu lệch tiền</label>
+        <Input.TextArea
+          className="mt-2"
+          rows={3}
+          value={varianceReason}
+          onChange={(e) => setVarianceReason(e.target.value)}
+          placeholder="Ví dụ: thiếu tiền mặt khi đối soát cuối ca"
+        />
       </Modal>
     </Card>
   );

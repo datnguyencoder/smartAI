@@ -28,6 +28,9 @@ public class ReorderRecommendation extends LongAuditableEntity {
     @Column(name = "predicted_demand_7d")
     private BigDecimal predictedDemand7d;
 
+    @Column(name = "predicted_demand_14d")
+    private BigDecimal predictedDemand14d;
+
     @Column(name = "risk_level", nullable = false)
     private String riskLevel;
 

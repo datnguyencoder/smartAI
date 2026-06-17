@@ -456,9 +456,13 @@ export type ShiftDto = {
   closingCash?: number;
   expectedCash?: number;
   cashVariance?: number;
+  varianceReason?: string;
+  reviewedBy?: number;
+  reviewedAt?: string;
+  reviewNote?: string;
   totalOrders: number;
   totalRevenue: number;
-  status: 'OPEN' | 'CLOSED';
+  status: 'OPEN' | 'PENDING_REVIEW' | 'CLOSED';
   note?: string;
 };
 
@@ -480,8 +484,7 @@ export type SupplierDebtDto = {
   paidAmount: number;
   remainingAmount: number;
   dueDate?: string;
-  status: 'UNPAID' | 'PARTIAL' | 'PAID';
+  status: 'UNPAID' | 'PARTIAL' | 'OVERDUE' | 'PAID';
   note?: string;
   payments?: DebtPaymentDto[];
 };
-

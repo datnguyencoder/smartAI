@@ -7,5 +7,7 @@ public interface ReorderRecommendationService {
 
     void recomputeFromForecasts();
 
+    void recomputeFallbackFromSalesAverage();
+
     List<Map<String, Object>> listActive();
 }

@@ -3,6 +3,7 @@ package com.smartmart.service.impl;
 import com.smartmart.constant.AuditAction;
 import com.smartmart.dto.request.CloseShiftRequest;
 import com.smartmart.dto.request.OpenShiftRequest;
+import com.smartmart.dto.request.ReviewShiftRequest;
 import com.smartmart.entity.Order;
 import com.smartmart.entity.Shift;
 import com.smartmart.enums.PaymentMethod;
@@ -27,6 +28,7 @@ import java.util.Optional;
 @Service
 @Transactional
 public class ShiftServiceImpl implements ShiftService {
+    private static final BigDecimal CASH_VARIANCE_REVIEW_THRESHOLD = new BigDecimal("0.01");
 
     private final ShiftRepository shiftRepository;
     private final OrderRepository orderRepository;
@@ -98,14 +100,19 @@ public class ShiftServiceImpl implements ShiftService {
 
         BigDecimal expectedCash = shift.getOpeningCash().add(cashSales);
         BigDecimal variance = request.getClosingCash().subtract(expectedCash);
+        boolean requiresReview = variance.abs().compareTo(CASH_VARIANCE_REVIEW_THRESHOLD) >= 0;
+        if (requiresReview && (request.getVarianceReason() == null || request.getVarianceReason().isBlank())) {
+            throw new BadRequestException("Ca lệch tiền phải nhập lý do đối soát");
+        }
 
         shift.setClosedAt(LocalDateTime.now());
         shift.setClosingCash(request.getClosingCash());
         shift.setExpectedCash(expectedCash);
         shift.setCashVariance(variance);
+        shift.setVarianceReason(request.getVarianceReason());
         shift.setTotalOrders(orders.size());
         shift.setTotalRevenue(totalRevenue);
-        shift.setStatus(ShiftStatus.CLOSED);
+        shift.setStatus(requiresReview ? ShiftStatus.PENDING_REVIEW : ShiftStatus.CLOSED);
         if (request.getNote() != null) {
             shift.setNote(request.getNote());
         }
@@ -120,7 +127,45 @@ public class ShiftServiceImpl implements ShiftService {
                 AuditData.of(
                         "status", saved.getStatus(),
                         "totalRevenue", saved.getTotalRevenue(),
+                        "expectedCash", saved.getExpectedCash(),
+                        "closingCash", saved.getClosingCash(),
                         "cashVariance", saved.getCashVariance()
+                )
+        );
+        return saved;
+    }
+
+    @Override
+    public Shift reviewShift(Long id, ReviewShiftRequest request) {
+        Shift shift = findById(id);
+        if (shift.getStatus() != ShiftStatus.PENDING_REVIEW) {
+            throw new BadRequestException("Chỉ ca lệch tiền đang chờ duyệt mới cần đối soát");
+        }
+
+        Long reviewerId = SecurityUtils.getCurrentUserId()
+                .orElseThrow(() -> new BadRequestException("Không xác định được người duyệt"));
+        String beforeData = AuditData.of(
+                "status", shift.getStatus(),
+                "cashVariance", shift.getCashVariance(),
+                "varianceReason", shift.getVarianceReason()
+        );
+
+        shift.setStatus(ShiftStatus.CLOSED);
+        shift.setReviewedBy(reviewerId);
+        shift.setReviewedAt(LocalDateTime.now());
+        shift.setReviewNote(request.getReviewNote());
+
+        Shift saved = shiftRepository.save(shift);
+        auditLogService.log(
+                AuditAction.SHIFT_REVIEW,
+                "SHIFT",
+                saved.getId().toString(),
+                "Duyệt đối soát ca làm việc #" + saved.getId(),
+                beforeData,
+                AuditData.of(
+                        "status", saved.getStatus(),
+                        "reviewedBy", saved.getReviewedBy(),
+                        "reviewNote", saved.getReviewNote()
                 )
         );
         return saved;
