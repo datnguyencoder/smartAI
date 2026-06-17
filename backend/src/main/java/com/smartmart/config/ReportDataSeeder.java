@@ -18,14 +18,10 @@ import java.time.LocalTime;
 import java.time.YearMonth;
 import java.util.*;
 
-/**
- * Seed purchase orders + inventory_logs so that the Purchase Report
- * and Inventory Report APIs return realistic test data.
- * Runs AFTER RetailSalesHistorySeeder (@Order(3)).
- */
+
 @Component
 @Profile({"local", "prod"})
-@Order(3)
+@Order(4)
 public class ReportDataSeeder implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(ReportDataSeeder.class);

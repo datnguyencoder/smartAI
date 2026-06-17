@@ -27,7 +27,7 @@ import java.util.*;
 
 @Component
 @Profile({"local", "prod"})
-@org.springframework.core.annotation.Order(2)
+@org.springframework.core.annotation.Order(3)
 public class RetailSalesHistorySeeder implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(RetailSalesHistorySeeder.class);

@@ -1,5 +1,5 @@
-import { Button, Input } from 'antd';
-import { Send } from 'lucide-react';
+import { Button, Input, Spin } from 'antd';
+import { SendOutlined } from '@ant-design/icons';
 import * as React from 'react';
 import { MarkdownMessage } from '@/components/ai/MarkdownMessage';
 import { Card, CardHeader } from '@/components/ui';
@@ -8,73 +8,120 @@ import { cn } from '@/lib/utils';
 import { aiChat } from '@/services/wmsApi';
 import type { PageKey } from '@/types/pages';
 
+export type ChatMessage = {
+  id: string;
+  sender: 'user' | 'ai';
+  text: string;
+  action?: { label: string; page: PageKey };
+};
+
+let chatMsgSeq = 0;
+function nextChatId() {
+  chatMsgSeq += 1;
+  return `chat-${Date.now()}-${chatMsgSeq}`;
+}
+
 export default function AiAssistantPage({
-  productsList,
+  productsList: _productsList,
   chatHistory,
   setChatHistory,
   setPage,
 }: {
   productsList: Product[];
-  chatHistory: Array<{ sender: 'user' | 'ai'; text: string; action?: { label: string; page: PageKey } }>;
-  setChatHistory: React.Dispatch<React.SetStateAction<Array<{ sender: 'user' | 'ai'; text: string; action?: { label: string; page: PageKey } }>>>;
+  chatHistory: ChatMessage[];
+  setChatHistory: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
   setPage: (page: PageKey) => void;
 }) {
   const [typedMessage, setTypedMessage] = React.useState('');
+  const [sending, setSending] = React.useState(false);
   const chatEndRef = React.useRef<HTMLDivElement>(null);
+  const composingRef = React.useRef(false);
+  const ignoreEnterUntilRef = React.useRef(0);
+  const sendingRef = React.useRef(false);
 
   React.useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatHistory]);
+  }, [chatHistory, sending]);
 
-  const handleSendMessage = () => {
-    if (!typedMessage.trim()) return;
+  const appendMessage = React.useCallback(
+    (msg: Omit<ChatMessage, 'id'>) => {
+      setChatHistory((prev) => [...prev, { ...msg, id: nextChatId() }]);
+    },
+    [setChatHistory]
+  );
 
-    const userMsg = typedMessage;
-    const newHistory = [...chatHistory, { sender: 'user' as const, text: userMsg }];
-    setChatHistory(newHistory);
+  const handleSendMessage = React.useCallback(async () => {
+    if (composingRef.current || sendingRef.current) return;
+
+    const text = typedMessage.trim();
+    if (!text) return;
+
+    sendingRef.current = true;
+    setSending(true);
     setTypedMessage('');
 
-    aiChat(userMsg)
-      .then((aiText) => {
-        const lower = userMsg.toLowerCase();
-        let action: { label: string; page: PageKey } | undefined;
-        if (lower.includes('nhập') || lower.includes('tồn')) {
-          action = { label: 'Tạo phiếu nhập', page: 'import-create' };
-        } else if (lower.includes('báo cáo') || lower.includes('doanh thu')) {
-          action = { label: 'Xem báo cáo', page: 'reports' };
-        }
-        setChatHistory([...newHistory, { sender: 'ai' as const, text: aiText, action }]);
-      })
-      .catch(() => {
-        setChatHistory([
-          ...newHistory,
-          {
-            sender: 'ai' as const,
-            text: 'Không kết nối được trợ lý AI. Vui lòng thử lại hoặc kiểm tra quyền ADMIN/MANAGER.',
-          },
-        ]);
+    appendMessage({ sender: 'user', text });
+
+    try {
+      const aiText = await aiChat(text);
+      const lower = text.toLowerCase();
+      let action: { label: string; page: PageKey } | undefined;
+      if (lower.includes('nhập') || lower.includes('tồn')) {
+        action = { label: 'Tạo phiếu nhập', page: 'import-create' };
+      } else if (lower.includes('báo cáo') || lower.includes('doanh thu')) {
+        action = { label: 'Xem báo cáo', page: 'reports' };
+      }
+      appendMessage({ sender: 'ai', text: aiText, action });
+    } catch {
+      appendMessage({
+        sender: 'ai',
+        text: 'Không kết nối được trợ lý AI. Vui lòng thử lại hoặc kiểm tra quyền ADMIN/MANAGER.',
       });
+    } finally {
+      sendingRef.current = false;
+      setSending(false);
+    }
+  }, [appendMessage, typedMessage]);
+
+  const trySubmitOnEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter' || e.shiftKey) return;
+
+    // IME tiếng Việt: Enter xác nhận từ → không gửi chat
+    if (
+      composingRef.current ||
+      e.nativeEvent.isComposing ||
+      e.nativeEvent.keyCode === 229 ||
+      Date.now() < ignoreEnterUntilRef.current
+    ) {
+      return;
+    }
+
+    e.preventDefault();
+    void handleSendMessage();
   };
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
-      <Card className="min-h-[580px] flex flex-col justify-between">
-        <CardHeader title="Trợ lý vận hành thông minh AI" description="Hỏi đáp thời gian thực về tồn kho, đề xuất nhập hàng và hiệu quả doanh thu." />
-        <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-4 max-h-[380px] scrollbar-thin">
-          {chatHistory.map((msg, i) => (
+      <Card className="flex min-h-[580px] flex-col justify-between">
+        <CardHeader
+          title="Trợ lý vận hành"
+          description="Hỏi đáp về tồn kho, nhập hàng và doanh thu. Nhấn Enter để gửi."
+        />
+        <div className="scrollbar-thin max-h-[380px] flex-1 space-y-4 overflow-y-auto px-5 pb-5">
+          {chatHistory.map((msg) => (
             <div
-              key={i}
+              key={msg.id}
               className={cn(
-                'flex flex-col max-w-[80%] rounded-2xl p-4 text-sm relative',
+                'relative flex max-w-[80%] flex-col rounded-2xl p-4 text-sm',
                 msg.sender === 'user'
                   ? 'ml-auto bg-primary text-white shadow-md'
-                  : 'bg-slate-100 text-slate-800 shadow-sm border border-slate-200'
+                  : 'border border-slate-200 bg-slate-100 text-slate-800 shadow-sm'
               )}
             >
-              {msg.sender === 'ai' ? <MarkdownMessage text={msg.text} /> : <span>{msg.text}</span>}
+              {msg.sender === 'ai' ? <MarkdownMessage text={msg.text} /> : <span className="whitespace-pre-wrap break-words">{msg.text}</span>}
               {msg.action && (
                 <Button
-                  className="mt-3 font-semibold text-xs h-8 bg-white border border-indigo/20 text-indigo hover:text-indigo-700"
+                  className="mt-3 h-8 border border-indigo/20 bg-white text-xs font-semibold text-indigo hover:text-indigo-700"
                   onClick={() => setPage(msg.action!.page)}
                 >
                   {msg.action.label}
@@ -82,17 +129,37 @@ export default function AiAssistantPage({
               )}
             </div>
           ))}
+          {sending && (
+            <div className="flex items-center gap-2 text-sm text-muted">
+              <Spin size="small" /> Đang trả lời…
+            </div>
+          )}
           <div ref={chatEndRef} />
         </div>
-        <div className="p-4 border-t border-slate-100 bg-slate-50/50 rounded-b-2xl flex gap-2">
+        <div className="flex gap-2 rounded-b-2xl border-t border-slate-100 bg-slate-50/50 p-4">
           <Input
             size="large"
-            placeholder="Ví dụ: 'Sản phẩm nào sắp hết hàng?'..."
+            placeholder="Ví dụ: Sản phẩm nào sắp hết hàng?"
             value={typedMessage}
+            disabled={sending}
             onChange={(e) => setTypedMessage(e.target.value)}
-            onPressEnter={handleSendMessage}
+            onCompositionStart={() => {
+              composingRef.current = true;
+            }}
+            onCompositionEnd={() => {
+              composingRef.current = false;
+              ignoreEnterUntilRef.current = Date.now() + 120;
+            }}
+            onKeyDown={trySubmitOnEnter}
           />
-          <Button type="primary" size="large" icon={<Send size={17} />} onClick={handleSendMessage} />
+          <Button
+            type="primary"
+            size="large"
+            icon={<SendOutlined />}
+            loading={sending}
+            disabled={sending || !typedMessage.trim()}
+            onClick={() => void handleSendMessage()}
+          />
         </div>
       </Card>
     </div>

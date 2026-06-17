@@ -1,17 +1,18 @@
 import * as React from 'react';
-import { Button, Tag } from 'antd';
+import { Button, Tag, Tooltip } from 'antd';
 import { motion } from 'framer-motion';
 import {
   AlertTriangle,
-  BrainCircuit,
   Building2,
   ChartNoAxesCombined,
   CheckCircle2,
   FileInput,
   Gauge,
   ShoppingCart,
-  Sparkles,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { BellOutlined, LineChartOutlined } from '@ant-design/icons';
+import { antdNavIcon } from '@/lib/antdNavIcon';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from 'recharts';
 import { AiSummary } from '@/components/ai/AiSummary';
 import SmartTooltip from '@/components/ai/SmartTooltip';
@@ -31,6 +32,94 @@ import type { PageKey } from '@/types/pages';
 import { cn } from '@/lib/utils';
 
 const VI_WEEKDAY_LABELS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+
+type KpiTone = 'emerald' | 'indigo' | 'amber' | 'red';
+
+type KpiIcon = LucideIcon | ReturnType<typeof antdNavIcon>;
+
+type KpiItem = {
+  label: string;
+  value: string;
+  delta: string;
+  icon: KpiIcon;
+  tone: KpiTone;
+  size?: 'lg' | 'sm';
+};
+
+const toneIconClass: Record<KpiTone, string> = {
+  emerald: 'bg-emerald-50 text-primary',
+  indigo: 'bg-indigo-50 text-indigo',
+  amber: 'bg-amber-50 text-amber-600',
+  red: 'bg-red-50 text-red-600',
+};
+
+function KpiCard({ item, index }: { item: KpiItem; index: number }) {
+  const Icon = item.icon;
+  const isLarge = item.size === 'lg';
+  const isMoney = item.value.endsWith('đ');
+  const amountText = isMoney ? item.value.slice(0, -1) : item.value;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: 'spring', stiffness: 320, damping: 24, delay: index * 0.03 }}
+      className="min-w-0"
+    >
+      <Card
+        className={cn(
+          'relative flex h-full flex-col overflow-visible border border-line/80 p-4 sm:p-5',
+          isLarge ? 'min-h-[128px]' : 'min-h-[112px]'
+        )}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className={cn('grid shrink-0 place-items-center rounded-xl', isLarge ? 'h-11 w-11' : 'h-10 w-10', toneIconClass[item.tone])}>
+            <Icon size={isLarge ? 20 : 18} />
+          </div>
+          <span
+            className={cn(
+              'shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold sm:text-xs',
+              item.delta.startsWith('+') || item.tone === 'emerald'
+                ? 'bg-emerald-50 text-emerald-700'
+                : 'bg-slate-100 text-slate-600'
+            )}
+          >
+            {item.delta}
+          </span>
+        </div>
+
+        <p className={cn('mt-3 font-medium text-muted', isLarge ? 'text-sm' : 'text-xs sm:text-sm')}>{item.label}</p>
+
+        <Tooltip title={isMoney ? item.value : undefined}>
+          <div className="mt-auto pt-2 min-w-0">
+            {isMoney ? (
+              <p
+                className={cn(
+                  'font-bold tabular-nums leading-none text-ink',
+                  isLarge
+                    ? 'text-[clamp(1.35rem,2.8vw,2rem)]'
+                    : 'text-[clamp(1.25rem,2.2vw,1.75rem)]'
+                )}
+              >
+                <span className="inline-block max-w-full break-all">{amountText}</span>
+                <span className="ml-0.5 align-top text-[0.55em] font-semibold text-muted">đ</span>
+              </p>
+            ) : (
+              <p
+                className={cn(
+                  'font-bold tabular-nums leading-none text-ink',
+                  isLarge ? 'text-3xl sm:text-4xl' : 'text-2xl sm:text-3xl'
+                )}
+              >
+                {item.value}
+              </p>
+            )}
+          </div>
+        </Tooltip>
+      </Card>
+    </motion.div>
+  );
+}
 
 function formatWeekdayLabel(day: string): string {
   const d = new Date(`${day}T12:00:00`);
@@ -80,80 +169,37 @@ function KpiGrid({
   const grossProfit = typeof summary?.todayGrossProfit === 'number' ? summary.todayGrossProfit : 0;
   const expiryRatio = typeof summary?.expiryRiskRatio === 'number' ? summary.expiryRiskRatio : 0;
 
-  const items = [
-    { label: 'Doanh thu thực tế', value: money(todayRevenue), delta: 'Hôm nay', icon: ChartNoAxesCombined, tone: 'emerald' },
-    { label: 'Lợi nhuận gộp', value: money(grossProfit), delta: 'Hôm nay', icon: Gauge, tone: 'emerald' },
-    { label: 'Đơn hàng hôm nay', value: todayOrders.toString(), delta: 'Hôm nay', icon: ShoppingCart, tone: 'indigo' },
-    { label: 'Sắp hết hàng', value: lowStockCount.toString(), delta: 'Cần nhập', icon: AlertTriangle, tone: 'amber' },
-    { label: 'Tỷ lệ HSD rủi ro', value: `${(expiryRatio * 100).toFixed(1)}%`, delta: 'Near expiry', icon: AlertTriangle, tone: 'red' },
+  const items: KpiItem[] = [
+    { label: 'Doanh thu thực tế', value: money(todayRevenue), delta: 'Hôm nay', icon: ChartNoAxesCombined, tone: 'emerald', size: 'lg' },
+    { label: 'Lợi nhuận gộp', value: money(grossProfit), delta: 'Hôm nay', icon: Gauge, tone: 'emerald', size: 'lg' },
+    { label: 'Đơn hàng hôm nay', value: todayOrders.toLocaleString('vi-VN'), delta: 'Hôm nay', icon: ShoppingCart, tone: 'indigo', size: 'sm' },
+    { label: 'Sắp hết hàng', value: lowStockCount.toLocaleString('vi-VN'), delta: 'Cần nhập', icon: AlertTriangle, tone: 'amber', size: 'sm' },
+    { label: 'Tỷ lệ HSD rủi ro', value: `${(expiryRatio * 100).toFixed(1)}%`, delta: 'Gần hạn', icon: AlertTriangle, tone: 'red', size: 'sm' },
     {
       label: 'Cảnh báo tồn',
-      value: String(unresolvedAlertCount ?? lowStockCount + outOfStockCount),
+      value: (unresolvedAlertCount ?? lowStockCount + outOfStockCount).toLocaleString('vi-VN'),
       delta: 'Chưa xử lý',
-      icon: BrainCircuit,
-      tone: 'ai',
+      icon: antdNavIcon(BellOutlined),
+      tone: 'indigo',
+      size: 'sm',
     },
   ];
+
+  const primaryItems = items.filter((i) => i.size === 'lg');
+  const secondaryItems = items.filter((i) => i.size !== 'lg');
+
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-      {items.map((item, index) => {
-        const Icon = item.icon;
-        return (
-          <motion.div
-            key={item.label}
-            initial={{ opacity: 0, y: 16, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            whileHover={{ y: -6, scale: 1.02 }}
-            transition={{
-              type: 'spring',
-              stiffness: 300,
-              damping: 22,
-              delay: index * 0.04,
-            }}
-          >
-            <Card
-              className={cn(
-                'interactive-card p-5 relative overflow-hidden transition-all duration-300 hover:shadow-xl hover:border-slate-300',
-                item.tone === 'ai' &&
-                  'border-indigo/40 shadow-[0_12px_36px_rgba(70,72,212,0.12)] bg-gradient-to-tr from-white to-indigo-50/20'
-              )}
-            >
-              <div className="flex items-start justify-between relative z-10">
-                <div
-                  className={cn(
-                    'grid h-11 w-11 place-items-center rounded-xl transition-all duration-300',
-                    item.tone === 'emerald' && 'bg-emerald-50 text-primary shadow-[0_2px_10px_rgba(16,185,129,0.1)]',
-                    item.tone === 'indigo' && 'bg-indigo-50 text-indigo shadow-[0_2px_10px_rgba(70,72,212,0.1)]',
-                    item.tone === 'amber' && 'bg-amber-50 text-amber-600 shadow-[0_2px_10px_rgba(245,158,11,0.1)]',
-                    item.tone === 'red' && 'bg-red-50 text-red-600 shadow-[0_2px_10px_rgba(186,26,26,0.1)]',
-                    item.tone === 'ai' &&
-                      'bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-[0_4px_14px_rgba(70,72,212,0.35)]'
-                  )}
-                >
-                  <Icon size={20} className="transition-transform duration-300" />
-                </div>
-                <span
-                  className={cn(
-                    'rounded-md px-2 py-1 text-xs font-semibold',
-                    item.delta.startsWith('+') || item.tone === 'emerald'
-                      ? 'bg-emerald-50 text-emerald-700'
-                      : 'bg-slate-100 text-slate-700'
-                  )}
-                >
-                  {item.delta}
-                </span>
-              </div>
-              <p className="mt-4 text-sm text-muted font-medium relative z-10">{item.label}</p>
-              <p className="mt-1 text-[26px] font-bold tracking-[-0.02em] text-ink relative z-10 truncate">{item.value}</p>
-              {item.tone === 'ai' && (
-                <div className="absolute right-0 bottom-0 translate-x-3 translate-y-3 opacity-5 pointer-events-none">
-                  <BrainCircuit size={120} />
-                </div>
-              )}
-            </Card>
-          </motion.div>
-        );
-      })}
+    <div className="space-y-3 sm:space-y-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+        {primaryItems.map((item, index) => (
+          <KpiCard key={item.label} item={item} index={index} />
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 sm:gap-4">
+        {secondaryItems.map((item, index) => (
+          <KpiCard key={item.label} item={item} index={index + primaryItems.length} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -186,11 +232,6 @@ function RevenueCard({ invoicesList: _invoicesList }: { invoicesList: any[] }) {
       <CardHeader
         title="Doanh thu 7 ngày gần nhất"
         description="Doanh thu thực tế từ đơn hàng đã hoàn tất."
-        action={
-          <Button type="text" className="hover:bg-slate-100 rounded-lg">
-            ...
-          </Button>
-        }
       />
       <div className="h-[310px] px-3 pb-5">
         {loading ? (
@@ -347,8 +388,8 @@ export default function DashboardPage({
             Tạo phiếu nhập hàng
           </Button>
         )}
-        <Button className="ml-auto" type="primary" ghost icon={<Sparkles size={16} />} onClick={() => setPage('ai-forecast')}>
-          Chạy dự báo AI
+        <Button className="ml-auto" type="primary" ghost icon={<LineChartOutlined />} onClick={() => setPage('ai-forecast')}>
+          Chạy dự báo
         </Button>
       </div>
       <KpiGrid

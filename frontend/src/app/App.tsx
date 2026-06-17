@@ -1,7 +1,7 @@
 import { ConfigProvider, App as AntdApp, message as antdMessage } from 'antd';
 import * as React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { navItems } from '@/app/config/navItems';
+import { filterNavGroups } from '@/app/config/navItems';
 import { pageTitles } from '@/app/config/pageTitles';
 import { MobileNav } from '@/app/layout/MobileNav';
 import { PageRenderer } from '@/app/layout/PageRenderer';
@@ -36,6 +36,7 @@ import {
   fetchUoms,
 } from '@/services/wmsApi';
 import type { CategoryDto, LocationDto, SupplierDto, UomDto } from '@/types/api';
+import type { ChatMessage } from '@/pages/ai/AiAssistantPage';
 import type { PageKey } from '@/types/pages';
 
 function App() {
@@ -70,12 +71,11 @@ function App() {
   const [locations, setLocations] = React.useState<LocationDto[]>([]);
   const [uoms, setUoms] = React.useState<UomDto[]>([]);
   const [catalogLoading, setCatalogLoading] = React.useState(false);
-  const [chatHistory, setChatHistory] = React.useState<
-    Array<{ sender: 'user' | 'ai'; text: string; action?: { label: string; page: PageKey } }>
-  >([
+  const [chatHistory, setChatHistory] = React.useState<ChatMessage[]>([
     {
+      id: 'chat-welcome',
       sender: 'ai',
-      text: 'Chào bạn! Tôi là trợ lý vận hành AI. Bạn cần tôi phân tích hàng tồn kho, lập chiến dịch khuyến mãi giảm giá hay lên phiếu nhập hàng giúp không?',
+      text: 'Chào bạn! Tôi là trợ lý vận hành. Bạn cần phân tích tồn kho, đề xuất khuyến mãi hay lên phiếu nhập hàng không?',
     },
   ]);
   const [posCart, setPosCart] = React.useState<Array<{ product: Product; quantity: number }>>([]);
@@ -100,8 +100,8 @@ function App() {
     antdMessage.success('Đã đăng xuất');
   }, [authLogout, clearCatalog, setPage]);
 
-  const visibleNavItems = React.useMemo(
-    () => navItems.filter((item) => canAccessPage(authUser?.role, item.key)),
+  const visibleNavGroups = React.useMemo(
+    () => filterNavGroups(authUser?.role),
     [authUser?.role]
   );
 
@@ -221,7 +221,7 @@ function App() {
           <Sidebar
             page={page}
             setPage={setPage}
-            navItems={visibleNavItems}
+            navGroups={visibleNavGroups}
             authUser={authUser}
             onLogout={handleLogout}
           />
@@ -230,7 +230,7 @@ function App() {
             onClose={() => setMobileNavOpen(false)}
             page={page}
             setPage={setPage}
-            navItems={visibleNavItems}
+            navGroups={visibleNavGroups}
             onLogout={handleLogout}
           />
           <main className="min-h-screen md:pl-[260px]">
