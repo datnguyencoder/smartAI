@@ -33,7 +33,6 @@ public class OpenApiConfig {
                                         .bearerFormat("JWT")));
     }
 
-    /** Swagger qua ngrok HTTPS: dùng relative URL, tránh mixed-content http://. */
     @Bean
     public OpenApiCustomizer relativeServerUrlCustomizer() {
         return openApi -> openApi.setServers(List.of(

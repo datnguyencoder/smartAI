@@ -9,9 +9,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 
-/**
- * Shared Redis JSON serializer — WRAPPER_ARRAY typing must match on read and write.
- */
+
 @Configuration
 public class RedisJacksonSerializerConfig {
 
