@@ -6,6 +6,7 @@ import com.smartmart.client.AiClient;
 import com.smartmart.dto.response.ForecastItemDetailResponse;
 import com.smartmart.entity.*;
 import com.smartmart.enums.OrderStatus;
+import com.smartmart.exception.AiServiceException;
 import com.smartmart.exception.NotFoundException;
 import com.smartmart.repository.*;
 import com.smartmart.service.ai.ReorderRecommendationService;
@@ -95,7 +96,19 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
     @Override
     public Map<String, Object> runForecast() {
         List<Map<String, Object>> itemsPayload = buildForecastPayload();
-        JsonNode result = aiClient.forecastAll(itemsPayload);
+        JsonNode result;
+        try {
+            result = aiClient.forecastAll(itemsPayload);
+        } catch (AiServiceException ex) {
+            reorderRecommendationService.recomputeFallbackFromSalesAverage();
+            Map<String, Object> fallback = new LinkedHashMap<>();
+            fallback.put("itemsForecasted", 0);
+            fallback.put("itemsSubmitted", itemsPayload.size());
+            fallback.put("source", "FALLBACK");
+            fallback.put("message", "AI offline - gợi ý nhập hàng đã được tính bằng lịch sử bán 30 ngày");
+            fallback.put("ranAt", LocalDateTime.now());
+            return fallback;
+        }
 
         ModelTrainingHistory latest = trainingHistoryRepository.findTopByOrderByTrainedAtDesc().orElse(null);
 
@@ -147,6 +160,8 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
 
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("itemsForecasted", saved);
+        out.put("itemsSubmitted", itemsPayload.size());
+        out.put("source", "AI");
         out.put("ranAt", LocalDateTime.now());
         return out;
     }
@@ -271,7 +286,6 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
         LocalDateTime since = LocalDateTime.now().minusDays(90);
         List<Order> orders = orderRepository.findCompletedSince(OrderStatus.COMPLETED, since);
         Map<Long, List<Map<String, Object>>> byItem = new LinkedHashMap<>();
-        Map<Long, Long> categoryByItem = new HashMap<>();
 
         for (Order o : orders) {
             String date = o.getOrderDate().toLocalDate().toString();
@@ -279,7 +293,6 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
                 Item item = oi.getItem();
                 Long itemId = item.getId();
                 long categoryId = item.getCategory() != null ? item.getCategory().getId() : 1L;
-                categoryByItem.put(itemId, categoryId);
 
                 Map<String, Object> sale = new LinkedHashMap<>();
                 sale.put("item_id", itemId);
@@ -291,11 +304,13 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
         }
 
         List<Map<String, Object>> items = new ArrayList<>();
-        for (Map.Entry<Long, List<Map<String, Object>>> e : byItem.entrySet()) {
+        for (Item item : itemRepository.findByActiveTrue()) {
             Map<String, Object> itemPayload = new LinkedHashMap<>();
-            itemPayload.put("item_id", e.getKey());
-            itemPayload.put("category_id", categoryByItem.getOrDefault(e.getKey(), 1L));
-            itemPayload.put("recent_sales", e.getValue());
+            Long itemId = item.getId();
+            long categoryId = item.getCategory() != null ? item.getCategory().getId() : 1L;
+            itemPayload.put("item_id", itemId);
+            itemPayload.put("category_id", categoryId);
+            itemPayload.put("recent_sales", byItem.getOrDefault(itemId, List.of()));
             items.add(itemPayload);
         }
         return items;

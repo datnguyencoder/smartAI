@@ -75,6 +75,13 @@ public class ReorderRecommendationServiceImpl implements com.smartmart.service.a
         }
     }
 
+    @Transactional
+    @Override
+    public void recomputeFallbackFromSalesAverage() {
+        reorderRepository.deleteAll();
+        recomputeFallbackFromSalesAverage(loadAvgDailySales(), loadMaxDailySales());
+    }
+
     private void recomputeFallbackFromSalesAverage(
             Map<Long, BigDecimal> avgDailyByItem,
             Map<Long, BigDecimal> maxDailyByItem
@@ -149,6 +156,7 @@ public class ReorderRecommendationServiceImpl implements com.smartmart.service.a
                 .suggestedQty(suggested.setScale(2, RoundingMode.HALF_UP))
                 .currentAvailable(available)
                 .predictedDemand7d(predictedDemand7d.setScale(2, RoundingMode.HALF_UP))
+                .predictedDemand14d(predictedDemand14d.setScale(2, RoundingMode.HALF_UP))
                 .riskLevel(risk)
                 .source(source)
                 .reason(reason)
@@ -166,7 +174,7 @@ public class ReorderRecommendationServiceImpl implements com.smartmart.service.a
                     m.put("itemName", r.getItem().getItemName());
                     m.put("suggestedQty", r.getSuggestedQty());
                     m.put("currentAvailable", r.getCurrentAvailable());
-                    m.put("predictedDemand14d", r.getPredictedDemand7d());
+                    m.put("predictedDemand14d", r.getPredictedDemand14d());
                     m.put("predictedDemand7d", r.getPredictedDemand7d());
                     m.put("riskLevel", r.getRiskLevel());
                     m.put("source", r.getSource());

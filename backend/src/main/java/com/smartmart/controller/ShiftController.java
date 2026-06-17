@@ -3,6 +3,7 @@ package com.smartmart.controller;
 import com.smartmart.common.response.ApiResponse;
 import com.smartmart.dto.request.CloseShiftRequest;
 import com.smartmart.dto.request.OpenShiftRequest;
+import com.smartmart.dto.request.ReviewShiftRequest;
 import com.smartmart.dto.response.ShiftResponse;
 import com.smartmart.entity.Shift;
 import com.smartmart.mapper.WmsResponseMapper;
@@ -75,6 +76,17 @@ public class ShiftController {
     ) {
         return ResponseEntity.ok(ApiResponse.success("Đóng ca thành công",
                 toResponse(shiftService.closeShift(id, request))));
+    }
+
+    @PostMapping("/{id}/review")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @Operation(summary = "Duyệt đối soát ca lệch tiền")
+    public ResponseEntity<ApiResponse<ShiftResponse>> review(
+            @PathVariable Long id,
+            @RequestBody ReviewShiftRequest request
+    ) {
+        return ResponseEntity.ok(ApiResponse.success("Duyệt đối soát ca thành công",
+                toResponse(shiftService.reviewShift(id, request))));
     }
 
     private ShiftResponse toResponse(Shift shift) {

@@ -21,6 +21,13 @@ export default function SuppliersPage({ suppliers, productsList, authUser, reloa
   const [searchQuery, setSearchQuery] = React.useState('');
   const canEdit = authUser && ['ROLE_ADMIN', 'ROLE_MANAGER'].includes(normalizeRole(authUser.role));
 
+  const debtStatusTag = (status: SupplierDebtDto['status']) => {
+    if (status === 'PAID') return <Tag color="green">Đã trả</Tag>;
+    if (status === 'OVERDUE') return <Tag color="red">Quá hạn</Tag>;
+    if (status === 'PARTIAL') return <Tag color="gold">Trả một phần</Tag>;
+    return <Tag color="orange">Chưa trả</Tag>;
+  };
+
   const filteredSuppliers = suppliers.filter(s =>
     !searchQuery ||
     s.supplierName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -142,8 +149,11 @@ export default function SuppliersPage({ suppliers, productsList, authUser, reloa
               <div className="space-y-3">
                 {debts.length === 0 ? <p className="text-slate-400">Không có công nợ</p> : debts.map((d) => (
                   <div key={d.id} className="border rounded-lg p-3">
-                    <div className="flex justify-between"><span>PO #{d.purchaseOrderId}</span><Tag color={d.status === 'PAID' ? 'green' : 'orange'}>{d.status}</Tag></div>
-                    <div className="text-xs text-slate-500 mt-1">Tổng: {money(d.amount)} · Đã trả: {money(d.paidAmount)} · Còn: {money(d.remainingAmount)}</div>
+                    <div className="flex justify-between"><span>PO #{d.purchaseOrderId}</span>{debtStatusTag(d.status)}</div>
+                    <div className="text-xs text-slate-500 mt-1">
+                      Tổng: {money(d.amount)} · Đã trả: {money(d.paidAmount)} · Còn: {money(d.remainingAmount)}
+                      {d.dueDate ? ` · Hạn: ${d.dueDate}` : ''}
+                    </div>
                     {d.status !== 'PAID' && canEdit && (
                       <div className="flex gap-2 mt-2">
                         <InputNumber
@@ -156,7 +166,7 @@ export default function SuppliersPage({ suppliers, productsList, authUser, reloa
                         <Button size="small" type="primary" onClick={async () => {
                           const amount = payAmounts[d.id] || d.remainingAmount;
                           try {
-                            await recordDebtPayment(d.id, { amount });
+                            await recordDebtPayment(d.id, { amount, paymentMethod: 'BANK_TRANSFER' });
                             antdMessage.success('Ghi nhận thanh toán');
                             fetchSupplierDebtsBySupplier(selectedSup!.id).then(setDebts);
                           } catch (e: unknown) {

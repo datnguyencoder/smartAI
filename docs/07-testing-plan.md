@@ -79,5 +79,31 @@ flowchart TD
         *   Hệ thống phản hồi HTTP `200 OK` sau thời gian chờ timeout cấu hình ngắn (ví dụ: 1.5 giây).
         *   Danh sách gợi ý nhập hàng vẫn hiển thị đầy đủ số lượng gợi ý đặt hàng.
         *   Lượng gợi ý được tính bằng công thức dự phòng dựa trên lượng bán trung bình lịch sử 30 ngày qua lấy trực tiếp từ database PostgreSQL.
+        *   Response của `POST /api/v1/forecast/run` có `source = "FALLBACK"` và `itemsSubmitted` bằng số SKU active được gửi sang AI.
         *   Trường `reason` tự động thay đổi thành: *"Hệ thống AI đang bảo trì. Đề xuất đặt hàng được tính toán bằng phương pháp dự phòng dựa trên lịch sử tiêu thụ 30 ngày qua để đảm bảo an toàn vận hành."*
         *   Một dòng cảnh báo cảnh báo hệ thống (Warning Log) được ghi nhận vào bảng `audit_logs` để báo cho Admin biết dịch vụ AI đang mất kết nối.
+
+---
+
+### 5. Kế hoạch kiểm thử Ca bán & Đối soát tiền
+
+| Mã Test Case | Tên Kịch bản kiểm thử | Kết quả mong đợi |
+| :--- | :--- | :--- |
+| **TC-SHIFT-01** | Mở ca khi chưa có ca mở | HTTP `201`, trạng thái `OPEN`, lưu `openingCash`. |
+| **TC-SHIFT-02** | Đóng ca không lệch tiền | HTTP `200`, trạng thái `CLOSED`, `cashVariance = 0`. |
+| **TC-SHIFT-03** | Đóng ca lệch tiền nhưng không nhập lý do | HTTP `400`, không đóng ca. |
+| **TC-SHIFT-04** | Đóng ca lệch tiền có lý do | HTTP `200`, trạng thái `PENDING_REVIEW`, lưu `varianceReason`. |
+| **TC-SHIFT-05** | Staff duyệt ca lệch tiền | HTTP `403`. |
+| **TC-SHIFT-06** | Manager/Admin duyệt ca lệch tiền | HTTP `200`, trạng thái `CLOSED`, lưu `reviewedBy`, `reviewedAt`, `reviewNote`. |
+
+---
+
+### 6. Kế hoạch kiểm thử Công nợ Nhà cung cấp
+
+| Mã Test Case | Tên Kịch bản kiểm thử | Kết quả mong đợi |
+| :--- | :--- | :--- |
+| **TC-DEBT-01** | Nhận phiếu nhập trả chậm | Tự sinh công nợ `UNPAID`, `amount = totalAmount`, `dueDate = today + 30`. |
+| **TC-DEBT-02** | Thanh toán một phần | Trạng thái `PARTIAL`, tăng `paidAmount`, giảm `remainingAmount`. |
+| **TC-DEBT-03** | Thanh toán vượt số còn lại | HTTP `400`, không thay đổi công nợ. |
+| **TC-DEBT-04** | Thanh toán đủ | Trạng thái `PAID`, `remainingAmount = 0`. |
+| **TC-DEBT-05** | Công nợ quá hạn chưa trả đủ | Khi truy vấn, trạng thái chuyển `OVERDUE`. |

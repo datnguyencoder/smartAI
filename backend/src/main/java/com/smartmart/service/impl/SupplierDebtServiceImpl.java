@@ -41,8 +41,8 @@ public class SupplierDebtServiceImpl implements SupplierDebtService {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public List<SupplierDebt> listAll(SupplierDebtStatus status) {
+        refreshOverdueDebts();
         if (status != null) {
             return supplierDebtRepository.findByStatusOrderByIdDesc(status);
         }
@@ -50,14 +50,14 @@ public class SupplierDebtServiceImpl implements SupplierDebtService {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public List<SupplierDebt> listBySupplier(Long supplierId) {
+        refreshOverdueDebts();
         return supplierDebtRepository.findBySupplierIdOrderByIdDesc(supplierId);
     }
 
     @Override
-    @Transactional(readOnly = true)
     public SupplierDebt findById(Long id) {
+        refreshOverdueDebts();
         return supplierDebtRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy công nợ"));
     }
@@ -65,6 +65,7 @@ public class SupplierDebtServiceImpl implements SupplierDebtService {
     @Override
     public SupplierDebt recordPayment(Long debtId, CreateDebtPaymentRequest request) {
         SupplierDebt debt = findById(debtId);
+        refreshStatus(debt);
         if (debt.getStatus() == SupplierDebtStatus.PAID) {
             throw new BadRequestException("Công nợ đã được thanh toán đủ");
         }
@@ -87,11 +88,7 @@ public class SupplierDebtServiceImpl implements SupplierDebtService {
 
         BigDecimal newPaid = debt.getPaidAmount().add(request.getAmount());
         debt.setPaidAmount(newPaid);
-        if (newPaid.compareTo(debt.getAmount()) >= 0) {
-            debt.setStatus(SupplierDebtStatus.PAID);
-        } else {
-            debt.setStatus(SupplierDebtStatus.PARTIAL);
-        }
+        updateStatusAfterPayment(debt, newPaid);
 
         SupplierDebt saved = supplierDebtRepository.save(debt);
         auditLogService.log(
@@ -118,11 +115,67 @@ public class SupplierDebtServiceImpl implements SupplierDebtService {
                 .purchaseOrder(po)
                 .amount(po.getTotalAmount())
                 .paidAmount(BigDecimal.ZERO)
-                .dueDate(dueDate)
+                .dueDate(dueDate != null ? dueDate : LocalDate.now().plusDays(30))
                 .status(SupplierDebtStatus.UNPAID)
                 .note("Công nợ từ phiếu nhập #" + po.getId())
                 .build();
 
-        return supplierDebtRepository.save(debt);
+        refreshStatus(debt);
+        SupplierDebt saved = supplierDebtRepository.save(debt);
+        auditLogService.log(
+                AuditAction.DEBT_CREATE,
+                "SUPPLIER_DEBT",
+                saved.getId().toString(),
+                "Tạo công nợ từ phiếu nhập #" + po.getId(),
+                null,
+                AuditData.of(
+                        "purchaseOrderId", po.getId(),
+                        "supplierId", po.getSupplier().getId(),
+                        "amount", saved.getAmount(),
+                        "dueDate", saved.getDueDate(),
+                        "status", saved.getStatus()
+                )
+        );
+        return saved;
+    }
+
+    private void updateStatusAfterPayment(SupplierDebt debt, BigDecimal newPaid) {
+        if (newPaid.compareTo(debt.getAmount()) >= 0) {
+            debt.setStatus(SupplierDebtStatus.PAID);
+            return;
+        }
+        debt.setStatus(isOverdue(debt) ? SupplierDebtStatus.OVERDUE : SupplierDebtStatus.PARTIAL);
+    }
+
+    private void refreshStatus(SupplierDebt debt) {
+        if (debt.getStatus() == SupplierDebtStatus.PAID) {
+            return;
+        }
+        if (isOverdue(debt)) {
+            debt.setStatus(SupplierDebtStatus.OVERDUE);
+        } else if (debt.getPaidAmount() != null && debt.getPaidAmount().compareTo(BigDecimal.ZERO) > 0) {
+            debt.setStatus(SupplierDebtStatus.PARTIAL);
+        } else {
+            debt.setStatus(SupplierDebtStatus.UNPAID);
+        }
+    }
+
+    private void refreshOverdueDebts() {
+        List<SupplierDebt> debts = supplierDebtRepository.findAllByOrderByIdDesc();
+        boolean changed = false;
+        for (SupplierDebt debt : debts) {
+            SupplierDebtStatus before = debt.getStatus();
+            refreshStatus(debt);
+            changed = changed || before != debt.getStatus();
+        }
+        if (changed) {
+            supplierDebtRepository.saveAll(debts);
+        }
+    }
+
+    private boolean isOverdue(SupplierDebt debt) {
+        return debt.getDueDate() != null
+                && debt.getDueDate().isBefore(LocalDate.now())
+                && debt.getPaidAmount().compareTo(debt.getAmount()) < 0;
     }
 }

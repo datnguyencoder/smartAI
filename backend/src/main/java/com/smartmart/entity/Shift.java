@@ -38,6 +38,18 @@ public class Shift extends LongAuditableEntity {
     @Column(name = "cash_variance")
     private BigDecimal cashVariance;
 
+    @Column(name = "variance_reason")
+    private String varianceReason;
+
+    @Column(name = "reviewed_by")
+    private Long reviewedBy;
+
+    @Column(name = "reviewed_at")
+    private LocalDateTime reviewedAt;
+
+    @Column(name = "review_note")
+    private String reviewNote;
+
     @Column(name = "total_orders", nullable = false)
     private Integer totalOrders;
 
