@@ -75,12 +75,11 @@ public class StocktakeServiceImpl implements StocktakeService {
                     ? itemLotRepository.findById(line.getLotId())
                             .orElseThrow(() -> new NotFoundException("Không tìm thấy lô"))
                     : null;
+            if (lot != null && !lot.getItem().getId().equals(item.getId())) {
+                throw new BadRequestException("Lô không thuộc sản phẩm kiểm kê");
+            }
 
-            BigDecimal systemQty = currentInventoryRepository
-                    .findFiltered(item.getId(), location.getId(), line.getLotId())
-                    .stream()
-                    .map(CurrentInventory::getQuantity)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal systemQty = getExactSystemQuantity(item.getId(), location.getId(), line.getLotId());
 
             BigDecimal actualQty = line.getActualQuantity() != null ? line.getActualQuantity() : systemQty;
             BigDecimal variance = actualQty.subtract(systemQty);
@@ -137,12 +136,10 @@ public class StocktakeServiceImpl implements StocktakeService {
 
         Long userId = SecurityUtils.getCurrentUserId().orElse(null);
         for (StocktakeItem line : stocktake.getItems()) {
-            BigDecimal freshSystemQty = currentInventoryRepository
-                    .findFiltered(line.getItem().getId(), stocktake.getLocation().getId(),
-                            line.getLot() != null ? line.getLot().getId() : null)
-                    .stream()
-                    .map(CurrentInventory::getQuantity)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal freshSystemQty = getExactSystemQuantity(
+                    line.getItem().getId(),
+                    stocktake.getLocation().getId(),
+                    line.getLot() != null ? line.getLot().getId() : null);
 
             line.setSystemQuantity(freshSystemQty);
             BigDecimal actualQty = line.getActualQuantity() != null ? line.getActualQuantity() : freshSystemQty;
@@ -213,5 +210,11 @@ public class StocktakeServiceImpl implements StocktakeService {
             return stocktakeRepository.findByStatusOrderByIdDesc(status);
         }
         return stocktakeRepository.findAllByOrderByIdDesc();
+    }
+
+    private BigDecimal getExactSystemQuantity(Long itemId, Long locationId, Long lotId) {
+        return currentInventoryRepository.findByItemLocationLot(itemId, locationId, lotId)
+                .map(CurrentInventory::getQuantity)
+                .orElse(BigDecimal.ZERO);
     }
 }
