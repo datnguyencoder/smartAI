@@ -1,12 +1,12 @@
 import { Button, Form, Input, InputNumber, Modal, Tag, message as antdMessage } from 'antd';
 import { motion } from 'framer-motion';
-import { Search, Truck } from 'lucide-react';
+import { Plus, Search, Truck } from 'lucide-react';
 import * as React from 'react';
 import { AiSummary } from '@/components/ai/AiSummary';
 import { Card, StatusChip, UiButton } from '@/components/ui';
 import { formatMoney as money, type Product } from '@/lib/itemMapper';
-import { normalizeRole } from '@/lib/permissions';
-import { fetchSupplierDebtsBySupplier, recordDebtPayment, updateSupplier } from '@/services/wmsApi';
+import { canQuickCreate, normalizeRole } from '@/lib/permissions';
+import { createSupplier, fetchSupplierDebtsBySupplier, recordDebtPayment, updateSupplier } from '@/services/wmsApi';
 import type { SupplierDebtDto, SupplierDto, UserDto } from '@/types/api';
 
 export default function SuppliersPage({ suppliers, productsList, authUser, reloadCatalog }: { suppliers: SupplierDto[]; productsList: Product[]; authUser?: UserDto; reloadCatalog?: () => Promise<void> }) {
@@ -19,7 +19,10 @@ export default function SuppliersPage({ suppliers, productsList, authUser, reloa
   const [payAmounts, setPayAmounts] = React.useState<Record<number, number>>({});
 
   const [searchQuery, setSearchQuery] = React.useState('');
+  const [createOpen, setCreateOpen] = React.useState(false);
+  const [createForm] = Form.useForm();
   const canEdit = authUser && ['ROLE_ADMIN', 'ROLE_MANAGER'].includes(normalizeRole(authUser.role));
+  const canCreate = authUser && canQuickCreate(authUser.role, 'suppliers');
 
   const debtStatusTag = (status: SupplierDebtDto['status']) => {
     if (status === 'PAID') return <Tag color="green">Đã trả</Tag>;
@@ -89,12 +92,42 @@ export default function SuppliersPage({ suppliers, productsList, authUser, reloa
     }
   };
 
+  const handleCreate = async () => {
+    try {
+      const values = await createForm.validateFields();
+      setLoading(true);
+      await createSupplier({
+        supplierName: values.supplierName.trim(),
+        contactPerson: values.contactPerson?.trim() || undefined,
+        phone: values.phone?.trim() || undefined,
+        email: values.email?.trim() || undefined,
+        address: values.address?.trim() || undefined,
+      });
+      antdMessage.success('Tạo nhà cung cấp thành công');
+      createForm.resetFields();
+      setCreateOpen(false);
+      if (reloadCatalog) await reloadCatalog();
+    } catch (e: unknown) {
+      if (e && typeof e === 'object' && 'errorFields' in e) return;
+      antdMessage.error(e instanceof Error ? e.message : 'Tạo nhà cung cấp thất bại');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
       <Card>
-        <div className="p-5 flex items-center justify-between border-b border-slate-100">
+        <div className="p-5 flex items-center justify-between border-b border-slate-100 gap-3">
           <h2 className="font-semibold text-lg">Nhà cung cấp đối tác</h2>
-          <Input className="w-64" prefix={<Search size={16} />} placeholder="Tìm theo tên, SĐT..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} allowClear />
+          <div className="flex items-center gap-2">
+            <Input className="w-64" prefix={<Search size={16} />} placeholder="Tìm theo tên, SĐT..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} allowClear />
+            {canCreate && (
+              <UiButton variant="primary" onClick={() => setCreateOpen(true)}>
+                <Plus size={16} className="mr-1 inline" /> Thêm NCC
+              </UiButton>
+            )}
+          </div>
         </div>
         <div className="grid gap-3 px-5 py-5 md:grid-cols-2">
           {filteredSuppliers.map((sup) => (
@@ -211,6 +244,37 @@ export default function SuppliersPage({ suppliers, productsList, authUser, reloa
             </Form.Item>
           </Form>
         )}
+      </Modal>
+
+      <Modal
+        title="Thêm nhà cung cấp mới"
+        open={createOpen}
+        onCancel={() => { setCreateOpen(false); createForm.resetFields(); }}
+        onOk={handleCreate}
+        okText="Tạo"
+        cancelText="Hủy"
+        confirmLoading={loading}
+        forceRender
+      >
+        <Form form={createForm} layout="vertical" className="mt-2">
+          <Form.Item name="supplierName" label="Tên nhà cung cấp" rules={[{ required: true, message: 'Vui lòng nhập tên' }]}>
+            <Input placeholder="Công ty TNHH ABC" />
+          </Form.Item>
+          <div className="grid grid-cols-2 gap-3">
+            <Form.Item name="contactPerson" label="Người liên hệ">
+              <Input placeholder="Người đại diện" />
+            </Form.Item>
+            <Form.Item name="phone" label="SĐT">
+              <Input placeholder="0901234567" />
+            </Form.Item>
+          </div>
+          <Form.Item name="email" label="Email">
+            <Input type="email" placeholder="contact@company.vn" />
+          </Form.Item>
+          <Form.Item name="address" label="Địa chỉ">
+            <Input.TextArea rows={2} placeholder="Địa chỉ giao dịch" />
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   );

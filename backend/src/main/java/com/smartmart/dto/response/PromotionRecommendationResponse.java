@@ -17,6 +17,7 @@ public class PromotionRecommendationResponse {
     private BigDecimal discountPercent;
     private String reason;
     private String status;
+    private Long promotionId;
     private String promotionCode;
     private LocalDateTime createdAt;
 }

@@ -26,4 +26,10 @@ public class PromotionRecommendation extends LongAuditableEntity {
 
     @Column(nullable = false)
     private String status = "PENDING";
+
+    @Column(name = "promotion_id")
+    private Long promotionId;
+
+    @Column(name = "promotion_code")
+    private String promotionCode;
 }

@@ -2,6 +2,7 @@ package com.smartmart.dto.request;
 
 import com.smartmart.enums.PaymentMethod;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
 import lombok.Getter;
 import lombok.Setter;
@@ -16,6 +17,7 @@ public class CreateOrderRequest {
     private String promotionCode;
     private PaymentMethod paymentMethod;
     private String note;
+    @Min(0)
     private Integer loyaltyPointsRedeemed;
     @Valid
     private List<OrderPaymentRequest> payments;

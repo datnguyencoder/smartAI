@@ -71,6 +71,10 @@ export type OrderDto = {
   status: string;
   totalAmount: number;
   paymentMethod?: string;
+  loyaltyPointsRedeemed?: number;
+  loyaltyPointsEarned?: number;
+  customerLoyaltyPoints?: number;
+  customerTier?: string;
   items?: Array<{ itemId?: number; itemName: string; quantity: number; unitPrice: number }>;
 };
 
@@ -275,6 +279,7 @@ export type PromotionRecommendationDto = {
   discountPercent: number;
   reason?: string;
   status: string;
+  promotionId?: number;
   promotionCode?: string;
   createdAt?: string;
 };

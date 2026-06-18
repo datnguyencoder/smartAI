@@ -200,9 +200,9 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
 
         Order saved = orderRepository.save(order);
 
-        if (customer != null) {
-            customerService.awardPoints(customer.getId(), saved.getTotalAmount());
-        }
+        int loyaltyPointsEarned = customer != null
+                ? customerService.awardPoints(customer.getId(), saved.getTotalAmount())
+                : 0;
 
         // Update reference id on logs would need second pass — acceptable for MVP
         orderEventPublisher.publishOrderCreated(saved.getId(), saved.getOrderCode());
@@ -223,7 +223,7 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
                 )
         );
 
-        return toResponse(saved);
+        return toResponse(saved, loyaltyPointsEarned);
     }
 
     @Override
@@ -354,6 +354,10 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
     }
 
     private OrderResponse toResponse(Order order) {
+        return toResponse(order, null);
+    }
+
+    private OrderResponse toResponse(Order order, Integer loyaltyPointsEarned) {
         List<OrderItemResponse> items = order.getItems().stream()
                 .map(i -> OrderItemResponse.builder()
                         .itemId(i.getItem().getId())
@@ -383,6 +387,9 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
                 .totalAmount(order.getTotalAmount())
                 .paymentMethod(order.getPaymentMethod())
                 .loyaltyPointsRedeemed(order.getLoyaltyPointsRedeemed())
+                .loyaltyPointsEarned(loyaltyPointsEarned)
+                .customerLoyaltyPoints(order.getCustomer() != null ? order.getCustomer().getLoyaltyPoints() : null)
+                .customerTier(order.getCustomer() != null ? order.getCustomer().getTier() : null)
                 .payments(order.getPayments().stream()
                         .map(p -> com.smartmart.dto.response.OrderPaymentResponse.builder()
                                 .paymentMethod(p.getPaymentMethod())

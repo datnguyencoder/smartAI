@@ -82,6 +82,14 @@ export default function PosPage({
   }, []);
 
   React.useEffect(() => {
+    const pendingCode = sessionStorage.getItem('smartmart_pending_promo_code');
+    if (!pendingCode) return;
+    sessionStorage.removeItem('smartmart_pending_promo_code');
+    setPromotionCode(pendingCode.toUpperCase());
+    antdMessage.info(`Đã nạp mã khuyến mãi ${pendingCode.toUpperCase()}`);
+  }, []);
+
+  React.useEffect(() => {
     let active = true;
     const loadItems = async () => {
       setLoadingItems(true);
@@ -175,6 +183,7 @@ export default function PosPage({
   }, [promotionCode, subtotal]);
 
   const total = Math.max(0, subtotal - promoDiscount - loyaltyRedeem);
+  const expectedLoyaltyEarn = customerPhone.trim() ? Math.floor(total / 1000) : 0;
   const maxLoyaltyRedeem = loyaltyCustomer
     ? Math.min(loyaltyCustomer.loyaltyPoints, Math.max(0, subtotal - promoDiscount))
     : 0;
@@ -308,10 +317,13 @@ export default function PosPage({
       });
       await reloadCatalog();
       const discount = Number(order.discountAmount || promoDiscount || 0);
+      const loyaltyPointsEarned = Number(order.loyaltyPointsEarned || 0);
+      const customerLoyaltyPoints = order.customerLoyaltyPoints;
       const newInvoice = {
         orderId: order.id,
         key: order.orderCode,
         customer: order.customerName,
+        customerPhone: order.customerPhone,
         amount: Math.round(Number(order.totalAmount)),
         cashier: order.cashierName || 'Hệ thống',
         status: 'Đã thanh toán',
@@ -324,14 +336,29 @@ export default function PosPage({
         })),
         subtotal: Math.round(subtotal),
         discount: Math.round(discount),
+        loyaltyRedeemed: Number(order.loyaltyPointsRedeemed || loyaltyRedeem || 0),
+        loyaltyEarned: loyaltyPointsEarned,
+        customerPoints: customerLoyaltyPoints,
+        customerTier: order.customerTier,
       };
       setLastInvoice(newInvoice);
+      if (loyaltyCustomer && customerLoyaltyPoints !== undefined) {
+        setLoyaltyCustomer({
+          ...loyaltyCustomer,
+          loyaltyPoints: Number(customerLoyaltyPoints),
+          tier: order.customerTier || loyaltyCustomer.tier,
+        });
+      }
       setReceiptOpen(true);
       setPosCart([]);
       setPromotionCode('');
       setPromoDiscount(0);
       setLoyaltyRedeem(0);
-      antdMessage.success('Thanh toán đơn hàng thành công!');
+      antdMessage.success(
+        loyaltyPointsEarned > 0
+          ? `Thanh toán thành công, tự động tích ${loyaltyPointsEarned} điểm`
+          : 'Thanh toán đơn hàng thành công!'
+      );
     } catch (e) {
       antdMessage.error(e instanceof Error ? e.message : 'Thanh toán thất bại');
     } finally {
@@ -470,7 +497,15 @@ export default function PosPage({
                     <InputNumber className="w-full mt-1" min={0} max={maxLoyaltyRedeem} value={loyaltyRedeem}
                       onChange={(v) => setLoyaltyRedeem(Math.min(Number(v) || 0, maxLoyaltyRedeem))} />
                   </div>
+                  <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+                    Sau thanh toán: tự trừ {loyaltyRedeem} điểm, dự kiến cộng {expectedLoyaltyEarn} điểm.
+                  </div>
                 </div>
+              )}
+              {!loyaltyCustomer && customerPhone.trim().length >= 9 && (
+                <p className="mt-2 text-xs text-slate-500">
+                  Khách mới sẽ được tự tạo và tích điểm khi thanh toán.
+                </p>
               )}
             </div>
             <div>
@@ -630,6 +665,9 @@ export default function PosPage({
             <div className="space-y-1 text-[11px] text-slate-600">
               <div className="flex justify-between"><span>Số HĐ:</span><span className="font-bold">{lastInvoice.key}</span></div>
               <div className="flex justify-between"><span>Khách hàng:</span><span>{lastInvoice.customer}</span></div>
+              {lastInvoice.customerPhone && (
+                <div className="flex justify-between"><span>SĐT:</span><span>{lastInvoice.customerPhone}</span></div>
+              )}
             </div>
             <div className="border-t border-b border-dashed border-slate-200 py-3 space-y-2">
               {lastInvoice.items.map((it: { name: string; qty: number; price: number }) => (
@@ -643,6 +681,28 @@ export default function PosPage({
               <span>TỔNG:</span>
               <span>{money(lastInvoice.amount)}</span>
             </div>
+            {(lastInvoice.loyaltyRedeemed > 0 || lastInvoice.loyaltyEarned > 0) && (
+              <div className="border-t border-dashed border-slate-200 pt-3 space-y-1 text-[11px] text-slate-600">
+                {lastInvoice.loyaltyRedeemed > 0 && (
+                  <div className="flex justify-between">
+                    <span>Điểm đã đổi:</span>
+                    <span>-{lastInvoice.loyaltyRedeemed}</span>
+                  </div>
+                )}
+                {lastInvoice.loyaltyEarned > 0 && (
+                  <div className="flex justify-between">
+                    <span>Điểm vừa tích:</span>
+                    <span>+{lastInvoice.loyaltyEarned}</span>
+                  </div>
+                )}
+                {lastInvoice.customerPoints !== undefined && (
+                  <div className="flex justify-between font-bold text-slate-700">
+                    <span>Số dư điểm:</span>
+                    <span>{lastInvoice.customerPoints} {lastInvoice.customerTier ? `(${lastInvoice.customerTier})` : ''}</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </Modal>
