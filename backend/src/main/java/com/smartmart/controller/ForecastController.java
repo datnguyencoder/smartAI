@@ -61,7 +61,7 @@ public class ForecastController {
     }
 
     @GetMapping("/recommendations")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     @Operation(summary = "Gợi ý đặt hàng")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> recommendations() {
         return ResponseEntity.ok(ApiResponse.success(reorderRecommendationService.listActive()));

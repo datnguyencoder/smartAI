@@ -32,7 +32,7 @@ import CustomersPage from '@/pages/sales/CustomersPage';
 import InvoicesPage from '@/pages/sales/InvoicesPage';
 import PosPage from '@/pages/sales/PosPage';
 import type { CategoryDto, LocationDto, SupplierDto, UserDto } from '@/types/api';
-import type { PageKey } from '@/types/pages';
+import type { PageKey, PurchaseSuggestionPrefillItem } from '@/types/pages';
 
 export function PageRenderer({
   page,
@@ -54,6 +54,8 @@ export function PageRenderer({
   setSelectedInvoice,
   reloadCatalog,
   catalogLoading,
+  pendingPurchaseSuggestionItems,
+  setPendingPurchaseSuggestionItems,
 }: {
   page: PageKey;
   authUser: UserDto;
@@ -74,6 +76,8 @@ export function PageRenderer({
   setSelectedInvoice: (invoice: any) => void;
   reloadCatalog: () => Promise<void>;
   catalogLoading: boolean;
+  pendingPurchaseSuggestionItems: PurchaseSuggestionPrefillItem[];
+  setPendingPurchaseSuggestionItems: React.Dispatch<React.SetStateAction<PurchaseSuggestionPrefillItem[]>>;
 }) {
   if (!canAccessPage(authUser.role, page)) {
     return (
@@ -126,6 +130,8 @@ export function PageRenderer({
         setPage={setPage}
         reloadCatalog={reloadCatalog}
         catalogLoading={catalogLoading}
+        prefillItems={pendingPurchaseSuggestionItems}
+        clearPrefillItems={() => setPendingPurchaseSuggestionItems([])}
       />
     );
   }
@@ -160,10 +166,16 @@ export function PageRenderer({
     return <ScrapOrderCreatePage />;
   }
   if (page === 'ai-forecast') {
-    return <AiForecastPage productsList={productsList} invoicesList={invoicesList} />;
+    return <AiForecastPage productsList={productsList} invoicesList={invoicesList} setPage={setPage} />;
   }
   if (page === 'purchase-suggestions') {
-    return <PurchaseSuggestionsPage productsList={productsList} setPage={setPage} />;
+    return (
+      <PurchaseSuggestionsPage
+        productsList={productsList}
+        setPage={setPage}
+        setPrefillItems={setPendingPurchaseSuggestionItems}
+      />
+    );
   }
   if (page === 'expiry-risk') {
     return <ExpiryRiskPage productsList={productsList} setPage={setPage} />;

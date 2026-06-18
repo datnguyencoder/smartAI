@@ -12,6 +12,7 @@ import {
   fetchInventoryAlerts,
   fetchReorderRecommendations,
 } from '@/services/wmsApi';
+import type { InventoryAlertDto, ReorderRecommendationDto } from '@/types/api';
 import type { PageKey } from '@/types/pages';
 
 type InsightRow = {
@@ -31,6 +32,8 @@ export function AiSummary({ setPage }: { setPage: (page: PageKey) => void }) {
     overstock: 0,
     expiry: 0,
   });
+  const [topReorders, setTopReorders] = React.useState<ReorderRecommendationDto[]>([]);
+  const [topAlerts, setTopAlerts] = React.useState<InventoryAlertDto[]>([]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -47,7 +50,7 @@ export function AiSummary({ setPage }: { setPage: (page: PageKey) => void }) {
           (a) => a.alertType === 'OUT_OF_STOCK' || a.alertType === 'LOW_STOCK'
         ).length;
         const overstock = unresolved.filter((a) => a.alertType === 'OVERSTOCK').length;
-        const expiryFromAlerts = unresolved.filter((a) => a.alertType === 'EXPIRY_RISK').length;
+        const expiryFromAlerts = unresolved.filter((a) => a.alertType === 'EXPIRY_RISK' || a.alertType === 'NEAR_EXPIRY').length;
         const nearExpiry =
           typeof summary?.nearExpiryCount === 'number' ? summary.nearExpiryCount : expiryFromAlerts;
         setCounts({
@@ -56,6 +59,14 @@ export function AiSummary({ setPage }: { setPage: (page: PageKey) => void }) {
           overstock,
           expiry: nearExpiry,
         });
+        setTopReorders(Array.isArray(recs) ? recs.slice(0, 3) : []);
+        setTopAlerts(
+          unresolved
+            .filter((a) =>
+              ['OUT_OF_STOCK', 'LOW_STOCK', 'OVERSTOCK', 'EXPIRY_RISK', 'NEAR_EXPIRY'].includes(a.alertType)
+            )
+            .slice(0, 3)
+        );
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -101,6 +112,11 @@ export function AiSummary({ setPage }: { setPage: (page: PageKey) => void }) {
   ];
 
   const hasIssues = counts.reorder + counts.stockRisk + counts.overstock + counts.expiry > 0;
+  const priorityLabel = (risk?: string) => {
+    if (risk === 'HIGH') return 'Cao';
+    if (risk === 'MEDIUM') return 'Vừa';
+    return 'Theo dõi';
+  };
 
   return (
     <Card>
@@ -140,6 +156,59 @@ export function AiSummary({ setPage }: { setPage: (page: PageKey) => void }) {
                 </StatusChip>
               </button>
             ))}
+            {(topReorders.length > 0 || topAlerts.length > 0) && (
+              <div className="rounded-lg border border-slate-100 bg-white p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Ưu tiên hôm nay
+                  </span>
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-indigo hover:underline"
+                    onClick={() => setPage('purchase-suggestions')}
+                  >
+                    Mở chi tiết
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {topReorders.map((rec) => (
+                    <button
+                      key={rec.itemId}
+                      type="button"
+                      className="block w-full rounded-md bg-slate-50 px-3 py-2 text-left transition hover:bg-indigo-50"
+                      onClick={() => setPage('purchase-suggestions')}
+                    >
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="truncate text-sm font-medium text-slate-700">{rec.itemName}</span>
+                        <StatusChip tone={rec.riskLevel === 'HIGH' ? 'danger' : rec.riskLevel === 'MEDIUM' ? 'warning' : 'neutral'}>
+                          {priorityLabel(rec.riskLevel)}
+                        </StatusChip>
+                      </span>
+                      <span className="mt-1 block text-xs text-slate-500">
+                        Đề xuất nhập {Math.ceil(Number(rec.suggestedQty) || 0).toLocaleString('vi-VN')} sp · {rec.source}
+                      </span>
+                      {rec.reason && <span className="mt-0.5 block truncate text-xs text-slate-400">{rec.reason}</span>}
+                    </button>
+                  ))}
+                  {topAlerts.map((alert) => (
+                    <button
+                      key={alert.id}
+                      type="button"
+                      className="block w-full rounded-md bg-slate-50 px-3 py-2 text-left transition hover:bg-indigo-50"
+                      onClick={() => setPage(alert.alertType === 'EXPIRY_RISK' || alert.alertType === 'NEAR_EXPIRY' ? 'expiry-risk' : 'inventory-alerts')}
+                    >
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="truncate text-sm font-medium text-slate-700">{alert.itemName}</span>
+                        <StatusChip tone={alert.severity === 'CRITICAL' ? 'danger' : 'warning'}>
+                          {alert.alertType}
+                        </StatusChip>
+                      </span>
+                      <span className="mt-1 block truncate text-xs text-slate-500">{alert.message}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </>
         )}
         <UiButton variant="secondary" className="w-full" onClick={() => setPage('purchase-suggestions')}>

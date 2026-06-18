@@ -6,7 +6,7 @@ import { createPurchaseOrder } from '@/services/wmsApi';
 import type { Product } from '@/lib/itemMapper';
 import { formatMoney as money } from '@/lib/itemMapper';
 import type { SupplierDto, LocationDto } from '@/types/api';
-import type { PageKey } from '@/types/pages';
+import type { PageKey, PurchaseSuggestionPrefillItem } from '@/types/pages';
 import { AiSummary } from '@/components/ai/AiSummary';
 
 function TotalPriceDisplay({ form }: { form: any }) {
@@ -31,6 +31,8 @@ export default function ImportCreatePage({
   setPage,
   reloadCatalog,
   catalogLoading,
+  prefillItems = [],
+  clearPrefillItems,
 }: {
   productsList: Product[];
   suppliers: SupplierDto[];
@@ -38,10 +40,37 @@ export default function ImportCreatePage({
   setPage: (page: PageKey) => void;
   reloadCatalog: () => Promise<void>;
   catalogLoading?: boolean;
+  prefillItems?: PurchaseSuggestionPrefillItem[];
+  clearPrefillItems?: () => void;
 }) {
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = React.useState(false);
   const [paymentDeferred, setPaymentDeferred] = React.useState(false);
+
+  React.useEffect(() => {
+    if (prefillItems.length === 0 || productsList.length === 0) {
+      return;
+    }
+    const items = prefillItems
+      .map((prefill) => {
+        const product = productsList.find((p) => Number(p.key) === prefill.itemId);
+        if (!product) return null;
+        const quantity = Math.max(1, Math.ceil(Number(prefill.suggestedQty) || 1));
+        const price = Number((product.cost * (product.purchaseRatio || 1)).toFixed(2));
+        return {
+          itemId: String(prefill.itemId),
+          quantity,
+          price,
+        };
+      })
+      .filter(Boolean);
+
+    if (items.length > 0) {
+      form.setFieldsValue({ items });
+      antdMessage.info('Đã điền sản phẩm từ gợi ý nhập hàng');
+      clearPrefillItems?.();
+    }
+  }, [clearPrefillItems, form, prefillItems, productsList]);
 
   const handleCreateSlip = async (values: {
     supplierId: number;

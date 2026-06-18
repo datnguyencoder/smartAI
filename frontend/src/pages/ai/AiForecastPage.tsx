@@ -31,12 +31,14 @@ import {
 } from '@/services/wmsApi';
 import type { AiStatusDto, ForecastResultDto } from '@/types/api';
 import type { Product } from '@/lib/itemMapper';
+import type { PageKey } from '@/types/pages';
 
 const { Text } = Typography;
 
 type Props = {
   productsList: Product[];
   invoicesList: any[];
+  setPage: (page: PageKey) => void;
 };
 
 function modelTag(type?: string) {
@@ -58,7 +60,7 @@ function riskTag(level?: ForecastResultDto['riskLevel']) {
   }
 }
 
-export default function AiForecastPage({ productsList: _productsList }: Props) {
+export default function AiForecastPage({ productsList: _productsList, setPage }: Props) {
   const [loading, setLoading] = React.useState(false);
   const [results, setResults] = React.useState<ForecastResultDto[]>([]);
   const [aiStatus, setAiStatus] = React.useState<AiStatusDto | null>(null);
@@ -380,7 +382,7 @@ export default function AiForecastPage({ productsList: _productsList }: Props) {
             )}
           </div>
         </Card>
-        <AiSummary setPage={() => {}} />
+        <AiSummary setPage={setPage} />
       </div>
     </div>
   );

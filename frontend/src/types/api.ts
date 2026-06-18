@@ -254,6 +254,19 @@ export type ForecastResultDto = {
   recommendation?: string;
 };
 
+export type ReorderRecommendationDto = {
+  itemId: number;
+  itemCode?: string;
+  itemName: string;
+  suggestedQty: number;
+  currentAvailable: number;
+  predictedDemand7d?: number;
+  predictedDemand14d?: number;
+  riskLevel: 'HIGH' | 'MEDIUM' | 'LOW' | string;
+  source: 'AI' | 'FALLBACK' | string;
+  reason?: string;
+};
+
 export type PromotionRecommendationDto = {
   id: number;
   itemId: number;
