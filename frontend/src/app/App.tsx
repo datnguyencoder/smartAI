@@ -175,7 +175,7 @@ function App() {
       clearCatalog();
       return;
     }
-    if (localStorage.getItem('smartmart_token')) {
+    if (sessionStorage.getItem('smartmart_token')) {
       reloadCatalog();
     }
   }, [authUser, reloadCatalog, clearCatalog]);
@@ -188,7 +188,7 @@ function App() {
     return <div className="min-h-screen grid place-items-center text-slate-500">Đang tải…</div>;
   }
 
-  if (!authUser || !localStorage.getItem('smartmart_token')) {
+  if (!authUser || !sessionStorage.getItem('smartmart_token')) {
     return (
       <LoginScreen
         onSuccess={() => {
