@@ -108,9 +108,11 @@ public class PromotionRecommendationServiceImpl implements PromotionRecommendati
 
         PromotionResponse created = promotionService.create(request);
         rec.setStatus("APPROVED");
-        rec.setReason(rec.getReason() + " | Mã: " + created.getCode());
+        rec.setPromotionId(created.getId());
+        rec.setPromotionCode(created.getCode());
+        rec.setReason(appendPromotionCode(rec.getReason(), created.getCode()));
         auditLogService.log("PROMO_APPROVE", "Duyệt KM AI #" + id + " → " + created.getCode());
-        return toResponse(rec, created.getCode());
+        return toResponse(rec);
     }
 
     @Override
@@ -138,7 +140,7 @@ public class PromotionRecommendationServiceImpl implements PromotionRecommendati
     }
 
     private PromotionRecommendationResponse toResponse(PromotionRecommendation rec) {
-        return toResponse(rec, extractCodeFromReason(rec.getReason()));
+        return toResponse(rec, rec.getPromotionCode() != null ? rec.getPromotionCode() : extractCodeFromReason(rec.getReason()));
     }
 
     private PromotionRecommendationResponse toResponse(PromotionRecommendation rec, String promotionCode) {
@@ -151,9 +153,19 @@ public class PromotionRecommendationServiceImpl implements PromotionRecommendati
                 .discountPercent(rec.getDiscountPercent())
                 .reason(rec.getReason())
                 .status(rec.getStatus())
+                .promotionId(rec.getPromotionId())
                 .promotionCode(promotionCode)
                 .createdAt(rec.getCreatedAt())
                 .build();
+    }
+
+    private String appendPromotionCode(String reason, String code) {
+        String safeReason = reason != null ? reason : "";
+        if (safeReason.contains("Mã: ")) {
+            return safeReason;
+        }
+        String appended = safeReason + " | Mã: " + code;
+        return appended.length() > 500 ? appended.substring(0, 500) : appended;
     }
 
     private String extractCodeFromReason(String reason) {

@@ -24,6 +24,9 @@ public class OrderResponse {
     private BigDecimal totalAmount;
     private PaymentMethod paymentMethod;
     private Integer loyaltyPointsRedeemed;
+    private Integer loyaltyPointsEarned;
+    private Integer customerLoyaltyPoints;
+    private String customerTier;
     private List<OrderPaymentResponse> payments;
     private List<OrderItemResponse> items;
 }

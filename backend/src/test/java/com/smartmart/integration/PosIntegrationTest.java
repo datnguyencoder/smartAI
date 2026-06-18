@@ -103,4 +103,52 @@ class PosIntegrationTest {
                 .andExpect(status().is4xxClientError())
                 .andExpect(jsonPath("$.success").value(false));
     }
+
+    @Test
+    void tcPos03_loyaltyPointsEarnAndRedeemAutomatically() throws Exception {
+        String phone = "0909000111";
+
+        MvcResult firstOrder = mockMvc.perform(post("/api/v1/orders")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "customerName", "Khách Loyalty",
+                                "customerPhone", phone,
+                                "paymentMethod", "CASH",
+                                "items", java.util.List.of(Map.of("itemId", itemId, "quantity", 1))
+                        ))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.loyaltyPointsEarned").exists())
+                .andExpect(jsonPath("$.data.customerLoyaltyPoints").exists())
+                .andReturn();
+
+        JsonNode firstData = objectMapper.readTree(firstOrder.getResponse().getContentAsString()).path("data");
+        int firstEarned = firstData.path("loyaltyPointsEarned").asInt();
+        int firstBalance = firstData.path("customerLoyaltyPoints").asInt();
+        assertThat(firstEarned).isPositive();
+        assertThat(firstBalance).isGreaterThanOrEqualTo(firstEarned);
+
+        MvcResult secondOrder = mockMvc.perform(post("/api/v1/orders")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "customerName", "Khách Loyalty",
+                                "customerPhone", phone,
+                                "paymentMethod", "CASH",
+                                "loyaltyPointsRedeemed", 1,
+                                "items", java.util.List.of(Map.of("itemId", itemId, "quantity", 1))
+                        ))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.loyaltyPointsRedeemed").value(1))
+                .andExpect(jsonPath("$.data.loyaltyPointsEarned").exists())
+                .andExpect(jsonPath("$.data.customerLoyaltyPoints").exists())
+                .andReturn();
+
+        JsonNode secondData = objectMapper.readTree(secondOrder.getResponse().getContentAsString()).path("data");
+        int secondEarned = secondData.path("loyaltyPointsEarned").asInt();
+        int secondBalance = secondData.path("customerLoyaltyPoints").asInt();
+        assertThat(secondBalance).isEqualTo(firstBalance - 1 + secondEarned);
+    }
 }

@@ -1,6 +1,6 @@
 import { Form, Input, InputNumber, Modal, Select, Switch, message as antdMessage } from 'antd';
 import * as React from 'react';
-import { createItem } from '@/services/wmsApi';
+import { createItem, createSupplier } from '@/services/wmsApi';
 import type { CategoryDto, UomDto } from '@/types/api';
 import type { PageKey } from '@/types/pages';
 import { ProductThumbnail } from '@/components/catalog/ProductThumbnail';
@@ -63,6 +63,11 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
     costPrice: number;
     hasExpiry?: boolean;
     imageUrl?: string;
+    supplierName?: string;
+    contactPerson?: string;
+    phone?: string;
+    email?: string;
+    address?: string;
   }) => {
     if (page === 'products') {
       if (!baseUom) {
@@ -89,8 +94,27 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
       } finally {
         setSaving(false);
       }
+    } else if (page === 'suppliers') {
+      setSaving(true);
+      try {
+        await createSupplier({
+          supplierName: values.supplierName!.trim(),
+          contactPerson: values.contactPerson?.trim() || undefined,
+          phone: values.phone?.trim() || undefined,
+          email: values.email?.trim() || undefined,
+          address: values.address?.trim() || undefined,
+        });
+        await onCreated();
+        antdMessage.success(`Thêm nhà cung cấp "${values.supplierName}" thành công`);
+      } catch (e) {
+        antdMessage.error(e instanceof Error ? e.message : 'Tạo nhà cung cấp thất bại');
+        return;
+      } finally {
+        setSaving(false);
+      }
     } else {
-      antdMessage.success('Tạo thành công tác vụ vận hành mới!');
+      antdMessage.info('Chức năng tạo nhanh cho trang này đang được phát triển');
+      return;
     }
     form.resetFields();
     setPreviewName('');
@@ -102,7 +126,13 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
     <Modal
       open={open}
       onCancel={onCancel}
-      title={page === 'products' ? 'Thêm mới Sản phẩm vào hệ thống' : `Tạo nhanh - ${pageTitles[page].title}`}
+      title={
+        page === 'products'
+          ? 'Thêm mới Sản phẩm vào hệ thống'
+          : page === 'suppliers'
+            ? 'Thêm nhà cung cấp mới'
+            : `Tạo nhanh - ${pageTitles[page].title}`
+      }
       okText="Tạo"
       cancelText="Hủy"
       confirmLoading={saving}
@@ -150,6 +180,30 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
             </div>
             <Form.Item name="hasExpiry" label="Có hạn dùng" valuePropName="checked">
               <Switch />
+            </Form.Item>
+          </div>
+        ) : page === 'suppliers' ? (
+          <div className="space-y-1">
+            <Form.Item
+              name="supplierName"
+              label="Tên nhà cung cấp"
+              rules={[{ required: true, message: 'Vui lòng nhập tên nhà cung cấp' }]}
+            >
+              <Input placeholder="Ví dụ: Công ty TNHH ABC" />
+            </Form.Item>
+            <div className="grid grid-cols-2 gap-3">
+              <Form.Item name="contactPerson" label="Người liên hệ">
+                <Input placeholder="Họ tên người đại diện" />
+              </Form.Item>
+              <Form.Item name="phone" label="Số điện thoại">
+                <Input placeholder="0901234567" />
+              </Form.Item>
+            </div>
+            <Form.Item name="email" label="Email">
+              <Input type="email" placeholder="contact@company.vn" />
+            </Form.Item>
+            <Form.Item name="address" label="Địa chỉ">
+              <Input.TextArea rows={2} placeholder="Địa chỉ giao dịch / kho" />
             </Form.Item>
           </div>
         ) : (

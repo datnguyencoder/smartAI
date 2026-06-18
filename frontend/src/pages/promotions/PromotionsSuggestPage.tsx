@@ -27,7 +27,7 @@ export default function PromotionsSuggestPage({ setPage }: Props) {
   const load = React.useCallback(async () => {
     setLoading(true);
     try {
-      setRows(await fetchPromotionRecommendations(true));
+      setRows(await fetchPromotionRecommendations(false));
     } catch (e) {
       antdMessage.error(e instanceof Error ? e.message : 'Không tải được đề xuất KM');
     } finally {
@@ -60,8 +60,12 @@ export default function PromotionsSuggestPage({ setPage }: Props) {
     }
     setGenerating(true);
     try {
-      await aiSuggestPromotion(selectedItemId);
-      antdMessage.success('Gemini đã tạo đề xuất khuyến mãi');
+      const res = await aiSuggestPromotion(selectedItemId);
+      antdMessage.success(
+        res.source === 'FALLBACK'
+          ? 'Đã tạo đề xuất KM bằng rule fallback để demo không bị gián đoạn'
+          : 'Gemini đã tạo đề xuất khuyến mãi'
+      );
       await load();
     } catch (e) {
       antdMessage.error(e instanceof Error ? e.message : 'Không tạo được đề xuất');
@@ -127,9 +131,28 @@ export default function PromotionsSuggestPage({ setPage }: Props) {
             </Button>
           </div>
         ) : row.promotionCode ? (
-          <Button size="small" ghost type="primary" onClick={() => setPage('pos')}>
-            Dùng tại POS
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="small"
+              onClick={() => {
+                navigator.clipboard?.writeText(row.promotionCode || '');
+                antdMessage.success(`Đã copy mã ${row.promotionCode}`);
+              }}
+            >
+              Copy mã
+            </Button>
+            <Button
+              size="small"
+              ghost
+              type="primary"
+              onClick={() => {
+                sessionStorage.setItem('smartmart_pending_promo_code', row.promotionCode || '');
+                setPage('pos');
+              }}
+            >
+              Dùng tại POS
+            </Button>
+          </div>
         ) : null,
     },
   ];
@@ -168,7 +191,7 @@ export default function PromotionsSuggestPage({ setPage }: Props) {
             <Alert
               type="info"
               showIcon
-              message="Chưa có đề xuất chờ duyệt"
+              message="Chưa có đề xuất khuyến mãi"
               description="Chọn sản phẩm cận hạn và nhấn Tạo đề xuất AI, hoặc dùng trang Rủi ro hết hạn."
             />
           )}

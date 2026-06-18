@@ -22,7 +22,7 @@ public interface CustomerService {
 
     Customer findOrCreateByPhone(String phone, String fullName);
 
-    void awardPoints(Long customerId, BigDecimal orderTotalVnd);
+    int awardPoints(Long customerId, BigDecimal orderTotalVnd);
 
     BigDecimal redeemPoints(Long customerId, int pointsToRedeem);
 }

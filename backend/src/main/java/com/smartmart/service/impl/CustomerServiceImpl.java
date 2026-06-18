@@ -136,9 +136,9 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     @Override
-    public void awardPoints(Long customerId, BigDecimal orderTotalVnd) {
+    public int awardPoints(Long customerId, BigDecimal orderTotalVnd) {
         if (customerId == null || orderTotalVnd == null) {
-            return;
+            return 0;
         }
         Customer customer = findCustomer(customerId);
         String beforeData = AuditData.of(
@@ -151,11 +151,12 @@ public class CustomerServiceImpl implements CustomerService {
         }
         int earned = orderTotalVnd.divide(BigDecimal.valueOf(pointRate), 0, RoundingMode.DOWN).intValue();
         if (earned <= 0) {
-            return;
+            return 0;
         }
         int newPoints = customer.getLoyaltyPoints() + earned;
         customer.setLoyaltyPoints(newPoints);
         customer.setTier(resolveTier(newPoints));
+        customerRepository.save(customer);
         auditLogService.log(
                 AuditAction.CUSTOMER_POINTS_EARNED,
                 "CUSTOMER",
@@ -168,6 +169,7 @@ public class CustomerServiceImpl implements CustomerService {
                         "tier", customer.getTier()
                 )
         );
+        return earned;
     }
 
     @Override

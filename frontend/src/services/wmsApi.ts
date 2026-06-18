@@ -267,7 +267,7 @@ export function rejectPromotionRecommendation(id: number) {
 }
 
 export function aiSuggestPromotion(itemId: number) {
-  return apiRequest<{ suggestion: string; promotionId: number; discountPercent: number; status: string }>(
+  return apiRequest<{ suggestion: string; promotionId: number; discountPercent: number; status: string; source?: string }>(
     `/api/v1/ai-insight/suggest-promotion/${itemId}`,
     { method: 'POST' }
   );
@@ -303,6 +303,19 @@ export function fetchCategories() {
 
 export function fetchSuppliers() {
   return apiRequest<SupplierDto[]>('/api/v1/suppliers');
+}
+
+export function createSupplier(payload: {
+  supplierName: string;
+  contactPerson?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+}) {
+  return apiRequest<SupplierDto>('/api/v1/suppliers', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
 
 export function updateSupplier(id: number, payload: Partial<SupplierDto>) {
