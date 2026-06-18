@@ -64,7 +64,7 @@ app:
   seed:
     retail-sales:
       enabled: ${SEED_RETAIL_SALES:true}
-      csv: data/retail/vn_synthetic_daily.csv
+      csv: data/retail/uci_online_retail_daily.csv
   report:
     footer:
       text: ${REPORT_FOOTER_TEXT:BÁO CÁO NỘI BỘ - BẢO MẬT}

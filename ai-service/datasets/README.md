@@ -11,7 +11,16 @@
 
 Nguồn gốc: [UCI Online Retail](https://archive.ics.uci.edu/dataset/352/online+retail) (CC BY 4.0). Mirror: [Databricks Spark Guide CSV](https://github.com/databricks/Spark-The-Definitive-Guide/tree/master/data/retail-data/all).
 
-### Chuẩn bị lại dữ liệu
+### Tải & chuẩn bị một lệnh
+
+```bash
+# Cần pandas (ai-service/.venv hoặc pip install pandas)
+python3 scripts/retail/download_retail_dataset.py --top-products 50 --last-days 365
+```
+
+Script tải raw từ mirror Databricks (~541k dòng), gom daily, ghi vào `backend/.../uci_online_retail_daily.csv`.
+
+### Chuẩn bị lại thủ công
 
 ```bash
 # Tải raw (nếu chưa có)

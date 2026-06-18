@@ -12,6 +12,7 @@ import java.util.List;
 public class ForecastItemDetailResponse {
 
     private Long itemId;
+    private String itemCode;
     private String itemName;
     private BigDecimal pred7d;
     private BigDecimal pred14d;
@@ -20,6 +21,11 @@ public class ForecastItemDetailResponse {
   private LocalDateTime forecastDate;
   private BigDecimal confidenceLow;
   private BigDecimal confidenceHigh;
+  private BigDecimal stockOnHand;
+  private BigDecimal shortageQty;
+  private BigDecimal surplusQty;
+  private String riskLevel;
+  private String recommendation;
   private List<DailyPoint> dailySeries;
 
   @Data

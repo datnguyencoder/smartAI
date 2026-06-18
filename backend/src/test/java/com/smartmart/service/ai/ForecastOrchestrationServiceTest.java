@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartmart.client.AiClient;
 import com.smartmart.entity.Category;
 import com.smartmart.entity.Item;
+import com.smartmart.repository.CurrentInventoryRepository;
 import com.smartmart.repository.ForecastDailyPointRepository;
 import com.smartmart.repository.ForecastResultRepository;
 import com.smartmart.repository.ItemRepository;
@@ -43,6 +44,8 @@ class ForecastOrchestrationServiceTest {
     @Mock
     private ForecastDailyPointRepository forecastDailyPointRepository;
     @Mock
+    private CurrentInventoryRepository currentInventoryRepository;
+    @Mock
     private ReorderRecommendationService reorderRecommendationService;
 
     private ForecastOrchestrationService service;
@@ -56,6 +59,7 @@ class ForecastOrchestrationServiceTest {
                 trainingHistoryRepository,
                 forecastResultRepository,
                 forecastDailyPointRepository,
+                currentInventoryRepository,
                 reorderRecommendationService,
                 new ObjectMapper()
         );

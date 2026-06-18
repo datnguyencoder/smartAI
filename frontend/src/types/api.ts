@@ -239,6 +239,7 @@ export type DashboardSummaryDto = {
 
 export type ForecastResultDto = {
   itemId: number;
+  itemCode?: string;
   itemName?: string;
   pred7d?: number;
   pred14d?: number;
@@ -246,6 +247,11 @@ export type ForecastResultDto = {
   modelType?: string;
   confidenceLow?: number;
   confidenceHigh?: number;
+  stockOnHand?: number;
+  shortageQty?: number;
+  surplusQty?: number;
+  riskLevel?: 'OK' | 'WARNING' | 'CRITICAL' | 'OVERSTOCK';
+  recommendation?: string;
 };
 
 export type PromotionRecommendationDto = {

@@ -1,10 +1,10 @@
 import { Alert, List, Tag, Typography } from 'antd';
 import {
   CheckCircleOutlined,
+  ExclamationCircleOutlined,
   InfoCircleOutlined,
-  LineChartOutlined,
   RiseOutlined,
-  ShoppingOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import type { AiStatusDto, ForecastResultDto } from '@/types/api';
 
@@ -22,14 +22,29 @@ function modelLabel(type?: string) {
   return 'Trung bình động (MA)';
 }
 
+function riskTag(level?: ForecastResultDto['riskLevel']) {
+  switch (level) {
+    case 'CRITICAL':
+      return <Tag color="error">Thiếu gấp</Tag>;
+    case 'WARNING':
+      return <Tag color="warning">Sắp thiếu</Tag>;
+    case 'OVERSTOCK':
+      return <Tag color="purple">Tồn dư</Tag>;
+    default:
+      return <Tag color="success">Đủ tồn</Tag>;
+  }
+}
+
 export function ForecastExplanation({ results, aiStatus, ranAt }: Props) {
   if (results.length === 0) return null;
 
-  const sorted = [...results].sort((a, b) => (Number(b.pred30d) || 0) - (Number(a.pred30d) || 0));
-  const topItems = sorted.slice(0, 5);
-  const total30d = results.reduce((sum, r) => sum + (Number(r.pred30d) || 0), 0);
-  const avg7d = results.reduce((sum, r) => sum + (Number(r.pred7d) || 0), 0) / results.length;
-  const highDemandCount = results.filter((r) => (Number(r.pred30d) || 0) >= avg7d * 4).length;
+  const critical = results.filter((r) => r.riskLevel === 'CRITICAL');
+  const warning = results.filter((r) => r.riskLevel === 'WARNING');
+  const ok = results.filter((r) => r.riskLevel === 'OK' || !r.riskLevel);
+  const overstock = results.filter((r) => r.riskLevel === 'OVERSTOCK');
+  const needOrder = [...critical, ...warning].sort(
+    (a, b) => (Number(b.shortageQty) || 0) - (Number(a.shortageQty) || 0)
+  );
 
   const timeLabel = ranAt
     ? ranAt.toLocaleString('vi-VN', {
@@ -55,22 +70,52 @@ export function ForecastExplanation({ results, aiStatus, ranAt }: Props) {
         description={
           <div className="mt-1 space-y-2 text-sm leading-relaxed">
             <Paragraph className="!mb-0">
-              Hệ thống đã ước tính <Text strong>nhu cầu bán ra</Text> cho từng SKU dựa trên lịch sử bán hàng.
-              Mô hình đang dùng: <Tag color="blue">{modelLabel(aiStatus?.modelType)}</Tag>
+              Hệ thống so sánh <Text strong>nhu cầu bán dự kiến 30 ngày</Text> với{' '}
+              <Text strong>tồn kho hiện có</Text> để đưa ra gợi ý nhập hàng. Mô hình:{' '}
+              <Tag color="blue">{modelLabel(aiStatus?.modelType)}</Tag>
             </Paragraph>
             <Paragraph className="!mb-0">
-              <Text strong>Tổng nhu cầu 30 ngày tới (ước tính):</Text>{' '}
-              {Math.round(total30d).toLocaleString('vi-VN')} đơn vị trên {results.length} mặt hàng.
-              {highDemandCount > 0 && (
-                <>
-                  {' '}
-                  Có <Text type="warning">{highDemandCount} SKU</Text> có xu hướng bán cao — nên ưu tiên kiểm tra tồn.
-                </>
-              )}
+              <Tag color="error">{critical.length} cần nhập gấp</Tag>{' '}
+              <Tag color="warning">{warning.length} nên đặt hàng</Tag>{' '}
+              <Tag color="success">{ok.length} đủ tồn</Tag>
+              {overstock.length > 0 && <Tag color="purple">{overstock.length} tồn dư</Tag>}
             </Paragraph>
           </div>
         }
       />
+
+      {needOrder.length > 0 && (
+        <Alert
+          type={critical.length > 0 ? 'error' : 'warning'}
+          showIcon
+          icon={critical.length > 0 ? <ExclamationCircleOutlined /> : <WarningOutlined />}
+          message={critical.length > 0 ? 'Ưu tiên nhập hàng ngay' : 'Nên lên kế hoạch nhập hàng'}
+          description={
+            <List
+              size="small"
+              className="mt-2"
+              dataSource={needOrder.slice(0, 6)}
+              renderItem={(item) => (
+                <List.Item className="!px-0 !py-1">
+                  <div className="flex w-full flex-wrap items-center justify-between gap-2">
+                    <span className="flex min-w-0 items-center gap-2">
+                      {riskTag(item.riskLevel)}
+                      <Text strong ellipsis className="max-w-[220px]">
+                        {item.itemName ?? item.itemCode}
+                      </Text>
+                    </span>
+                    <span className="shrink-0 text-sm tabular-nums text-slate-600">
+                      Tồn {Math.round(Number(item.stockOnHand) || 0).toLocaleString('vi-VN')} → cần{' '}
+                      {Math.round(Number(item.pred30d) || 0).toLocaleString('vi-VN')} (
+                      <Text type="danger">thiếu ~{Math.round(Number(item.shortageQty) || 0).toLocaleString('vi-VN')}</Text>)
+                    </span>
+                  </div>
+                </List.Item>
+              )}
+            />
+          }
+        />
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-xl border border-line bg-slate-50/80 p-4">
@@ -80,33 +125,38 @@ export function ForecastExplanation({ results, aiStatus, ranAt }: Props) {
           </Title>
           <ul className="space-y-2 text-sm text-slate-600">
             <li>
-              <Text strong>7 / 14 / 30 ngày:</Text> số lượng dự kiến bán trong khoảng thời gian tương ứng (đơn vị: cái/hộp).
+              <Text strong>Tồn hiện tại:</Text> số lượng có thể bán ngay (tất cả kho).
             </li>
             <li>
-              <Text strong>Khoảng tin cậy (30d):</Text> biên dao động thấp–cao; càng hẹp thì dự báo càng ổn định.
+              <Text strong>Cần 30 ngày:</Text> lượng dự kiến bán trong 30 ngày tới.
             </li>
             <li>
-              <Text strong>Model:</Text> thuật toán ML đã chọn cho SKU đó (RF / XGB / MA).
+              <Text strong>Thiếu/Dư:</Text> chênh lệch giữa tồn và nhu cầu — số dương là thiếu hàng.
             </li>
-            <li>Nhấn một dòng trong bảng để xem biểu đồ chi tiết 30 ngày bên dưới.</li>
+            <li>
+              <Text strong>Trạng thái:</Text> Đủ tồn / Sắp thiếu / Thiếu gấp / Tồn dư.
+            </li>
+            <li>Nhấn một dòng để xem biểu đồ chi tiết theo ngày.</li>
           </ul>
         </div>
 
         <div className="rounded-xl border border-line bg-white p-4">
           <Title level={5} className="!mb-3 flex items-center gap-2 !text-base">
             <RiseOutlined className="text-emerald-600" />
-            Top SKU nhu cầu cao (30 ngày)
+            Nhu cầu cao nhất (30 ngày)
           </Title>
           <List
             size="small"
-            dataSource={topItems}
+            dataSource={[...results]
+              .sort((a, b) => (Number(b.pred30d) || 0) - (Number(a.pred30d) || 0))
+              .slice(0, 5)}
             renderItem={(item, idx) => (
               <List.Item className="!px-0">
                 <div className="flex w-full items-center justify-between gap-2">
                   <span className="flex min-w-0 items-center gap-2">
                     <Tag color={idx === 0 ? 'green' : 'default'}>{idx + 1}</Tag>
                     <Text ellipsis className="max-w-[180px]">
-                      {item.itemName ?? `SKU #${item.itemId}`}
+                      {item.itemName ?? item.itemCode}
                     </Text>
                   </span>
                   <Text strong className="shrink-0 tabular-nums text-emerald-700">
@@ -118,20 +168,6 @@ export function ForecastExplanation({ results, aiStatus, ranAt }: Props) {
           />
         </div>
       </div>
-
-      <Alert
-        type="info"
-        showIcon
-        icon={<LineChartOutlined />}
-        message="Gợi ý hành động"
-        description={
-          <ul className="mt-1 list-disc space-y-1 pl-4 text-sm">
-            <li>So sánh cột <ShoppingOutlined /> <Text strong>30 ngày</Text> với tồn kho hiện tại — nếu tồn thấp hơn dự báo, cân nhắc nhập thêm.</li>
-            <li>Vào <Text strong>Gợi ý nhập hàng</Text> để xem đề xuất đặt hàng chi tiết theo nhà cung cấp.</li>
-            <li>Chạy lại dự báo sau khi có thêm dữ liệu bán mới (cuối tuần / cuối tháng).</li>
-          </ul>
-        }
-      />
     </div>
   );
 }

@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -27,6 +28,7 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
     private final ModelTrainingHistoryRepository trainingHistoryRepository;
     private final ForecastResultRepository forecastResultRepository;
     private final ForecastDailyPointRepository forecastDailyPointRepository;
+    private final CurrentInventoryRepository currentInventoryRepository;
     private final ReorderRecommendationService reorderRecommendationService;
     private final ObjectMapper objectMapper;
 
@@ -37,6 +39,7 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
             ModelTrainingHistoryRepository trainingHistoryRepository,
             ForecastResultRepository forecastResultRepository,
             ForecastDailyPointRepository forecastDailyPointRepository,
+            CurrentInventoryRepository currentInventoryRepository,
             ReorderRecommendationService reorderRecommendationService,
             ObjectMapper objectMapper
     ) {
@@ -46,6 +49,7 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
         this.trainingHistoryRepository = trainingHistoryRepository;
         this.forecastResultRepository = forecastResultRepository;
         this.forecastDailyPointRepository = forecastDailyPointRepository;
+        this.currentInventoryRepository = currentInventoryRepository;
         this.reorderRecommendationService = reorderRecommendationService;
         this.objectMapper = objectMapper;
     }
@@ -170,19 +174,9 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
     @Override
     public List<Map<String, Object>> listResults() {
         return forecastResultRepository.findTop100ByOrderByForecastDateDesc().stream()
-                .map(fr -> {
-                    Map<String, Object> m = new LinkedHashMap<>();
-                    m.put("itemId", fr.getItem().getId());
-                    m.put("itemName", fr.getItem().getItemName());
-                    m.put("pred7d", fr.getPredictedQty7d());
-                    m.put("pred14d", fr.getPredictedQty14d());
-                    m.put("pred30d", fr.getPredictedQty30d());
-                    m.put("modelType", fr.getModelType());
-                    m.put("forecastDate", fr.getForecastDate());
-                    m.put("confidenceLow", fr.getConfidenceLow());
-                    m.put("confidenceHigh", fr.getConfidenceHigh());
-                    return m;
-                }).toList();
+                .map(fr -> toResultMap(fr))
+                .sorted(Comparator.comparingInt(m -> riskSortOrder(String.valueOf(m.get("riskLevel")))))
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -212,8 +206,11 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
                 })
                 .toList();
 
+        Map<String, Object> insight = buildStockInsight(fr.getItem(), fr.getPredictedQty30d(), fr.getPredictedQty7d());
+
         return ForecastItemDetailResponse.builder()
                 .itemId(fr.getItem().getId())
+                .itemCode(fr.getItem().getItemCode())
                 .itemName(fr.getItem().getItemName())
                 .pred7d(fr.getPredictedQty7d())
                 .pred14d(fr.getPredictedQty14d())
@@ -222,6 +219,11 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
                 .forecastDate(fr.getForecastDate())
                 .confidenceLow(fr.getConfidenceLow())
                 .confidenceHigh(fr.getConfidenceHigh())
+                .stockOnHand((BigDecimal) insight.get("stockOnHand"))
+                .shortageQty((BigDecimal) insight.get("shortageQty"))
+                .surplusQty((BigDecimal) insight.get("surplusQty"))
+                .riskLevel((String) insight.get("riskLevel"))
+                .recommendation((String) insight.get("recommendation"))
                 .dailySeries(series)
                 .build();
     }
@@ -321,5 +323,72 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
             return node.path(primary).asDouble(0);
         }
         return node.path(fallback).asDouble(0);
+    }
+
+    private Map<String, Object> toResultMap(ForecastResult fr) {
+        Item item = fr.getItem();
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("itemId", item.getId());
+        m.put("itemCode", item.getItemCode());
+        m.put("itemName", item.getItemName());
+        m.put("pred7d", fr.getPredictedQty7d());
+        m.put("pred14d", fr.getPredictedQty14d());
+        m.put("pred30d", fr.getPredictedQty30d());
+        m.put("modelType", fr.getModelType());
+        m.put("forecastDate", fr.getForecastDate());
+        m.put("confidenceLow", fr.getConfidenceLow());
+        m.put("confidenceHigh", fr.getConfidenceHigh());
+        m.putAll(buildStockInsight(item, fr.getPredictedQty30d(), fr.getPredictedQty7d()));
+        return m;
+    }
+
+    private Map<String, Object> buildStockInsight(Item item, BigDecimal pred30d, BigDecimal pred7d) {
+        BigDecimal stock = currentInventoryRepository.sumAvailableByItemId(item.getId()).orElse(BigDecimal.ZERO);
+        BigDecimal pred30 = pred30d != null ? pred30d : BigDecimal.ZERO;
+        BigDecimal pred7 = pred7d != null ? pred7d : BigDecimal.ZERO;
+        BigDecimal minStock = item.getMinimumStock() != null
+                ? BigDecimal.valueOf(item.getMinimumStock())
+                : BigDecimal.ZERO;
+
+        BigDecimal shortage = pred30.compareTo(stock) > 0
+                ? pred30.subtract(stock).setScale(0, RoundingMode.CEILING)
+                : BigDecimal.ZERO;
+        BigDecimal surplus = stock.compareTo(pred30) > 0
+                ? stock.subtract(pred30).setScale(0, RoundingMode.FLOOR)
+                : BigDecimal.ZERO;
+
+        String riskLevel;
+        String recommendation;
+        if (shortage.compareTo(BigDecimal.ZERO) == 0 && surplus.compareTo(pred7.multiply(BigDecimal.valueOf(2))) > 0) {
+            riskLevel = "OVERSTOCK";
+            recommendation = "Tồn dư ~" + surplus.toPlainString() + " sp — cân nhắc khuyến mãi hoặc giảm nhập";
+        } else if (shortage.compareTo(BigDecimal.ZERO) == 0) {
+            riskLevel = "OK";
+            recommendation = "Tồn đủ cho nhu cầu 30 ngày tới";
+        } else if (stock.compareTo(minStock) < 0 || shortage.compareTo(pred7) > 0) {
+            riskLevel = "CRITICAL";
+            recommendation = "Cần nhập gấp — thiếu ~" + shortage.toPlainString() + " sp so với dự báo 30 ngày";
+        } else {
+            riskLevel = "WARNING";
+            recommendation = "Nên đặt hàng — thiếu ~" + shortage.toPlainString() + " sp trong 30 ngày tới";
+        }
+
+        Map<String, Object> insight = new LinkedHashMap<>();
+        insight.put("stockOnHand", stock.setScale(0, RoundingMode.HALF_UP));
+        insight.put("shortageQty", shortage);
+        insight.put("surplusQty", surplus);
+        insight.put("riskLevel", riskLevel);
+        insight.put("recommendation", recommendation);
+        return insight;
+    }
+
+    private static int riskSortOrder(String riskLevel) {
+        return switch (riskLevel) {
+            case "CRITICAL" -> 0;
+            case "WARNING" -> 1;
+            case "OK" -> 2;
+            case "OVERSTOCK" -> 3;
+            default -> 4;
+        };
     }
 }
