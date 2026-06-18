@@ -27,7 +27,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     fetchMe()
       .then((user) => {
         setAuthUser(user);
-        localStorage.setItem('smartmart_user', JSON.stringify(user));
+        sessionStorage.setItem('smartmart_user', JSON.stringify(user));
       })
       .catch(() => {
         clearSession();

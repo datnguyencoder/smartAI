@@ -23,13 +23,13 @@ export class ApiClientError extends Error {
 
 /** @deprecated dùng authSession.getAccessToken */
 export function setToken(token: string | null) {
-  if (token) localStorage.setItem('smartmart_token', token);
-  else localStorage.removeItem('smartmart_token');
+  if (token) sessionStorage.setItem('smartmart_token', token);
+  else sessionStorage.removeItem('smartmart_token');
 }
 
 export function setRefreshToken(token: string | null) {
-  if (token) localStorage.setItem('smartmart_refresh_token', token);
-  else localStorage.removeItem('smartmart_refresh_token');
+  if (token) sessionStorage.setItem('smartmart_refresh_token', token);
+  else sessionStorage.removeItem('smartmart_refresh_token');
 }
 
 export function setAuthTokens(accessToken: string, refreshToken: string) {
@@ -63,7 +63,7 @@ async function tryRefreshToken(): Promise<string | null> {
         }
         updateTokens(body.data.accessToken, body.data.refreshToken ?? refreshToken);
         if (body.data.user) {
-          localStorage.setItem('smartmart_user', JSON.stringify(body.data.user));
+          sessionStorage.setItem('smartmart_user', JSON.stringify(body.data.user));
         }
 
         return body.data.accessToken;
