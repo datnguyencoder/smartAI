@@ -443,7 +443,7 @@ export function fetchForecastItemDetail(itemId: number) {
 }
 
 export function fetchReorderRecommendations() {
-  return apiRequest<Record<string, unknown>[]>('/api/v1/forecast/recommendations');
+  return apiRequest<import('../types/api').ReorderRecommendationDto[]>('/api/v1/forecast/recommendations');
 }
 
 export function fetchAiStatus() {

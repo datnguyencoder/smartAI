@@ -2,23 +2,84 @@ import { Alert, Button, Table, Tag } from 'antd';
 import * as React from 'react';
 import { Card } from '@/components/ui';
 import { type Product } from '@/lib/itemMapper';
+import { ApiClientError } from '@/services/apiClient';
 import { fetchReorderRecommendations } from '@/services/wmsApi';
-import type { PageKey } from '@/types/pages';
+import type { ReorderRecommendationDto } from '@/types/api';
+import type { PageKey, PurchaseSuggestionPrefillItem } from '@/types/pages';
 
-export default function PurchaseSuggestionsPage({ productsList: _productsList, setPage }: { productsList: Product[]; setPage: (page: PageKey) => void }) {
-  const [recs, setRecs] = React.useState<Record<string, unknown>[]>([]);
+export default function PurchaseSuggestionsPage({
+  productsList,
+  setPage,
+  setPrefillItems,
+}: {
+  productsList: Product[];
+  setPage: (page: PageKey) => void;
+  setPrefillItems: React.Dispatch<React.SetStateAction<PurchaseSuggestionPrefillItem[]>>;
+}) {
+  const [recs, setRecs] = React.useState<ReorderRecommendationDto[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+
   React.useEffect(() => {
-    fetchReorderRecommendations().then(setRecs).catch(() => setRecs([]));
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    fetchReorderRecommendations()
+      .then((rows) => {
+        if (cancelled) return;
+        setRecs(rows);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setRecs([]);
+        if (e instanceof ApiClientError && e.status === 403) {
+          setError('Bạn không có quyền xem gợi ý nhập hàng. Chức năng này chỉ dành cho Admin/Manager.');
+        } else {
+          setError(e instanceof Error ? e.message : 'Không tải được gợi ý nhập hàng');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
-  const suggestions = recs.map((r) => ({
-    key: String(r.itemId),
-    name: String(r.itemName),
-    stock: Number(r.currentAvailable),
-    sold: Number(r.predictedDemand14d ?? r.predictedDemand7d),
-    suggested: Number(r.suggestedQty),
-    risk: String(r.riskLevel),
-    source: String(r.source ?? 'AI'),
-  }));
+
+  const productById = React.useMemo(() => {
+    const map = new Map<number, Product>();
+    productsList.forEach((product) => map.set(Number(product.key), product));
+    return map;
+  }, [productsList]);
+
+  const suggestions = React.useMemo(
+    () =>
+      recs.map((r) => {
+        const product = productById.get(Number(r.itemId));
+        return {
+          ...r,
+          key: String(r.itemId),
+          itemCode: r.itemCode ?? product?.sku ?? `SKU-${r.itemId}`,
+          currentAvailable: Number(r.currentAvailable),
+          predictedDemand14d: Number(r.predictedDemand14d ?? r.predictedDemand7d ?? 0),
+          suggestedQty: Number(r.suggestedQty),
+          unitCost: product?.cost ?? 0,
+        };
+      }),
+    [productById, recs]
+  );
+
+  const openImportCreate = React.useCallback(
+    (items: Array<{ itemId: number; suggestedQty: number }>) => {
+      setPrefillItems(items.map((item) => ({
+        itemId: Number(item.itemId),
+        suggestedQty: Math.max(1, Math.ceil(Number(item.suggestedQty) || 1)),
+      })));
+      setPage('import-create');
+    },
+    [setPage, setPrefillItems]
+  );
+
   return (
     <Card className="overflow-hidden">
       <div className="p-4 border-b border-slate-100 flex items-center justify-between">
@@ -27,11 +88,20 @@ export default function PurchaseSuggestionsPage({ productsList: _productsList, s
           <p className="text-xs text-slate-400">Được đề xuất tự động dựa theo tốc độ bán hàng và chu kỳ vận chuyển.</p>
         </div>
         {suggestions.length > 0 && (
-          <Button type="primary" onClick={() => setPage('import-create')}>Lập phiếu tất cả</Button>
+          <Button type="primary" onClick={() => openImportCreate(suggestions)}>
+            Lập phiếu tất cả
+          </Button>
         )}
       </div>
       <div className="px-5 pb-5">
-        {suggestions.length === 0 ? (
+        {error ? (
+          <Alert
+            type="error"
+            showIcon
+            message="Không tải được gợi ý nhập hàng"
+            description={error}
+          />
+        ) : suggestions.length === 0 && !loading ? (
           <Alert
             type="warning"
             showIcon
@@ -48,15 +118,50 @@ export default function PurchaseSuggestionsPage({ productsList: _productsList, s
           />
         ) : (
           <Table
+            loading={loading}
             dataSource={suggestions}
             columns={[
-              { title: 'Tên hàng', dataIndex: 'name', render: (v) => <span className="font-bold text-ink">{v}</span> },
-              { title: 'Tồn hiện tại', dataIndex: 'stock' },
-              { title: 'Nhu cầu (14 ngày)', dataIndex: 'sold' },
-              { title: 'Số lượng đề xuất', dataIndex: 'suggested' },
+              {
+                title: 'Tên hàng',
+                dataIndex: 'itemName',
+                render: (v, row) => (
+                  <div>
+                    <div className="font-bold text-ink">{v}</div>
+                    <div className="text-xs text-slate-400">{row.itemCode}</div>
+                  </div>
+                ),
+              },
+              { title: 'Tồn hiện tại', dataIndex: 'currentAvailable', render: (v) => Math.round(Number(v) || 0).toLocaleString('vi-VN') },
+              { title: 'Nhu cầu (14 ngày)', dataIndex: 'predictedDemand14d', render: (v) => Math.round(Number(v) || 0).toLocaleString('vi-VN') },
+              { title: 'Số lượng đề xuất', dataIndex: 'suggestedQty', render: (v) => <strong>{Math.ceil(Number(v) || 0).toLocaleString('vi-VN')}</strong> },
               { title: 'Nguồn', dataIndex: 'source', render: (v) => <Tag color={v === 'AI' ? 'green' : 'orange'}>{v}</Tag> },
-              { title: 'Độ ưu tiên', render: (_, row) => <Tag color={row.stock === 0 ? 'red' : 'orange'}>{row.stock === 0 ? 'KHẨN CẤP' : 'CAO'}</Tag> },
-              { title: 'Hành động', render: () => <Button size="small" type="primary" ghost onClick={() => setPage('import-create')}>Lập phiếu</Button> }
+              {
+                title: 'Độ ưu tiên',
+                dataIndex: 'riskLevel',
+                render: (v) => {
+                  if (v === 'HIGH') return <Tag color="red">KHẨN CẤP</Tag>;
+                  if (v === 'MEDIUM') return <Tag color="orange">CAO</Tag>;
+                  return <Tag color="blue">THEO DÕI</Tag>;
+                },
+              },
+              {
+                title: 'Lý do',
+                dataIndex: 'reason',
+                ellipsis: true,
+              },
+              {
+                title: 'Hành động',
+                render: (_, row) => (
+                  <Button
+                    size="small"
+                    type="primary"
+                    ghost
+                    onClick={() => openImportCreate([{ itemId: row.itemId, suggestedQty: row.suggestedQty }])}
+                  >
+                    Lập phiếu
+                  </Button>
+                ),
+              },
             ]}
             pagination={false}
             rowKey="key"

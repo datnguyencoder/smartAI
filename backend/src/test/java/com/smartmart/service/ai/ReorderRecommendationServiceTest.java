@@ -50,7 +50,7 @@ class ReorderRecommendationServiceTest {
 
     @Test
     void listActive_returnsSeparateSevenAndFourteenDayDemand() {
-        Item item = Item.builder().itemName("Sữa tươi").build();
+        Item item = Item.builder().itemName("Sữa tươi").itemCode("MILK-001").build();
         item.setId(12L);
         ReorderRecommendation recommendation = ReorderRecommendation.builder()
                 .item(item)
@@ -64,14 +64,17 @@ class ReorderRecommendationServiceTest {
                 .status("ACTIVE")
                 .build();
 
-        when(reorderRepository.findByStatusOrderBySuggestedQtyDesc("ACTIVE"))
+        when(reorderRepository.findByStatusAndSuggestedQtyGreaterThanOrderBySuggestedQtyDesc("ACTIVE", BigDecimal.ZERO))
                 .thenReturn(List.of(recommendation));
 
         List<Map<String, Object>> rows = service.listActive();
 
         assertThat(rows).hasSize(1);
         assertThat(rows.getFirst())
+                .containsEntry("itemCode", "MILK-001")
                 .containsEntry("predictedDemand7d", BigDecimal.valueOf(7))
-                .containsEntry("predictedDemand14d", BigDecimal.valueOf(14));
+                .containsEntry("predictedDemand14d", BigDecimal.valueOf(14))
+                .containsEntry("source", "AI")
+                .containsEntry("reason", "test");
     }
 }

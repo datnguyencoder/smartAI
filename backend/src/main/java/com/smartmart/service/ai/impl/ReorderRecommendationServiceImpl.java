@@ -167,10 +167,13 @@ public class ReorderRecommendationServiceImpl implements com.smartmart.service.a
     @Transactional(readOnly = true)
     @Override
     public List<Map<String, Object>> listActive() {
-        return reorderRepository.findByStatusOrderBySuggestedQtyDesc("ACTIVE").stream()
+        return reorderRepository
+                .findByStatusAndSuggestedQtyGreaterThanOrderBySuggestedQtyDesc("ACTIVE", BigDecimal.ZERO)
+                .stream()
                 .map(r -> {
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("itemId", r.getItem().getId());
+                    m.put("itemCode", r.getItem().getItemCode());
                     m.put("itemName", r.getItem().getItemName());
                     m.put("suggestedQty", r.getSuggestedQty());
                     m.put("currentAvailable", r.getCurrentAvailable());

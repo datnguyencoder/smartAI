@@ -174,7 +174,7 @@ Dành riêng cho vai trò Admin để vận hành nhân sự.
 | **POST** | `/api/forecast/run` | `ADMIN`, `MANAGER` | Kích hoạt chạy dự báo bán lẻ 7/14/30 ngày cho tất cả sản phẩm. |
 | **GET** | `/api/forecast/results` | `ADMIN`, `MANAGER` | Lấy danh sách kết quả dự báo tổng quan hệ thống. |
 | **GET** | `/api/forecast/results/{productId}` | `ADMIN`, `MANAGER` | Xem chi tiết kết quả dự báo theo từng ngày tương lai của sản phẩm. |
-| **GET** | `/api/forecast/recommendations` | `ADMIN`, `MANAGER`, `WAREHOUSE` | Xem gợi ý số lượng nhập hàng thông minh (Reorder Recommendations). |
+| **GET** | `/api/forecast/recommendations` | `ADMIN`, `MANAGER` | Xem gợi ý số lượng nhập hàng thông minh (Reorder Recommendations). |
 | **GET** | `/api/forecast/model-history` | `ADMIN`, `MANAGER` | Xem lịch sử các phiên train mô hình AI kèm độ đo MAE/RMSE/MAPE. |
 
 #### 2.10. Phân hệ Khuyến mãi đề xuất (Promotion API)

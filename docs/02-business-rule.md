@@ -20,7 +20,7 @@
 | 10 | **Xem báo cáo tồn kho & Cảnh báo kho** | ✅ | ✅ | Xem cơ bản | ✅ |
 | 11 | **Huấn luyện mô hình AI (Model Train)** | ✅ | ✅ | ❌ | ❌ |
 | 12 | **Chạy dự báo nhu cầu (Run Forecast)** | ✅ | ✅ | ❌ | ❌ |
-| 13 | **Xem gợi ý đặt hàng (Reorder Suggest)** | ✅ | ✅ | ❌ | ✅ |
+| 13 | **Xem gợi ý đặt hàng (Reorder Suggest)** | ✅ | ✅ | ❌ | ❌ |
 | 14 | **Xem báo cáo doanh thu & lợi nhuận** | ✅ | ✅ | ❌ | ❌ |
 | 15 | **Duyệt chương trình khuyến mãi đề xuất** | ✅ | ✅ | ❌ | ❌ |
 | 16 | **Cài đặt & Cấu hình hệ thống** | ✅ | ❌ | ❌ | ❌ |

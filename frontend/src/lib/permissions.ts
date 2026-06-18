@@ -49,7 +49,6 @@ const ROLE_PAGES: Record<string, PageKey[]> = {
     'inventory',
     'inventory-alerts',
     'inventory-logs',
-    'purchase-suggestions',
     'expiry-risk',
     'scrap-orders',
     'scrap-create',
@@ -57,7 +56,7 @@ const ROLE_PAGES: Record<string, PageKey[]> = {
     'transfer-orders',
     'item-lots',
   ],
-  ROLE_ANALYST: ['dashboard', 'reports', 'ai-forecast', 'purchase-suggestions', 'expiry-risk', 'ai-assistant'],
+  ROLE_ANALYST: ['dashboard', 'reports', 'ai-forecast', 'expiry-risk', 'ai-assistant'],
 };
 
 const QUICK_CREATE_PAGES: Partial<Record<PageKey, string[]>> = {

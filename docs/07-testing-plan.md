@@ -80,6 +80,8 @@ flowchart TD
         *   Danh sách gợi ý nhập hàng vẫn hiển thị đầy đủ số lượng gợi ý đặt hàng.
         *   Lượng gợi ý được tính bằng công thức dự phòng dựa trên lượng bán trung bình lịch sử 30 ngày qua lấy trực tiếp từ database PostgreSQL.
         *   Response của `POST /api/v1/forecast/run` có `source = "FALLBACK"` và `itemsSubmitted` bằng số SKU active được gửi sang AI.
+        *   `GET /api/v1/forecast/recommendations` chỉ cho `ADMIN`, `MANAGER`; `STAFF`, `WAREHOUSE`, `ANALYST` phải bị từ chối `403`.
+        *   API gợi ý nhập hàng chỉ trả SKU có `suggestedQty > 0`, kèm `itemCode`, `predictedDemand7d`, `predictedDemand14d`, `source`, `reason` để FE hiển thị chi tiết.
         *   Trường `reason` tự động thay đổi thành: *"Hệ thống AI đang bảo trì. Đề xuất đặt hàng được tính toán bằng phương pháp dự phòng dựa trên lịch sử tiêu thụ 30 ngày qua để đảm bảo an toàn vận hành."*
         *   Một dòng cảnh báo cảnh báo hệ thống (Warning Log) được ghi nhận vào bảng `audit_logs` để báo cho Admin biết dịch vụ AI đang mất kết nối.
 

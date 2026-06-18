@@ -28,3 +28,8 @@ export type PageKey =
   | 'shifts'
   | 'item-lots'
   | 'audit-logs';
+
+export type PurchaseSuggestionPrefillItem = {
+  itemId: number;
+  suggestedQty: number;
+};

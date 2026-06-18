@@ -37,7 +37,7 @@ import {
 } from '@/services/wmsApi';
 import type { CategoryDto, LocationDto, SupplierDto, UomDto } from '@/types/api';
 import type { ChatMessage } from '@/pages/ai/AiAssistantPage';
-import type { PageKey } from '@/types/pages';
+import type { PageKey, PurchaseSuggestionPrefillItem } from '@/types/pages';
 
 function App() {
   const { antdAlgorithm, mode: themeMode, toggle: toggleTheme } = useTheme();
@@ -78,6 +78,7 @@ function App() {
       text: 'Chào bạn! Tôi là trợ lý vận hành. Bạn cần phân tích tồn kho, đề xuất khuyến mãi hay lên phiếu nhập hàng không?',
     },
   ]);
+  const [pendingPurchaseSuggestionItems, setPendingPurchaseSuggestionItems] = React.useState<PurchaseSuggestionPrefillItem[]>([]);
   const [posCart, setPosCart] = React.useState<Array<{ product: Product; quantity: number }>>([]);
   const pageContentRef = React.useRef<HTMLDivElement>(null);
   const cartPanelRef = React.useRef<HTMLDivElement>(null);
@@ -268,6 +269,8 @@ function App() {
                 setSelectedInvoice={setSelectedInvoice}
                 reloadCatalog={reloadCatalog}
                 catalogLoading={catalogLoading}
+                pendingPurchaseSuggestionItems={pendingPurchaseSuggestionItems}
+                setPendingPurchaseSuggestionItems={setPendingPurchaseSuggestionItems}
               />
             </div>
           </main>

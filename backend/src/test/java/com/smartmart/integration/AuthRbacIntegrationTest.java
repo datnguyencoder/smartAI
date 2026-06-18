@@ -1,10 +1,15 @@
 package com.smartmart.integration;
 
+import com.smartmart.entity.User;
+import com.smartmart.enums.Role;
+import com.smartmart.enums.UserStatus;
+import com.smartmart.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -20,6 +25,10 @@ class AuthRbacIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
+    @Autowired
+    private UserRepository userRepository;
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @Test
     void staffCannotAccessUsersApi() throws Exception {
@@ -35,6 +44,33 @@ class AuthRbacIntegrationTest {
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"customerName\":\"Test\",\"items\":[{\"itemId\":1,\"quantity\":1}]}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void forecastRecommendationsAllowedForAdminAndManagerOnly() throws Exception {
+        ensureAnalystUser();
+
+        String adminToken = loginAs("admin", "admin123");
+        String managerToken = loginAs("manager", "manager123");
+        String warehouseToken = loginAs("warehouse", "warehouse123");
+        String staffToken = loginAs("staff", "staff123");
+        String analystToken = loginAs("analyst", "analyst123");
+
+        mockMvc.perform(get("/api/v1/forecast/recommendations")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/forecast/recommendations")
+                        .header("Authorization", "Bearer " + managerToken))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/forecast/recommendations")
+                        .header("Authorization", "Bearer " + warehouseToken))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/forecast/recommendations")
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/forecast/recommendations")
+                        .header("Authorization", "Bearer " + analystToken))
                 .andExpect(status().isForbidden());
     }
 
@@ -94,5 +130,19 @@ class AuthRbacIntegrationTest {
         return com.fasterxml.jackson.databind.json.JsonMapper.builder().build()
                 .readTree(result.getResponse().getContentAsString())
                 .path("data");
+    }
+
+    private void ensureAnalystUser() {
+        if (userRepository.findByUsername("analyst").isPresent()) {
+            return;
+        }
+        userRepository.save(User.builder()
+                .username("analyst")
+                .password(passwordEncoder.encode("analyst123"))
+                .email("analyst@smartmart.com")
+                .fullName("Chuyên viên phân tích")
+                .role(Role.ROLE_ANALYST)
+                .status(UserStatus.ACTIVE)
+                .build());
     }
 }
