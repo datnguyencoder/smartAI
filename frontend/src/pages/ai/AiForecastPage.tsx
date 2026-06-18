@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Alert, Button, Steps, Table, Tag, message as antdMessage } from 'antd';
+import { Alert, Button, Steps, Table, Tag, Typography, message as antdMessage } from 'antd';
 import {
   CloudSyncOutlined,
   LineChartOutlined,
@@ -32,15 +32,30 @@ import {
 import type { AiStatusDto, ForecastResultDto } from '@/types/api';
 import type { Product } from '@/lib/itemMapper';
 
+const { Text } = Typography;
+
 type Props = {
   productsList: Product[];
   invoicesList: any[];
 };
 
 function modelTag(type?: string) {
-  if (type === 'random_forest') return <Tag color="blue">Random Forest</Tag>;
-  if (type === 'xgboost') return <Tag color="purple">XGBoost</Tag>;
-  return <Tag>Trung bình động</Tag>;
+  if (type === 'random_forest') return <Tag color="blue">RF</Tag>;
+  if (type === 'xgboost') return <Tag color="purple">XGB</Tag>;
+  return <Tag>MA</Tag>;
+}
+
+function riskTag(level?: ForecastResultDto['riskLevel']) {
+  switch (level) {
+    case 'CRITICAL':
+      return <Tag color="error">Thiếu gấp</Tag>;
+    case 'WARNING':
+      return <Tag color="warning">Sắp thiếu</Tag>;
+    case 'OVERSTOCK':
+      return <Tag color="purple">Tồn dư</Tag>;
+    default:
+      return <Tag color="success">Đủ tồn</Tag>;
+  }
 }
 
 export default function AiForecastPage({ productsList: _productsList }: Props) {
@@ -237,7 +252,7 @@ export default function AiForecastPage({ productsList: _productsList }: Props) {
 
       {results.length > 0 ? (
         <Card>
-          <CardHeader title="Kết quả theo sản phẩm" description={`${results.length} SKU — nhấn dòng để xem biểu đồ chi tiết`} />
+          <CardHeader title="Kết quả theo sản phẩm" description="So sánh tồn kho với nhu cầu 30 ngày — ưu tiên các dòng «Thiếu gấp»" />
           <Table
             size="small"
             pagination={{ pageSize: 10, showSizeChanger: false }}
@@ -248,30 +263,51 @@ export default function AiForecastPage({ productsList: _productsList }: Props) {
               className: row.itemId === selectedItemId ? 'bg-emerald-50 cursor-pointer' : 'cursor-pointer',
             })}
             columns={[
-              { title: 'Sản phẩm', dataIndex: 'itemName', ellipsis: true },
               {
-                title: '7 ngày tới',
-                dataIndex: 'pred7d',
+                title: 'Sản phẩm',
+                dataIndex: 'itemName',
+                ellipsis: true,
+                render: (name, r) => (
+                  <div>
+                    <div className="font-medium">{name}</div>
+                    {r.itemCode && <div className="text-xs text-slate-400">{r.itemCode}</div>}
+                  </div>
+                ),
+              },
+              {
+                title: 'Tồn hiện tại',
+                dataIndex: 'stockOnHand',
                 render: (v) => Math.round(Number(v) || 0).toLocaleString('vi-VN'),
               },
               {
-                title: '14 ngày tới',
-                dataIndex: 'pred14d',
-                render: (v) => Math.round(Number(v) || 0).toLocaleString('vi-VN'),
-              },
-              {
-                title: '30 ngày tới',
+                title: 'Cần 30 ngày',
                 dataIndex: 'pred30d',
                 render: (v) => <strong>{Math.round(Number(v) || 0).toLocaleString('vi-VN')}</strong>,
               },
               {
-                title: 'Khoảng tin cậy (30d)',
-                render: (_, r) =>
-                  r.confidenceLow != null
-                    ? `${Math.round(Number(r.confidenceLow))} – ${Math.round(Number(r.confidenceHigh ?? 0))}`
-                    : '—',
+                title: 'Thiếu',
+                dataIndex: 'shortageQty',
+                render: (v) => {
+                  const n = Math.round(Number(v) || 0);
+                  return n > 0 ? <Text type="danger">{n.toLocaleString('vi-VN')}</Text> : '—';
+                },
               },
-              { title: 'Mô hình', dataIndex: 'modelType', render: (v) => modelTag(String(v)) },
+              {
+                title: 'Trạng thái',
+                dataIndex: 'riskLevel',
+                render: (v) => riskTag(v as ForecastResultDto['riskLevel']),
+              },
+              {
+                title: 'Gợi ý',
+                dataIndex: 'recommendation',
+                ellipsis: true,
+                width: 220,
+              },
+              {
+                title: '7 ngày',
+                dataIndex: 'pred7d',
+                render: (v) => Math.round(Number(v) || 0).toLocaleString('vi-VN'),
+              },
             ]}
           />
         </Card>
