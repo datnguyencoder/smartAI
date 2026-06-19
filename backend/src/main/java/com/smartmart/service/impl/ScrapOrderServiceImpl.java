@@ -67,10 +67,7 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
                 
         // Fast-fail check
         for (ScrapLineRequest line : request.getItems()) {
-            BigDecimal available = currentInventoryRepository.findFiltered(line.getItemId(), location.getId(), line.getLotId())
-                    .stream()
-                    .map(ci -> ci.getQuantity().subtract(ci.getReservedQuantity()))
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal available = getExactAvailableQuantity(line.getItemId(), location.getId(), line.getLotId());
             if (available.compareTo(line.getQuantity()) < 0) {
                 Item item = itemService.findItem(line.getItemId());
                 throw new com.smartmart.exception.InsufficientStockException("Không đủ tồn kho khả dụng cho sản phẩm: " + item.getItemName());
@@ -88,6 +85,9 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
             ItemLot lot = line.getLotId() != null
                     ? itemLotRepository.findById(line.getLotId()).orElseThrow(() -> new NotFoundException("Không tìm thấy lô"))
                     : null;
+            if (lot != null && !lot.getItem().getId().equals(item.getId())) {
+                throw new BadRequestException("Lô không thuộc sản phẩm xuất hủy");
+            }
             scrap.getItems().add(ScrapOrderItem.builder()
                     .scrapOrder(scrap)
                     .item(item)
@@ -229,5 +229,11 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
     @Override
     public List<ScrapOrder> listAll() {
         return scrapOrderRepository.findAllByOrderByIdDesc();
+    }
+
+    private BigDecimal getExactAvailableQuantity(Long itemId, Long locationId, Long lotId) {
+        return currentInventoryRepository.findByItemLocationLot(itemId, locationId, lotId)
+                .map(ci -> ci.getQuantity().subtract(ci.getReservedQuantity()))
+                .orElse(BigDecimal.ZERO);
     }
 }

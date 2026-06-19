@@ -20,7 +20,7 @@ import java.util.List;
 @RequestMapping("/api/v1/reports")
 @Tag(name = "Reports", description = "Báo cáo thống kê chuyên sâu")
 @SecurityRequirement(name = "bearerAuth")
-@PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+@PreAuthorize("hasAnyRole('ADMIN','MANAGER','ANALYST')")
 public class ReportController {
 
     private final ReportService reportService;

@@ -8,4 +8,5 @@ import java.util.List;
 public interface ReturnOrderRepository extends JpaRepository<ReturnOrder, Long> {
     List<ReturnOrder> findAllByOrderByIdDesc();
     List<ReturnOrder> findByOriginalOrderIdOrderByIdDesc(Long originalOrderId);
+    boolean existsByOriginalOrderId(Long originalOrderId);
 }

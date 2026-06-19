@@ -75,6 +75,29 @@ class AuthRbacIntegrationTest {
     }
 
     @Test
+    void analystCanReadForecastAndReportsButCannotOperateForecast() throws Exception {
+        ensureAnalystUser();
+        String analystToken = loginAs("analyst", "analyst123");
+
+        mockMvc.perform(get("/api/v1/forecast/results")
+                        .header("Authorization", "Bearer " + analystToken))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/forecast/ai-status")
+                        .header("Authorization", "Bearer " + analystToken))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/reports/sales")
+                        .header("Authorization", "Bearer " + analystToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/forecast/train")
+                        .header("Authorization", "Bearer " + analystToken))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/v1/forecast/run")
+                        .header("Authorization", "Bearer " + analystToken))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void logoutInvalidatesToken() throws Exception {
         var login = loginResponse("staff", "staff123");
         String access = login.path("accessToken").asText();

@@ -67,11 +67,7 @@ public class TransferOrderServiceImpl implements TransferOrderService {
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy kho đích"));
 
         for (TransferLineRequest line : request.getItems()) {
-            BigDecimal available = currentInventoryRepository
-                    .findFiltered(line.getItemId(), from.getId(), line.getLotId())
-                    .stream()
-                    .map(ci -> ci.getQuantity().subtract(ci.getReservedQuantity()))
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal available = getExactAvailableQuantity(line.getItemId(), from.getId(), line.getLotId());
             if (available.compareTo(line.getQuantity()) < 0) {
                 Item item = itemService.findItem(line.getItemId());
                 throw new InsufficientStockException("Không đủ tồn kho tại kho nguồn cho: " + item.getItemName());
@@ -93,6 +89,9 @@ public class TransferOrderServiceImpl implements TransferOrderService {
                     ? itemLotRepository.findById(line.getLotId())
                             .orElseThrow(() -> new NotFoundException("Không tìm thấy lô"))
                     : null;
+            if (lot != null && !lot.getItem().getId().equals(item.getId())) {
+                throw new BadRequestException("Lô không thuộc sản phẩm chuyển kho");
+            }
             transfer.getItems().add(TransferOrderItem.builder()
                     .transferOrder(transfer)
                     .item(item)
@@ -127,11 +126,10 @@ public class TransferOrderServiceImpl implements TransferOrderService {
             currentInventoryRepository.findFilteredForUpdate(
                     line.getItem().getId(), transfer.getFromLocation().getId(), lotId);
 
-            BigDecimal available = currentInventoryRepository
-                    .findFiltered(line.getItem().getId(), transfer.getFromLocation().getId(), lotId)
-                    .stream()
-                    .map(ci -> ci.getQuantity().subtract(ci.getReservedQuantity()))
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal available = getExactAvailableQuantity(
+                    line.getItem().getId(),
+                    transfer.getFromLocation().getId(),
+                    lotId);
             if (available.compareTo(line.getQuantity()) < 0) {
                 throw new InsufficientStockException(
                         "Không đủ tồn kho tại kho nguồn cho: " + line.getItem().getItemName());
@@ -198,5 +196,11 @@ public class TransferOrderServiceImpl implements TransferOrderService {
             return transferOrderRepository.findByStatusOrderByIdDesc(status);
         }
         return transferOrderRepository.findAllByOrderByIdDesc();
+    }
+
+    private BigDecimal getExactAvailableQuantity(Long itemId, Long locationId, Long lotId) {
+        return currentInventoryRepository.findByItemLocationLot(itemId, locationId, lotId)
+                .map(ci -> ci.getQuantity().subtract(ci.getReservedQuantity()))
+                .orElse(BigDecimal.ZERO);
     }
 }

@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -99,6 +100,16 @@ public class ReturnOrderServiceImpl implements ReturnOrderService {
                 .build();
 
         BigDecimal refundTotal = BigDecimal.ZERO;
+        BigDecimal originalSubtotal = original.getItems().stream()
+                .map(OrderItem::getSubtotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal discountRatio = BigDecimal.ZERO;
+        if (originalSubtotal.compareTo(BigDecimal.ZERO) > 0 && original.getDiscountAmount() != null) {
+            discountRatio = original.getDiscountAmount()
+                    .divide(originalSubtotal, 8, RoundingMode.HALF_UP)
+                    .min(BigDecimal.ONE)
+                    .max(BigDecimal.ZERO);
+        }
         Long userId = SecurityUtils.getCurrentUserId().orElse(null);
 
         for (ReturnLineRequest line : request.getItems()) {
@@ -125,7 +136,11 @@ public class ReturnOrderServiceImpl implements ReturnOrderService {
             }
 
             BigDecimal unitPrice = soldItem.getUnitPrice();
-            BigDecimal subtotal = unitPrice.multiply(line.getQuantity());
+            BigDecimal grossSubtotal = unitPrice.multiply(line.getQuantity());
+            BigDecimal subtotal = grossSubtotal
+                    .subtract(grossSubtotal.multiply(discountRatio))
+                    .max(BigDecimal.ZERO)
+                    .setScale(2, RoundingMode.HALF_UP);
             refundTotal = refundTotal.add(subtotal);
 
             returnOrder.getItems().add(ReturnOrderItem.builder()

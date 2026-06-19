@@ -13,10 +13,17 @@ public class OrderPrintResponse {
     private Long id;
     private String orderCode;
     private String customerName;
+    private String customerPhone;
     private LocalDateTime orderDate;
     private String staffName;
+    private BigDecimal subtotalAmount;
+    private BigDecimal discountAmount;
+    private BigDecimal vatAmount;
     private BigDecimal totalAmount;
     private String paymentMethod;
+    private String promotionCode;
+    private Integer loyaltyPointsRedeemed;
+    private Integer loyaltyPointsEarned;
     private List<PrintLine> items;
 
     @Getter
