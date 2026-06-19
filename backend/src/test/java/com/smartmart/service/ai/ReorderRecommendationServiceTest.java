@@ -7,7 +7,7 @@ import com.smartmart.repository.ForecastResultRepository;
 import com.smartmart.repository.ItemRepository;
 import com.smartmart.repository.OrderItemRepository;
 import com.smartmart.repository.ReorderRecommendationRepository;
-import com.smartmart.service.impl.ReorderRecommendationServiceImpl;
+import com.smartmart.service.ai.impl.ReorderRecommendationServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

@@ -1,8 +1,8 @@
 import React from 'react';
-import { Table, Modal, Button, Select, message as antdMessage, Dropdown, DatePicker } from 'antd';
+import { Table, Modal, Button, Select, message as antdMessage, Dropdown, DatePicker, Progress } from 'antd';
 import type { MenuProps } from 'antd';
 import { DownOutlined } from '@ant-design/icons';
-import { Search } from 'lucide-react';
+import { Search, Check, X } from 'lucide-react';
 import { Input } from 'antd';
 import { Card } from '@/components/ui';
 import { StatusChip } from '@/components/ui';
@@ -11,6 +11,7 @@ import type { SupplierDto, LocationDto } from '@/types/api';
 import { purchaseToSlip, type ImportSlipRow } from '@/lib/purchaseMapper';
 import { formatMoney as money } from '@/lib/itemMapper';
 import { animateModalContent } from '@/lib/gsapAnimations';
+import PurchaseOrderDetailModal from '@/components/purchase/PurchaseOrderDetailModal';
 
 export default function ImportSlipsPage({
   reloadCatalog,
@@ -201,36 +202,13 @@ export default function ImportSlipsPage({
           rowKey="key"
         />
       </Card>
-      <Modal
+      <PurchaseOrderDetailModal
         open={Boolean(viewingDetails)}
-        onCancel={() => setViewingDetails(null)}
-        title={`Chi tiết phiếu nhập — ${viewingDetails?.key}`}
-        footer={[
-          <Button key="close" onClick={() => setViewingDetails(null)}>
-            Đóng
-          </Button>
-        ]}
-        width={700}
-      >
-        <div className="mb-4 text-sm text-slate-600">
-          <p>Nhà cung cấp: <span className="font-medium text-slate-800">{viewingDetails?.supplier}</span></p>
-          <p>Kho nhận: <span className="font-medium text-slate-800">{viewingDetails?.locationName}</span></p>
-          <p>Trạng thái: <span className="font-medium text-slate-800">{viewingDetails?.status}</span></p>
-        </div>
-        <Table
-          dataSource={viewingDetails?.items ?? []}
-          pagination={false}
-          size="small"
-          rowKey="id"
-          columns={[
-            { title: 'Sản phẩm', dataIndex: 'itemName' },
-            { title: 'Đơn vị', dataIndex: 'purchaseUomName' },
-            { title: 'Số lượng đặt', dataIndex: 'orderedQty' },
-            { title: 'Đã nhận', dataIndex: 'receivedQty' },
-            { title: 'Đơn giá', dataIndex: 'unitPrice', render: (v) => money(Number(v)) },
-          ]}
-        />
-      </Modal>
+        order={viewingDetails}
+        onClose={() => setViewingDetails(null)}
+        onReceive={(order) => setReceiving(order)}
+        onCancel={(order) => setCanceling(order)}
+      />
       <Modal
         open={Boolean(receiving)}
         onCancel={() => setReceiving(null)}

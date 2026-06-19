@@ -1,4 +1,4 @@
-package com.smartmart.service.impl;
+package com.smartmart.service.ai.impl;
 
 import com.smartmart.entity.ForecastResult;
 import com.smartmart.entity.Item;

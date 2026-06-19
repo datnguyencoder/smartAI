@@ -186,6 +186,9 @@ export type PurchaseOrderItemDto = {
   receivedQty: number;
   unitPrice: number;
   subtotal: number;
+  uomName?: string;
+  lotCode?: string;
+  expiryDate?: string;
 };
 
 export type InventoryItemDto = {

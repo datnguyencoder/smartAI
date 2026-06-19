@@ -12,6 +12,8 @@ export default function InventoryPage({ openProduct, productsList }: { openProdu
       .then((inv) => {
         const mapped: Product[] = inv.map((row) => {
           const stock = Math.round(Number(row.availableQuantity));
+          const matchingProduct = productsList.find((p) => p.sku === row.itemCode);
+          const minStock = matchingProduct ? matchingProduct.minimumStock : 0;
           return {
             key: String(row.itemId),
             sku: row.itemCode,
@@ -23,9 +25,10 @@ export default function InventoryPage({ openProduct, productsList }: { openProdu
             stock,
             sold: 0,
             supplier: '-',
-            status: stock === 0 ? 'Hết hàng' : stock <= 40 ? 'Sắp hết' : 'Còn hàng',
+            status: stock === 0 ? 'Hết hàng' : stock <= minStock ? 'Sắp hết' : 'Còn hàng',
             expiry: row.expiryDate ?? 'Không áp dụng',
             purchaseRatio: 1,
+            minimumStock: minStock,
           };
         });
         setRows(mapped.length ? mapped : productsList);
