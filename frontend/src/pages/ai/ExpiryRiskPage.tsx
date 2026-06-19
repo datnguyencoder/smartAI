@@ -14,23 +14,28 @@ export default function ExpiryRiskPage({ productsList: _productsList, setPage }:
     setLoading(true);
     fetchNearExpiry()
       .then((rows) => {
-        const mapped = rows.map((row) => ({
-          key: String(row.itemId),
-          sku: row.itemCode,
-          name: row.itemName,
-          category: row.locationName,
-          categoryId: 0,
-          price: 0,
-          cost: 0,
-          stock: Math.round(Number(row.availableQuantity)),
-          sold: 0,
-          supplier: '-',
-          status: 'Nguy cơ' as const,
-          expiry: row.expiryDate ?? '—',
-          purchaseRatio: 1,
-          riskQty: row.riskQuantity != null ? Math.round(Number(row.riskQuantity)) : undefined,
-          daysLeft: row.daysUntilExpiry,
-        }));
+        const mapped = rows.map((row) => {
+          const matchingProduct = _productsList.find((p) => p.sku === row.itemCode);
+          const minStock = matchingProduct ? matchingProduct.minimumStock : 0;
+          return {
+            key: String(row.itemId),
+            sku: row.itemCode,
+            name: row.itemName,
+            category: row.locationName,
+            categoryId: 0,
+            price: 0,
+            cost: 0,
+            stock: Math.round(Number(row.availableQuantity)),
+            sold: 0,
+            supplier: '-',
+            status: 'Nguy cơ' as const,
+            expiry: row.expiryDate ?? '—',
+            purchaseRatio: 1,
+            riskQty: row.riskQuantity != null ? Math.round(Number(row.riskQuantity)) : undefined,
+            daysLeft: row.daysUntilExpiry,
+            minimumStock: minStock,
+          };
+        });
         if (active) setItems(mapped);
       })
       .catch(() => {

@@ -13,15 +13,21 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.YearMonth;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
-
+/**
+ * Seed purchase orders + inventory_logs so that the Purchase Report
+ * and Inventory Report APIs return realistic test data.
+ * Runs AFTER RetailSalesHistorySeeder (@Order(3)).
+ */
 @Component
 @Profile({"local", "prod"})
-@Order(4)
+@Order(6)
 public class ReportDataSeeder implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(ReportDataSeeder.class);
@@ -56,9 +62,10 @@ public class ReportDataSeeder implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
-        // Skip if already seeded
+        // Shift existing POs if they are already seeded
         if (purchaseOrderRepository.count() > 0 || inventoryLogRepository.count() > 0) {
-            log.debug("Report seed data already exists, skipping");
+            shiftPurchaseOrdersIfStale();
+            log.debug("Report seed data already exists, skipping seeding");
             return;
         }
 
@@ -82,11 +89,30 @@ public class ReportDataSeeder implements CommandLineRunner {
         // --- 1. Create additional suppliers ---
         List<Supplier> suppliers = seedSuppliers();
 
-        // --- 2. Create purchase orders (monthly, Jul–Dec 2011) ---
-        int poCount = seedPurchaseOrders(allItems, suppliers, location, warehouseUserId);
+        // Calculate sold quantities to size purchases realistically
+        Map<Long, BigDecimal> soldQuantities = new HashMap<>();
+        List<com.smartmart.entity.Order> completedOrders = orderRepository.findAll().stream()
+                .filter(o -> o.getStatus() == OrderStatus.COMPLETED)
+                .toList();
+        for (com.smartmart.entity.Order order : completedOrders) {
+            for (OrderItem oi : order.getItems()) {
+                Long itemId = oi.getItem().getId();
+                soldQuantities.put(itemId, soldQuantities.getOrDefault(itemId, BigDecimal.ZERO).add(oi.getQuantity()));
+            }
+        }
+
+        // --- 2. Create purchase orders (monthly, Jul–Dec 2011 shifted) ---
+        int poCount = seedPurchaseOrders(allItems, suppliers, location, warehouseUserId, soldQuantities);
 
         // --- 3. Create inventory_logs for purchases and sales ---
         int logCount = seedInventoryLogs(allItems, location, warehouseUserId, staffUserId);
+
+        // Align createdAt of new POs with their purchaseDate
+        List<PurchaseOrder> allPOs = purchaseOrderRepository.findAll();
+        for (PurchaseOrder po : allPOs) {
+            po.setCreatedAt(po.getPurchaseDate());
+        }
+        purchaseOrderRepository.saveAll(allPOs);
 
         log.info("Report data seeded: {} purchase orders, {} inventory logs", poCount, logCount);
     }
@@ -123,18 +149,44 @@ public class ReportDataSeeder implements CommandLineRunner {
             List<Item> items,
             List<Supplier> suppliers,
             Location location,
-            Long userId
+            Long userId,
+            Map<Long, BigDecimal> soldQuantities
     ) {
-        // Generate 1 PO per supplier per month (Jul–Dec 2011)
         YearMonth start = YearMonth.of(2011, 7);
         YearMonth end = YearMonth.of(2011, 12);
         int poSeq = 0;
-        Random rng = new Random(42);
 
+        // 1. Calculate target purchase quantities to exceed sales by 25% (min 500 units)
+        Map<Long, BigDecimal> targetPurchaseQuantities = new HashMap<>();
+        for (Item item : items) {
+            BigDecimal sold = soldQuantities.getOrDefault(item.getId(), BigDecimal.ZERO);
+            BigDecimal target;
+            if (sold.compareTo(BigDecimal.ZERO) > 0) {
+                target = sold.multiply(BigDecimal.valueOf(1.25)).setScale(0, RoundingMode.CEILING);
+            } else {
+                target = BigDecimal.valueOf(500);
+            }
+            targetPurchaseQuantities.put(item.getId(), target);
+        }
+
+        // 2. Assign items to suppliers to simulate exclusive distribution
+        Map<Long, List<Item>> supplierItems = new HashMap<>();
+        for (Item item : items) {
+            int supplierIdx = (int) (item.getId() % suppliers.size());
+            Supplier supplier = suppliers.get(supplierIdx);
+            supplierItems.computeIfAbsent(supplier.getId(), k -> new ArrayList<>()).add(item);
+        }
+
+        // 3. Generate POs month by month
         for (YearMonth ym = start; !ym.isAfter(end); ym = ym.plusMonths(1)) {
             for (Supplier supplier : suppliers) {
+                List<Item> assignedItems = supplierItems.getOrDefault(supplier.getId(), Collections.emptyList());
+                if (assignedItems.isEmpty()) {
+                    continue;
+                }
+
                 poSeq++;
-                LocalDateTime poDate = ym.atDay(1).atTime(LocalTime.of(9, 0));
+                LocalDateTime poDate = shiftToRecentWindow(ym.atDay(1).atTime(LocalTime.of(9, 0)));
 
                 PurchaseOrder po = PurchaseOrder.builder()
                         .supplier(supplier)
@@ -144,18 +196,17 @@ public class ReportDataSeeder implements CommandLineRunner {
                         .purchaseDate(poDate)
                         .completedAt(poDate.plusDays(2))
                         .totalAmount(BigDecimal.ZERO)
+                        .items(new ArrayList<>())
                         .build();
                 po = purchaseOrderRepository.save(po);
 
-                // Add 2–4 random items per PO
-                int itemCount = 2 + rng.nextInt(3);
-                List<Item> shuffled = new ArrayList<>(items);
-                Collections.shuffle(shuffled, rng);
                 BigDecimal poTotal = BigDecimal.ZERO;
-
-                for (int i = 0; i < Math.min(itemCount, shuffled.size()); i++) {
-                    Item item = shuffled.get(i);
-                    BigDecimal qty = BigDecimal.valueOf(50 + rng.nextInt(200));
+                for (Item item : assignedItems) {
+                    BigDecimal totalTarget = targetPurchaseQuantities.get(item.getId());
+                    BigDecimal qty = totalTarget.divide(BigDecimal.valueOf(6), 0, RoundingMode.HALF_UP);
+                    if (qty.compareTo(BigDecimal.ZERO) <= 0) {
+                        qty = BigDecimal.ONE;
+                    }
                     BigDecimal unitPrice = item.getCostPrice();
                     BigDecimal subtotal = unitPrice.multiply(qty).setScale(2, RoundingMode.HALF_UP);
 
@@ -163,7 +214,7 @@ public class ReportDataSeeder implements CommandLineRunner {
                             .purchaseOrder(po)
                             .item(item)
                             .orderedQty(qty)
-                            .receivedQty(qty) // fully received
+                            .receivedQty(qty)
                             .unitPrice(unitPrice)
                             .subtotal(subtotal)
                             .build();
@@ -256,12 +307,59 @@ public class ReportDataSeeder implements CommandLineRunner {
                     .quantityChange(qty.negate())
                     .quantityAfter(BigDecimal.ZERO)
                     .note("Seed: hủy hàng hư / hết hạn")
-                    .createdAt(LocalDateTime.of(2011, 10, 15, 14, 0))
+                    .createdAt(shiftToRecentWindow(LocalDateTime.of(2011, 10, 15, 14, 0)))
                     .build();
             inventoryLogRepository.save(logEntry);
             count++;
         }
 
         return count;
+    }
+
+    private static final LocalDate CSV_DATA_END = LocalDate.of(2011, 12, 10);
+
+    private static LocalDateTime shiftToRecentWindow(LocalDateTime originalDateTime) {
+        LocalDate targetEnd = LocalDate.now().minusDays(1);
+        long offsetDays = ChronoUnit.DAYS.between(CSV_DATA_END, targetEnd);
+        return originalDateTime.plusDays(offsetDays);
+    }
+
+    private void shiftPurchaseOrdersIfStale() {
+        List<PurchaseOrder> allPOs = purchaseOrderRepository.findAll();
+        if (allPOs.isEmpty()) {
+            return;
+        }
+        LocalDateTime maxDate = allPOs.stream()
+                .map(PurchaseOrder::getPurchaseDate)
+                .max(LocalDateTime::compareTo)
+                .orElse(LocalDateTime.now());
+        if (!maxDate.isBefore(LocalDateTime.now().minusDays(60))) {
+            return;
+        }
+        long offsetDays = ChronoUnit.DAYS.between(maxDate.toLocalDate(), LocalDate.now().minusDays(1));
+        
+        // 1. Shift PurchaseOrders
+        for (PurchaseOrder po : allPOs) {
+            po.setPurchaseDate(po.getPurchaseDate().plusDays(offsetDays));
+            if (po.getCompletedAt() != null) {
+                po.setCompletedAt(po.getCompletedAt().plusDays(offsetDays));
+            }
+            if (po.getCreatedAt() != null) {
+                po.setCreatedAt(po.getCreatedAt().plusDays(offsetDays));
+            }
+        }
+        purchaseOrderRepository.saveAll(allPOs);
+
+        // 2. Shift InventoryLogs for PURCHASES and SCRAP
+        List<InventoryLog> logs = inventoryLogRepository.findAll();
+        for (InventoryLog logEntry : logs) {
+            if (logEntry.getReferenceType() == ReferenceType.PURCHASE_ORDER || logEntry.getActionType() == InventoryActionType.SCRAP) {
+                if (logEntry.getCreatedAt().isBefore(LocalDateTime.now().minusDays(60))) {
+                    logEntry.setCreatedAt(logEntry.getCreatedAt().plusDays(offsetDays));
+                    inventoryLogRepository.save(logEntry);
+                }
+            }
+        }
+        log.info("Shifted {} purchase orders and inventory logs forward by {} days", allPOs.size(), offsetDays);
     }
 }

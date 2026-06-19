@@ -15,6 +15,7 @@ export type Product = {
   expiry: string;
   imageUrl?: string;
   purchaseRatio: number;
+  minimumStock: number;
 };
 
 export function itemToProduct(item: ItemDto): Product {
@@ -47,6 +48,7 @@ export function itemToProduct(item: ItemDto): Product {
     status,
     expiry: item.hasExpiry ? '-' : 'Không áp dụng',
     purchaseRatio,
+    minimumStock: item.minimumStock ?? 0,
   };
 }
 

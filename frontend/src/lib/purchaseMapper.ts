@@ -17,6 +17,7 @@ export type ImportSlipRow = {
   locationName: string;
   items: PurchaseOrderDto['items'];
   canReceive: boolean;
+  completedAt?: string;
 };
 
 export function purchaseToSlip(po: PurchaseOrderDto): ImportSlipRow {
@@ -33,5 +34,6 @@ export function purchaseToSlip(po: PurchaseOrderDto): ImportSlipRow {
     locationName: po.locationName,
     items: po.items ?? [],
     canReceive,
+    completedAt: po.completedAt,
   };
 }

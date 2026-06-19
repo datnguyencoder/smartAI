@@ -200,7 +200,7 @@ export function PageRenderer({
     );
   }
   if (page === 'reports') {
-    return <ReportsPage productsList={productsList} invoicesList={invoicesList} />;
+    return <ReportsPage productsList={productsList} invoicesList={invoicesList} authUser={authUser} />;
   }
   if (page === 'users') {
     return <UsersPage />;
