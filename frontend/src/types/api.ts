@@ -64,6 +64,7 @@ export type OrderDto = {
   orderCode: string;
   customerName: string;
   customerPhone?: string;
+  subtotalBeforeDiscount?: number;
   discountAmount?: number;
   promotionCode?: string;
   cashierName?: string;
@@ -301,6 +302,22 @@ export type AiStatusDto = {
   lastTrainedAt?: string;
   modelType?: string;
   totalForecasts?: number;
+};
+
+export type TrainJobDto = {
+  jobId: string;
+  status: 'QUEUED' | 'RUNNING' | 'DONE' | 'FAILED';
+  startedAt?: string;
+  completedAt?: string;
+  errorMessage?: string;
+  result?: {
+    modelType?: string;
+    mae?: number;
+    rmse?: number;
+    mape?: number;
+    trainedAt?: string;
+    itemsForecasted?: number;
+  };
 };
 
 export type PurchaseOrderDto = {

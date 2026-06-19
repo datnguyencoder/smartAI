@@ -1,13 +1,19 @@
 package com.smartmart.controller;
 
 import com.smartmart.common.response.ApiResponse;
+import com.smartmart.dto.response.AiStatusResponse;
 import com.smartmart.dto.response.ForecastItemDetailResponse;
+import com.smartmart.dto.response.ForecastResultResponse;
+import com.smartmart.dto.response.ForecastRunResponse;
+import com.smartmart.dto.response.TrainJobResponse;
 import com.smartmart.entity.ModelTrainingHistory;
 import com.smartmart.service.ai.ForecastOrchestrationService;
 import com.smartmart.service.ai.ReorderRecommendationService;
+import com.smartmart.service.ai.TrainingJobStore;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -23,33 +29,51 @@ public class ForecastController {
 
     private final ForecastOrchestrationService forecastOrchestrationService;
     private final ReorderRecommendationService reorderRecommendationService;
+    private final TrainingJobStore trainingJobStore;
 
     public ForecastController(
             ForecastOrchestrationService forecastOrchestrationService,
-            ReorderRecommendationService reorderRecommendationService
+            ReorderRecommendationService reorderRecommendationService,
+            TrainingJobStore trainingJobStore
     ) {
         this.forecastOrchestrationService = forecastOrchestrationService;
         this.reorderRecommendationService = reorderRecommendationService;
+        this.trainingJobStore = trainingJobStore;
     }
 
     @PostMapping("/train")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
-    @Operation(summary = "Huấn luyện mô hình AI")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> train() {
-        return ResponseEntity.ok(ApiResponse.success("Huấn luyện thành công", forecastOrchestrationService.train()));
+    @Operation(summary = "Bắt đầu huấn luyện mô hình AI (async, trả về jobId để poll trạng thái)")
+    public ResponseEntity<ApiResponse<Map<String, String>>> train() {
+        String jobId = forecastOrchestrationService.submitTrainAsync();
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(ApiResponse.success("Yêu cầu huấn luyện đã được ghi nhận", Map.of("jobId", jobId)));
+    }
+
+    @GetMapping("/train/status")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ANALYST')")
+    @Operation(summary = "Kiểm tra trạng thái công việc huấn luyện (QUEUED/RUNNING/DONE/FAILED)")
+    public ResponseEntity<ApiResponse<TrainJobResponse>> trainStatus(@RequestParam String jobId) {
+        TrainJobResponse job = trainingJobStore.get(jobId)
+                .orElse(null);
+        if (job == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("Không tìm thấy job huấn luyện: " + jobId));
+        }
+        return ResponseEntity.ok(ApiResponse.success(job));
     }
 
     @PostMapping("/run")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     @Operation(summary = "Chạy dự báo toàn hệ thống")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> run() {
+    public ResponseEntity<ApiResponse<ForecastRunResponse>> run() {
         return ResponseEntity.ok(ApiResponse.success("Dự báo thành công", forecastOrchestrationService.runForecast()));
     }
 
     @GetMapping("/results")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ANALYST')")
     @Operation(summary = "Kết quả dự báo")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> results() {
+    public ResponseEntity<ApiResponse<List<ForecastResultResponse>>> results() {
         return ResponseEntity.ok(ApiResponse.success(forecastOrchestrationService.listResults()));
     }
 
@@ -77,7 +101,7 @@ public class ForecastController {
     @GetMapping("/ai-status")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ANALYST')")
     @Operation(summary = "Trạng thái dịch vụ AI")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> aiStatus() {
+    public ResponseEntity<ApiResponse<AiStatusResponse>> aiStatus() {
         return ResponseEntity.ok(ApiResponse.success(forecastOrchestrationService.getAiStatus()));
     }
 }

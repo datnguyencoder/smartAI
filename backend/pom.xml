@@ -125,6 +125,16 @@
 			<scope>test</scope>
 		</dependency>
 
+		<!-- Spring Retry + AOP (Gemini transient error retry) -->
+		<dependency>
+			<groupId>org.springframework.retry</groupId>
+			<artifactId>spring-retry</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-aop</artifactId>
+		</dependency>
+
 		<!-- Reporting (Excel & PDF) -->
 		<dependency>
 			<groupId>org.apache.poi</groupId>

@@ -27,6 +27,7 @@ import com.smartmart.service.InventoryAlertService;
 import com.smartmart.service.InventoryLedgerService;
 import com.smartmart.service.ItemService;
 import com.smartmart.service.PromotionService;
+import com.smartmart.service.SettingService;
 import com.smartmart.service.ShiftService;
 import com.smartmart.util.AuditData;
 import org.springframework.cache.annotation.CacheEvict;
@@ -57,6 +58,7 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
     private final CustomerService customerService;
     private final PromotionService promotionService;
     private final ShiftService shiftService;
+    private final SettingService settingService;
 
     public OrderServiceImpl(
             OrderRepository orderRepository,
@@ -71,7 +73,8 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
             ReturnOrderRepository returnOrderRepository,
             CustomerService customerService,
             PromotionService promotionService,
-            ShiftService shiftService
+            ShiftService shiftService,
+            SettingService settingService
     ) {
         this.orderRepository = orderRepository;
         this.itemService = itemService;
@@ -86,6 +89,7 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
         this.customerService = customerService;
         this.promotionService = promotionService;
         this.shiftService = shiftService;
+        this.settingService = settingService;
     }
 
     // POS: tạo hóa đơn, FEFO trừ tồn, publish event cảnh báo tồn
@@ -318,8 +322,19 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
                 .map(i -> i.getSubtotal() != null ? i.getSubtotal() : java.math.BigDecimal.ZERO)
                 .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
         java.math.BigDecimal discount = order.getDiscountAmount() != null ? order.getDiscountAmount() : java.math.BigDecimal.ZERO;
-        java.math.BigDecimal vatAmount = order.getTotalAmount().subtract(subtotal).add(discount)
-                .max(java.math.BigDecimal.ZERO);
+
+        // VAT-inclusive: vatAmount = total × vatRate / (1 + vatRate). Default 0 (no VAT shown).
+        java.math.BigDecimal vatRateVal;
+        try {
+            vatRateVal = new java.math.BigDecimal(settingService.getValue("vat_rate", "0"));
+        } catch (NumberFormatException e) {
+            vatRateVal = java.math.BigDecimal.ZERO;
+        }
+        java.math.BigDecimal vatAmount = vatRateVal.compareTo(java.math.BigDecimal.ZERO) > 0
+                ? order.getTotalAmount()
+                        .multiply(vatRateVal)
+                        .divide(java.math.BigDecimal.ONE.add(vatRateVal), 0, java.math.RoundingMode.HALF_UP)
+                : java.math.BigDecimal.ZERO;
 
         return OrderPrintResponse.builder()
                 .id(order.getId())
@@ -331,6 +346,7 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
                 .subtotalAmount(subtotal)
                 .discountAmount(discount)
                 .vatAmount(vatAmount)
+                .vatRate(vatRateVal)
                 .totalAmount(order.getTotalAmount())
                 .paymentMethod(order.getPaymentMethod() != null ? order.getPaymentMethod().name() : "CASH")
                 .promotionCode(order.getPromotion() != null ? order.getPromotion().getCode() : null)
@@ -405,11 +421,16 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
                     .orElse("Hệ thống");
         }
 
+        BigDecimal subtotalBeforeDiscount = order.getItems().stream()
+                .map(i -> i.getSubtotal() != null ? i.getSubtotal() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
         return OrderResponse.builder()
                 .id(order.getId())
                 .orderCode(order.getOrderCode())
                 .customerName(order.getCustomerName())
                 .customerPhone(order.getCustomerPhone())
+                .subtotalBeforeDiscount(subtotalBeforeDiscount)
                 .discountAmount(order.getDiscountAmount())
                 .promotionCode(order.getPromotion() != null ? order.getPromotion().getCode() : null)
                 .cashierName(cashierName)

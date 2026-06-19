@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Optional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -38,6 +39,13 @@ public class InventoryQueryServiceImpl implements com.smartmart.service.Inventor
         this.currentInventoryRepository = currentInventoryRepository;
         this.inventoryLogRepository = inventoryLogRepository;
         this.orderItemRepository = orderItemRepository;
+    }
+
+    @Override
+    public BigDecimal getExactAvailableQty(Long itemId, Long locationId, Long lotId) {
+        return currentInventoryRepository.findByItemLocationLot(itemId, locationId, lotId)
+                .map(ci -> ci.getQuantity().subtract(ci.getReservedQuantity()))
+                .orElse(BigDecimal.ZERO);
     }
 
     @Override

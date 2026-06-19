@@ -13,6 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -95,6 +96,51 @@ class AuthRbacIntegrationTest {
         mockMvc.perform(post("/api/v1/forecast/run")
                         .header("Authorization", "Bearer " + analystToken))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void staffForbiddenOnSuggestPromotionAndTrainStatus() throws Exception {
+        String staffToken = loginAs("staff", "staff123");
+
+        // suggest-promotion requires ADMIN or MANAGER
+        mockMvc.perform(post("/api/v1/ai-insight/suggest-promotion/1")
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isForbidden());
+
+        // train/status requires ADMIN, MANAGER or ANALYST
+        mockMvc.perform(get("/api/v1/forecast/train/status")
+                        .param("jobId", "non-existent-job")
+                        .header("Authorization", "Bearer " + staffToken))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void analystCanAccessAiEndpointsAndTrainStatus() throws Exception {
+        ensureAnalystUser();
+        String analystToken = loginAs("analyst", "analyst123");
+
+        // ANALYST is allowed on /ai-insight/chat — may get 200 or 5xx from AI service in test,
+        // but must NOT get 403.
+        mockMvc.perform(post("/api/v1/ai-insight/chat")
+                        .header("Authorization", "Bearer " + analystToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"message\":\"ping\"}"))
+                .andExpect(result -> assertNotEquals(403, result.getResponse().getStatus(),
+                        "ANALYST should be authorized for /ai-insight/chat"));
+
+        // ANALYST is allowed on /ai-insight/explain-risk
+        mockMvc.perform(post("/api/v1/ai-insight/explain-risk")
+                        .header("Authorization", "Bearer " + analystToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"itemId\":1}"))
+                .andExpect(result -> assertNotEquals(403, result.getResponse().getStatus(),
+                        "ANALYST should be authorized for /ai-insight/explain-risk"));
+
+        // ANALYST is allowed on /forecast/train/status — gets 404 for unknown jobId (not 403)
+        mockMvc.perform(get("/api/v1/forecast/train/status")
+                        .param("jobId", "non-existent-job")
+                        .header("Authorization", "Bearer " + analystToken))
+                .andExpect(status().isNotFound());
     }
 
     @Test

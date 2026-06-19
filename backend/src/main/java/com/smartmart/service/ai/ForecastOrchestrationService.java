@@ -1,21 +1,28 @@
 package com.smartmart.service.ai;
 
+import com.smartmart.dto.response.AiStatusResponse;
+import com.smartmart.dto.response.ForecastItemDetailResponse;
+import com.smartmart.dto.response.ForecastResultResponse;
+import com.smartmart.dto.response.ForecastRunResponse;
+import com.smartmart.dto.response.TrainResultResponse;
 import com.smartmart.entity.ModelTrainingHistory;
 
 import java.util.List;
-import java.util.Map;
 
 public interface ForecastOrchestrationService {
 
-    Map<String, Object> train();
+    TrainResultResponse train();
 
-    Map<String, Object> runForecast();
+    ForecastRunResponse runForecast();
 
-    List<Map<String, Object>> listResults();
+    List<ForecastResultResponse> listResults();
 
-    com.smartmart.dto.response.ForecastItemDetailResponse getItemResult(Long itemId);
+    ForecastItemDetailResponse getItemResult(Long itemId);
 
     List<ModelTrainingHistory> modelHistory();
 
-    Map<String, Object> getAiStatus();
+    AiStatusResponse getAiStatus();
+
+    /** Bắt đầu training async. Trả về jobId để client poll trạng thái. */
+    String submitTrainAsync();
 }

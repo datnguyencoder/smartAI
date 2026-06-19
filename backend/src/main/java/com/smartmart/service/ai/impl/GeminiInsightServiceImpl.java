@@ -6,16 +6,15 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.smartmart.service.AuditLogService;
 import com.smartmart.service.ai.AiTextSanitizer;
+import com.smartmart.service.ai.GeminiApiDelegate;
 import com.smartmart.service.ai.GeminiContextBuilder;
 import com.smartmart.service.ai.GeminiInsightService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.nio.charset.StandardCharsets;
@@ -28,11 +27,9 @@ import java.util.Map;
 public class GeminiInsightServiceImpl implements GeminiInsightService {
 
     private static final Logger log = LoggerFactory.getLogger(GeminiInsightServiceImpl.class);
-    private static final String GEMINI_URL_TEMPLATE =
-            "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent";
     private static final Duration CACHE_TTL = Duration.ofMinutes(10);
 
-    private final WebClient webClient;
+    private final GeminiApiDelegate apiDelegate;
     private final ObjectMapper objectMapper;
     private final String apiKey;
     private final String model;
@@ -41,7 +38,7 @@ public class GeminiInsightServiceImpl implements GeminiInsightService {
     private final RedisTemplate<String, Object> redisTemplate;
 
     public GeminiInsightServiceImpl(
-            WebClient.Builder webClientBuilder,
+            GeminiApiDelegate apiDelegate,
             ObjectMapper objectMapper,
             @Value("${app.gemini.api-key:}") String apiKey,
             @Value("${app.gemini.model:gemini-2.5-flash}") String model,
@@ -49,7 +46,7 @@ public class GeminiInsightServiceImpl implements GeminiInsightService {
             AuditLogService auditLogService,
             ObjectProvider<RedisTemplate<String, Object>> redisTemplateProvider
     ) {
-        this.webClient = webClientBuilder.build();
+        this.apiDelegate = apiDelegate;
         this.objectMapper = objectMapper;
         this.apiKey = apiKey;
         this.model = model;
@@ -114,14 +111,7 @@ public class GeminiInsightServiceImpl implements GeminiInsightService {
             ArrayNode parts = content.putArray("parts");
             parts.addObject().put("text", prompt);
 
-            JsonNode response = webClient.post()
-                    .uri(GEMINI_URL_TEMPLATE.formatted(model))
-                    .header("x-goog-api-key", apiKey)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(body)
-                    .retrieve()
-                    .bodyToMono(JsonNode.class)
-                    .block(Duration.ofSeconds(45));
+            JsonNode response = apiDelegate.call(model, apiKey, body);
 
             if (response == null) {
                 return "Gemini không phản hồi.";

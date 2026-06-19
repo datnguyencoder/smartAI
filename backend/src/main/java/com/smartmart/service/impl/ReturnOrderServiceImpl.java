@@ -21,6 +21,8 @@ import com.smartmart.service.InventoryLedgerService;
 import com.smartmart.service.ItemService;
 import com.smartmart.service.ReturnOrderService;
 import com.smartmart.util.AuditData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +37,7 @@ import java.util.Map;
 @Transactional
 public class ReturnOrderServiceImpl implements ReturnOrderService {
 
+    private static final Logger log = LoggerFactory.getLogger(ReturnOrderServiceImpl.class);
     private static final String DEFAULT_LOCATION = "Kho bán";
 
     private final ReturnOrderRepository returnOrderRepository;
@@ -109,6 +112,11 @@ public class ReturnOrderServiceImpl implements ReturnOrderService {
                     .divide(originalSubtotal, 8, RoundingMode.HALF_UP)
                     .min(BigDecimal.ONE)
                     .max(BigDecimal.ZERO);
+        }
+        if (discountRatio.compareTo(new BigDecimal("0.5")) > 0) {
+            log.warn("Return order for order#{} has unusually high discountRatio={} — " +
+                    "discount may include loyalty-point deduction which is not split on entity level. " +
+                    "Refund calculation may be imprecise.", original.getId(), discountRatio);
         }
         Long userId = SecurityUtils.getCurrentUserId().orElse(null);
 

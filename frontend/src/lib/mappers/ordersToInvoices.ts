@@ -1,18 +1,10 @@
 import { fetchOrders } from '@/services/wmsApi';
+import { PAYMENT_LABEL } from '@/lib/constants/paymentLabels';
 
 const STATUS_LABEL: Record<string, string> = {
   COMPLETED: 'Đã thanh toán',
   CANCELLED: 'Đã hủy',
   PENDING: 'Chờ xử lý',
-};
-
-const PAYMENT_LABEL: Record<string, string> = {
-  CASH: 'Tiền mặt',
-  CARD: 'Thẻ ngân hàng',
-  TRANSFER: 'Chuyển khoản',
-  MOMO: 'MoMo',
-  VNPAY: 'VNPay',
-  MIXED: 'Kết hợp',
 };
 
 export function ordersToInvoices(orders: Awaited<ReturnType<typeof fetchOrders>>) {
@@ -23,7 +15,13 @@ export function ordersToInvoices(orders: Awaited<ReturnType<typeof fetchOrders>>
     );
     const discount = Number(o.discountAmount || 0);
     const total = Number(o.totalAmount);
-    const subtotal = itemsSubtotal > 0 ? itemsSubtotal : total + discount;
+    // Prefer backend-computed subtotalBeforeDiscount to avoid miscalculation when loyalty points are redeemed
+    const subtotal =
+      o.subtotalBeforeDiscount != null
+        ? Number(o.subtotalBeforeDiscount)
+        : itemsSubtotal > 0
+          ? itemsSubtotal
+          : total + discount;
 
     return {
       key: o.orderCode,
