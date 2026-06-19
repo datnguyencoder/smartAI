@@ -3,6 +3,7 @@ package com.smartmart.service.ai.impl;
 import com.smartmart.dto.request.CreatePromotionRequest;
 import com.smartmart.dto.response.PromotionRecommendationResponse;
 import com.smartmart.dto.response.PromotionResponse;
+import com.smartmart.dto.response.PromotionSuggestionResponse;
 import com.smartmart.entity.Item;
 import com.smartmart.entity.PromotionRecommendation;
 import com.smartmart.enums.AlertType;
@@ -13,7 +14,10 @@ import com.smartmart.repository.ItemRepository;
 import com.smartmart.repository.PromotionRecommendationRepository;
 import com.smartmart.service.AuditLogService;
 import com.smartmart.service.PromotionService;
+import com.smartmart.service.ai.GeminiInsightService;
 import com.smartmart.service.ai.PromotionRecommendationService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,26 +31,58 @@ import java.util.regex.Pattern;
 @Transactional
 public class PromotionRecommendationServiceImpl implements PromotionRecommendationService {
 
+    private static final Logger log = LoggerFactory.getLogger(PromotionRecommendationServiceImpl.class);
     private static final Pattern DISCOUNT_PATTERN = Pattern.compile("(\\d{1,2})\\s*%");
+    private static final String FALLBACK_SUGGESTION =
+            "Đề xuất giảm 15% trong 14 ngày cho SKU đang cần xả hàng. " +
+            "Ưu tiên áp dụng khi sản phẩm cận hạn, tồn lâu hoặc tốc độ bán thấp; " +
+            "không áp dụng cho SKU đang LOW_STOCK/HIGH_RISK.";
 
     private final PromotionRecommendationRepository promotionRepository;
     private final ItemRepository itemRepository;
     private final InventoryAlertRepository inventoryAlertRepository;
     private final AuditLogService auditLogService;
     private final PromotionService promotionService;
+    private final GeminiInsightService geminiInsightService;
 
     public PromotionRecommendationServiceImpl(
             PromotionRecommendationRepository promotionRepository,
             ItemRepository itemRepository,
             InventoryAlertRepository inventoryAlertRepository,
             AuditLogService auditLogService,
-            PromotionService promotionService
+            PromotionService promotionService,
+            GeminiInsightService geminiInsightService
     ) {
         this.promotionRepository = promotionRepository;
         this.itemRepository = itemRepository;
         this.inventoryAlertRepository = inventoryAlertRepository;
         this.auditLogService = auditLogService;
         this.promotionService = promotionService;
+        this.geminiInsightService = geminiInsightService;
+    }
+
+    @Override
+    public PromotionSuggestionResponse suggestWithFallback(Long itemId) {
+        String source = "GEMINI";
+        String suggestion;
+        try {
+            suggestion = geminiInsightService.suggestPromotion(itemId);
+            if (suggestion == null || suggestion.isBlank()) {
+                throw new RuntimeException("Empty response from Gemini");
+            }
+        } catch (RuntimeException ex) {
+            log.warn("Gemini unavailable for promo suggestion itemId={}, using fallback: {}", itemId, ex.getMessage());
+            source = "FALLBACK";
+            suggestion = FALLBACK_SUGGESTION;
+        }
+        PromotionRecommendation saved = saveSuggestion(itemId, suggestion);
+        return PromotionSuggestionResponse.builder()
+                .promotionId(saved.getId())
+                .suggestion(suggestion)
+                .discountPercent(saved.getDiscountPercent())
+                .status(saved.getStatus())
+                .source(source)
+                .build();
     }
 
     @Override

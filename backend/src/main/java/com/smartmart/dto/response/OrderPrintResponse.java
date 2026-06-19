@@ -19,6 +19,7 @@ public class OrderPrintResponse {
     private BigDecimal subtotalAmount;
     private BigDecimal discountAmount;
     private BigDecimal vatAmount;
+    private BigDecimal vatRate;
     private BigDecimal totalAmount;
     private String paymentMethod;
     private String promotionCode;

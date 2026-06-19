@@ -3,13 +3,22 @@ package com.smartmart.service.ai.impl;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartmart.client.AiClient;
+import com.smartmart.dto.response.AiStatusResponse;
 import com.smartmart.dto.response.ForecastItemDetailResponse;
+import com.smartmart.dto.response.ForecastResultResponse;
+import com.smartmart.dto.response.ForecastRunResponse;
+import com.smartmart.dto.response.TrainJobResponse;
+import com.smartmart.dto.response.TrainResultResponse;
 import com.smartmart.entity.*;
 import com.smartmart.enums.OrderStatus;
 import com.smartmart.exception.AiServiceException;
 import com.smartmart.exception.NotFoundException;
 import com.smartmart.repository.*;
 import com.smartmart.service.ai.ReorderRecommendationService;
+import com.smartmart.service.ai.TrainingJobStore;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,9 +27,12 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.UUID;
 
 @Service
 public class ForecastOrchestrationServiceImpl implements com.smartmart.service.ai.ForecastOrchestrationService {
+
+    private static final Logger log = LoggerFactory.getLogger(ForecastOrchestrationServiceImpl.class);
 
     private final AiClient aiClient;
     private final OrderRepository orderRepository;
@@ -30,6 +42,7 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
     private final ForecastDailyPointRepository forecastDailyPointRepository;
     private final CurrentInventoryRepository currentInventoryRepository;
     private final ReorderRecommendationService reorderRecommendationService;
+    private final TrainingJobStore trainingJobStore;
     private final ObjectMapper objectMapper;
 
     public ForecastOrchestrationServiceImpl(
@@ -41,6 +54,7 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
             ForecastDailyPointRepository forecastDailyPointRepository,
             CurrentInventoryRepository currentInventoryRepository,
             ReorderRecommendationService reorderRecommendationService,
+            TrainingJobStore trainingJobStore,
             ObjectMapper objectMapper
     ) {
         this.aiClient = aiClient;
@@ -51,12 +65,13 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
         this.forecastDailyPointRepository = forecastDailyPointRepository;
         this.currentInventoryRepository = currentInventoryRepository;
         this.reorderRecommendationService = reorderRecommendationService;
+        this.trainingJobStore = trainingJobStore;
         this.objectMapper = objectMapper;
     }
 
     @Transactional
     @Override
-    public Map<String, Object> train() {
+    public TrainResultResponse train() {
         List<Map<String, Object>> history = extractSalesHistory(180);
         JsonNode result = aiClient.train(history);
 
@@ -80,38 +95,71 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
                 .build();
         trainingHistoryRepository.save(record);
 
-        Map<String, Object> forecastSummary = runForecast();
+        ForecastRunResponse forecastSummary = runForecast();
 
-        Map<String, Object> out = new LinkedHashMap<>();
-        out.put("modelType", record.getModelType());
-        out.put("mae", record.getMae());
-        out.put("rmse", record.getRmse());
-        out.put("mape", record.getMape());
-        out.put("trainedAt", record.getTrainedAt());
-        out.put("trainingSamples", result.path("training_samples").asInt(0));
-        out.put("nItemsMl", result.path("n_items_ml").asInt(0));
-        out.put("nItemsMa", result.path("n_items_ma").asInt(0));
-        out.put("perItemModelTypes", itemTypes);
-        out.putAll(forecastSummary);
-        return out;
+        return TrainResultResponse.builder()
+                .modelType(record.getModelType())
+                .mae(record.getMae())
+                .rmse(record.getRmse())
+                .mape(record.getMape())
+                .trainedAt(record.getTrainedAt())
+                .trainingSamples(result.path("training_samples").asInt(0))
+                .nItemsMl(result.path("n_items_ml").asInt(0))
+                .nItemsMa(result.path("n_items_ma").asInt(0))
+                .itemsForecasted(forecastSummary.getItemsForecasted())
+                .itemsSubmitted(forecastSummary.getItemsSubmitted())
+                .forecastSource(forecastSummary.getSource())
+                .ranAt(forecastSummary.getRanAt())
+                .build();
+    }
+
+    @Override
+    public String submitTrainAsync() {
+        String jobId = UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        TrainJobResponse job = TrainJobResponse.builder()
+                .jobId(jobId)
+                .status("QUEUED")
+                .startedAt(LocalDateTime.now())
+                .build();
+        trainingJobStore.put(jobId, job);
+        runTrainAsync(jobId);
+        return jobId;
+    }
+
+    @Async("forecastTaskExecutor")
+    public void runTrainAsync(String jobId) {
+        TrainJobResponse job = trainingJobStore.get(jobId).orElse(null);
+        if (job == null) return;
+        job.setStatus("RUNNING");
+        try {
+            TrainResultResponse result = train();
+            job.setStatus("DONE");
+            job.setResult(result);
+        } catch (Exception ex) {
+            log.error("Async training job {} failed: {}", jobId, ex.getMessage(), ex);
+            job.setStatus("FAILED");
+            job.setErrorMessage(ex.getMessage());
+        } finally {
+            job.setCompletedAt(LocalDateTime.now());
+        }
     }
 
     @Transactional
     @Override
-    public Map<String, Object> runForecast() {
+    public ForecastRunResponse runForecast() {
         List<Map<String, Object>> itemsPayload = buildForecastPayload();
         JsonNode result;
         try {
             result = aiClient.forecastAll(itemsPayload);
         } catch (AiServiceException ex) {
             reorderRecommendationService.recomputeFallbackFromSalesAverage();
-            Map<String, Object> fallback = new LinkedHashMap<>();
-            fallback.put("itemsForecasted", 0);
-            fallback.put("itemsSubmitted", itemsPayload.size());
-            fallback.put("source", "FALLBACK");
-            fallback.put("message", "AI offline - gợi ý nhập hàng đã được tính bằng lịch sử bán 30 ngày");
-            fallback.put("ranAt", LocalDateTime.now());
-            return fallback;
+            return ForecastRunResponse.builder()
+                    .itemsForecasted(0)
+                    .itemsSubmitted(itemsPayload.size())
+                    .source("FALLBACK")
+                    .message("AI offline - gợi ý nhập hàng đã được tính bằng lịch sử bán 30 ngày")
+                    .ranAt(LocalDateTime.now())
+                    .build();
         }
 
         ModelTrainingHistory latest = trainingHistoryRepository.findTopByOrderByTrainedAtDesc().orElse(null);
@@ -162,20 +210,20 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
 
         reorderRecommendationService.recomputeFromForecasts();
 
-        Map<String, Object> out = new LinkedHashMap<>();
-        out.put("itemsForecasted", saved);
-        out.put("itemsSubmitted", itemsPayload.size());
-        out.put("source", "AI");
-        out.put("ranAt", LocalDateTime.now());
-        return out;
+        return ForecastRunResponse.builder()
+                .itemsForecasted(saved)
+                .itemsSubmitted(itemsPayload.size())
+                .source("AI")
+                .ranAt(LocalDateTime.now())
+                .build();
     }
 
     @Transactional(readOnly = true)
     @Override
-    public List<Map<String, Object>> listResults() {
+    public List<ForecastResultResponse> listResults() {
         return forecastResultRepository.findTop100ByOrderByForecastDateDesc().stream()
-                .map(fr -> toResultMap(fr))
-                .sorted(Comparator.comparingInt(m -> riskSortOrder(String.valueOf(m.get("riskLevel")))))
+                .map(this::toResultResponse)
+                .sorted(Comparator.comparingInt(r -> riskSortOrder(r.getRiskLevel())))
                 .toList();
     }
 
@@ -236,20 +284,20 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
 
     @Transactional(readOnly = true)
     @Override
-    public Map<String, Object> getAiStatus() {
+    public AiStatusResponse getAiStatus() {
         JsonNode health = aiClient.health();
         boolean aiOnline = health != null && "ok".equalsIgnoreCase(health.path("status").asText(""));
         ModelTrainingHistory latest = trainingHistoryRepository.findTopByOrderByTrainedAtDesc().orElse(null);
         long totalForecasts = forecastResultRepository.count();
 
-        Map<String, Object> status = new LinkedHashMap<>();
-        status.put("aiOnline", aiOnline);
-        status.put("modelLoaded", health != null && health.path("model_loaded").asBoolean(false));
-        status.put("aiVersion", health != null ? health.path("version").asText("unknown") : "unknown");
-        status.put("lastTrainedAt", latest != null ? latest.getTrainedAt() : null);
-        status.put("modelType", latest != null ? latest.getModelType() : null);
-        status.put("totalForecasts", totalForecasts);
-        return status;
+        return AiStatusResponse.builder()
+                .aiOnline(aiOnline)
+                .modelLoaded(health != null && health.path("model_loaded").asBoolean(false))
+                .aiVersion(health != null ? health.path("version").asText("unknown") : "unknown")
+                .lastTrainedAt(latest != null ? latest.getTrainedAt() : null)
+                .modelType(latest != null ? latest.getModelType() : null)
+                .totalForecasts(totalForecasts)
+                .build();
     }
 
     private void saveDailySeries(ForecastResult fr, JsonNode dailySeries) {
@@ -325,21 +373,26 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
         return node.path(fallback).asDouble(0);
     }
 
-    private Map<String, Object> toResultMap(ForecastResult fr) {
+    private ForecastResultResponse toResultResponse(ForecastResult fr) {
         Item item = fr.getItem();
-        Map<String, Object> m = new LinkedHashMap<>();
-        m.put("itemId", item.getId());
-        m.put("itemCode", item.getItemCode());
-        m.put("itemName", item.getItemName());
-        m.put("pred7d", fr.getPredictedQty7d());
-        m.put("pred14d", fr.getPredictedQty14d());
-        m.put("pred30d", fr.getPredictedQty30d());
-        m.put("modelType", fr.getModelType());
-        m.put("forecastDate", fr.getForecastDate());
-        m.put("confidenceLow", fr.getConfidenceLow());
-        m.put("confidenceHigh", fr.getConfidenceHigh());
-        m.putAll(buildStockInsight(item, fr.getPredictedQty30d(), fr.getPredictedQty7d()));
-        return m;
+        Map<String, Object> insight = buildStockInsight(item, fr.getPredictedQty30d(), fr.getPredictedQty7d());
+        return ForecastResultResponse.builder()
+                .itemId(item.getId())
+                .itemCode(item.getItemCode())
+                .itemName(item.getItemName())
+                .pred7d(fr.getPredictedQty7d())
+                .pred14d(fr.getPredictedQty14d())
+                .pred30d(fr.getPredictedQty30d())
+                .modelType(fr.getModelType())
+                .forecastDate(fr.getForecastDate())
+                .confidenceLow(fr.getConfidenceLow())
+                .confidenceHigh(fr.getConfidenceHigh())
+                .stockOnHand((BigDecimal) insight.get("stockOnHand"))
+                .shortageQty((BigDecimal) insight.get("shortageQty"))
+                .surplusQty((BigDecimal) insight.get("surplusQty"))
+                .riskLevel((String) insight.get("riskLevel"))
+                .recommendation((String) insight.get("recommendation"))
+                .build();
     }
 
     private Map<String, Object> buildStockInsight(Item item, BigDecimal pred30d, BigDecimal pred7d) {

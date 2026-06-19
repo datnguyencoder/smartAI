@@ -440,7 +440,11 @@ export function fetchDashboardForecastSummary() {
 }
 
 export function trainForecast() {
-  return apiRequest<Record<string, unknown>>('/api/v1/forecast/train', { method: 'POST' });
+  return apiRequest<{ jobId: string }>('/api/v1/forecast/train', { method: 'POST' });
+}
+
+export function fetchTrainJobStatus(jobId: string) {
+  return apiRequest<import('../types/api').TrainJobDto>(`/api/v1/forecast/train/status?jobId=${encodeURIComponent(jobId)}`);
 }
 
 export function runForecast() {

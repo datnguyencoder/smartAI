@@ -16,6 +16,7 @@ import com.smartmart.repository.TransferOrderRepository;
 import com.smartmart.security.SecurityUtils;
 import com.smartmart.service.AuditLogService;
 import com.smartmart.service.InventoryLedgerService;
+import com.smartmart.service.InventoryQueryService;
 import com.smartmart.service.ItemService;
 import com.smartmart.service.TransferOrderService;
 import com.smartmart.util.AuditData;
@@ -36,6 +37,7 @@ public class TransferOrderServiceImpl implements TransferOrderService {
     private final ItemService itemService;
     private final CurrentInventoryRepository currentInventoryRepository;
     private final InventoryLedgerService inventoryLedgerService;
+    private final InventoryQueryService inventoryQueryService;
     private final AuditLogService auditLogService;
 
     public TransferOrderServiceImpl(
@@ -45,6 +47,7 @@ public class TransferOrderServiceImpl implements TransferOrderService {
             ItemService itemService,
             CurrentInventoryRepository currentInventoryRepository,
             InventoryLedgerService inventoryLedgerService,
+            InventoryQueryService inventoryQueryService,
             AuditLogService auditLogService
     ) {
         this.transferOrderRepository = transferOrderRepository;
@@ -53,6 +56,7 @@ public class TransferOrderServiceImpl implements TransferOrderService {
         this.itemService = itemService;
         this.currentInventoryRepository = currentInventoryRepository;
         this.inventoryLedgerService = inventoryLedgerService;
+        this.inventoryQueryService = inventoryQueryService;
         this.auditLogService = auditLogService;
     }
 
@@ -67,7 +71,7 @@ public class TransferOrderServiceImpl implements TransferOrderService {
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy kho đích"));
 
         for (TransferLineRequest line : request.getItems()) {
-            BigDecimal available = getExactAvailableQuantity(line.getItemId(), from.getId(), line.getLotId());
+            BigDecimal available = inventoryQueryService.getExactAvailableQty(line.getItemId(), from.getId(), line.getLotId());
             if (available.compareTo(line.getQuantity()) < 0) {
                 Item item = itemService.findItem(line.getItemId());
                 throw new InsufficientStockException("Không đủ tồn kho tại kho nguồn cho: " + item.getItemName());
@@ -126,7 +130,7 @@ public class TransferOrderServiceImpl implements TransferOrderService {
             currentInventoryRepository.findFilteredForUpdate(
                     line.getItem().getId(), transfer.getFromLocation().getId(), lotId);
 
-            BigDecimal available = getExactAvailableQuantity(
+            BigDecimal available = inventoryQueryService.getExactAvailableQty(
                     line.getItem().getId(),
                     transfer.getFromLocation().getId(),
                     lotId);
@@ -198,9 +202,4 @@ public class TransferOrderServiceImpl implements TransferOrderService {
         return transferOrderRepository.findAllByOrderByIdDesc();
     }
 
-    private BigDecimal getExactAvailableQuantity(Long itemId, Long locationId, Long lotId) {
-        return currentInventoryRepository.findByItemLocationLot(itemId, locationId, lotId)
-                .map(ci -> ci.getQuantity().subtract(ci.getReservedQuantity()))
-                .orElse(BigDecimal.ZERO);
-    }
 }

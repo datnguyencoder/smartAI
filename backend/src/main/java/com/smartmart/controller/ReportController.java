@@ -4,7 +4,9 @@ import com.smartmart.common.response.ApiResponse;
 import com.smartmart.dto.response.SalesReportResponse;
 import com.smartmart.dto.response.PurchaseReportResponse;
 import com.smartmart.dto.response.InventoryReportResponse;
+import com.smartmart.exception.BadRequestException;
 import com.smartmart.service.ReportService;
+import com.smartmart.service.SettingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -14,6 +16,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @RestController
@@ -24,9 +27,23 @@ import java.util.List;
 public class ReportController {
 
     private final ReportService reportService;
+    private final SettingService settingService;
 
-    public ReportController(ReportService reportService) {
+    public ReportController(ReportService reportService, SettingService settingService) {
         this.reportService = reportService;
+        this.settingService = settingService;
+    }
+
+    private void validateDateRange(LocalDate from, LocalDate to) {
+        if (from == null || to == null) return;
+        if (from.isAfter(to)) {
+            throw new BadRequestException("Ngày bắt đầu phải trước ngày kết thúc");
+        }
+        int maxDays = settingService.getIntValue("report_max_days", 366);
+        long days = ChronoUnit.DAYS.between(from, to);
+        if (days > maxDays) {
+            throw new BadRequestException("Khoảng thời gian báo cáo không được vượt quá " + maxDays + " ngày");
+        }
     }
 
     @GetMapping("/sales")
@@ -36,6 +53,7 @@ public class ReportController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(required = false) String groupBy
     ) {
+        validateDateRange(from, to);
         List<SalesReportResponse> data = reportService.getSalesReport(from, to, groupBy);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
@@ -46,6 +64,7 @@ public class ReportController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
     ) {
+        validateDateRange(from, to);
         List<PurchaseReportResponse> data = reportService.getPurchaseReport(from, to);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
@@ -56,6 +75,7 @@ public class ReportController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
     ) {
+        validateDateRange(from, to);
         List<InventoryReportResponse> data = reportService.getInventoryReport(from, to);
         return ResponseEntity.ok(ApiResponse.success(data));
     }

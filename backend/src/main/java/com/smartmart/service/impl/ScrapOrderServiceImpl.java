@@ -12,10 +12,10 @@ import com.smartmart.exception.NotFoundException;
 import com.smartmart.repository.ItemLotRepository;
 import com.smartmart.repository.LocationRepository;
 import com.smartmart.repository.ScrapOrderRepository;
-import com.smartmart.repository.CurrentInventoryRepository;
 import com.smartmart.security.SecurityUtils;
 import com.smartmart.service.AuditLogService;
 import com.smartmart.service.InventoryLedgerService;
+import com.smartmart.service.InventoryQueryService;
 import com.smartmart.service.ItemService;
 import com.smartmart.util.AuditData;
 import org.springframework.stereotype.Service;
@@ -35,8 +35,7 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
     private final ItemService itemService;
     private final InventoryLedgerService inventoryLedgerService;
     private final AuditLogService auditLogService;
-
-    private final CurrentInventoryRepository currentInventoryRepository;
+    private final InventoryQueryService inventoryQueryService;
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     public ScrapOrderServiceImpl(
@@ -45,7 +44,7 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
             ItemLotRepository itemLotRepository,
             ItemService itemService,
             InventoryLedgerService inventoryLedgerService,
-            CurrentInventoryRepository currentInventoryRepository,
+            InventoryQueryService inventoryQueryService,
             org.springframework.context.ApplicationEventPublisher eventPublisher,
             AuditLogService auditLogService
     ) {
@@ -54,7 +53,7 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
         this.itemLotRepository = itemLotRepository;
         this.itemService = itemService;
         this.inventoryLedgerService = inventoryLedgerService;
-        this.currentInventoryRepository = currentInventoryRepository;
+        this.inventoryQueryService = inventoryQueryService;
         this.eventPublisher = eventPublisher;
         this.auditLogService = auditLogService;
     }
@@ -67,7 +66,7 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
                 
         // Fast-fail check
         for (ScrapLineRequest line : request.getItems()) {
-            BigDecimal available = getExactAvailableQuantity(line.getItemId(), location.getId(), line.getLotId());
+            BigDecimal available = inventoryQueryService.getExactAvailableQty(line.getItemId(), location.getId(), line.getLotId());
             if (available.compareTo(line.getQuantity()) < 0) {
                 Item item = itemService.findItem(line.getItemId());
                 throw new com.smartmart.exception.InsufficientStockException("Không đủ tồn kho khả dụng cho sản phẩm: " + item.getItemName());
@@ -231,9 +230,4 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
         return scrapOrderRepository.findAllByOrderByIdDesc();
     }
 
-    private BigDecimal getExactAvailableQuantity(Long itemId, Long locationId, Long lotId) {
-        return currentInventoryRepository.findByItemLocationLot(itemId, locationId, lotId)
-                .map(ci -> ci.getQuantity().subtract(ci.getReservedQuantity()))
-                .orElse(BigDecimal.ZERO);
-    }
 }

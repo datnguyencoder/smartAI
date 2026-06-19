@@ -41,10 +41,11 @@ import {
   fetchForecastItemDetail,
   fetchForecastResults,
   fetchSalesReport,
+  fetchTrainJobStatus,
   runForecast,
   trainForecast,
 } from '@/services/wmsApi';
-import type { AiStatusDto, ForecastResultDto } from '@/types/api';
+import type { AiStatusDto, ForecastResultDto, TrainJobDto } from '@/types/api';
 import type { Product } from '@/lib/itemMapper';
 import type { PageKey } from '@/types/pages';
 
@@ -123,6 +124,8 @@ export default function AiForecastPage({ productsList: _productsList, setPage }:
   const { authUser } = useAuth();
   const canOperateForecast = ['ROLE_ADMIN', 'ROLE_MANAGER'].includes(normalizeRole(authUser?.role));
   const [loading, setLoading] = React.useState(false);
+  const [trainJob, setTrainJob] = React.useState<TrainJobDto | null>(null);
+  const trainPollRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
   const [results, setResults] = React.useState<ForecastResultDto[]>([]);
   const [aiStatus, setAiStatus] = React.useState<AiStatusDto | null>(null);
   const [revenueChart, setRevenueChart] = React.useState<Array<{ day: string; revenue: number; orders: number }>>([]);
@@ -156,7 +159,7 @@ export default function AiForecastPage({ productsList: _productsList, setPage }:
           const detail = await fetchForecastItemDetail(firstId);
           setDailyChart(
             (detail.dailySeries || []).map((p) => ({
-              date: p.date.slice(5),
+              date: new Date(p.date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }),
               qty: Number(p.predictedQty),
               confLow: p.confidenceLow != null ? Number(p.confidenceLow) : undefined,
               confHigh: p.confidenceHigh != null ? Number(p.confidenceHigh) : undefined,
@@ -178,7 +181,7 @@ export default function AiForecastPage({ productsList: _productsList, setPage }:
       .then((rows) =>
         setRevenueChart(
           rows.map((r) => ({
-            day: r.period.slice(5),
+            day: new Date(r.period).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }),
             revenue: Number(r.totalRevenue),
             orders: Number(r.totalOrders),
           }))
@@ -187,18 +190,45 @@ export default function AiForecastPage({ productsList: _productsList, setPage }:
       .catch(() => setRevenueChart([]));
   }, [refreshResults, refreshStatus]);
 
+  // Cleanup poll on unmount
+  React.useEffect(() => {
+    return () => {
+      if (trainPollRef.current) clearInterval(trainPollRef.current);
+    };
+  }, []);
+
   const handleTrain = async () => {
     setLoading(true);
+    setTrainJob(null);
     try {
-      await trainForecast();
-      await refreshResults();
-      await refreshStatus();
-      setWorkflowStep(1);
-      antdMessage.success('Huấn luyện mô hình thành công — sẵn sàng chạy dự báo');
+      const { jobId } = await trainForecast();
+      setTrainJob({ jobId, status: 'QUEUED', startedAt: new Date().toISOString() });
+
+      trainPollRef.current = setInterval(async () => {
+        try {
+          const job = await fetchTrainJobStatus(jobId);
+          setTrainJob(job);
+          if (job.status === 'DONE') {
+            clearInterval(trainPollRef.current!);
+            trainPollRef.current = null;
+            setLoading(false);
+            setWorkflowStep(1);
+            await refreshResults();
+            await refreshStatus();
+            antdMessage.success('Huấn luyện mô hình thành công — sẵn sàng chạy dự báo');
+          } else if (job.status === 'FAILED') {
+            clearInterval(trainPollRef.current!);
+            trainPollRef.current = null;
+            setLoading(false);
+            antdMessage.error('Huấn luyện thất bại: ' + (job.errorMessage ?? 'lỗi không xác định'));
+          }
+        } catch {
+          // keep polling on transient errors
+        }
+      }, 3000);
     } catch (e) {
-      antdMessage.error(e instanceof Error ? e.message : 'Huấn luyện thất bại');
-    } finally {
       setLoading(false);
+      antdMessage.error(e instanceof Error ? e.message : 'Không thể gửi yêu cầu huấn luyện');
     }
   };
 
@@ -209,7 +239,7 @@ export default function AiForecastPage({ productsList: _productsList, setPage }:
       const detail = await fetchForecastItemDetail(itemId);
       setDailyChart(
         (detail.dailySeries || []).map((p) => ({
-          date: p.date.slice(5),
+          date: new Date(p.date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }),
           qty: Number(p.predictedQty),
           confLow: p.confidenceLow != null ? Number(p.confidenceLow) : undefined,
           confHigh: p.confidenceHigh != null ? Number(p.confidenceHigh) : undefined,
@@ -290,6 +320,22 @@ export default function AiForecastPage({ productsList: _productsList, setPage }:
               { title: 'Xem kết quả', description: 'Đọc bảng & biểu đồ', icon: <LineChartOutlined /> },
             ]}
           />
+
+          {trainJob && (trainJob.status === 'QUEUED' || trainJob.status === 'RUNNING') && (
+            <Alert
+              type="info"
+              className="mb-4"
+              message={
+                <span>
+                  <strong>Đang huấn luyện mô hình...</strong>{' '}
+                  <span className="text-slate-500 text-sm">
+                    {trainJob.status === 'QUEUED' ? 'Đang xếp hàng' : 'Đang xử lý dữ liệu bán hàng (có thể mất 2–3 phút)'}
+                  </span>
+                </span>
+              }
+              showIcon
+            />
+          )}
 
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <Tag color={aiStatus?.aiOnline ? 'success' : 'error'} className="px-3 py-0.5 text-sm">

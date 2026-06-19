@@ -16,6 +16,7 @@ public class OrderResponse {
     private String orderCode;
     private String customerName;
     private String customerPhone;
+    private BigDecimal subtotalBeforeDiscount;
     private BigDecimal discountAmount;
     private String promotionCode;
     private String cashierName;

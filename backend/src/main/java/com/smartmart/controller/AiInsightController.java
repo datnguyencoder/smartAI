@@ -1,7 +1,7 @@
 package com.smartmart.controller;
 
 import com.smartmart.common.response.ApiResponse;
-import com.smartmart.entity.PromotionRecommendation;
+import com.smartmart.dto.response.PromotionSuggestionResponse;
 import com.smartmart.service.ai.CerebrasInsightService;
 import com.smartmart.service.ai.GeminiInsightService;
 import com.smartmart.service.ai.PromotionRecommendationService;
@@ -13,6 +13,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+
 
 @RestController
 @RequestMapping("/api/v1/ai-insight")
@@ -50,27 +51,10 @@ public class AiInsightController {
 
     @PostMapping("/suggest-promotion/{itemId}")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
-    @Operation(summary = "Đề xuất khuyến mãi theo SKU (Gemini)")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> suggestPromotion(@PathVariable Long itemId) {
-        String source = "GEMINI";
-        String suggestion;
-        try {
-            suggestion = geminiInsightService.suggestPromotion(itemId);
-        } catch (RuntimeException ex) {
-            source = "FALLBACK";
-            suggestion = "Đề xuất giảm 15% trong 14 ngày cho SKU đang cần xả hàng. "
-                    + "Ưu tiên áp dụng khi sản phẩm cận hạn, tồn lâu hoặc tốc độ bán thấp; "
-                    + "không áp dụng cho SKU đang LOW_STOCK/HIGH_RISK.";
-        }
-        PromotionRecommendation saved = promotionRecommendationService.saveSuggestion(itemId, suggestion);
-        Map<String, Object> data = Map.of(
-                "suggestion", suggestion,
-                "promotionId", saved.getId(),
-                "discountPercent", saved.getDiscountPercent(),
-                "status", saved.getStatus(),
-                "source", source
-        );
-        return ResponseEntity.ok(ApiResponse.success("Đề xuất khuyến mãi", data));
+    @Operation(summary = "Đề xuất khuyến mãi theo SKU (Gemini, tự fallback nếu lỗi)")
+    public ResponseEntity<ApiResponse<PromotionSuggestionResponse>> suggestPromotion(@PathVariable Long itemId) {
+        PromotionSuggestionResponse result = promotionRecommendationService.suggestWithFallback(itemId);
+        return ResponseEntity.ok(ApiResponse.success("Đề xuất khuyến mãi", result));
     }
 
     @PostMapping("/chat")

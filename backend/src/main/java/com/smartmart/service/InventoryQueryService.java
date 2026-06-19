@@ -7,10 +7,14 @@ import com.smartmart.enums.InventoryActionType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
 public interface InventoryQueryService {
+
+    /** Tồn kho khả dụng = quantity - reservedQuantity cho 1 item/location/lot */
+    BigDecimal getExactAvailableQty(Long itemId, Long locationId, Long lotId);
     List<CurrentInventory> listAll();
     Page<CurrentInventory> listAllPaginated(Pageable pageable);
     List<CurrentInventory> lowStock();
