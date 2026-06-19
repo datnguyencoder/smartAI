@@ -184,6 +184,17 @@ public class DemoCatalogSeeder implements CommandLineRunner {
                     .build());
             log.info("Seeded demo user manager/manager123");
         }
+        if (userRepository.findByUsername("analyst").isEmpty()) {
+            userRepository.save(User.builder()
+                    .username("analyst")
+                    .password(passwordEncoder.encode("analyst123"))
+                    .email("analyst@smartmart.com")
+                    .fullName("Phân tích kinh doanh")
+                    .role(Role.ROLE_ANALYST)
+                    .status(UserStatus.ACTIVE)
+                    .build());
+            log.info("Seeded demo user analyst/analyst123");
+        }
     }
 
     private Category findOrCreateCategory(String name, String imageUrl) {
@@ -277,10 +288,18 @@ public class DemoCatalogSeeder implements CommandLineRunner {
     }
 
     private void seedCustomers() {
-        upsertCustomer("Nguyễn Minh Anh", "0901001001", "minhanh.demo@smartmart.vn", 1280, "GOLD");
-        upsertCustomer("Trần Gia Huy", "0902002002", "giahuy.demo@smartmart.vn", 640, "SILVER");
-        upsertCustomer("Lê Hoàng Phúc", "0903003003", "hoangphuc.demo@smartmart.vn", 180, "REGULAR");
-        upsertCustomer("Phạm Thu Thảo", "0904004004", "thuthao.demo@smartmart.vn", 2140, "VIP");
+        // Khách VIP — điểm tích lũy cao
+        upsertCustomer("Phạm Thu Thảo",    "0904004004", "thuthao@smartmart.vn",    2140, "VIP");
+        upsertCustomer("Nguyễn Minh Anh",  "0901001001", "minhanh@smartmart.vn",    1280, "GOLD");
+        // Khách GOLD
+        upsertCustomer("Trần Gia Huy",     "0902002002", "giahuy@smartmart.vn",      640, "GOLD");
+        upsertCustomer("Hoàng Thị Bích",   "0911011011", "thibich@smartmart.vn",     580, "GOLD");
+        // Khách SILVER
+        upsertCustomer("Lê Hoàng Phúc",    "0903003003", "hoangphuc@smartmart.vn",   180, "SILVER");
+        upsertCustomer("Đinh Thị Mai",     "0912012012", "thimai@smartmart.vn",       350, "SILVER");
+        // Khách REGULAR
+        upsertCustomer("Vũ Đức Mạnh",      "0913013013", "ducmanh@smartmart.vn",      90, "REGULAR");
+        upsertCustomer("Cao Thị Hương",    "0914014014", "thihuong@smartmart.vn",      40, "REGULAR");
     }
 
     private void upsertCustomer(String fullName, String phone, String email, int points, String tier) {

@@ -5,6 +5,7 @@ import com.smartmart.enums.InventoryActionType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -43,6 +44,10 @@ public interface InventoryLogRepository extends JpaRepository<InventoryLog, Long
             Pageable pageable);
 
     Page<InventoryLog> findByItemIdOrderByCreatedAtDesc(Long itemId, Pageable pageable);
+
+    @Modifying
+    @Query("UPDATE InventoryLog l SET l.referenceId = :orderId WHERE l.referenceType = 'ORDER' AND l.referenceId IS NULL AND l.actionType = 'SALE' AND l.item.id IN :itemIds AND l.userId = :userId AND l.createdAt >= :since")
+    void backfillSaleReferenceId(@Param("orderId") Long orderId, @Param("itemIds") List<Long> itemIds, @Param("userId") Long userId, @Param("since") java.time.LocalDateTime since);
 
     @Query(value = """
             SELECT il.item_id,

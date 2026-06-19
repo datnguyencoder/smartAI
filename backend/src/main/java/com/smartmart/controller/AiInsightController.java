@@ -35,14 +35,14 @@ public class AiInsightController {
     }
 
     @PostMapping("/explain-risk")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ANALYST')")
     @Operation(summary = "Giải thích rủi ro tồn kho (Gemini)")
     public ResponseEntity<ApiResponse<String>> explainRisk(@RequestBody Map<String, Object> payload) {
         return ResponseEntity.ok(ApiResponse.success(geminiInsightService.explainRisk(payload)));
     }
 
     @PostMapping("/explain-forecast/{itemId}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ANALYST')")
     @Operation(summary = "Giải thích dự báo theo SKU (Gemini + DB context)")
     public ResponseEntity<ApiResponse<String>> explainForecast(@PathVariable Long itemId) {
         return ResponseEntity.ok(ApiResponse.success(geminiInsightService.explainForecast(itemId)));
@@ -74,7 +74,7 @@ public class AiInsightController {
     }
 
     @PostMapping("/chat")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ANALYST')")
     @Operation(summary = "Chat trợ lý vận hành (Cerebras)")
     public ResponseEntity<ApiResponse<String>> chat(@RequestBody Map<String, String> body) {
         return ResponseEntity.ok(ApiResponse.success(cerebrasInsightService.chat(body.getOrDefault("message", ""))));

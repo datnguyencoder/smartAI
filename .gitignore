@@ -24,6 +24,9 @@ logs/
 *~
 .cache/
 
+# --- CodeGraph (local index) ---
+.codegraph/
+
 # --- IDE ---
 .idea/
 *.iml

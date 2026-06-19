@@ -135,10 +135,17 @@ export type OrderPrintDto = {
   id: number;
   orderCode: string;
   customerName: string;
+  customerPhone?: string;
   orderDate: string;
   staffName: string;
+  subtotalAmount?: number;
+  discountAmount?: number;
+  vatAmount?: number;
   totalAmount: number;
   paymentMethod: string;
+  promotionCode?: string;
+  loyaltyPointsRedeemed?: number;
+  loyaltyPointsEarned?: number;
   items: Array<{
     itemCode: string;
     itemName: string;

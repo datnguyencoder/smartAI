@@ -47,14 +47,14 @@ public class ForecastController {
     }
 
     @GetMapping("/results")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ANALYST')")
     @Operation(summary = "Kết quả dự báo")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> results() {
         return ResponseEntity.ok(ApiResponse.success(forecastOrchestrationService.listResults()));
     }
 
     @GetMapping("/results/{itemId}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ANALYST')")
     @Operation(summary = "Chi tiết dự báo theo SKU (kèm daily series)")
     public ResponseEntity<ApiResponse<ForecastItemDetailResponse>> resultByItem(@PathVariable Long itemId) {
         return ResponseEntity.ok(ApiResponse.success(forecastOrchestrationService.getItemResult(itemId)));
@@ -68,14 +68,14 @@ public class ForecastController {
     }
 
     @GetMapping("/model-history")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ANALYST')")
     @Operation(summary = "Lịch sử huấn luyện")
     public ResponseEntity<ApiResponse<List<ModelTrainingHistory>>> modelHistory() {
         return ResponseEntity.ok(ApiResponse.success(forecastOrchestrationService.modelHistory()));
     }
 
     @GetMapping("/ai-status")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ANALYST')")
     @Operation(summary = "Trạng thái dịch vụ AI")
     public ResponseEntity<ApiResponse<Map<String, Object>>> aiStatus() {
         return ResponseEntity.ok(ApiResponse.success(forecastOrchestrationService.getAiStatus()));

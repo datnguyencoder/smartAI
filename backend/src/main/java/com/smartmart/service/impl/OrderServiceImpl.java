@@ -13,8 +13,10 @@ import com.smartmart.enums.ReferenceType;
 import com.smartmart.event.OrderEventPublisher;
 import com.smartmart.exception.BadRequestException;
 import com.smartmart.exception.ForbiddenException;
+import com.smartmart.repository.InventoryLogRepository;
 import com.smartmart.repository.LocationRepository;
 import com.smartmart.repository.OrderRepository;
+import com.smartmart.repository.ReturnOrderRepository;
 import com.smartmart.repository.UserRepository;
 import com.smartmart.security.SecurityUtils;
 import com.smartmart.entity.Customer;
@@ -46,10 +48,12 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
     private final ItemService itemService;
     private final LocationRepository locationRepository;
     private final InventoryLedgerService inventoryLedgerService;
+    private final InventoryLogRepository inventoryLogRepository;
     private final OrderEventPublisher orderEventPublisher;
     private final InventoryAlertService inventoryAlertService;
     private final AuditLogService auditLogService;
     private final UserRepository userRepository;
+    private final ReturnOrderRepository returnOrderRepository;
     private final CustomerService customerService;
     private final PromotionService promotionService;
     private final ShiftService shiftService;
@@ -59,10 +63,12 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
             ItemService itemService,
             LocationRepository locationRepository,
             InventoryLedgerService inventoryLedgerService,
+            InventoryLogRepository inventoryLogRepository,
             OrderEventPublisher orderEventPublisher,
             InventoryAlertService inventoryAlertService,
             AuditLogService auditLogService,
             UserRepository userRepository,
+            ReturnOrderRepository returnOrderRepository,
             CustomerService customerService,
             PromotionService promotionService,
             ShiftService shiftService
@@ -71,10 +77,12 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
         this.itemService = itemService;
         this.locationRepository = locationRepository;
         this.inventoryLedgerService = inventoryLedgerService;
+        this.inventoryLogRepository = inventoryLogRepository;
         this.orderEventPublisher = orderEventPublisher;
         this.inventoryAlertService = inventoryAlertService;
         this.auditLogService = auditLogService;
         this.userRepository = userRepository;
+        this.returnOrderRepository = returnOrderRepository;
         this.customerService = customerService;
         this.promotionService = promotionService;
         this.shiftService = shiftService;
@@ -177,9 +185,10 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
             BigDecimal paymentSum = request.getPayments().stream()
                     .map(p -> p.getAmount())
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
-            if (paymentSum.compareTo(order.getTotalAmount()) != 0) {
-                throw new BadRequestException("Tổng thanh toán phải bằng số tiền cần thu: "
-                        + order.getTotalAmount());
+            if (paymentSum.compareTo(order.getTotalAmount()) < 0) {
+                throw new BadRequestException(
+                        "Số tiền thanh toán (" + paymentSum + ") không đủ so với tổng đơn: " + order.getTotalAmount()
+                                + ". Với tiền mặt, khách được thối lại phần dư.");
             }
             for (com.smartmart.dto.request.OrderPaymentRequest pay : request.getPayments()) {
                 order.getPayments().add(OrderPayment.builder()
@@ -198,13 +207,19 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
                     .build());
         }
 
+        LocalDateTime movementStart = LocalDateTime.now().minusSeconds(5);
         Order saved = orderRepository.save(order);
 
         int loyaltyPointsEarned = customer != null
                 ? customerService.awardPoints(customer.getId(), saved.getTotalAmount())
                 : 0;
 
-        // Update reference id on logs would need second pass — acceptable for MVP
+        // Backfill referenceId on inventory logs created during this transaction
+        List<Long> itemIds = saved.getItems().stream().map(oi -> oi.getItem().getId()).distinct().toList();
+        if (!itemIds.isEmpty() && userId != null) {
+            inventoryLogRepository.backfillSaleReferenceId(saved.getId(), itemIds, userId, movementStart);
+        }
+
         orderEventPublisher.publishOrderCreated(saved.getId(), saved.getOrderCode());
         saved.getItems().forEach(oi -> inventoryAlertService.evaluateStockAfterSale(oi.getItem().getId()));
         auditLogService.log(
@@ -299,14 +314,27 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
                         .build())
                 .toList();
 
+        java.math.BigDecimal subtotal = order.getItems().stream()
+                .map(i -> i.getSubtotal() != null ? i.getSubtotal() : java.math.BigDecimal.ZERO)
+                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+        java.math.BigDecimal discount = order.getDiscountAmount() != null ? order.getDiscountAmount() : java.math.BigDecimal.ZERO;
+        java.math.BigDecimal vatAmount = order.getTotalAmount().subtract(subtotal).add(discount)
+                .max(java.math.BigDecimal.ZERO);
+
         return OrderPrintResponse.builder()
                 .id(order.getId())
                 .orderCode(order.getOrderCode())
                 .customerName(order.getCustomerName())
+                .customerPhone(order.getCustomerPhone())
                 .orderDate(order.getOrderDate())
                 .staffName(staffName)
+                .subtotalAmount(subtotal)
+                .discountAmount(discount)
+                .vatAmount(vatAmount)
                 .totalAmount(order.getTotalAmount())
                 .paymentMethod(order.getPaymentMethod() != null ? order.getPaymentMethod().name() : "CASH")
+                .promotionCode(order.getPromotion() != null ? order.getPromotion().getCode() : null)
+                .loyaltyPointsRedeemed(order.getLoyaltyPointsRedeemed())
                 .items(lines)
                 .build();
     }
@@ -320,6 +348,9 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
                 "status", order.getStatus());
         if (order.getStatus() == OrderStatus.CANCELLED) {
             throw new BadRequestException("Hóa đơn đã hủy");
+        }
+        if (returnOrderRepository.existsByOriginalOrderId(order.getId())) {
+            throw new BadRequestException("Hóa đơn đã phát sinh trả hàng, không thể hủy trực tiếp");
         }
         Location fallbackLocation = locationRepository.findByLocationName(DEFAULT_LOCATION)
                 .orElseGet(() -> locationRepository.findAll().stream().findFirst()

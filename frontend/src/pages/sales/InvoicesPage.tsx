@@ -1,4 +1,8 @@
-import { Button, DatePicker, Input, Table, message as antdMessage } from 'antd';
+import { Button, DatePicker, Input, Table, Tag, message as antdMessage } from 'antd';
+import {
+  CreditCardOutlined,
+  SearchOutlined,
+} from '@ant-design/icons';
 import * as React from 'react';
 import { Card, CardHeader, StatusChip } from '@/components/ui';
 import { formatMoney as money } from '@/lib/itemMapper';
@@ -6,6 +10,12 @@ import { normalizeRole } from '@/lib/permissions';
 import { ordersToInvoices } from '@/lib/mappers/ordersToInvoices';
 import { cancelOrder, fetchOrdersPaged } from '@/services/wmsApi';
 import type { UserDto } from '@/types/api';
+
+const STATUS_TONE: Record<string, 'success' | 'danger' | 'warning' | 'neutral'> = {
+  'Đã thanh toán': 'success',
+  'Đã hủy': 'danger',
+  'Chờ xử lý': 'warning',
+};
 
 export default function InvoicesPage({
   setSelectedInvoice,
@@ -24,32 +34,88 @@ export default function InvoicesPage({
   React.useEffect(() => {
     let active = true;
     setLoading(true);
-    fetchOrdersPaged(pagination.page, pagination.size, filters.search, filters.status, filters.fromDate, filters.toDate)
-      .then(res => {
+    fetchOrdersPaged(
+      pagination.page, pagination.size,
+      filters.search, filters.status,
+      filters.fromDate, filters.toDate,
+    )
+      .then((res) => {
         if (active) {
           setOrders(ordersToInvoices(res.content));
-          setPagination(p => ({ ...p, total: res.totalElements }));
+          setPagination((p) => ({ ...p, total: res.totalElements }));
         }
       })
-      .catch(e => {
-        if (active) antdMessage.error('Lỗi tải hóa đơn');
-      })
+      .catch(() => { if (active) antdMessage.error('Lỗi tải hóa đơn'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [pagination.page, pagination.size, filters.search, filters.status, filters.fromDate, filters.toDate, reloadTick]);
 
   const columns = [
-    { title: 'Mã hóa đơn', dataIndex: 'key', render: (v: string, row: any) => <button className="font-bold text-primary hover:text-emerald" onClick={() => setSelectedInvoice(row)}>{v}</button> },
-    { title: 'Khách hàng', dataIndex: 'customer' },
-    { title: 'Thu ngân', dataIndex: 'cashier' },
-    { title: 'Tổng thanh toán', dataIndex: 'amount', render: (v: number) => money(v) },
-    { title: 'Thời gian', dataIndex: 'time' },
-    { title: 'Trạng thái', dataIndex: 'status', render: (v: string) => <StatusChip tone={v.includes('toán') ? 'success' : 'warning'}>{v}</StatusChip> },
     {
-      title: 'Hành động',
+      title: 'Mã hóa đơn',
+      dataIndex: 'key',
+      render: (v: string, row: any) => (
+        <button
+          className="font-mono font-bold text-primary hover:text-emerald-600 hover:underline"
+          onClick={() => setSelectedInvoice(row)}
+        >
+          {v}
+        </button>
+      ),
+    },
+    {
+      title: 'Khách hàng',
+      dataIndex: 'customer',
+      render: (v: string, row: any) => (
+        <div>
+          <div className="font-medium text-slate-800">{v}</div>
+          {row.customerPhone && <div className="text-xs text-slate-400">{row.customerPhone}</div>}
+        </div>
+      ),
+    },
+    {
+      title: 'Thu ngân',
+      dataIndex: 'cashier',
+      responsive: ['md' as const],
+    },
+    {
+      title: 'Thanh toán',
+      dataIndex: 'paymentMethod',
+      responsive: ['lg' as const],
+      render: (v: string) => (
+        <Tag icon={<CreditCardOutlined />} color="blue">
+          {v}
+        </Tag>
+      ),
+    },
+    {
+      title: 'Tổng tiền',
+      dataIndex: 'amount',
+      render: (v: number) => (
+        <span className="font-semibold tabular-nums text-slate-800">{money(v)}</span>
+      ),
+    },
+    {
+      title: 'Thời gian',
+      dataIndex: 'time',
+      render: (v: string) => (
+        <span className="whitespace-nowrap text-sm text-slate-500">{v}</span>
+      ),
+    },
+    {
+      title: 'Trạng thái',
+      dataIndex: 'status',
+      render: (v: string) => (
+        <StatusChip tone={STATUS_TONE[v] ?? 'neutral'}>{v}</StatusChip>
+      ),
+    },
+    {
+      title: 'Thao tác',
       render: (_: any, row: any) => (
         <div className="flex gap-2">
-          <Button size="small" onClick={() => setSelectedInvoice(row)}>Chi tiết</Button>
+          <Button size="small" onClick={() => setSelectedInvoice(row)}>
+            Chi tiết
+          </Button>
           {canCancel && row.rawStatus === 'COMPLETED' && (
             <Button
               size="small"
@@ -73,34 +139,52 @@ export default function InvoicesPage({
   ];
 
   return (
-    <Card className="flex flex-col h-[calc(100vh-120px)] overflow-hidden">
-      <CardHeader title="Danh sách hóa đơn" className="shrink-0" action={
-        <div className="flex gap-2">
-          <Input.Search
-            placeholder="Tìm mã, khách hàng..."
-            onSearch={val => { setFilters(f => ({ ...f, search: val })); setPagination(p => ({ ...p, page: 0 })); }}
-            style={{ width: 240 }}
-            allowClear
-          />
-          <select
-            className="h-8 px-3 border border-slate-200 rounded text-sm focus:outline-none focus:border-primary bg-white"
-            value={filters.status}
-            onChange={e => { setFilters(f => ({ ...f, status: e.target.value })); setPagination(p => ({ ...p, page: 0 })); }}
-          >
-            <option value="ALL">Tất cả trạng thái</option>
-            <option value="COMPLETED">Đã thanh toán</option>
-            <option value="CANCELLED">Đã hủy</option>
-          </select>
-          <DatePicker
-            placeholder="Từ ngày"
-            onChange={(_, dateStr) => { setFilters(f => ({ ...f, fromDate: dateStr ? (dateStr as string) + 'T00:00:00' : '' })); setPagination(p => ({ ...p, page: 0 })); }}
-          />
-          <DatePicker
-            placeholder="Đến ngày"
-            onChange={(_, dateStr) => { setFilters(f => ({ ...f, toDate: dateStr ? (dateStr as string) + 'T23:59:59' : '' })); setPagination(p => ({ ...p, page: 0 })); }}
-          />
-        </div>
-      } />
+    <Card className="flex h-[calc(100vh-120px)] flex-col overflow-hidden">
+      <CardHeader
+        title="Danh sách hóa đơn"
+        className="shrink-0"
+        action={
+          <div className="flex flex-wrap gap-2">
+            <Input.Search
+              placeholder="Tìm mã, khách hàng..."
+              prefix={<SearchOutlined className="text-slate-400" />}
+              onSearch={(val) => {
+                setFilters((f) => ({ ...f, search: val }));
+                setPagination((p) => ({ ...p, page: 0 }));
+              }}
+              style={{ width: 220 }}
+              allowClear
+            />
+            <select
+              className="h-8 rounded border border-slate-200 bg-white px-3 text-sm focus:border-primary focus:outline-none"
+              value={filters.status}
+              onChange={(e) => {
+                setFilters((f) => ({ ...f, status: e.target.value }));
+                setPagination((p) => ({ ...p, page: 0 }));
+              }}
+            >
+              <option value="ALL">Tất cả trạng thái</option>
+              <option value="COMPLETED">Đã thanh toán</option>
+              <option value="CANCELLED">Đã hủy</option>
+              <option value="PENDING">Chờ xử lý</option>
+            </select>
+            <DatePicker
+              placeholder="Từ ngày"
+              onChange={(_, dateStr) => {
+                setFilters((f) => ({ ...f, fromDate: dateStr ? `${dateStr as string}T00:00:00` : '' }));
+                setPagination((p) => ({ ...p, page: 0 }));
+              }}
+            />
+            <DatePicker
+              placeholder="Đến ngày"
+              onChange={(_, dateStr) => {
+                setFilters((f) => ({ ...f, toDate: dateStr ? `${dateStr as string}T23:59:59` : '' }));
+                setPagination((p) => ({ ...p, page: 0 }));
+              }}
+            />
+          </div>
+        }
+      />
       <div className="flex-1 overflow-hidden">
         <Table
           columns={columns}
@@ -110,11 +194,15 @@ export default function InvoicesPage({
             current: pagination.page + 1,
             pageSize: pagination.size,
             total: pagination.total,
-            onChange: (page, size) => setPagination(p => ({ ...p, page: page - 1, size })),
-            className: 'px-5 py-3 !m-0 border-t border-slate-100 bg-white sticky bottom-0 z-10'
+            showTotal: (total) => `${total} hóa đơn`,
+            onChange: (page, size) => setPagination((p) => ({ ...p, page: page - 1, size })),
+            className: '!m-0 sticky bottom-0 z-10 border-t border-slate-100 bg-white px-5 py-3',
           }}
           rowKey="key"
-          scroll={{ y: 'calc(100vh - 275px)' }}
+          scroll={{ y: 'calc(100vh - 285px)' }}
+          rowClassName={(row) =>
+            row.rawStatus === 'CANCELLED' ? 'opacity-60' : ''
+          }
         />
       </div>
     </Card>
