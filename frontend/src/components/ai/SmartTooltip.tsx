@@ -5,6 +5,13 @@ type TooltipPayload = {
   dataKey?: string;
 };
 
+function formatTooltipValue(entry: TooltipPayload) {
+  if (entry.dataKey === 'revenue' && typeof entry.value === 'number') {
+    return `${new Intl.NumberFormat('vi-VN').format(entry.value)}đ`;
+  }
+  return entry.value;
+}
+
 export default function SmartTooltip({
   active,
   payload,
@@ -26,7 +33,7 @@ export default function SmartTooltip({
               {entry.name}
             </span>
             <strong className="text-slate-900 font-bold text-base">
-              {entry.dataKey === 'revenue' ? `${entry.value} triệu` : entry.value}
+              {formatTooltipValue(entry)}
             </strong>
           </div>
         ))}
