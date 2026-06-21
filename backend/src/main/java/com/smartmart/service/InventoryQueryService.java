@@ -10,6 +10,7 @@ import org.springframework.data.domain.Pageable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 public interface InventoryQueryService {
 
@@ -17,6 +18,8 @@ public interface InventoryQueryService {
     BigDecimal getExactAvailableQty(Long itemId, Long locationId, Long lotId);
     List<CurrentInventory> listAll();
     Page<CurrentInventory> listAllPaginated(Pageable pageable);
+    Map<String, Object> summary();
+    List<CurrentInventory> outOfStock();
     List<CurrentInventory> lowStock();
 
     List<CurrentInventory> nearExpiry();

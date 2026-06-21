@@ -102,3 +102,4 @@ smartmart-ai/
 | [10-frontend-coding-standards.md](10-frontend-coding-standards.md) | Chuẩn code Frontend |
 | [11-team-onboarding.md](11-team-onboarding.md) | Onboarding & Docker |
 | [12-kaggle-retail-datasets.md](12-kaggle-retail-datasets.md) | Dataset retail cho AI |
+| **[13-business-flow-blueprint.md](13-business-flow-blueprint.md)** | **Blueprint luồng nghiệp vụ end-to-end toàn hệ thống** |

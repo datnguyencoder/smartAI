@@ -122,8 +122,8 @@ public interface CurrentInventoryRepository extends JpaRepository<CurrentInvento
                 SELECT il.item_id,
                        COALESCE(SUM(CASE WHEN il.action_type = 'PURCHASE_RECEIVE' THEN il.quantity_change ELSE 0 END), 0) as purchased,
                        COALESCE(SUM(CASE WHEN il.action_type IN ('SALE', 'SALE_CANCEL') THEN -il.quantity_change ELSE 0 END), 0) as sold,
-                       COALESCE(SUM(CASE WHEN il.action_type = 'SCRAP' THEN -il.quantity_change ELSE 0 END), 0) as scrapped,
-                       COALESCE(SUM(CASE WHEN il.action_type = 'ADJUSTMENT' THEN -il.quantity_change ELSE 0 END), 0) as shrinkage
+                       COALESCE(SUM(CASE WHEN il.action_type IN ('SCRAP', 'SCRAP_COMPLETED') THEN -il.quantity_change ELSE 0 END), 0) as scrapped,
+                       COALESCE(SUM(CASE WHEN il.action_type = 'ADJUSTMENT' AND il.quantity_change < 0 THEN -il.quantity_change ELSE 0 END), 0) as shrinkage
                 FROM inventory_logs il
                 WHERE il.created_at >= :from AND il.created_at < :to
                 GROUP BY il.item_id

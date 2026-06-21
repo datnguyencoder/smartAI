@@ -139,7 +139,7 @@ sequenceDiagram
 
     WH->>FE: Lập phiếu nhập (Nhà cung cấp, Sản phẩm, Số lượng, Giá nhập, HSD)
     FE->>FE: Validate Client (Hạn sử dụng > Today nếu sản phẩm có hạn)
-    FE->>BE: POST /api/purchase-orders
+    FE->>BE: POST /api/v1/purchase-orders
     
     activate BE
     BE->>DB: Bắt đầu Transaction

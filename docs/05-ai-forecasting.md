@@ -104,7 +104,7 @@ sequenceDiagram
     participant Gemini as Google Gemini API
 
     Manager->>FE: Bấm "Phân tích bằng AI" trên Dashboard
-    FE->>BE: POST /api/ai-insight/explain-risk (Payload product data)
+    FE->>BE: POST /api/v1/ai-insight/explain-risk (Payload product data)
     
     activate BE
     BE->>BE: Thu thập thông số thực tế của sản phẩm:<br>- Tồn thực tế<br>- Giá bán/Giá nhập<br>- Lượng AI dự báo 7/14/30 ngày<br>- Hạn sử dụng của lô hàng
