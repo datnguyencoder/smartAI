@@ -1,14 +1,18 @@
 import * as React from 'react';
-import { Alert, Button, Progress, Steps, Table, Tag, Typography, message as antdMessage } from 'antd';
+import { Alert, Button, Input, Progress, Select, Steps, Table, Tag, Typography, message as antdMessage } from 'antd';
 import {
   AlertOutlined,
+  AppstoreOutlined,
   CheckCircleOutlined,
+  ClockCircleOutlined,
   CloudSyncOutlined,
+  DashboardOutlined,
   ExclamationCircleOutlined,
+  FilterOutlined,
   LineChartOutlined,
   PlayCircleOutlined,
   ReloadOutlined,
-  RiseOutlined,
+  SearchOutlined,
   ShoppingCartOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
@@ -90,19 +94,71 @@ type KpiCardProps = {
   color: string;
   bg: string;
   sub?: string;
+  trend?: string;
 };
 
-function KpiCard({ icon, label, value, color, bg, sub }: KpiCardProps) {
+function KpiCard({ icon, label, value, color, bg, sub, trend }: KpiCardProps) {
   return (
-    <div className={`flex items-center gap-4 rounded-2xl border px-5 py-4 ${bg}`}>
-      <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl text-xl ${color}`}>
+    <div className={`flex min-h-[112px] items-center gap-4 rounded-xl border px-5 py-4 ${bg}`}>
+      <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-lg text-xl ${color}`}>
         {icon}
       </div>
       <div className="min-w-0">
-        <div className="text-2xl font-extrabold leading-tight text-slate-800">{value}</div>
+        <div className="flex items-baseline gap-2">
+          <div className="text-2xl font-extrabold leading-tight text-slate-800">{value}</div>
+          {trend && <span className="text-xs font-semibold text-slate-400">{trend}</span>}
+        </div>
         <div className="text-sm font-medium text-slate-600">{label}</div>
         {sub && <div className="text-xs text-slate-400">{sub}</div>}
       </div>
+    </div>
+  );
+}
+
+type RiskFilter = 'ALL' | NonNullable<ForecastResultDto['riskLevel']>;
+
+function formatQty(value?: number) {
+  return Math.round(Number(value) || 0).toLocaleString('vi-VN');
+}
+
+function riskWeight(level?: ForecastResultDto['riskLevel']) {
+  if (level === 'CRITICAL') return 4;
+  if (level === 'WARNING') return 3;
+  if (level === 'OVERSTOCK') return 2;
+  return 1;
+}
+
+function calcCoverage(row?: ForecastResultDto) {
+  const stock = Number(row?.stockOnHand) || 0;
+  const need30 = Number(row?.pred30d) || 0;
+  if (need30 <= 0) return 100;
+  return Math.max(0, Math.min(100, Math.round((stock / need30) * 100)));
+}
+
+function getActionText(row?: ForecastResultDto) {
+  if (!row) return 'Chọn một SKU trong bảng để xem đề xuất thao tác.';
+  if (row.riskLevel === 'CRITICAL') return `Nhập bù khoảng ${formatQty(row.shortageQty)} đơn vị, ưu tiên trong hôm nay.`;
+  if (row.riskLevel === 'WARNING') return `Lên kế hoạch nhập trong tuần, thiếu dự kiến ${formatQty(row.shortageQty)} đơn vị.`;
+  if (row.riskLevel === 'OVERSTOCK') return `Tồn dư khoảng ${formatQty(row.surplusQty)} đơn vị, cân nhắc khuyến mãi/xả hàng.`;
+  return 'Tồn kho đang ổn định, tiếp tục theo dõi biến động bán.';
+}
+
+function OperationalHint({ row }: { row?: ForecastResultDto }) {
+  const color =
+    row?.riskLevel === 'CRITICAL'
+      ? 'border-red-200 bg-red-50 text-red-700'
+      : row?.riskLevel === 'WARNING'
+      ? 'border-amber-200 bg-amber-50 text-amber-700'
+      : row?.riskLevel === 'OVERSTOCK'
+      ? 'border-purple-200 bg-purple-50 text-purple-700'
+      : 'border-emerald-200 bg-emerald-50 text-emerald-700';
+  return (
+    <div className={`rounded-xl border px-4 py-3 ${color}`}>
+      <div className="mb-1 flex items-center gap-2 text-sm font-bold">
+        <DashboardOutlined />
+        Hành động đề xuất
+      </div>
+      <p className="text-sm leading-5">{getActionText(row)}</p>
     </div>
   );
 }
@@ -134,6 +190,8 @@ export default function AiForecastPage({ productsList: _productsList, setPage }:
   const [dailyChart, setDailyChart] = React.useState<Array<{ date: string; qty: number; confLow?: number; confHigh?: number }>>([]);
   const [lastForecastAt, setLastForecastAt] = React.useState<Date | undefined>();
   const [workflowStep, setWorkflowStep] = React.useState(0);
+  const [forecastSearch, setForecastSearch] = React.useState('');
+  const [riskFilter, setRiskFilter] = React.useState<RiskFilter>('ALL');
 
   const refreshStatus = React.useCallback(async () => {
     try {
@@ -273,13 +331,21 @@ export default function AiForecastPage({ productsList: _productsList, setPage }:
     });
   };
 
-  // KPI aggregations
   const critical = results.filter((r) => r.riskLevel === 'CRITICAL');
   const warning = results.filter((r) => r.riskLevel === 'WARNING');
   const overstock = results.filter((r) => r.riskLevel === 'OVERSTOCK');
   const ok = results.filter((r) => !r.riskLevel || r.riskLevel === 'OK');
+  const selectedRow = results.find((r) => Number(r.itemId) === selectedItemId);
+  const totalNeed30 = results.reduce((sum, r) => sum + (Number(r.pred30d) || 0), 0);
+  const totalStock = results.reduce((sum, r) => sum + (Number(r.stockOnHand) || 0), 0);
+  const totalShortage = results.reduce((sum, r) => sum + Math.max(0, Number(r.shortageQty) || 0), 0);
+  const averageCoverage = totalNeed30 > 0 ? Math.round((totalStock / totalNeed30) * 100) : 100;
+  const forecastFreshness = lastForecastAt
+    ? lastForecastAt.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+    : aiStatus?.lastTrainedAt
+    ? new Date(aiStatus.lastTrainedAt).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+    : 'Chưa có';
 
-  // Risk pie data
   const pieData = [
     { name: 'Thiếu gấp', value: critical.length, color: RISK_COLOR.CRITICAL },
     { name: 'Sắp thiếu', value: warning.length, color: RISK_COLOR.WARNING },
@@ -287,7 +353,15 @@ export default function AiForecastPage({ productsList: _productsList, setPage }:
     { name: 'Đủ tồn', value: ok.length, color: RISK_COLOR.OK },
   ].filter((d) => d.value > 0);
 
-  // Top-10 shortage items for bar chart
+  const priorityRows = [...results]
+    .filter((r) => r.riskLevel === 'CRITICAL' || r.riskLevel === 'WARNING' || r.riskLevel === 'OVERSTOCK')
+    .sort((a, b) => {
+      const riskDiff = riskWeight(b.riskLevel) - riskWeight(a.riskLevel);
+      if (riskDiff !== 0) return riskDiff;
+      return (Number(b.shortageQty) || Number(b.surplusQty) || 0) - (Number(a.shortageQty) || Number(a.surplusQty) || 0);
+    })
+    .slice(0, 5);
+
   const barData = [...results]
     .filter((r) => r.riskLevel === 'CRITICAL' || r.riskLevel === 'WARNING')
     .sort((a, b) => (Number(b.shortageQty) || 0) - (Number(a.shortageQty) || 0))
@@ -299,219 +373,210 @@ export default function AiForecastPage({ productsList: _productsList, setPage }:
       risk: r.riskLevel,
     }));
 
+  const filteredResults = results.filter((row) => {
+    const q = forecastSearch.trim().toLowerCase();
+    const matchesSearch =
+      !q ||
+      row.itemName?.toLowerCase().includes(q) ||
+      row.itemCode?.toLowerCase().includes(q);
+    const matchesRisk = riskFilter === 'ALL' || row.riskLevel === riskFilter || (!row.riskLevel && riskFilter === 'OK');
+    return matchesSearch && matchesRisk;
+  });
+
   const selectedStock = results.find((r) => Number(r.itemId) === selectedItemId)?.stockOnHand;
 
   return (
     <div className="space-y-4">
-      {/* Control Card */}
-      <Card>
-        <CardHeader
-          title="Dự báo nhu cầu bán hàng — AI Forecast"
-          description="Huấn luyện mô hình ML từ lịch sử bán, sau đó dự báo số lượng cần cho từng SKU trong 30 ngày tới."
-        />
-        <div className="px-5 pb-5">
-          <Steps
-            current={workflowStep}
-            size="small"
-            className="mb-5 max-w-2xl"
-            items={[
-              { title: 'Huấn luyện', description: 'Học từ dữ liệu bán', icon: <CloudSyncOutlined /> },
-              { title: 'Chạy dự báo', description: 'Tính nhu cầu SKU', icon: <PlayCircleOutlined /> },
-              { title: 'Xem kết quả', description: 'Đọc bảng & biểu đồ', icon: <LineChartOutlined /> },
-            ]}
-          />
-
-          {trainJob && (trainJob.status === 'QUEUED' || trainJob.status === 'RUNNING') && (
-            <Alert
-              type="info"
-              className="mb-4"
-              message={
-                <span>
-                  <strong>Đang huấn luyện mô hình...</strong>{' '}
-                  <span className="text-slate-500 text-sm">
-                    {trainJob.status === 'QUEUED' ? 'Đang xếp hàng' : 'Đang xử lý dữ liệu bán hàng (có thể mất 2–3 phút)'}
-                  </span>
+      <section className="overflow-hidden rounded-2xl border border-emerald-900/10 bg-[#073f2d] text-white shadow-[0_18px_50px_rgba(6,78,59,0.22)]">
+        <div className="grid gap-6 p-5 lg:grid-cols-[1.1fr_0.9fr] xl:p-6">
+          <div className="flex min-h-[300px] flex-col justify-between">
+            <div>
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-emerald-50 ring-1 ring-white/15">
+                  <DashboardOutlined /> AI Demand Cockpit
                 </span>
-              }
-              showIcon
-            />
-          )}
+                <span className={`inline-flex rounded-lg px-3 py-1.5 text-xs font-semibold ring-1 ring-white/15 ${aiStatus?.aiOnline ? 'bg-emerald-300/15 text-emerald-50' : 'bg-red-300/15 text-red-50'}`}>
+                  {aiStatus?.aiOnline ? 'Online' : 'Offline'}
+                </span>
+                <span className="inline-flex rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-emerald-50 ring-1 ring-white/15">
+                  {aiStatus?.modelLoaded ? 'Model sẵn sàng' : 'Chưa có model'}
+                </span>
+              </div>
+              <h2 className="max-w-2xl text-[30px] font-extrabold leading-tight tracking-normal md:text-[36px]">
+                Điều phối tồn kho theo dự báo 30 ngày
+              </h2>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-emerald-50/80">
+                Gom rủi ro thiếu hàng, tồn dư và nhu cầu từng SKU vào một màn hình ra quyết định cho quản lý siêu thị.
+              </p>
+            </div>
 
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            <Tag color={aiStatus?.aiOnline ? 'success' : 'error'} className="px-3 py-0.5 text-sm">
-              {aiStatus?.aiOnline ? '🟢 AI Online' : '🔴 AI Offline'}
-            </Tag>
-            <Tag color={aiStatus?.modelLoaded ? 'processing' : 'default'}>
-              {aiStatus?.modelLoaded ? '✅ Đã có model' : '⬜ Chưa có model'}
-            </Tag>
-            {modelTag(aiStatus?.modelType)}
-            <Tag>v{aiStatus?.aiVersion ?? '—'}</Tag>
-            <span className="ml-auto text-sm text-slate-500">
-              Huấn luyện lần cuối: <strong>{formatTrainedAt(aiStatus?.lastTrainedAt)}</strong>
-            </span>
+            <div className="mt-6 flex flex-wrap gap-2">
+              {canOperateForecast && (
+                <>
+                  <Button size="large" type="primary" icon={<CloudSyncOutlined />} loading={loading} onClick={handleTrain}>
+                    Huấn luyện model
+                  </Button>
+                  <Button
+                    size="large"
+                    className="border-white/30 bg-white text-emerald-800 hover:!border-white hover:!bg-emerald-50 hover:!text-emerald-900"
+                    icon={<PlayCircleOutlined />}
+                    loading={loading}
+                    onClick={handleRun}
+                    disabled={!aiStatus?.modelLoaded}
+                  >
+                    Chạy dự báo
+                  </Button>
+                </>
+              )}
+              <Button
+                size="large"
+                className="border-white/25 bg-transparent text-white hover:!border-white hover:!bg-white/10 hover:!text-white"
+                icon={<ReloadOutlined />}
+                loading={loading}
+                onClick={() => { refreshResults(); refreshStatus(); }}
+              >
+                Làm mới
+              </Button>
+            </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            {canOperateForecast && (
-              <>
-                <Button type="primary" icon={<CloudSyncOutlined />} loading={loading} onClick={handleTrain}>
-                  Bước 1 — Huấn luyện
-                </Button>
-                <Button
-                  icon={<PlayCircleOutlined />}
-                  loading={loading}
-                  onClick={handleRun}
-                  disabled={!aiStatus?.modelLoaded}
-                >
-                  Bước 2 — Chạy dự báo
-                </Button>
-              </>
-            )}
-            <Button
-              icon={<ReloadOutlined />}
-              loading={loading}
-              onClick={() => { refreshResults(); refreshStatus(); }}
-            >
-              Làm mới
-            </Button>
+          <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl bg-white p-4 text-slate-900">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase text-slate-400">
+                  <AppstoreOutlined /> SKU dự báo
+                </div>
+                <div className="mt-3 text-3xl font-extrabold">{results.length}</div>
+                <div className="text-xs text-slate-500">{filteredResults.length} đang hiển thị</div>
+              </div>
+              <div className="rounded-xl bg-white p-4 text-slate-900">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase text-slate-400">
+                  <ShoppingCartOutlined /> Thiếu dự kiến
+                </div>
+                <div className="mt-3 text-3xl font-extrabold text-red-600">{formatQty(totalShortage)}</div>
+                <div className="text-xs text-slate-500">Đơn vị cần nhập bù</div>
+              </div>
+              <div className="rounded-xl bg-white p-4 text-slate-900">
+                <div className="mb-3 flex items-center justify-between text-xs font-bold uppercase text-slate-400">
+                  <span>Độ phủ</span>
+                  <span>{averageCoverage}%</span>
+                </div>
+                <Progress
+                  percent={Math.min(averageCoverage, 100)}
+                  showInfo={false}
+                  strokeColor={averageCoverage < 55 ? '#ef4444' : averageCoverage < 85 ? '#f59e0b' : '#10b981'}
+                  trailColor="#e2e8f0"
+                />
+                <div className="mt-2 text-xs text-slate-500">Tồn / nhu cầu 30 ngày</div>
+              </div>
+              <div className="rounded-xl bg-white p-4 text-slate-900">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase text-slate-400">
+                  <ClockCircleOutlined /> Cập nhật
+                </div>
+                <div className="mt-3 text-lg font-extrabold">{forecastFreshness}</div>
+                <div className="text-xs text-slate-500">{aiStatus?.modelType ?? 'Moving Average'} · v{aiStatus?.aiVersion ?? '—'}</div>
+              </div>
+            </div>
+            <div className="mt-3 rounded-xl border border-white/15 bg-emerald-950/30 p-3">
+              <Steps
+                current={workflowStep}
+                size="small"
+                className="[&_.ant-steps-item-title]:!text-white [&_.ant-steps-item-description]:!text-emerald-50/70 [&_.ant-steps-item-icon]:!bg-white"
+                items={[
+                  { title: 'Huấn luyện', description: 'Học dữ liệu bán', icon: <CloudSyncOutlined /> },
+                  { title: 'Dự báo', description: 'Tính nhu cầu', icon: <PlayCircleOutlined /> },
+                  { title: 'Điều phối', description: 'Nhập / xả', icon: <LineChartOutlined /> },
+                ]}
+              />
+            </div>
           </div>
-
-          {!canOperateForecast && (
-            <Alert
-              className="mt-4"
-              type="info"
-              showIcon
-              message="Chế độ xem phân tích"
-              description="Vai trò Analyst: xem kết quả dự báo, biểu đồ và báo cáo. Huấn luyện/chạy dự báo dành cho Admin hoặc Manager."
-            />
-          )}
-          {canOperateForecast && !aiStatus?.modelLoaded && (
-            <Alert
-              className="mt-4"
-              type="warning"
-              showIcon
-              message="Chưa huấn luyện model"
-              description="Nhấn «Bước 1 — Huấn luyện» trước khi chạy dự báo."
-            />
-          )}
         </div>
-      </Card>
 
-      {/* KPI Summary Cards */}
+        {(trainJob && (trainJob.status === 'QUEUED' || trainJob.status === 'RUNNING')) || !canOperateForecast || (canOperateForecast && !aiStatus?.modelLoaded) ? (
+          <div className="border-t border-white/10 bg-white px-5 py-4 text-slate-900">
+            {trainJob && (trainJob.status === 'QUEUED' || trainJob.status === 'RUNNING') && (
+              <Alert
+                type="info"
+                message={<span><strong>Đang huấn luyện mô hình...</strong> <span className="text-sm text-slate-500">{trainJob.status === 'QUEUED' ? 'Đang xếp hàng' : 'Đang xử lý dữ liệu bán hàng'}</span></span>}
+                showIcon
+              />
+            )}
+            {!canOperateForecast && (
+              <Alert type="info" showIcon message="Chế độ xem phân tích" description="Analyst xem kết quả dự báo. Huấn luyện/chạy dự báo dành cho Admin hoặc Manager." />
+            )}
+            {canOperateForecast && !aiStatus?.modelLoaded && !trainJob && (
+              <Alert type="warning" showIcon message="Chưa huấn luyện model" description="Huấn luyện model trước khi chạy dự báo." />
+            )}
+          </div>
+        ) : null}
+      </section>
+
       {results.length > 0 && (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <KpiCard
-            icon={<AlertOutlined />}
-            label="Thiếu hàng gấp"
-            value={critical.length}
-            color="bg-red-100 text-red-600"
-            bg="bg-red-50 border-red-100"
-            sub="Cần nhập ngay hôm nay"
-          />
-          <KpiCard
-            icon={<WarningOutlined />}
-            label="Sắp thiếu hàng"
-            value={warning.length}
-            color="bg-amber-100 text-amber-600"
-            bg="bg-amber-50 border-amber-100"
-            sub="Nên đặt hàng trong tuần"
-          />
-          <KpiCard
-            icon={<ExclamationCircleOutlined />}
-            label="Tồn kho dư thừa"
-            value={overstock.length}
-            color="bg-purple-100 text-purple-600"
-            bg="bg-purple-50 border-purple-100"
-            sub="Cân nhắc khuyến mãi xả hàng"
-          />
-          <KpiCard
-            icon={<CheckCircleOutlined />}
-            label="Tồn kho ổn định"
-            value={ok.length}
-            color="bg-emerald-100 text-emerald-600"
-            bg="bg-emerald-50 border-emerald-100"
-            sub={`Tổng ${results.length} SKU đã dự báo`}
-          />
+          <KpiCard icon={<AlertOutlined />} label="Thiếu gấp" value={critical.length} color="bg-red-100 text-red-600" bg="bg-red-50 border-red-100" sub="Ưu tiên nhập ngay" trend={`${Math.round((critical.length / results.length) * 100)}%`} />
+          <KpiCard icon={<WarningOutlined />} label="Sắp thiếu" value={warning.length} color="bg-amber-100 text-amber-600" bg="bg-amber-50 border-amber-100" sub="Đặt hàng trong tuần" trend={`${Math.round((warning.length / results.length) * 100)}%`} />
+          <KpiCard icon={<ExclamationCircleOutlined />} label="Tồn dư" value={overstock.length} color="bg-purple-100 text-purple-600" bg="bg-purple-50 border-purple-100" sub="Cân nhắc khuyến mãi" trend={`${Math.round((overstock.length / results.length) * 100)}%`} />
+          <KpiCard icon={<CheckCircleOutlined />} label="Ổn định" value={ok.length} color="bg-emerald-100 text-emerald-600" bg="bg-emerald-50 border-emerald-100" sub="Tiếp tục theo dõi" trend={`${Math.round((ok.length / results.length) * 100)}%`} />
         </div>
       )}
 
-      {/* Forecast Explanation */}
       {results.length > 0 && (
-        <ForecastExplanation results={results} aiStatus={aiStatus} ranAt={lastForecastAt} />
-      )}
-
-      {/* Risk Distribution + Bar Chart */}
-      {results.length > 0 && (
-        <div className="grid gap-4 xl:grid-cols-[340px_1fr]">
-          {/* Pie */}
+        <div className="grid gap-4 xl:grid-cols-[420px_1fr]">
           <Card>
-            <CardHeader
-              title="Phân bố rủi ro"
-              description={`${results.length} SKU đã phân loại`}
-            />
-            <div className="h-[280px] px-3 pb-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="48%"
-                    outerRadius={90}
-                    innerRadius={44}
-                    dataKey="value"
-                    labelLine={false}
-                    label={CustomPieLabel}
-                  >
-                    {pieData.map((entry, idx) => (
-                      <Cell key={idx} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <ChartTooltip
-                    formatter={(value: number, name: string) => [`${value} SKU`, name]}
-                  />
-                  <Legend
-                    iconType="circle"
-                    iconSize={10}
-                    formatter={(value) => <span className="text-xs text-slate-600">{value}</span>}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+            <CardHeader title="Ưu tiên xử lý" description="Các SKU có tác động vận hành cao nhất" />
+            <div className="space-y-3 px-5 pb-5">
+              <OperationalHint row={selectedRow} />
+              <div className="space-y-2">
+                {priorityRows.length === 0 ? (
+                  <div className="rounded-xl border border-line py-8 text-center text-sm text-slate-400">Không có SKU cần ưu tiên</div>
+                ) : (
+                  priorityRows.map((row, index) => (
+                    <button
+                      key={row.itemId}
+                      type="button"
+                      onClick={() => loadItemChart(row.itemId, row.itemName)}
+                      className={`w-full rounded-xl border px-3 py-3 text-left transition ${
+                        row.itemId === selectedItemId ? 'border-emerald-300 bg-emerald-50' : 'border-line bg-white hover:border-emerald-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="grid h-6 w-6 place-items-center rounded-md bg-slate-100 text-xs font-bold text-slate-500">{index + 1}</span>
+                            <span className="truncate text-sm font-semibold text-slate-800">{row.itemName}</span>
+                          </div>
+                          <div className="mt-1 text-xs text-slate-400">{row.itemCode}</div>
+                        </div>
+                        {riskTag(row.riskLevel)}
+                      </div>
+                      <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                        <div><span className="text-slate-400">Tồn</span><strong className="block text-slate-700">{formatQty(row.stockOnHand)}</strong></div>
+                        <div><span className="text-slate-400">Cần 30 ngày</span><strong className="block text-slate-700">{formatQty(row.pred30d)}</strong></div>
+                        <div><span className="text-slate-400">Độ phủ</span><strong className="block text-slate-700">{calcCoverage(row)}%</strong></div>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
             </div>
           </Card>
 
-          {/* Shortage Bar Chart */}
           <Card>
-            <CardHeader
-              title="Tồn kho vs Nhu cầu 30 ngày"
-              description="Top SKU ưu tiên nhập hàng — cột xanh là tồn hiện tại, cột cam là nhu cầu dự báo"
-            />
-            <div className="h-[280px] px-2 pb-4">
+            <CardHeader title="Tồn kho vs nhu cầu 30 ngày" description="SKU thiếu hàng được xếp theo độ thiếu dự kiến" />
+            <div className="h-[394px] px-2 pb-5">
               {barData.length === 0 ? (
-                <div className="grid h-full place-items-center text-sm text-slate-400">
-                  Không có SKU rủi ro nào
-                </div>
+                <div className="grid h-full place-items-center text-sm text-slate-400">Không có SKU thiếu hàng</div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={barData} layout="vertical" margin={{ left: 0, right: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                  <BarChart data={barData} layout="vertical" margin={{ top: 10, left: 8, right: 24, bottom: 6 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#edf2f7" />
                     <XAxis type="number" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                    <YAxis
-                      type="category"
-                      dataKey="name"
-                      width={110}
-                      tick={{ fontSize: 11, fill: '#475569' }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <ChartTooltip
-                      formatter={(val: number, name: string) => [val.toLocaleString('vi-VN'), name]}
-                    />
-                    <Legend iconType="square" iconSize={10} />
+                    <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11, fill: '#475569' }} axisLine={false} tickLine={false} />
+                    <ChartTooltip formatter={(val: number, name: string) => [Number(val).toLocaleString('vi-VN'), name]} contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0' }} />
+                    <Legend iconType="circle" iconSize={8} />
                     <Bar dataKey="stock" name="Tồn hiện tại" fill="#10b981" radius={[0, 4, 4, 0]} maxBarSize={14} />
-                    <Bar dataKey="need" name="Cần 30 ngày" radius={[0, 4, 4, 0]} maxBarSize={14}>
-                      {barData.map((entry, idx) => (
-                        <Cell key={idx} fill={entry.risk === 'CRITICAL' ? '#ef4444' : '#f59e0b'} />
-                      ))}
+                    <Bar dataKey="need" name="Nhu cầu 30 ngày" radius={[0, 4, 4, 0]} maxBarSize={14}>
+                      {barData.map((entry, idx) => <Cell key={idx} fill={entry.risk === 'CRITICAL' ? '#ef4444' : '#f59e0b'} />)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -521,239 +586,299 @@ export default function AiForecastPage({ productsList: _productsList, setPage }:
         </div>
       )}
 
-      {/* Product Table */}
-      {results.length > 0 ? (
-        <Card>
-          <CardHeader
-            title="Kết quả theo sản phẩm"
-            description="Nhấn vào một dòng để xem biểu đồ chi tiết theo ngày — ưu tiên các dòng «Thiếu gấp»"
-          />
-          <Table
-            size="small"
-            pagination={{ pageSize: 10, showSizeChanger: false }}
-            rowKey="itemId"
-            dataSource={results}
-            onRow={(row) => ({
-              onClick: () => loadItemChart(row.itemId, row.itemName),
-              className: `cursor-pointer transition-colors ${row.itemId === selectedItemId ? 'bg-emerald-50' : 'hover:bg-slate-50'}`,
-            })}
-            columns={[
-              {
-                title: 'Sản phẩm',
-                dataIndex: 'itemName',
-                ellipsis: true,
-                render: (name, r) => (
-                  <div>
-                    <div className="font-semibold text-slate-800">{name}</div>
-                    {r.itemCode && <div className="text-xs text-slate-400">{r.itemCode}</div>}
-                  </div>
-                ),
-              },
-              {
-                title: 'Tồn kho',
-                dataIndex: 'stockOnHand',
-                align: 'right' as const,
-                render: (v, r) => {
-                  const stock = Math.round(Number(v) || 0);
-                  const need = Math.round(Number(r.pred30d) || 0);
-                  const pct = need > 0 ? Math.min((stock / need) * 100, 100) : 100;
-                  return (
-                    <div className="min-w-[80px]">
-                      <div className="mb-1 text-right text-sm font-medium">{stock.toLocaleString('vi-VN')}</div>
-                      <Progress
-                        percent={Math.round(pct)}
-                        size="small"
-                        showInfo={false}
-                        strokeColor={pct < 40 ? '#ef4444' : pct < 80 ? '#f59e0b' : '#10b981'}
-                        trailColor="#e2e8f0"
-                      />
+      {results.length > 0 && (
+        <div className="grid gap-4 xl:grid-cols-[340px_1fr]">
+          <Card>
+            <CardHeader title="Phân bố rủi ro" description={`${results.length} SKU đã phân loại`} />
+            <div className="h-[286px] px-3 pb-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={pieData} cx="50%" cy="48%" outerRadius={92} innerRadius={52} dataKey="value" labelLine={false} label={CustomPieLabel}>
+                    {pieData.map((entry, idx) => <Cell key={idx} fill={entry.color} />)}
+                  </Pie>
+                  <ChartTooltip formatter={(value: number, name: string) => [`${value} SKU`, name]} />
+                  <Legend iconType="circle" iconSize={10} formatter={(value) => <span className="text-xs text-slate-600">{value}</span>} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+
+          <Card>
+            <CardHeader
+              title="Kết quả theo SKU"
+              description="Chọn một dòng để xem dự báo ngày"
+              action={
+                <div className="flex flex-wrap gap-2">
+                  <Input
+                    allowClear
+                    prefix={<SearchOutlined />}
+                    placeholder="Tìm SKU hoặc tên hàng"
+                    className="w-[220px]"
+                    value={forecastSearch}
+                    onChange={(e) => setForecastSearch(e.target.value)}
+                  />
+                  <Select
+                    className="w-[160px]"
+                    value={riskFilter}
+                    onChange={setRiskFilter}
+                    suffixIcon={<FilterOutlined />}
+                    options={[
+                      { value: 'ALL', label: 'Tất cả rủi ro' },
+                      { value: 'CRITICAL', label: 'Thiếu gấp' },
+                      { value: 'WARNING', label: 'Sắp thiếu' },
+                      { value: 'OVERSTOCK', label: 'Tồn dư' },
+                      { value: 'OK', label: 'Ổn định' },
+                    ]}
+                  />
+                </div>
+              }
+            />
+            <Table
+              size="small"
+              pagination={{ pageSize: 8, showSizeChanger: false }}
+              rowKey="itemId"
+              dataSource={filteredResults}
+              onRow={(row) => ({
+                onClick: () => loadItemChart(row.itemId, row.itemName),
+                className: `cursor-pointer transition-colors ${row.itemId === selectedItemId ? 'bg-emerald-50' : 'hover:bg-slate-50'}`,
+              })}
+              columns={[
+                {
+                  title: 'SKU / Sản phẩm',
+                  dataIndex: 'itemName',
+                  ellipsis: true,
+                  render: (name, r) => (
+                    <div className="min-w-[180px]">
+                      <div className="font-semibold text-slate-800">{name}</div>
+                      {r.itemCode && <div className="text-xs text-slate-400">{r.itemCode}</div>}
                     </div>
-                  );
+                  ),
                 },
-              },
-              {
-                title: 'Cần 30 ngày',
-                dataIndex: 'pred30d',
-                align: 'right' as const,
-                render: (v) => (
-                  <strong className="tabular-nums">{Math.round(Number(v) || 0).toLocaleString('vi-VN')}</strong>
-                ),
-              },
-              {
-                title: '7 ngày',
-                dataIndex: 'pred7d',
-                align: 'right' as const,
-                responsive: ['lg' as const],
-                render: (v) => (
-                  <span className="text-sm tabular-nums text-slate-500">
-                    {Math.round(Number(v) || 0).toLocaleString('vi-VN')}
-                  </span>
-                ),
-              },
-              {
-                title: 'Thiếu',
-                dataIndex: 'shortageQty',
-                align: 'right' as const,
-                render: (v) => {
-                  const n = Math.round(Number(v) || 0);
-                  return n > 0 ? (
-                    <Text type="danger" className="font-bold tabular-nums">
-                      -{n.toLocaleString('vi-VN')}
-                    </Text>
-                  ) : (
-                    <Text type="success">—</Text>
-                  );
+                {
+                  title: 'Độ phủ',
+                  dataIndex: 'stockOnHand',
+                  width: 116,
+                  render: (_, r) => {
+                    const pct = calcCoverage(r);
+                    return (
+                      <div>
+                        <div className="mb-1 flex justify-between text-xs">
+                          <span className="text-slate-400">Tồn</span>
+                          <strong>{formatQty(r.stockOnHand)}</strong>
+                        </div>
+                        <Progress percent={pct} size="small" showInfo={false} strokeColor={pct < 40 ? '#ef4444' : pct < 80 ? '#f59e0b' : '#10b981'} trailColor="#e2e8f0" />
+                      </div>
+                    );
+                  },
                 },
-              },
-              {
-                title: 'Trạng thái',
-                dataIndex: 'riskLevel',
-                render: (v) => riskTag(v as ForecastResultDto['riskLevel']),
-              },
-              {
-                title: 'Gợi ý nhập',
-                dataIndex: 'recommendation',
-                ellipsis: true,
-                responsive: ['xl' as const],
-                width: 200,
-                render: (v) => <span className="text-xs text-slate-500">{v}</span>,
-              },
-            ]}
-          />
-        </Card>
-      ) : (
-        <Alert
-          type="info"
-          showIcon
-          icon={<RiseOutlined />}
-          message="Chưa có kết quả dự báo"
-          description="Thực hiện Bước 1 (huấn luyện) rồi Bước 2 (chạy dự báo). Sau khi xong, hệ thống hiển thị bảng và biểu đồ phân tích đầy đủ."
-        />
+                { title: 'Cần 30 ngày', dataIndex: 'pred30d', align: 'right' as const, render: (v) => <strong className="tabular-nums">{formatQty(v)}</strong> },
+                { title: '7 ngày', dataIndex: 'pred7d', align: 'right' as const, responsive: ['lg' as const], render: (v) => <span className="text-sm tabular-nums text-slate-500">{formatQty(v)}</span> },
+                {
+                  title: 'Chênh lệch',
+                  dataIndex: 'shortageQty',
+                  align: 'right' as const,
+                  render: (_, r) => {
+                    const shortage = Math.round(Number(r.shortageQty) || 0);
+                    const surplus = Math.round(Number(r.surplusQty) || 0);
+                    if (shortage > 0) return <Text type="danger" className="font-bold tabular-nums">-{shortage.toLocaleString('vi-VN')}</Text>;
+                    if (surplus > 0) return <Text className="font-bold tabular-nums text-purple-600">+{surplus.toLocaleString('vi-VN')}</Text>;
+                    return <Text type="success">—</Text>;
+                  },
+                },
+                { title: 'Rủi ro', dataIndex: 'riskLevel', render: (v) => riskTag(v as ForecastResultDto['riskLevel']) },
+              ]}
+            />
+          </Card>
+        </div>
       )}
 
-      {/* Daily Forecast Chart */}
-      <Card>
-        <CardHeader
-          title="Biểu đồ dự báo theo ngày — 30 ngày tới"
-          description={
-            selectedItemId
-              ? `${selectedItemName || `SKU #${selectedItemId}`} — đường xanh là số lượng dự kiến, vùng mờ là khoảng tin cậy 95%`
-              : 'Chọn một sản phẩm trong bảng phía trên để xem chi tiết'
-          }
-        />
-        <div className="h-[340px] px-3 pb-5">
-          {dailyChart.length === 0 ? (
-            <div className="grid h-full place-items-center text-sm text-slate-400">
-              <div className="text-center">
-                <LineChartOutlined className="mb-2 text-3xl text-slate-300" />
-                <p>Chưa có dữ liệu — chạy dự báo và chọn một SKU trong bảng</p>
+      {results.length > 0 ? (
+        <ForecastExplanation results={results} aiStatus={aiStatus} ranAt={lastForecastAt} />
+      ) : (
+        <section className="grid gap-4 xl:grid-cols-[1fr_380px]">
+          <Card className="overflow-hidden border-emerald-100">
+            <div className="border-b border-emerald-100 bg-emerald-50 px-5 py-4">
+              <div className="text-xs font-bold uppercase tracking-normal text-emerald-700">Bắt đầu phiên dự báo</div>
+              <h3 className="mt-1 text-xl font-extrabold text-slate-900">Chưa có kết quả forecast để điều phối</h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Khi chạy dự báo thành công, màn hình sẽ mở bảng ưu tiên SKU, bản đồ rủi ro, chart 30 ngày và đề xuất nhập/xả hàng.
+              </p>
+            </div>
+            <div className="grid gap-3 p-5 md:grid-cols-3">
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="mb-3 grid h-10 w-10 place-items-center rounded-lg bg-emerald-100 text-lg text-emerald-700">
+                  <CloudSyncOutlined />
+                </div>
+                <div className="font-bold text-slate-900">1. Huấn luyện model</div>
+                <p className="mt-1 text-sm leading-5 text-slate-500">Dùng lịch sử bán hàng, tồn kho và biến động SKU để tạo model dự báo.</p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="mb-3 grid h-10 w-10 place-items-center rounded-lg bg-blue-100 text-lg text-blue-700">
+                  <PlayCircleOutlined />
+                </div>
+                <div className="font-bold text-slate-900">2. Chạy forecast</div>
+                <p className="mt-1 text-sm leading-5 text-slate-500">Sinh nhu cầu 7/14/30 ngày, khoảng tin cậy và phân loại rủi ro từng SKU.</p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="mb-3 grid h-10 w-10 place-items-center rounded-lg bg-amber-100 text-lg text-amber-700">
+                  <ShoppingCartOutlined />
+                </div>
+                <div className="font-bold text-slate-900">3. Điều phối hàng</div>
+                <p className="mt-1 text-sm leading-5 text-slate-500">Ưu tiên nhập bù hàng thiếu, giữ SKU ổn định và đề xuất xả hàng tồn dư.</p>
               </div>
             </div>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={dailyChart} margin={{ top: 10, right: 16, bottom: 0, left: 0 }}>
-                <defs>
-                  <linearGradient id="confBand" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#006c49" stopOpacity={0.15} />
-                    <stop offset="95%" stopColor="#006c49" stopOpacity={0.03} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                <XAxis
-                  dataKey="date"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: '#94a3b8', fontSize: 11 }}
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: '#94a3b8', fontSize: 11 }}
-                />
-                <ChartTooltip
-                  formatter={(val: number, name: string) => [val?.toFixed(1), name]}
-                  contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0' }}
-                />
-                <Legend iconType="circle" iconSize={8} />
-                {selectedStock != null && (
-                  <ReferenceLine
-                    y={Number(selectedStock)}
-                    stroke="#f59e0b"
-                    strokeDasharray="5 3"
-                    label={{ value: `Tồn: ${Math.round(Number(selectedStock))}`, position: 'right', fontSize: 10, fill: '#f59e0b' }}
-                  />
-                )}
-                <Area
-                  type="monotone"
-                  dataKey="confHigh"
-                  name="Giới hạn trên"
-                  stroke="none"
-                  fill="url(#confBand)"
-                  legendType="none"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="confLow"
-                  name="Giới hạn dưới"
-                  stroke="none"
-                  fill="#ffffff"
-                  fillOpacity={1}
-                  legendType="none"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="qty"
-                  name="SL dự báo"
-                  stroke="#006c49"
-                  strokeWidth={2.5}
-                  dot={false}
-                  activeDot={{ r: 5, fill: '#006c49' }}
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-      </Card>
+          </Card>
 
-      {/* Revenue + AI Summary */}
-      <div className="grid gap-4 xl:grid-cols-[1.4fr_0.8fr]">
-        <Card>
-          <CardHeader
-            title="Doanh thu & đơn hàng thực tế — 30 ngày"
-            description="Dữ liệu đầu vào cho mô hình dự báo — phân tích xu hướng trước khi huấn luyện."
-          />
-          <div className="h-[320px] px-3 pb-5">
-            {revenueChart.length === 0 ? (
-              <div className="grid h-full place-items-center text-sm text-slate-400">
-                Chưa có dữ liệu doanh thu
+          <Card className="border-slate-200">
+            <CardHeader title="Tình trạng nguồn dữ liệu" description="Kiểm tra nhanh trước khi chạy AI" />
+            <div className="space-y-3 px-5 pb-5">
+              <div className="flex items-center justify-between rounded-xl border border-line px-4 py-3">
+                <span className="text-sm font-medium text-slate-600">AI service</span>
+                <Tag color={aiStatus?.aiOnline ? 'success' : 'error'}>{aiStatus?.aiOnline ? 'Online' : 'Offline'}</Tag>
               </div>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={revenueChart} margin={{ top: 14, right: 18, bottom: 6, left: 0 }}>
-                  <defs>
-                    <linearGradient id="forecastRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0.01} />
-                    </linearGradient>
-                    <linearGradient id="forecastOrders" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#4648d4" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="#4648d4" stopOpacity={0.01} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid stroke="#f1f5f9" strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                  <ChartTooltip content={<SmartTooltip />} />
-                  <Legend iconType="circle" iconSize={8} />
-                  <Area dataKey="revenue" name="Doanh thu" stroke="#10b981" strokeWidth={2.5} fill="url(#forecastRevenue)" type="monotone" dot={false} />
-                  <Area dataKey="orders" name="Đơn hàng" stroke="#4648d4" strokeWidth={2.5} fill="url(#forecastOrders)" type="monotone" dot={false} />
-                </AreaChart>
-              </ResponsiveContainer>
-            )}
+              <div className="flex items-center justify-between rounded-xl border border-line px-4 py-3">
+                <span className="text-sm font-medium text-slate-600">Model</span>
+                <Tag color={aiStatus?.modelLoaded ? 'blue' : 'warning'}>{aiStatus?.modelLoaded ? 'Sẵn sàng' : 'Chưa huấn luyện'}</Tag>
+              </div>
+              <div className="flex items-center justify-between rounded-xl border border-line px-4 py-3">
+                <span className="text-sm font-medium text-slate-600">Lần train gần nhất</span>
+                <span className="text-right text-xs font-semibold text-slate-500">{formatTrainedAt(aiStatus?.lastTrainedAt)}</span>
+              </div>
+              <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm leading-5 text-slate-500">
+                Nút <strong>Chạy dự báo</strong> sẽ bật sau khi model sẵn sàng. Nếu AI service offline, kiểm tra backend kết nối với ai-service trước.
+              </div>
+            </div>
+          </Card>
+        </section>
+      )}
+
+      {results.length > 0 && (
+        <>
+          {/* Daily Forecast Chart */}
+          <Card>
+            <CardHeader
+              title="Biểu đồ dự báo theo ngày — 30 ngày tới"
+              description={
+                selectedItemId
+                  ? `${selectedItemName || `SKU #${selectedItemId}`} — đường xanh là số lượng dự kiến, vùng mờ là khoảng tin cậy 95%`
+                  : 'Chọn một sản phẩm trong bảng phía trên để xem chi tiết'
+              }
+            />
+            <div className="h-[340px] px-3 pb-5">
+              {dailyChart.length === 0 ? (
+                <div className="grid h-full place-items-center text-sm text-slate-400">
+                  <div className="text-center">
+                    <LineChartOutlined className="mb-2 text-3xl text-slate-300" />
+                    <p>Chọn một SKU trong bảng để xem dự báo ngày</p>
+                  </div>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={dailyChart} margin={{ top: 10, right: 16, bottom: 0, left: 0 }}>
+                    <defs>
+                      <linearGradient id="confBand" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#006c49" stopOpacity={0.15} />
+                        <stop offset="95%" stopColor="#006c49" stopOpacity={0.03} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                    <XAxis
+                      dataKey="date"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: '#94a3b8', fontSize: 11 }}
+                    />
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: '#94a3b8', fontSize: 11 }}
+                    />
+                    <ChartTooltip
+                      formatter={(val: number, name: string) => [val?.toFixed(1), name]}
+                      contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0' }}
+                    />
+                    <Legend iconType="circle" iconSize={8} />
+                    {selectedStock != null && (
+                      <ReferenceLine
+                        y={Number(selectedStock)}
+                        stroke="#f59e0b"
+                        strokeDasharray="5 3"
+                        label={{ value: `Tồn: ${Math.round(Number(selectedStock))}`, position: 'right', fontSize: 10, fill: '#f59e0b' }}
+                      />
+                    )}
+                    <Area
+                      type="monotone"
+                      dataKey="confHigh"
+                      name="Giới hạn trên"
+                      stroke="none"
+                      fill="url(#confBand)"
+                      legendType="none"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="confLow"
+                      name="Giới hạn dưới"
+                      stroke="none"
+                      fill="#ffffff"
+                      fillOpacity={1}
+                      legendType="none"
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="qty"
+                      name="SL dự báo"
+                      stroke="#006c49"
+                      strokeWidth={2.5}
+                      dot={false}
+                      activeDot={{ r: 5, fill: '#006c49' }}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </Card>
+
+          {/* Revenue + AI Summary */}
+          <div className="grid gap-4 xl:grid-cols-[1.4fr_0.8fr]">
+            <Card>
+              <CardHeader
+                title="Doanh thu & đơn hàng thực tế — 30 ngày"
+                description="Dữ liệu đầu vào cho mô hình dự báo — phân tích xu hướng trước khi huấn luyện."
+              />
+              <div className="h-[320px] px-3 pb-5">
+                {revenueChart.length === 0 ? (
+                  <div className="grid h-full place-items-center text-sm text-slate-400">
+                    Chưa có dữ liệu doanh thu
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={revenueChart} margin={{ top: 14, right: 18, bottom: 6, left: 0 }}>
+                      <defs>
+                        <linearGradient id="forecastRevenue" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0.01} />
+                        </linearGradient>
+                        <linearGradient id="forecastOrders" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#4648d4" stopOpacity={0.25} />
+                          <stop offset="95%" stopColor="#4648d4" stopOpacity={0.01} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid stroke="#f1f5f9" strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                      <ChartTooltip content={<SmartTooltip />} />
+                      <Legend iconType="circle" iconSize={8} />
+                      <Area dataKey="revenue" name="Doanh thu" stroke="#10b981" strokeWidth={2.5} fill="url(#forecastRevenue)" type="monotone" dot={false} />
+                      <Area dataKey="orders" name="Đơn hàng" stroke="#4648d4" strokeWidth={2.5} fill="url(#forecastOrders)" type="monotone" dot={false} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </Card>
+            <AiSummary setPage={setPage} />
           </div>
-        </Card>
-        <AiSummary setPage={setPage} />
-      </div>
+        </>
+      )}
     </div>
   );
 }
