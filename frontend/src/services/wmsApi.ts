@@ -393,6 +393,18 @@ export function fetchInventory() {
   return apiRequest<InventoryItemDto[]>('/api/v1/inventory');
 }
 
+export function fetchInventorySummary() {
+  return apiRequest<{
+    inventoryRows: number;
+    totalQuantity: number;
+    totalReserved: number;
+    totalAvailable: number;
+    lowStockRows: number;
+    outOfStockRows: number;
+    nearExpiryRows: number;
+  }>('/api/v1/inventory/summary');
+}
+
 export function fetchNearExpiry() {
   return apiRequest<InventoryItemDto[]>('/api/v1/inventory/near-expiry');
 }
