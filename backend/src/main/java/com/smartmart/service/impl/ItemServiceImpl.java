@@ -8,6 +8,7 @@ import com.smartmart.dto.response.ItemResponse;
 import com.smartmart.entity.Item;
 import com.smartmart.entity.Uom;
 import com.smartmart.exception.BadRequestException;
+import com.smartmart.exception.ConflictException;
 import com.smartmart.exception.NotFoundException;
 import com.smartmart.repository.*;
 import com.smartmart.service.AuditLogService;
@@ -87,7 +88,7 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
     @Override
     @Transactional(readOnly = true)
     public ItemResponse getByBarcode(String code) {
-        Item item = itemRepository.findActiveByItemCode(code.trim())
+        Item item = itemRepository.findActiveByItemCode(normalizeItemCode(code))
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy sản phẩm với mã: " + code));
         BigDecimal sold = soldQtyMap().getOrDefault(item.getId(), BigDecimal.ZERO);
         return toResponse(item, sold);
@@ -120,8 +121,11 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
     @Override
     @CacheEvict(value = { "items", "itemsPage" }, allEntries = true)
     public ItemResponse create(CreateItemRequest req) {
-        if (itemRepository.existsByItemCode(req.getItemCode())) {
-            throw new BadRequestException("Mã sản phẩm đã tồn tại: " + req.getItemCode());
+        String itemCode = normalizeItemCode(req.getItemCode());
+        String itemName = normalizeItemName(req.getItemName());
+        if (itemRepository.existsByItemCodeIgnoreCase(itemCode)) {
+            throw new ConflictException("Mã SKU đã tồn tại: " + itemCode
+                    + ". Mỗi biến thể phải tạo SKU riêng, ví dụ MI-HAOHAO-TOM và MI-HAOHAO-CHUA-CAY.");
         }
         if (req.getSellingPrice().compareTo(req.getCostPrice()) < 0) {
             throw new BadRequestException("Giá bán phải >= giá nhập");
@@ -133,11 +137,11 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
                         .orElseThrow(() -> new NotFoundException("Không tìm thấy UOM nhập"))
                 : baseUom;
 
-        String imageUrl = resolveImageUrlForCreate(req.getImageUrl(), req.getItemCode());
+        String imageUrl = resolveImageUrlForCreate(req.getImageUrl(), itemCode);
 
         Item item = Item.builder()
-                .itemCode(req.getItemCode())
-                .itemName(req.getItemName())
+                .itemCode(itemCode)
+                .itemName(itemName)
                 .itemType(req.getItemType())
                 .category(req.getCategoryId() != null
                         ? categoryRepository.findById(req.getCategoryId()).orElse(null)
@@ -168,8 +172,23 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
     public ItemResponse update(Long id, UpdateItemRequest req) {
         Item item = findItem(id);
         String beforeData = itemData(item);
+        if (req.getItemCode() != null && !req.getItemCode().isBlank()) {
+            String newItemCode = normalizeItemCode(req.getItemCode());
+            if (!newItemCode.equalsIgnoreCase(item.getItemCode())) {
+                checkItemUsageForSkuChange(id);
+                if (itemRepository.existsByItemCodeIgnoreCase(newItemCode)) {
+                    throw new ConflictException("Mã SKU đã tồn tại: " + newItemCode
+                            + ". Hãy dùng mã khác cho biến thể sản phẩm này.");
+                }
+                item.setItemCode(newItemCode);
+                if (item.getImageUrl() == null || item.getImageUrl().isBlank()
+                        || item.getImageUrl().startsWith("/media/items/")) {
+                    item.setImageUrl(ItemImageUrls.defaultItemPath(newItemCode));
+                }
+            }
+        }
         if (req.getItemName() != null && !req.getItemName().isBlank()) {
-            item.setItemName(req.getItemName());
+            item.setItemName(normalizeItemName(req.getItemName()));
         }
         if (req.getItemType() != null) {
             item.setItemType(req.getItemType());
@@ -247,6 +266,16 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
         }
     }
 
+    private void checkItemUsageForSkuChange(Long itemId) {
+        boolean hasInventory = !currentInventoryRepository.findByItemId(itemId).isEmpty();
+        boolean hasPurchaseHistory = purchaseOrderItemRepository.existsByItemId(itemId);
+        boolean hasSalesHistory = soldQtyMap().containsKey(itemId);
+        if (hasInventory || hasPurchaseHistory || hasSalesHistory) {
+            throw new BadRequestException(
+                    "Không thể đổi mã SKU vì sản phẩm đã có tồn kho hoặc lịch sử giao dịch. Vui lòng tạo SKU mới cho biến thể mới.");
+        }
+    }
+
     private List<ItemResponse> mapToResponses(List<Item> items) {
         Map<Long, BigDecimal> soldMap = soldQtyMap();
         return items.stream()
@@ -267,6 +296,20 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
             return requested.trim();
         }
         return ItemImageUrls.defaultItemPath(itemCode);
+    }
+
+    private static String normalizeItemCode(String itemCode) {
+        if (itemCode == null || itemCode.isBlank()) {
+            throw new BadRequestException("Mã SKU không được để trống");
+        }
+        return itemCode.trim().replaceAll("\\s+", "-").toUpperCase();
+    }
+
+    private static String normalizeItemName(String itemName) {
+        if (itemName == null || itemName.isBlank()) {
+            throw new BadRequestException("Tên sản phẩm không được để trống");
+        }
+        return itemName.trim().replaceAll("\\s+", " ");
     }
 
     private ItemResponse toResponse(Item item, BigDecimal soldQty) {
