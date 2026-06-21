@@ -16,6 +16,8 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
 
        boolean existsByItemCode(String itemCode);
 
+       boolean existsByItemCodeIgnoreCase(String itemCode);
+
        List<Item> findByActiveTrue();
 
        Page<Item> findByActiveTrue(Pageable pageable);

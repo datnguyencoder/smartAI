@@ -4,6 +4,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -13,8 +15,11 @@ import java.math.BigDecimal;
 @Setter
 public class CreateItemRequest {
     @NotBlank
+    @Size(max = 50)
+    @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9._-]*$", message = "Mã SKU chỉ gồm chữ, số, dấu gạch ngang, gạch dưới hoặc dấu chấm")
     private String itemCode;
     @NotBlank
+    @Size(max = 150)
     private String itemName;
     private String itemType;
     private Long categoryId;
