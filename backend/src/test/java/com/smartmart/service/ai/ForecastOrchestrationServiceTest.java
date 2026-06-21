@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartmart.client.AiClient;
 import com.smartmart.entity.Category;
 import com.smartmart.entity.Item;
+import com.smartmart.dto.response.ForecastRunResponse;
 import com.smartmart.repository.CurrentInventoryRepository;
 import com.smartmart.repository.ForecastDailyPointRepository;
 import com.smartmart.repository.ForecastResultRepository;
@@ -47,6 +48,8 @@ class ForecastOrchestrationServiceTest {
     private CurrentInventoryRepository currentInventoryRepository;
     @Mock
     private ReorderRecommendationService reorderRecommendationService;
+    @Mock
+    private TrainingJobStore trainingJobStore;
 
     private ForecastOrchestrationService service;
 
@@ -61,6 +64,7 @@ class ForecastOrchestrationServiceTest {
                 forecastDailyPointRepository,
                 currentInventoryRepository,
                 reorderRecommendationService,
+                trainingJobStore,
                 new ObjectMapper()
         );
     }
@@ -86,13 +90,13 @@ class ForecastOrchestrationServiceTest {
         when(trainingHistoryRepository.findTopByOrderByTrainedAtDesc()).thenReturn(Optional.empty());
         when(forecastResultRepository.findAll()).thenReturn(List.of());
 
-        Map<String, Object> result = service.runForecast();
+        ForecastRunResponse result = service.runForecast();
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<Map<String, Object>>> captor = ArgumentCaptor.forClass(List.class);
         verify(aiClient).forecastAll(captor.capture());
 
-        assertThat(result).containsEntry("itemsSubmitted", 1);
+        assertThat(result.getItemsSubmitted()).isEqualTo(1);
         assertThat(captor.getValue()).hasSize(1);
         assertThat(captor.getValue().getFirst())
                 .containsEntry("item_id", 99L)

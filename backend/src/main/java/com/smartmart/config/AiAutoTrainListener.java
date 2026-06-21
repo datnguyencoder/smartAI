@@ -1,5 +1,6 @@
 package com.smartmart.config;
 
+import com.smartmart.dto.response.TrainResultResponse;
 import com.smartmart.repository.ForecastResultRepository;
 import com.smartmart.service.ai.ForecastOrchestrationService;
 import org.slf4j.Logger;
@@ -9,7 +10,6 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationListener;
 import org.springframework.stereotype.Component;
 
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 @Component
@@ -44,11 +44,11 @@ public class AiAutoTrainListener implements ApplicationListener<ApplicationReady
         CompletableFuture.runAsync(() -> {
             try {
                 log.info("AI auto-train starting (no forecast results in DB)...");
-                Map<String, Object> result = forecastOrchestrationService.train();
+                TrainResultResponse result = forecastOrchestrationService.train();
                 log.info(
                         "AI auto-train completed: modelType={}, itemsForecasted={}",
-                        result.get("modelType"),
-                        result.get("itemsForecasted")
+                        result.getModelType(),
+                        result.getItemsForecasted()
                 );
             } catch (Exception ex) {
                 log.warn("AI auto-train failed (run manually via POST /api/v1/forecast/train): {}", ex.getMessage());

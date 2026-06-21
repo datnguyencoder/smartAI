@@ -1,5 +1,6 @@
 package com.smartmart.service.impl;
 
+import com.smartmart.dto.response.ForecastResultResponse;
 import com.smartmart.service.ai.ForecastOrchestrationService;
 import com.smartmart.enums.OrderStatus;
 import com.smartmart.repository.CurrentInventoryRepository;
@@ -82,14 +83,11 @@ public class DashboardServiceImpl implements com.smartmart.service.DashboardServ
 
     @Override
     public Map<String, Object> forecastSummary() {
-        List<Map<String, Object>> results = forecastOrchestrationService.listResults();
+        List<ForecastResultResponse> results = forecastOrchestrationService.listResults();
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("itemsWithForecast", results.size());
         m.put("highRiskCount", results.stream()
-                .filter(r -> {
-                    Object p7 = r.get("pred7d");
-                    return p7 instanceof BigDecimal b && b.compareTo(BigDecimal.valueOf(50)) > 0;
-                })
+                .filter(r -> r.getPred7d() != null && r.getPred7d().compareTo(BigDecimal.valueOf(50)) > 0)
                 .count());
         return m;
     }
