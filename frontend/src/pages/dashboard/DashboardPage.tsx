@@ -72,6 +72,7 @@ type StatTone = 'emerald' | 'blue' | 'amber' | 'red' | 'purple';
 type StatItem = {
   label: string;
   value: string;
+  valueTitle?: string;
   helper: string;
   tone: StatTone;
   icon: React.ReactNode;
@@ -100,17 +101,39 @@ function formatQty(value: unknown) {
   return Math.round(numberFrom(value)).toLocaleString('vi-VN');
 }
 
+function formatMoneyTile(value: number) {
+  const full = money(value);
+  if (value >= 1_000_000_000) {
+    return {
+      display: `${(value / 1_000_000_000).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`,
+      full,
+    };
+  }
+  if (value >= 100_000_000) {
+    return {
+      display: `${(value / 1_000_000).toLocaleString('vi-VN', { maximumFractionDigits: 1 })} tr`,
+      full,
+    };
+  }
+  return { display: full, full };
+}
+
 function StatTile({ item }: { item: StatItem }) {
   const tone = toneClasses[item.tone];
   return (
-    <div className={cn('min-h-[132px] rounded-xl border p-4', tone.shell)}>
-      <div className="flex items-start justify-between gap-3">
+    <div className={cn('min-h-[140px] min-w-0 overflow-hidden rounded-xl border p-4', tone.shell)}>
+      <div className="flex items-start justify-between gap-2">
         <div className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-lg', tone.icon)}>{item.icon}</div>
-        <span className={cn('text-xs font-bold', tone.text)}>{item.helper}</span>
+        <span className={cn('max-w-[45%] shrink-0 truncate text-right text-xs font-bold', tone.text)}>{item.helper}</span>
       </div>
-      <div className="mt-4">
-        <div className="text-sm font-semibold text-slate-500">{item.label}</div>
-        <div className="mt-1 text-2xl font-black leading-tight text-slate-950">{item.value}</div>
+      <div className="mt-4 min-w-0">
+        <div className="truncate text-sm font-semibold text-slate-500">{item.label}</div>
+        <div
+          className="mt-1 truncate text-xl font-black tabular-nums leading-tight text-slate-950 sm:text-2xl"
+          title={item.valueTitle ?? item.value}
+        >
+          {item.value}
+        </div>
       </div>
       {item.progress != null && (
         <Progress className="mt-3" percent={item.progress} showInfo={false} strokeColor={tone.bar} trailColor="rgba(148,163,184,0.2)" />
@@ -479,9 +502,12 @@ export default function DashboardPage({
   const forecastRisk = numberFrom(forecastSummary?.highRiskCount);
   const inventoryHealth = Math.max(0, Math.min(100, 100 - Math.round(((lowStock + outOfStock + nearExpiry) / Math.max(productsList.length, 1)) * 100)));
 
+  const revenueTile = formatMoneyTile(todayRevenue);
+  const profitTile = grossProfit > 0 ? formatMoneyTile(grossProfit) : null;
+
   const stats: StatItem[] = [
-    { label: 'Doanh thu hôm nay', value: money(todayRevenue), helper: `${formatQty(todayOrders)} đơn`, tone: 'emerald', icon: <TrendingUp size={19} />, progress: Math.min(100, Math.round(todayRevenue / 1_000_000)) },
-    { label: 'Lợi nhuận gộp', value: grossProfit > 0 ? money(grossProfit) : 'Đang tính', helper: 'Hôm nay', tone: 'blue', icon: <BarChart3 size={19} />, progress: grossProfit > 0 && todayRevenue > 0 ? Math.round((grossProfit / todayRevenue) * 100) : 0 },
+    { label: 'Doanh thu hôm nay', value: revenueTile.display, valueTitle: revenueTile.full, helper: `${formatQty(todayOrders)} đơn`, tone: 'emerald', icon: <TrendingUp size={19} />, progress: Math.min(100, Math.round(todayRevenue / 1_000_000)) },
+    { label: 'Lợi nhuận gộp', value: profitTile ? profitTile.display : 'Đang tính', valueTitle: profitTile?.full, helper: 'Hôm nay', tone: 'blue', icon: <BarChart3 size={19} />, progress: grossProfit > 0 && todayRevenue > 0 ? Math.round((grossProfit / todayRevenue) * 100) : 0 },
     { label: 'Tồn khả dụng', value: formatQty(totalAvailable), helper: `${inventorySummary?.inventoryRows ?? productsList.length} dòng tồn`, tone: 'purple', icon: <Warehouse size={19} />, progress: inventoryHealth },
     { label: 'Cảnh báo tồn', value: formatQty(unresolvedAlerts), helper: 'Chưa xử lý', tone: unresolvedAlerts > 0 ? 'red' : 'emerald', icon: <AlertTriangle size={19} />, progress: Math.min(100, unresolvedAlerts * 12) },
     { label: 'SKU thiếu hàng', value: formatQty(lowStock + outOfStock), helper: `${outOfStock} hết hàng`, tone: 'amber', icon: <Boxes size={19} />, progress: Math.min(100, (lowStock + outOfStock) * 10) },
@@ -507,7 +533,7 @@ export default function DashboardPage({
         forecastRisk={forecastRisk}
       />
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {stats.map((item) => <StatTile key={item.label} item={item} />)}
       </section>
 
