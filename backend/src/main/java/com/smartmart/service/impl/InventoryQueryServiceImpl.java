@@ -59,6 +59,38 @@ public class InventoryQueryServiceImpl implements com.smartmart.service.Inventor
     }
 
     @Override
+    public Map<String, Object> summary() {
+        List<CurrentInventory> rows = currentInventoryRepository.findAll();
+        BigDecimal totalQuantity = rows.stream()
+                .map(CurrentInventory::getQuantity)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalReserved = rows.stream()
+                .map(CurrentInventory::getReservedQuantity)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalAvailable = totalQuantity.subtract(totalReserved);
+        long outOfStockRows = rows.stream()
+                .filter(inv -> inv.getQuantity().subtract(inv.getReservedQuantity()).compareTo(BigDecimal.ZERO) <= 0)
+                .count();
+
+        return Map.of(
+                "inventoryRows", rows.size(),
+                "totalQuantity", totalQuantity,
+                "totalReserved", totalReserved,
+                "totalAvailable", totalAvailable,
+                "lowStockRows", lowStock().size(),
+                "outOfStockRows", outOfStockRows,
+                "nearExpiryRows", nearExpiry().size()
+        );
+    }
+
+    @Override
+    public List<CurrentInventory> outOfStock() {
+        return currentInventoryRepository.findAll().stream()
+                .filter(inv -> inv.getQuantity().subtract(inv.getReservedQuantity()).compareTo(BigDecimal.ZERO) <= 0)
+                .toList();
+    }
+
+    @Override
     public List<CurrentInventory> lowStock() {
         return currentInventoryRepository.findLowStock();
     }

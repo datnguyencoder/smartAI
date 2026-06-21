@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/inventory")
@@ -38,6 +39,21 @@ public class InventoryController {
     public ResponseEntity<ApiResponse<List<InventoryResponse>>> list() {
         return ResponseEntity.ok(ApiResponse.success(
                 WmsResponseMapper.toInventoryResponses(inventoryQueryService.listAll())));
+    }
+
+    @GetMapping("/summary")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
+    @Operation(summary = "Tóm tắt tồn kho")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> summary() {
+        return ResponseEntity.ok(ApiResponse.success(inventoryQueryService.summary()));
+    }
+
+    @GetMapping("/out-of-stock")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
+    @Operation(summary = "Sản phẩm hết tồn khả dụng")
+    public ResponseEntity<ApiResponse<List<InventoryResponse>>> outOfStock() {
+        return ResponseEntity.ok(ApiResponse.success(
+                WmsResponseMapper.toInventoryResponses(inventoryQueryService.outOfStock())));
     }
 
     @GetMapping("/low-stock")
@@ -77,4 +93,3 @@ public class InventoryController {
                         inventoryQueryService.logs(itemId, locationId, search, actionType, from, to, pageable))));
     }
 }
-
