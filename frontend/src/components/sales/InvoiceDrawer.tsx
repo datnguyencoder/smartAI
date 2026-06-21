@@ -91,7 +91,6 @@ export function InvoiceDrawer({ invoice, authUser, onClose, onCancelled }: Props
       if (w) {
         w.document.write(html);
         w.document.close();
-        setTimeout(() => w.print(), 400);
       }
     } catch (e) {
       antdMessage.error(e instanceof Error ? e.message : 'In hóa đơn thất bại');

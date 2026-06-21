@@ -8,6 +8,7 @@ import { ProductThumbnail } from '@/components/catalog/ProductThumbnail';
 import { BarcodeScanner } from '@/components/sales/BarcodeScanner';
 import { cn } from '@/lib/utils';
 import { itemToProduct, formatMoney as money, type Product } from '@/lib/itemMapper';
+import { buildPrintHtml } from '@/lib/printReceipt';
 import {
   createOrder,
   fetchCustomers,
@@ -639,12 +640,11 @@ export default function PosPage({
               if (!lastInvoice?.orderId) return;
               try {
                 const data = await fetchOrderPrint(lastInvoice.orderId);
-                const lines = data.items.map((it) =>
-                  `<tr><td>${it.itemName}</td><td style="text-align:center">${it.quantity}</td><td style="text-align:right">${money(it.unitPrice)}</td></tr>`
-                ).join('');
-                const html = `<html><body style="font-family:monospace;padding:16px"><h2>SMARTMART AI</h2><p>${data.orderCode}</p><table border="1" cellpadding="4">${lines}</table><p><strong>${money(data.totalAmount)}</strong></p></body></html>`;
-                const w = window.open('', '_blank');
-                if (w) { w.document.write(html); w.document.close(); w.print(); }
+                const w = window.open('', '_blank', 'width=380,height=720');
+                if (w) {
+                  w.document.write(buildPrintHtml(data));
+                  w.document.close();
+                }
               } catch (e) {
                 antdMessage.error(e instanceof Error ? e.message : 'In thất bại');
               }

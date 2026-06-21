@@ -2,8 +2,15 @@ import type { fetchOrderPrint } from '@/services/wmsApi';
 import { PAYMENT_LABEL } from '@/lib/constants/paymentLabels';
 
 export function buildPrintHtml(data: Awaited<ReturnType<typeof fetchOrderPrint>>) {
+  const escapeHtml = (value: unknown) =>
+    String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   const fmt = (n: number) =>
-    n.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+    Number(n || 0).toLocaleString('vi-VN') + 'đ';
   const date = new Date(data.orderDate).toLocaleString('vi-VN', {
     day: '2-digit',
     month: '2-digit',
@@ -15,112 +22,155 @@ export function buildPrintHtml(data: Awaited<ReturnType<typeof fetchOrderPrint>>
   const payLabel = PAYMENT_LABEL[data.paymentMethod] ?? data.paymentMethod;
   const subtotal = data.subtotalAmount ?? data.items.reduce((s, i) => s + i.lineTotal, 0);
   const discount = data.discountAmount ?? 0;
+  const vat = data.vatAmount ?? 0;
+  const itemCount = data.items.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
 
   const rows = data.items
     .map(
       (it) => `
-      <tr>
-        <td style="padding:5px 4px;border-bottom:1px dashed #e2e8f0">
-          <div style="font-weight:600;color:#1e293b">${it.itemName}</div>
-          <div style="font-size:11px;color:#64748b">${it.itemCode}</div>
-        </td>
-        <td style="padding:5px 4px;border-bottom:1px dashed #e2e8f0;text-align:center;color:#475569">${it.quantity}</td>
-        <td style="padding:5px 4px;border-bottom:1px dashed #e2e8f0;text-align:right;color:#475569">${fmt(it.unitPrice)}</td>
-        <td style="padding:5px 4px;border-bottom:1px dashed #e2e8f0;text-align:right;font-weight:600;color:#1e293b">${fmt(it.lineTotal)}</td>
-      </tr>`,
+      <div class="item">
+        <div class="item-name">${escapeHtml(it.itemName)}</div>
+        <div class="item-meta">
+          <span>${escapeHtml(it.itemCode)} | ${it.quantity} x ${fmt(it.unitPrice)}</span>
+          <strong>${fmt(it.lineTotal)}</strong>
+        </div>
+      </div>`,
     )
     .join('');
 
   const loyaltySection =
     (data.loyaltyPointsRedeemed ?? 0) > 0
-      ? `<div style="display:flex;justify-content:space-between;margin:4px 0;font-size:13px;color:#7c3aed">
-           <span>⭐ Điểm tích lũy dùng</span><span>-${data.loyaltyPointsRedeemed} điểm</span>
-         </div>`
+      ? `<div class="summary-row"><span>Điểm đã đổi</span><span>-${data.loyaltyPointsRedeemed} điểm</span></div>`
       : '';
 
   const promotionSection = data.promotionCode
-    ? `<div style="display:flex;justify-content:space-between;margin:4px 0;font-size:13px;color:#059669">
-         <span>🎁 Mã KM: ${data.promotionCode}</span><span>-${fmt(discount)}</span>
-       </div>`
+    ? `<div class="summary-row"><span>Giảm giá (${escapeHtml(data.promotionCode)})</span><span>-${fmt(discount)}</span></div>`
     : discount > 0
-    ? `<div style="display:flex;justify-content:space-between;margin:4px 0;font-size:13px;color:#059669">
-         <span>Giảm giá</span><span>-${fmt(discount)}</span>
-       </div>`
+    ? `<div class="summary-row"><span>Giảm giá</span><span>-${fmt(discount)}</span></div>`
     : '';
+  const vatSection = vat > 0 ? `<div class="summary-row"><span>VAT</span><span>${fmt(vat)}</span></div>` : '';
 
   return `<!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
-  <title>Hóa đơn ${data.orderCode}</title>
+  <title>Hoa don ${escapeHtml(data.orderCode)}</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f8fafc; display: flex; justify-content: center; padding: 24px; }
-    .receipt { background: #fff; width: 380px; padding: 24px 20px 32px; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.1); }
-    .logo { text-align: center; margin-bottom: 16px; }
-    .logo h1 { font-size: 22px; font-weight: 800; color: #006c49; letter-spacing: 1px; }
-    .logo p { font-size: 11px; color: #94a3b8; margin-top: 2px; }
-    .divider { border: none; border-top: 1px dashed #cbd5e1; margin: 12px 0; }
-    .divider-solid { border: none; border-top: 2px solid #e2e8f0; margin: 12px 0; }
-    .info-row { display: flex; justify-content: space-between; font-size: 12.5px; margin: 5px 0; }
-    .info-label { color: #64748b; }
-    .info-val { font-weight: 600; color: #1e293b; text-align: right; max-width: 200px; }
-    .badge { display: inline-block; background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; border-radius: 4px; padding: 1px 7px; font-size: 11px; font-weight: 600; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th { padding: 6px 4px; text-align: left; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .05em; border-bottom: 2px solid #e2e8f0; }
-    th:last-child, th:nth-child(3) { text-align: right; }
-    th:nth-child(2) { text-align: center; }
-    .summary { margin-top: 12px; }
-    .summary-row { display: flex; justify-content: space-between; font-size: 13px; margin: 4px 0; color: #475569; }
-    .summary-row.total { font-size: 17px; font-weight: 800; color: #1e293b; margin-top: 10px; }
-    .summary-row.total span:last-child { color: #006c49; }
-    .payment-box { margin-top: 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; font-size: 13px; display: flex; align-items: center; gap: 8px; color: #334155; }
-    .footer { text-align: center; margin-top: 20px; font-size: 11.5px; color: #94a3b8; line-height: 1.6; }
-    .footer strong { color: #475569; }
+    @page { size: 80mm auto; margin: 0; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #f3f4f6; color: #111; }
+    body {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      line-height: 1.35;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .receipt {
+      width: 80mm;
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: 5mm 4mm 7mm;
+      background: #fff;
+    }
+    .center { text-align: center; }
+    .store-name { font-size: 20px; font-weight: 800; letter-spacing: .5px; line-height: 1.1; }
+    .store-meta { margin-top: 3px; font-size: 11px; }
+    .title { margin-top: 10px; font-size: 15px; font-weight: 800; }
+    .line { border-top: 1px dashed #111; margin: 8px 0; }
+    .row, .summary-row, .item-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .row span:first-child, .summary-row span:first-child { white-space: nowrap; }
+    .row span:last-child, .summary-row span:last-child {
+      text-align: right;
+      overflow-wrap: anywhere;
+    }
+    .section-label {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+    .item { padding: 5px 0; border-bottom: 1px dotted #999; }
+    .item-name { font-weight: 700; overflow-wrap: anywhere; }
+    .item-meta { margin-top: 2px; font-size: 11px; }
+    .item-meta strong { font-size: 12px; white-space: nowrap; }
+    .summary-row { margin: 3px 0; }
+    .total {
+      align-items: baseline;
+      margin-top: 7px;
+      padding-top: 7px;
+      border-top: 1px dashed #111;
+      font-size: 15px;
+      font-weight: 800;
+    }
+    .payment {
+      margin-top: 8px;
+      padding: 6px 0;
+      border-top: 1px dashed #111;
+      border-bottom: 1px dashed #111;
+      font-weight: 700;
+    }
+    .footer { margin-top: 10px; text-align: center; font-size: 11px; }
+    .barcode {
+      margin: 10px auto 2px;
+      width: 58mm;
+      height: 28px;
+      background: repeating-linear-gradient(90deg, #111 0 1px, #fff 1px 3px, #111 3px 5px, #fff 5px 7px);
+    }
     @media print {
-      body { background: none; padding: 0; }
-      .receipt { box-shadow: none; border-radius: 0; width: 100%; max-width: 380px; margin: 0 auto; }
+      html, body { width: 80mm; background: #fff; }
+      .receipt { width: 80mm; min-height: 0; margin: 0; padding: 4mm 3mm 6mm; }
     }
   </style>
 </head>
 <body>
   <div class="receipt">
-    <div class="logo">
-      <h1>🛒 SMARTMART AI</h1>
-      <p>Hệ thống quản lý bán lẻ thông minh</p>
-      <p>📍 TP. Hồ Chí Minh &nbsp;|&nbsp; 📞 1900 xxxx</p>
+    <div class="center">
+      <div class="store-name">SMARTMART AI</div>
+      <div class="store-meta">Sieu thi mini van hanh thong minh</div>
+      <div class="store-meta">TP. Ho Chi Minh - Hotline: 1900 xxxx</div>
+      <div class="title">HOA DON BAN HANG</div>
     </div>
-    <hr class="divider" />
-    <div class="info-row"><span class="info-label">Mã hóa đơn</span><span class="info-val"><span class="badge">${data.orderCode}</span></span></div>
-    <div class="info-row"><span class="info-label">📅 Thời gian</span><span class="info-val">${date}</span></div>
-    <div class="info-row"><span class="info-label">👤 Khách hàng</span><span class="info-val">${data.customerName || 'Khách lẻ'}</span></div>
-    ${data.customerPhone ? `<div class="info-row"><span class="info-label">📞 Điện thoại</span><span class="info-val">${data.customerPhone}</span></div>` : ''}
-    <div class="info-row"><span class="info-label">🧾 Thu ngân</span><span class="info-val">${data.staffName}</span></div>
-    <hr class="divider" />
-    <table>
-      <thead>
-        <tr><th>Sản phẩm</th><th>SL</th><th>Đơn giá</th><th>Thành tiền</th></tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
-    <hr class="divider-solid" />
+    <div class="line"></div>
+    <div class="row"><span>So HD</span><span>${escapeHtml(data.orderCode)}</span></div>
+    <div class="row"><span>Ngay</span><span>${escapeHtml(date)}</span></div>
+    <div class="row"><span>Thu ngan</span><span>${escapeHtml(data.staffName || '-')}</span></div>
+    <div class="row"><span>Khach hang</span><span>${escapeHtml(data.customerName || 'Khach le')}</span></div>
+    ${data.customerPhone ? `<div class="row"><span>Dien thoai</span><span>${escapeHtml(data.customerPhone)}</span></div>` : ''}
+    <div class="line"></div>
+    <div class="section-label"><span>SAN PHAM</span><span>THANH TIEN</span></div>
+    ${rows}
+    <div class="line"></div>
     <div class="summary">
+      <div class="summary-row"><span>So luong</span><span>${itemCount}</span></div>
       <div class="summary-row"><span>Tạm tính</span><span>${fmt(subtotal)}</span></div>
       ${promotionSection}
       ${loyaltySection}
-      <div class="summary-row total"><span>TỔNG CỘNG</span><span>${fmt(data.totalAmount)}</span></div>
+      ${vatSection}
+      <div class="summary-row total"><span>TONG CONG</span><span>${fmt(data.totalAmount)}</span></div>
     </div>
-    <div class="payment-box">
-      💳 <span>Thanh toán: <strong>${payLabel}</strong></span>
-    </div>
-    <hr class="divider" />
+    <div class="payment row"><span>Thanh toan</span><span>${escapeHtml(payLabel)}</span></div>
     <div class="footer">
-      <strong>Cảm ơn quý khách đã mua hàng!</strong><br />
-      Hàng mua vui lòng kiểm tra trước khi rời quầy.<br />
-      Đổi trả trong vòng <strong>7 ngày</strong> kể từ ngày mua (còn tem nhãn).<br /><br />
-      <em>Hotline: 1900 xxxx &nbsp;|&nbsp; smartmart.ai</em>
+      Cam on quy khach va hen gap lai<br />
+      Vui long kiem tra hang truoc khi roi quay<br />
+      Doi tra trong 7 ngay neu con hoa don
+      <div class="barcode"></div>
+      ${escapeHtml(data.orderCode)}
     </div>
   </div>
+  <script>
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        window.focus();
+        window.print();
+      }, 250);
+    });
+  </script>
 </body>
 </html>`;
 }
