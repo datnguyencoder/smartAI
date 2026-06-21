@@ -248,7 +248,13 @@ function App() {
               onToggleTheme={toggleTheme}
               themeMode={themeMode}
             />
-            <div ref={pageContentRef} className="mx-auto max-w-[1220px] px-4 py-5 sm:px-6">
+            <div
+              ref={pageContentRef}
+              className={cn(
+                'mx-auto px-4 py-5 sm:px-6',
+                page === 'ai-assistant' ? 'max-w-[1480px]' : 'max-w-[1220px]'
+              )}
+            >
               <PageRenderer
                 page={page}
                 authUser={authUser}
