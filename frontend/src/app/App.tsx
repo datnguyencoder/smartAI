@@ -75,7 +75,7 @@ function App() {
     {
       id: 'chat-welcome',
       sender: 'ai',
-      text: 'Chào bạn! Tôi là trợ lý vận hành. Bạn cần phân tích tồn kho, đề xuất khuyến mãi hay lên phiếu nhập hàng không?',
+      text: 'Xin chào! Tôi là bộ phận hỗ trợ vận hành SmartMart. Bạn muốn tra cứu tồn kho, phân tích doanh thu hay lên kế hoạch nhập hàng?',
     },
   ]);
   const [pendingPurchaseSuggestionItems, setPendingPurchaseSuggestionItems] = React.useState<PurchaseSuggestionPrefillItem[]>([]);
