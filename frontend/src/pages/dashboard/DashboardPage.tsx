@@ -100,12 +100,6 @@ function formatQty(value: unknown) {
   return Math.round(numberFrom(value)).toLocaleString('vi-VN');
 }
 
-function formatShortMoney(value: number) {
-  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)} tỷ`;
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)} tr`;
-  return money(value);
-}
-
 function StatTile({ item }: { item: StatItem }) {
   const tone = toneClasses[item.tone];
   return (
@@ -222,7 +216,13 @@ function RevenuePanel({ chartData, salesRows }: { chartData: Array<{ day: string
                 </defs>
                 <CartesianGrid stroke="#eef2f7" strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  width={92}
+                  tick={{ fill: '#94a3b8', fontSize: 11 }}
+                  tickFormatter={(value) => money(Number(value))}
+                />
                 <ChartTooltip content={<SmartTooltip />} />
                 <Area dataKey="revenue" name="Doanh thu" stroke="#10b981" strokeWidth={3} fill="url(#dashboardRevenueArea)" type="monotone" dot={false} activeDot={{ r: 5 }} />
               </AreaChart>
@@ -232,11 +232,11 @@ function RevenuePanel({ chartData, salesRows }: { chartData: Array<{ day: string
         <div className="grid gap-3">
           <div className="rounded-xl bg-slate-50 p-4">
             <div className="text-xs font-bold uppercase text-slate-400">Tổng 7 ngày</div>
-            <div className="mt-2 text-xl font-black text-slate-950">{formatShortMoney(totalRevenue)}</div>
+            <div className="mt-2 break-words text-xl font-black text-slate-950">{money(totalRevenue)}</div>
           </div>
           <div className="rounded-xl bg-slate-50 p-4">
             <div className="text-xs font-bold uppercase text-slate-400">Lợi nhuận</div>
-            <div className="mt-2 text-xl font-black text-emerald-700">{formatShortMoney(totalProfit)}</div>
+            <div className="mt-2 break-words text-xl font-black text-emerald-700">{money(totalProfit)}</div>
           </div>
           <div className="rounded-xl bg-slate-50 p-4">
             <div className="text-xs font-bold uppercase text-slate-400">Số đơn</div>
@@ -433,7 +433,7 @@ export default function DashboardPage({
       setForecastSummary(forecastRes.status === 'fulfilled' ? forecastRes.value : null);
       setChartData(
         revenueRes.status === 'fulfilled'
-          ? revenueRes.value.map((row) => ({ day: formatWeekdayLabel(row.day), revenue: Number(row.revenue) / 1_000_000 }))
+          ? revenueRes.value.map((row) => ({ day: formatWeekdayLabel(row.day), revenue: Number(row.revenue) }))
           : []
       );
       const sales = salesRes.status === 'fulfilled' ? salesRes.value : [];
@@ -480,8 +480,8 @@ export default function DashboardPage({
   const inventoryHealth = Math.max(0, Math.min(100, 100 - Math.round(((lowStock + outOfStock + nearExpiry) / Math.max(productsList.length, 1)) * 100)));
 
   const stats: StatItem[] = [
-    { label: 'Doanh thu hôm nay', value: formatShortMoney(todayRevenue), helper: `${formatQty(todayOrders)} đơn`, tone: 'emerald', icon: <TrendingUp size={19} />, progress: Math.min(100, Math.round(todayRevenue / 1_000_000)) },
-    { label: 'Lợi nhuận gộp', value: grossProfit > 0 ? formatShortMoney(grossProfit) : 'Đang tính', helper: 'Hôm nay', tone: 'blue', icon: <BarChart3 size={19} />, progress: grossProfit > 0 && todayRevenue > 0 ? Math.round((grossProfit / todayRevenue) * 100) : 0 },
+    { label: 'Doanh thu hôm nay', value: money(todayRevenue), helper: `${formatQty(todayOrders)} đơn`, tone: 'emerald', icon: <TrendingUp size={19} />, progress: Math.min(100, Math.round(todayRevenue / 1_000_000)) },
+    { label: 'Lợi nhuận gộp', value: grossProfit > 0 ? money(grossProfit) : 'Đang tính', helper: 'Hôm nay', tone: 'blue', icon: <BarChart3 size={19} />, progress: grossProfit > 0 && todayRevenue > 0 ? Math.round((grossProfit / todayRevenue) * 100) : 0 },
     { label: 'Tồn khả dụng', value: formatQty(totalAvailable), helper: `${inventorySummary?.inventoryRows ?? productsList.length} dòng tồn`, tone: 'purple', icon: <Warehouse size={19} />, progress: inventoryHealth },
     { label: 'Cảnh báo tồn', value: formatQty(unresolvedAlerts), helper: 'Chưa xử lý', tone: unresolvedAlerts > 0 ? 'red' : 'emerald', icon: <AlertTriangle size={19} />, progress: Math.min(100, unresolvedAlerts * 12) },
     { label: 'SKU thiếu hàng', value: formatQty(lowStock + outOfStock), helper: `${outOfStock} hết hàng`, tone: 'amber', icon: <Boxes size={19} />, progress: Math.min(100, (lowStock + outOfStock) * 10) },
