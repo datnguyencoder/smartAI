@@ -1,19 +1,23 @@
 import * as React from 'react';
 import { Alert, Button, Input, Progress, Select, Steps, Table, Tag, Typography, message as antdMessage } from 'antd';
 import {
-  AlertOutlined,
   AppstoreOutlined,
+  BarChartOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   CloudSyncOutlined,
+  DatabaseOutlined,
   DashboardOutlined,
   ExclamationCircleOutlined,
   FilterOutlined,
+  FireOutlined,
   LineChartOutlined,
   PlayCircleOutlined,
   ReloadOutlined,
   SearchOutlined,
   ShoppingCartOutlined,
+  StockOutlined,
+  ThunderboltOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
 import {
@@ -87,34 +91,6 @@ function riskTag(level?: ForecastResultDto['riskLevel']) {
   return <Tag color={level === 'CRITICAL' ? 'error' : level === 'WARNING' ? 'warning' : level === 'OVERSTOCK' ? 'purple' : 'success'}>{label}</Tag>;
 }
 
-type KpiCardProps = {
-  icon: React.ReactNode;
-  label: string;
-  value: number | string;
-  color: string;
-  bg: string;
-  sub?: string;
-  trend?: string;
-};
-
-function KpiCard({ icon, label, value, color, bg, sub, trend }: KpiCardProps) {
-  return (
-    <div className={`flex min-h-[112px] items-center gap-4 rounded-xl border px-5 py-4 ${bg}`}>
-      <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-lg text-xl ${color}`}>
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <div className="flex items-baseline gap-2">
-          <div className="text-2xl font-extrabold leading-tight text-slate-800">{value}</div>
-          {trend && <span className="text-xs font-semibold text-slate-400">{trend}</span>}
-        </div>
-        <div className="text-sm font-medium text-slate-600">{label}</div>
-        {sub && <div className="text-xs text-slate-400">{sub}</div>}
-      </div>
-    </div>
-  );
-}
-
 type RiskFilter = 'ALL' | NonNullable<ForecastResultDto['riskLevel']>;
 
 function formatQty(value?: number) {
@@ -159,6 +135,81 @@ function OperationalHint({ row }: { row?: ForecastResultDto }) {
         Hành động đề xuất
       </div>
       <p className="text-sm leading-5">{getActionText(row)}</p>
+    </div>
+  );
+}
+
+type RiskLaneProps = {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  total: number;
+  detail: string;
+  tone: 'red' | 'amber' | 'purple' | 'emerald';
+};
+
+function RiskLane({ icon, label, value, total, detail, tone }: RiskLaneProps) {
+  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+  const toneClass = {
+    red: 'border-red-200 bg-red-50 text-red-700',
+    amber: 'border-amber-200 bg-amber-50 text-amber-700',
+    purple: 'border-purple-200 bg-purple-50 text-purple-700',
+    emerald: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  }[tone];
+  const barClass = {
+    red: 'bg-red-500',
+    amber: 'bg-amber-500',
+    purple: 'bg-purple-500',
+    emerald: 'bg-emerald-500',
+  }[tone];
+
+  return (
+    <div className={`rounded-xl border p-4 ${toneClass}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-extrabold">
+            {icon}
+            {label}
+          </div>
+          <div className="mt-2 text-3xl font-black leading-none">{value}</div>
+        </div>
+        <div className="rounded-lg bg-white/70 px-2 py-1 text-xs font-bold">{pct}%</div>
+      </div>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/75">
+        <div className={`h-full rounded-full ${barClass}`} style={{ width: `${Math.max(3, pct)}%` }} />
+      </div>
+      <div className="mt-2 text-xs font-medium opacity-80">{detail}</div>
+    </div>
+  );
+}
+
+function EmptyForecastPreview() {
+  const rows = [
+    { label: 'Dữ liệu bán hàng', value: '30 ngày', icon: <BarChartOutlined /> },
+    { label: 'Tồn kho hiện tại', value: 'Realtime', icon: <DatabaseOutlined /> },
+    { label: 'Dự báo SKU', value: '7/14/30 ngày', icon: <StockOutlined /> },
+  ];
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <div className="text-sm font-extrabold text-slate-900">Luồng dữ liệu forecast</div>
+          <div className="text-xs text-slate-500">Dữ liệu sẽ đi qua 3 lớp trước khi ra quyết định</div>
+        </div>
+        <ThunderboltOutlined className="text-lg text-emerald-600" />
+      </div>
+      <div className="grid gap-3">
+        {rows.map((row, index) => (
+          <div key={row.label} className="flex items-center gap-3 rounded-xl bg-white px-3 py-3 shadow-sm">
+            <div className="grid h-9 w-9 place-items-center rounded-lg bg-emerald-50 text-emerald-700">{row.icon}</div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-bold text-slate-800">{row.label}</div>
+              <div className="text-xs text-slate-400">{row.value}</div>
+            </div>
+            <div className="grid h-6 w-6 place-items-center rounded-full bg-slate-100 text-xs font-black text-slate-500">{index + 1}</div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -339,6 +390,7 @@ export default function AiForecastPage({ productsList: _productsList, setPage }:
   const totalNeed30 = results.reduce((sum, r) => sum + (Number(r.pred30d) || 0), 0);
   const totalStock = results.reduce((sum, r) => sum + (Number(r.stockOnHand) || 0), 0);
   const totalShortage = results.reduce((sum, r) => sum + Math.max(0, Number(r.shortageQty) || 0), 0);
+  const totalSurplus = results.reduce((sum, r) => sum + Math.max(0, Number(r.surplusQty) || 0), 0);
   const averageCoverage = totalNeed30 > 0 ? Math.round((totalStock / totalNeed30) * 100) : 100;
   const forecastFreshness = lastForecastAt
     ? lastForecastAt.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
@@ -384,9 +436,24 @@ export default function AiForecastPage({ productsList: _productsList, setPage }:
   });
 
   const selectedStock = results.find((r) => Number(r.itemId) === selectedItemId)?.stockOnHand;
+  const selectedCoverage = calcCoverage(selectedRow);
+  const selectedDelta = selectedRow
+    ? Math.round((Number(selectedRow.surplusQty) || 0) - (Number(selectedRow.shortageQty) || 0))
+    : 0;
+  const selectedDeltaLabel = selectedDelta < 0 ? `Thiếu ${formatQty(Math.abs(selectedDelta))}` : selectedDelta > 0 ? `Dư ${formatQty(selectedDelta)}` : 'Cân bằng';
+  const decisionRows = [
+    { label: 'Nhu cầu 7 ngày', value: formatQty(selectedRow?.pred7d), tone: 'text-slate-800' },
+    { label: 'Nhu cầu 30 ngày', value: formatQty(selectedRow?.pred30d), tone: 'text-slate-800' },
+    { label: 'Tồn hiện tại', value: formatQty(selectedRow?.stockOnHand), tone: 'text-slate-800' },
+    {
+      label: 'Chênh lệch',
+      value: selectedDeltaLabel,
+      tone: selectedDelta < 0 ? 'text-red-600' : selectedDelta > 0 ? 'text-purple-600' : 'text-emerald-600',
+    },
+  ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 rounded-2xl bg-slate-50/70 p-3">
       <section className="overflow-hidden rounded-2xl border border-emerald-900/10 bg-[#073f2d] text-white shadow-[0_18px_50px_rgba(6,78,59,0.22)]">
         <div className="grid gap-6 p-5 lg:grid-cols-[1.1fr_0.9fr] xl:p-6">
           <div className="flex min-h-[300px] flex-col justify-between">
@@ -408,6 +475,20 @@ export default function AiForecastPage({ productsList: _productsList, setPage }:
               <p className="mt-3 max-w-2xl text-sm leading-6 text-emerald-50/80">
                 Gom rủi ro thiếu hàng, tồn dư và nhu cầu từng SKU vào một màn hình ra quyết định cho quản lý siêu thị.
               </p>
+              <div className="mt-5 grid max-w-2xl grid-cols-3 gap-2">
+                <div className="rounded-xl border border-white/15 bg-white/10 px-3 py-3">
+                  <div className="text-xs font-semibold text-emerald-50/70">Cần nhập bù</div>
+                  <div className="mt-1 text-xl font-black text-white">{formatQty(totalShortage)}</div>
+                </div>
+                <div className="rounded-xl border border-white/15 bg-white/10 px-3 py-3">
+                  <div className="text-xs font-semibold text-emerald-50/70">Tồn dư</div>
+                  <div className="mt-1 text-xl font-black text-white">{formatQty(totalSurplus)}</div>
+                </div>
+                <div className="rounded-xl border border-white/15 bg-white/10 px-3 py-3">
+                  <div className="text-xs font-semibold text-emerald-50/70">Độ phủ TB</div>
+                  <div className="mt-1 text-xl font-black text-white">{averageCoverage}%</div>
+                </div>
+              </div>
             </div>
 
             <div className="mt-6 flex flex-wrap gap-2">
@@ -474,7 +555,10 @@ export default function AiForecastPage({ productsList: _productsList, setPage }:
                   <ClockCircleOutlined /> Cập nhật
                 </div>
                 <div className="mt-3 text-lg font-extrabold">{forecastFreshness}</div>
-                <div className="text-xs text-slate-500">{aiStatus?.modelType ?? 'Moving Average'} · v{aiStatus?.aiVersion ?? '—'}</div>
+                <div className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+                  {modelTag(aiStatus?.modelType)}
+                  <span>v{aiStatus?.aiVersion ?? '—'}</span>
+                </div>
               </div>
             </div>
             <div className="mt-3 rounded-xl border border-white/15 bg-emerald-950/30 p-3">
@@ -512,19 +596,61 @@ export default function AiForecastPage({ productsList: _productsList, setPage }:
       </section>
 
       {results.length > 0 && (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <KpiCard icon={<AlertOutlined />} label="Thiếu gấp" value={critical.length} color="bg-red-100 text-red-600" bg="bg-red-50 border-red-100" sub="Ưu tiên nhập ngay" trend={`${Math.round((critical.length / results.length) * 100)}%`} />
-          <KpiCard icon={<WarningOutlined />} label="Sắp thiếu" value={warning.length} color="bg-amber-100 text-amber-600" bg="bg-amber-50 border-amber-100" sub="Đặt hàng trong tuần" trend={`${Math.round((warning.length / results.length) * 100)}%`} />
-          <KpiCard icon={<ExclamationCircleOutlined />} label="Tồn dư" value={overstock.length} color="bg-purple-100 text-purple-600" bg="bg-purple-50 border-purple-100" sub="Cân nhắc khuyến mãi" trend={`${Math.round((overstock.length / results.length) * 100)}%`} />
-          <KpiCard icon={<CheckCircleOutlined />} label="Ổn định" value={ok.length} color="bg-emerald-100 text-emerald-600" bg="bg-emerald-50 border-emerald-100" sub="Tiếp tục theo dõi" trend={`${Math.round((ok.length / results.length) * 100)}%`} />
-        </div>
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-extrabold text-slate-900">Bản đồ rủi ro tồn kho</h3>
+              <p className="text-sm text-slate-500">Tỷ trọng SKU theo mức ưu tiên xử lý sau lần dự báo gần nhất.</p>
+            </div>
+            <div className="rounded-xl bg-slate-50 px-4 py-2 text-right">
+              <div className="text-xs font-bold uppercase text-slate-400">Tổng nhu cầu 30 ngày</div>
+              <div className="text-lg font-black text-slate-900">{formatQty(totalNeed30)}</div>
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <RiskLane icon={<FireOutlined />} label="Thiếu gấp" value={critical.length} total={results.length} tone="red" detail="Nhập ngay, nguy cơ mất doanh thu" />
+            <RiskLane icon={<WarningOutlined />} label="Sắp thiếu" value={warning.length} total={results.length} tone="amber" detail="Đặt hàng trong tuần này" />
+            <RiskLane icon={<ExclamationCircleOutlined />} label="Tồn dư" value={overstock.length} total={results.length} tone="purple" detail="Đề xuất khuyến mãi/xả hàng" />
+            <RiskLane icon={<CheckCircleOutlined />} label="Ổn định" value={ok.length} total={results.length} tone="emerald" detail="Theo dõi định kỳ" />
+          </div>
+        </section>
       )}
 
       {results.length > 0 && (
-        <div className="grid gap-4 xl:grid-cols-[420px_1fr]">
-          <Card>
-            <CardHeader title="Ưu tiên xử lý" description="Các SKU có tác động vận hành cao nhất" />
+        <div className="grid gap-4 xl:grid-cols-[460px_1fr]">
+          <Card className="overflow-hidden">
+            <CardHeader title="Trung tâm quyết định SKU" description="Chọn SKU để xem hành động nhập/xả đề xuất" />
             <div className="space-y-3 px-5 pb-5">
+              <div className="rounded-2xl border border-slate-200 bg-slate-900 p-4 text-white">
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold uppercase text-slate-400">SKU đang phân tích</div>
+                    <div className="mt-1 truncate text-lg font-extrabold">{selectedRow?.itemName ?? 'Chưa chọn SKU'}</div>
+                    <div className="text-xs text-slate-400">{selectedRow?.itemCode ?? 'Chọn một dòng ưu tiên bên dưới'}</div>
+                  </div>
+                  {riskTag(selectedRow?.riskLevel)}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {decisionRows.map((row) => (
+                    <div key={row.label} className="rounded-xl bg-white px-3 py-3">
+                      <div className="text-xs font-semibold text-slate-400">{row.label}</div>
+                      <div className={`mt-1 text-base font-black ${row.tone}`}>{row.value}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 rounded-xl bg-white/10 px-3 py-3">
+                  <div className="mb-2 flex justify-between text-xs font-semibold text-slate-300">
+                    <span>Độ phủ tồn kho</span>
+                    <span>{selectedCoverage}%</span>
+                  </div>
+                  <Progress
+                    percent={selectedCoverage}
+                    showInfo={false}
+                    strokeColor={selectedCoverage < 40 ? '#ef4444' : selectedCoverage < 80 ? '#f59e0b' : '#10b981'}
+                    trailColor="rgba(255,255,255,0.16)"
+                  />
+                </div>
+              </div>
               <OperationalHint row={selectedRow} />
               <div className="space-y-2">
                 {priorityRows.length === 0 ? (
@@ -550,9 +676,9 @@ export default function AiForecastPage({ productsList: _productsList, setPage }:
                         {riskTag(row.riskLevel)}
                       </div>
                       <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                        <div><span className="text-slate-400">Tồn</span><strong className="block text-slate-700">{formatQty(row.stockOnHand)}</strong></div>
-                        <div><span className="text-slate-400">Cần 30 ngày</span><strong className="block text-slate-700">{formatQty(row.pred30d)}</strong></div>
-                        <div><span className="text-slate-400">Độ phủ</span><strong className="block text-slate-700">{calcCoverage(row)}%</strong></div>
+                        <div className="rounded-lg bg-slate-50 px-2 py-2"><span className="text-slate-400">Tồn</span><strong className="block text-slate-700">{formatQty(row.stockOnHand)}</strong></div>
+                        <div className="rounded-lg bg-slate-50 px-2 py-2"><span className="text-slate-400">Cần 30 ngày</span><strong className="block text-slate-700">{formatQty(row.pred30d)}</strong></div>
+                        <div className="rounded-lg bg-slate-50 px-2 py-2"><span className="text-slate-400">Độ phủ</span><strong className="block text-slate-700">{calcCoverage(row)}%</strong></div>
                       </div>
                     </button>
                   ))
@@ -561,8 +687,22 @@ export default function AiForecastPage({ productsList: _productsList, setPage }:
             </div>
           </Card>
 
-          <Card>
-            <CardHeader title="Tồn kho vs nhu cầu 30 ngày" description="SKU thiếu hàng được xếp theo độ thiếu dự kiến" />
+          <Card className="overflow-hidden">
+            <CardHeader title="Áp lực cung ứng 30 ngày" description="So sánh tồn hiện tại với nhu cầu dự báo, ưu tiên SKU thiếu nhiều nhất" />
+            <div className="mx-5 mb-3 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-3">
+              <div className="rounded-xl bg-white px-4 py-3">
+                <div className="text-xs font-bold uppercase text-slate-400">SKU thiếu</div>
+                <div className="mt-1 text-2xl font-black text-red-600">{critical.length + warning.length}</div>
+              </div>
+              <div className="rounded-xl bg-white px-4 py-3">
+                <div className="text-xs font-bold uppercase text-slate-400">Cần nhập bù</div>
+                <div className="mt-1 text-2xl font-black text-slate-900">{formatQty(totalShortage)}</div>
+              </div>
+              <div className="rounded-xl bg-white px-4 py-3">
+                <div className="text-xs font-bold uppercase text-slate-400">Có thể xả</div>
+                <div className="mt-1 text-2xl font-black text-purple-600">{formatQty(totalSurplus)}</div>
+              </div>
+            </div>
             <div className="h-[394px] px-2 pb-5">
               {barData.length === 0 ? (
                 <div className="grid h-full place-items-center text-sm text-slate-400">Không có SKU thiếu hàng</div>
@@ -603,10 +743,10 @@ export default function AiForecastPage({ productsList: _productsList, setPage }:
             </div>
           </Card>
 
-          <Card>
+          <Card className="overflow-hidden">
             <CardHeader
-              title="Kết quả theo SKU"
-              description="Chọn một dòng để xem dự báo ngày"
+              title="Bảng điều phối theo SKU"
+              description={`${filteredResults.length}/${results.length} SKU đang hiển thị, chọn dòng để mở dự báo ngày`}
               action={
                 <div className="flex flex-wrap gap-2">
                   <Input
@@ -686,6 +826,17 @@ export default function AiForecastPage({ productsList: _productsList, setPage }:
                   },
                 },
                 { title: 'Rủi ro', dataIndex: 'riskLevel', render: (v) => riskTag(v as ForecastResultDto['riskLevel']) },
+                {
+                  title: 'Hành động',
+                  dataIndex: 'recommendation',
+                  responsive: ['xl' as const],
+                  width: 240,
+                  render: (_, r) => (
+                    <div className="max-w-[240px] text-xs leading-5 text-slate-500">
+                      {getActionText(r)}
+                    </div>
+                  ),
+                },
               ]}
             />
           </Card>
@@ -695,31 +846,37 @@ export default function AiForecastPage({ productsList: _productsList, setPage }:
       {results.length > 0 ? (
         <ForecastExplanation results={results} aiStatus={aiStatus} ranAt={lastForecastAt} />
       ) : (
-        <section className="grid gap-4 xl:grid-cols-[1fr_380px]">
-          <Card className="overflow-hidden border-emerald-100">
-            <div className="border-b border-emerald-100 bg-emerald-50 px-5 py-4">
-              <div className="text-xs font-bold uppercase tracking-normal text-emerald-700">Bắt đầu phiên dự báo</div>
-              <h3 className="mt-1 text-xl font-extrabold text-slate-900">Chưa có kết quả forecast để điều phối</h3>
-              <p className="mt-1 text-sm text-slate-500">
-                Khi chạy dự báo thành công, màn hình sẽ mở bảng ưu tiên SKU, bản đồ rủi ro, chart 30 ngày và đề xuất nhập/xả hàng.
-              </p>
+        <section className="grid gap-4 xl:grid-cols-[1fr_400px]">
+          <Card className="overflow-hidden border-emerald-100 shadow-sm">
+            <div className="grid gap-5 border-b border-emerald-100 bg-white p-5 lg:grid-cols-[1fr_320px]">
+              <div>
+                <div className="mb-2 inline-flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-extrabold text-emerald-700">
+                  <LineChartOutlined />
+                  Sẵn sàng tạo forecast
+                </div>
+                <h3 className="text-2xl font-black text-slate-900">Chưa có kết quả để điều phối hàng</h3>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                  Sau khi huấn luyện và chạy dự báo, hệ thống sẽ tạo bản đồ rủi ro, danh sách SKU ưu tiên, biểu đồ nhu cầu 30 ngày và đề xuất nhập/xả hàng.
+                </p>
+              </div>
+              <EmptyForecastPreview />
             </div>
             <div className="grid gap-3 p-5 md:grid-cols-3">
-              <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
                 <div className="mb-3 grid h-10 w-10 place-items-center rounded-lg bg-emerald-100 text-lg text-emerald-700">
                   <CloudSyncOutlined />
                 </div>
                 <div className="font-bold text-slate-900">1. Huấn luyện model</div>
                 <p className="mt-1 text-sm leading-5 text-slate-500">Dùng lịch sử bán hàng, tồn kho và biến động SKU để tạo model dự báo.</p>
               </div>
-              <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
                 <div className="mb-3 grid h-10 w-10 place-items-center rounded-lg bg-blue-100 text-lg text-blue-700">
                   <PlayCircleOutlined />
                 </div>
                 <div className="font-bold text-slate-900">2. Chạy forecast</div>
                 <p className="mt-1 text-sm leading-5 text-slate-500">Sinh nhu cầu 7/14/30 ngày, khoảng tin cậy và phân loại rủi ro từng SKU.</p>
               </div>
-              <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
                 <div className="mb-3 grid h-10 w-10 place-items-center rounded-lg bg-amber-100 text-lg text-amber-700">
                   <ShoppingCartOutlined />
                 </div>
