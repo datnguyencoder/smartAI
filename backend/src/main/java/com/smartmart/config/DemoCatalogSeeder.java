@@ -51,6 +51,10 @@ public class DemoCatalogSeeder implements CommandLineRunner {
     private final CurrentInventoryRepository currentInventoryRepository;
     private final InventoryAlertRepository inventoryAlertRepository;
     private final CustomerRepository customerRepository;
+    private final PromotionRepository promotionRepository;
+    private final PromotionRecommendationRepository promotionRecommendationRepository;
+    private final ForecastResultRepository forecastResultRepository;
+    private final ReorderRecommendationRepository reorderRecommendationRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Value("${app.seed.demo-catalog.enabled:true}")
@@ -67,6 +71,10 @@ public class DemoCatalogSeeder implements CommandLineRunner {
             CurrentInventoryRepository currentInventoryRepository,
             InventoryAlertRepository inventoryAlertRepository,
             CustomerRepository customerRepository,
+            PromotionRepository promotionRepository,
+            PromotionRecommendationRepository promotionRecommendationRepository,
+            ForecastResultRepository forecastResultRepository,
+            ReorderRecommendationRepository reorderRecommendationRepository,
             PasswordEncoder passwordEncoder
     ) {
         this.userRepository = userRepository;
@@ -79,6 +87,10 @@ public class DemoCatalogSeeder implements CommandLineRunner {
         this.currentInventoryRepository = currentInventoryRepository;
         this.inventoryAlertRepository = inventoryAlertRepository;
         this.customerRepository = customerRepository;
+        this.promotionRepository = promotionRepository;
+        this.promotionRecommendationRepository = promotionRecommendationRepository;
+        this.forecastResultRepository = forecastResultRepository;
+        this.reorderRecommendationRepository = reorderRecommendationRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -127,6 +139,12 @@ public class DemoCatalogSeeder implements CommandLineRunner {
                         bd("28500"), bd("36500"), 40, true, IMG_MILK, bd("96"), bd("144"), "LOT-VNM-1L-2607", 45),
                 new SeedItem("SUA-CHUA-VNM", "Sữa chua Vinamilk 100g", suaLanh, hop, thung,
                         bd("5200"), bd("8000"), 50, true, IMG_YOGURT, bd("34"), bd("168"), "LOT-SC-2606", 12),
+                new SeedItem("SUA-CHUA-TH-LOC4", "Sữa chua TH true Yogurt lốc 4 hộp", suaLanh, hop, thung,
+                        bd("21000"), bd("32000"), 24, true, IMG_YOGURT, bd("86"), bd("96"), "LOT-THY-2606", 8),
+                new SeedItem("PHO-MAI-BELCUBE", "Phô mai Belcube vị sữa 125g", suaLanh, hop, thung,
+                        bd("45500"), bd("65000"), 12, true, IMG_MILK, bd("44"), bd("48"), "LOT-BEL-2606", 18),
+                new SeedItem("BANH-FLAN-4H", "Bánh flan caramel hộp 4 ly", suaLanh, hop, thung,
+                        bd("26000"), bd("39000"), 16, true, IMG_YOGURT, bd("58"), bd("72"), "LOT-FLAN-2606", 6),
                 new SeedItem("COCA-330", "Coca-Cola lon 330ml", doUong, cai, thung,
                         bd("7600"), bd("12000"), 48, true, IMG_DRINKS, bd("360"), bd("480"), "LOT-COCA-2609", 180),
                 new SeedItem("REDBULL-250", "Red Bull 250ml", doUong, cai, thung,
@@ -149,6 +167,10 @@ public class DemoCatalogSeeder implements CommandLineRunner {
                         bd("42000"), bd("56000"), 20, true, IMG_COOKING, bd("72"), bd("120"), "LOT-DAU-2702", 365),
                 new SeedItem("BANH-OISHI", "Bánh Oishi tôm cay 40g", snack, goi, thung,
                         bd("4900"), bd("8000"), 72, true, IMG_SNACKS, bd("180"), bd("240"), "LOT-OI-2609", 120),
+                new SeedItem("BANH-CHOCOPIE-12P", "Bánh ChocoPie Orion hộp 12 cái", snack, hop, thung,
+                        bd("48200"), bd("69000"), 20, true, IMG_SNACKS, bd("76"), bd("96"), "LOT-CP-2607", 24),
+                new SeedItem("KEO-ALPENLIEBE", "Kẹo Alpenliebe caramel túi 96g", snack, goi, thung,
+                        bd("11800"), bd("18000"), 24, true, IMG_SNACKS, bd("104"), bd("144"), "LOT-ALP-2607", 28),
                 new SeedItem("SNACK-LAYS", "Snack Lay's Classic 56g", snack, goi, thung,
                         bd("11800"), bd("18000"), 48, true, IMG_SNACKS, bd("132"), bd("180"), "LOT-LY-2609", 120),
                 new SeedItem("BOT-GIAT-OMO", "Bột giặt OMO Matic 2kg", veSinh, cai, cai,
@@ -168,8 +190,9 @@ public class DemoCatalogSeeder implements CommandLineRunner {
 
         seedCustomers();
         seedDemoAlerts();
+        seedPromotionDemoData();
 
-        log.info("Demo catalog ready: {} Vietnamese retail SKUs with real-photo URLs, stock, customers and alerts", upserted);
+        log.info("Demo catalog ready: {} Vietnamese retail SKUs with real-photo URLs, stock, customers, alerts and AI promo scenarios", upserted);
     }
 
     private void seedManagerUser() {
@@ -319,6 +342,12 @@ public class DemoCatalogSeeder implements CommandLineRunner {
                 "Lô sữa chua Vinamilk còn 12 ngày hết hạn, ưu tiên bán trước hoặc chạy khuyến mãi.");
         seedAlert("COCA-330", "OVERSTOCK", "INFO",
                 "Coca-Cola đang tồn cao, phù hợp để demo đề xuất trưng bày/combo.");
+        seedAlert("SUA-CHUA-TH-LOC4", "NEAR_EXPIRY", "WARNING",
+                "Sữa chua TH còn 8 ngày hết hạn nhưng tồn quầy cao, nên chạy combo giờ vàng.");
+        seedAlert("BANH-FLAN-4H", "NEAR_EXPIRY", "CRITICAL",
+                "Bánh flan còn 6 ngày hết hạn, cần ưu tiên xả hàng trong tuần này.");
+        seedAlert("BANH-CHOCOPIE-12P", "NEAR_EXPIRY", "WARNING",
+                "ChocoPie còn 24 ngày hết hạn, tồn quầy cao hơn tốc độ bán trung bình.");
     }
 
     private void seedAlert(String itemCode, String alertType, String severity, String message) {
@@ -333,6 +362,173 @@ public class DemoCatalogSeeder implements CommandLineRunner {
                     .message(message)
                     .resolved(false)
                     .createdAt(LocalDateTime.now())
+                    .build());
+        });
+    }
+
+    private void seedPromotionDemoData() {
+        Promotion weekendDairy = upsertPromotion(
+                "Xả hàng sữa chua cận date",
+                "DAIRYFLASH20",
+                "PERCENTAGE",
+                bd("20"),
+                BigDecimal.ZERO,
+                LocalDate.now().minusDays(2),
+                LocalDate.now().plusDays(12),
+                true
+        );
+        upsertPromotion(
+                "Combo đồ uống hè",
+                "DRINKCOMBO15",
+                "PERCENTAGE",
+                bd("15"),
+                bd("50000"),
+                LocalDate.now().minusDays(7),
+                LocalDate.now().plusDays(30),
+                true
+        );
+        upsertPromotion(
+                "Giảm 30k đơn hàng gia đình",
+                "FAMILY30K",
+                "FIXED_AMOUNT",
+                bd("30000"),
+                bd("300000"),
+                LocalDate.now().minusDays(7),
+                LocalDate.now().plusDays(45),
+                true
+        );
+
+        seedPromotionRecommendation("SUA-CHUA-TH-LOC4", bd("20"),
+                "Cận hạn 8 ngày, tồn quầy 86 lốc; đề xuất giảm 20% trong 7 ngày, đặt tại tủ mát đầu quầy.",
+                "APPROVED", weekendDairy);
+        seedPromotionRecommendation("BANH-FLAN-4H", bd("25"),
+                "Còn 6 ngày hết hạn, biên lợi nhuận vẫn đủ; đề xuất giảm 25% và bán kèm sữa tươi buổi chiều.",
+                "PENDING", null);
+        seedPromotionRecommendation("PHO-MAI-BELCUBE", bd("18"),
+                "Tồn 44 hộp, hạn còn 18 ngày; đề xuất giảm 18% cho khách mua kèm bánh mì/sữa.",
+                "PENDING", null);
+        seedPromotionRecommendation("BANH-CHOCOPIE-12P", bd("12"),
+                "Hàng bánh hộp còn 24 ngày, tốc độ bán chậm hơn tồn kho; đề xuất giảm 12% cuối tuần.",
+                "PENDING", null);
+        seedPromotionRecommendation("COCA-330", bd("10"),
+                "Tồn đồ uống cao, không cận hạn; đề xuất giảm 10% theo combo 6 lon để tăng vòng quay tồn kho.",
+                "PENDING", null);
+
+        seedForecast("SUA-CHUA-TH-LOC4", bd("38"), bd("72"), bd("116"), "XGBOOST_DEMO", bd("0.86"));
+        seedForecast("BANH-FLAN-4H", bd("21"), bd("39"), bd("65"), "XGBOOST_DEMO", bd("0.82"));
+        seedForecast("PHO-MAI-BELCUBE", bd("18"), bd("32"), bd("54"), "XGBOOST_DEMO", bd("0.80"));
+        seedForecast("BANH-CHOCOPIE-12P", bd("28"), bd("56"), bd("94"), "MOVING_AVERAGE_DEMO", bd("0.78"));
+        seedForecast("COCA-330", bd("96"), bd("188"), bd("420"), "XGBOOST_DEMO", bd("0.88"));
+
+        seedReorderRecommendation("REDBULL-250", bd("96"), bd("14"), bd("58"), bd("120"), "HIGH",
+                "SKU bán nhanh nhưng tồn quầy thấp; nên nhập thêm trước cuối tuần.");
+        seedReorderRecommendation("GAO-ST25-5KG", bd("40"), bd("52"), bd("36"), bd("70"), "MEDIUM",
+                "Gạo ST25 có nhu cầu ổn định, đề xuất bù kho vừa phải để tránh thiếu hàng.");
+    }
+
+    private Promotion upsertPromotion(
+            String name,
+            String code,
+            String type,
+            BigDecimal value,
+            BigDecimal minOrder,
+            LocalDate startDate,
+            LocalDate endDate,
+            boolean active
+    ) {
+        Promotion promotion = promotionRepository.findByCodeIgnoreCase(code)
+                .orElseGet(() -> Promotion.builder().code(code).build());
+        promotion.setName(name);
+        promotion.setType(type);
+        promotion.setValue(value);
+        promotion.setMinOrder(minOrder);
+        promotion.setStartDate(startDate);
+        promotion.setEndDate(endDate);
+        promotion.setActive(active);
+        return promotionRepository.save(promotion);
+    }
+
+    private void seedPromotionRecommendation(
+            String itemCode,
+            BigDecimal discountPercent,
+            String reason,
+            String status,
+            Promotion promotion
+    ) {
+        itemRepository.findByItemCode(itemCode).ifPresent(item -> {
+            boolean exists = promotionRecommendationRepository.findAll().stream()
+                    .anyMatch(rec -> rec.getItem().getId().equals(item.getId())
+                            && discountPercent.compareTo(rec.getDiscountPercent()) == 0
+                            && status.equals(rec.getStatus()));
+            if (exists) {
+                return;
+            }
+            PromotionRecommendation recommendation = PromotionRecommendation.builder()
+                    .item(item)
+                    .discountPercent(discountPercent)
+                    .reason(reason)
+                    .status(status)
+                    .promotionId(promotion != null ? promotion.getId() : null)
+                    .promotionCode(promotion != null ? promotion.getCode() : null)
+                    .build();
+            promotionRecommendationRepository.save(recommendation);
+        });
+    }
+
+    private void seedForecast(
+            String itemCode,
+            BigDecimal predicted7d,
+            BigDecimal predicted14d,
+            BigDecimal predicted30d,
+            String modelType,
+            BigDecimal confidence
+    ) {
+        itemRepository.findByItemCode(itemCode).ifPresent(item -> {
+            if (!forecastResultRepository.findByItemIdOrderByForecastDateDesc(item.getId()).isEmpty()) {
+                return;
+            }
+            forecastResultRepository.save(ForecastResult.builder()
+                    .item(item)
+                    .forecastDate(LocalDateTime.now())
+                    .predictedQuantity(predicted30d)
+                    .horizonDays(30)
+                    .predictedQty7d(predicted7d)
+                    .predictedQty14d(predicted14d)
+                    .predictedQty30d(predicted30d)
+                    .confidenceLevel(confidence)
+                    .confidenceLow(predicted30d.multiply(bd("0.85")))
+                    .confidenceHigh(predicted30d.multiply(bd("1.15")))
+                    .modelType(modelType)
+                    .createdAt(LocalDateTime.now())
+                    .build());
+        });
+    }
+
+    private void seedReorderRecommendation(
+            String itemCode,
+            BigDecimal suggestedQty,
+            BigDecimal currentAvailable,
+            BigDecimal predicted7d,
+            BigDecimal predicted14d,
+            String riskLevel,
+            String reason
+    ) {
+        itemRepository.findByItemCode(itemCode).ifPresent(item -> {
+            boolean exists = reorderRecommendationRepository.findAll().stream()
+                    .anyMatch(rec -> rec.getItem().getId().equals(item.getId()) && "ACTIVE".equals(rec.getStatus()));
+            if (exists) {
+                return;
+            }
+            reorderRecommendationRepository.save(ReorderRecommendation.builder()
+                    .item(item)
+                    .suggestedQty(suggestedQty)
+                    .currentAvailable(currentAvailable)
+                    .predictedDemand7d(predicted7d)
+                    .predictedDemand14d(predicted14d)
+                    .riskLevel(riskLevel)
+                    .reason(reason)
+                    .source("DEMO_REALISTIC")
+                    .status("ACTIVE")
                     .build());
         });
     }
