@@ -7,7 +7,9 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const { Text } = Typography;
 
-export default function ScrapOrdersPage() {
+import type { PageKey } from '@/types/pages';
+
+export default function ScrapOrdersPage({ setPage }: { setPage: (page: PageKey) => void }) {
   const { authUser } = useAuth();
   const role = authUser?.role?.replace('ROLE_', '') ?? '';
   const isAdminOrManager = role === 'ADMIN' || role === 'MANAGER';
@@ -147,7 +149,10 @@ export default function ScrapOrdersPage() {
 
   return (
     <div className="p-4 bg-white rounded shadow">
-      <div className="flex justify-end items-center mb-4">
+      <div className="flex justify-between items-center mb-4">
+        <Button type="primary" onClick={() => setPage('scrap-create')}>
+          Tạo phiếu hủy
+        </Button>
         <select
           className="w-[150px] h-8 px-3 border border-slate-200 rounded-lg bg-white text-sm focus:outline-none focus:border-primary"
           value={statusFilter}

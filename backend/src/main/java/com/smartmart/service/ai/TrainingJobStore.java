@@ -9,10 +9,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * In-memory store for async training job statuses.
- * Entries are cleaned up automatically after 30 minutes.
- */
+
 @Component
 public class TrainingJobStore {
 

@@ -16,7 +16,7 @@ import { animateDrawer } from '@/lib/gsapAnimations';
 import { formatMoney as money } from '@/lib/itemMapper';
 import { normalizeRole } from '@/lib/permissions';
 import { buildPrintHtml } from '@/lib/printReceipt';
-import { cancelOrder, createReturnOrder, fetchOrderPrint } from '@/services/wmsApi';
+import { cancelOrder, createReturnOrder, fetchOrderById, fetchOrderPrint } from '@/services/wmsApi';
 import { StatusChip } from '@/components/ui';
 import type { UserDto } from '@/types/api';
 
@@ -36,7 +36,7 @@ export type InvoiceView = {
   promotionCode?: string;
   loyaltyPointsRedeemed?: number;
   loyaltyPointsEarned?: number;
-  items?: Array<{ name: string; qty: number; price: number; itemId?: number; lotId?: number }>;
+  items?: Array<{ name: string; qty: number; price: number; itemId?: number; lotId?: number; lotNumber?: string }>;
 };
 
 type Props = {
@@ -63,6 +63,7 @@ export function InvoiceDrawer({ invoice, authUser, onClose, onCancelled }: Props
   const [returnOpen, setReturnOpen] = useState(false);
   const [returnReason, setReturnReason] = useState('');
   const [returnLines, setReturnLines] = useState<Record<number, { checked: boolean; qty: number }>>({});
+  const [detailItems, setDetailItems] = useState<InvoiceView['items']>([]);
 
   const bodyRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
@@ -70,14 +71,39 @@ export function InvoiceDrawer({ invoice, authUser, onClose, onCancelled }: Props
   }, [invoice]);
 
   React.useEffect(() => {
-    if (invoice?.items) {
-      const init: Record<number, { checked: boolean; qty: number }> = {};
-      invoice.items.forEach((it, idx) => {
-        init[idx] = { checked: false, qty: it.qty };
-      });
-      setReturnLines(init);
+    if (!invoice?.orderId) {
+      setDetailItems([]);
+      return;
     }
-  }, [invoice]);
+    setDetailItems(invoice.items ?? []);
+    fetchOrderById(invoice.orderId)
+      .then((order) => {
+        setDetailItems(
+          (order.items ?? []).map((i) => ({
+            name: i.itemName,
+            qty: Number(i.quantity),
+            price: Number(i.unitPrice),
+            itemId: i.itemId,
+            lotId: i.lotId,
+            lotNumber: i.lotNumber,
+          }))
+        );
+      })
+      .catch(() => {
+        /* keep list view items if detail fetch fails */
+      });
+  }, [invoice?.orderId]);
+
+  const lineItems = (detailItems?.length ?? 0) > 0 ? detailItems : invoice?.items;
+
+  React.useEffect(() => {
+    if (!lineItems?.length) return;
+    const init: Record<number, { checked: boolean; qty: number }> = {};
+    lineItems.forEach((it, idx) => {
+      init[idx] = { checked: false, qty: it.qty };
+    });
+    setReturnLines(init);
+  }, [invoice?.orderId, detailItems]);
 
   const handlePrint = async () => {
     if (!invoice?.orderId) {
@@ -110,8 +136,8 @@ export function InvoiceDrawer({ invoice, authUser, onClose, onCancelled }: Props
   };
 
   const handleReturn = async () => {
-    if (!invoice?.orderId || !invoice.items) return;
-    const items = invoice.items
+    if (!invoice?.orderId || !lineItems) return;
+    const items = lineItems
       .map((it, idx) => ({ it, idx }))
       .filter(({ idx }) => returnLines[idx]?.checked)
       .map(({ it, idx }) => ({
@@ -205,10 +231,10 @@ export function InvoiceDrawer({ invoice, authUser, onClose, onCancelled }: Props
             {/* Items */}
             <div className="flex-1 overflow-y-auto px-6 py-4">
               <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Chi tiết sản phẩm ({invoice.items?.length ?? 0} dòng)
+                Chi tiết sản phẩm ({lineItems?.length ?? 0} dòng)
               </p>
               <div className="space-y-2">
-                {invoice.items?.map((it, idx) => (
+                {lineItems?.map((it, idx) => (
                   <div
                     key={idx}
                     className="flex items-start justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm"
@@ -217,6 +243,7 @@ export function InvoiceDrawer({ invoice, authUser, onClose, onCancelled }: Props
                       <p className="font-semibold text-slate-800">{it.name}</p>
                       <p className="mt-0.5 text-xs text-slate-400">
                         {it.qty} × {money(it.price)}
+                        {it.lotNumber ? ` · Lô ${it.lotNumber}` : ''}
                       </p>
                     </div>
                     <span className="ml-3 shrink-0 font-bold text-slate-700">
@@ -290,7 +317,7 @@ export function InvoiceDrawer({ invoice, authUser, onClose, onCancelled }: Props
           className="mb-4"
         />
         <div className="space-y-2">
-          {invoice?.items?.map((it, idx) => (
+          {lineItems?.map((it, idx) => (
             <div
               key={idx}
               className="flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50 p-3"

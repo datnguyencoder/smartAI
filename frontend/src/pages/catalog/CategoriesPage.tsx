@@ -7,13 +7,16 @@ import { Card, StatusChip } from '@/components/ui';
 import { ProductsTable } from '@/components/catalog/ProductsTable';
 import type { Product } from '@/lib/itemMapper';
 import type { CategoryDto } from '@/types/api';
+import type { PageKey } from '@/types/pages';
 
 type Props = {
   categories: CategoryDto[];
   productsList: Product[];
+  setPage: (page: PageKey) => void;
+  openProduct: (product: Product) => void;
 };
 
-export default function CategoriesPage({ categories, productsList }: Props) {
+export default function CategoriesPage({ categories, productsList, setPage, openProduct }: Props) {
   const [selectedCat, setSelectedCat] = React.useState<any | null>(null);
   const [searchQuery, setSearchQuery] = React.useState('');
   const rows =
@@ -66,7 +69,7 @@ export default function CategoriesPage({ categories, productsList }: Props) {
           })}
         </div>
       </Card>
-      <AiSummary setPage={() => {}} />
+      <AiSummary setPage={setPage} />
       <Modal
         title={`Sản phẩm trong danh mục: ${selectedCat?.categoryName}`}
         open={!!selectedCat}
@@ -78,7 +81,7 @@ export default function CategoriesPage({ categories, productsList }: Props) {
           <ProductsTable
             title=""
             rows={productsList.filter((p) => p.category === selectedCat.categoryName)}
-            openProduct={() => {}}
+            openProduct={openProduct}
           />
         )}
       </Modal>

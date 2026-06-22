@@ -5,11 +5,14 @@ import { useNavigate } from 'react-router-dom';
 import { fetchLocations, fetchItems, fetchInventory, createScrapOrder } from '@/services/wmsApi';
 import type { LocationDto, ItemDto, InventoryItemDto } from '@/types/api';
 
+import type { PageKey } from '@/types/pages';
+
 const { Title, Text } = Typography;
 
-export default function ScrapOrderCreatePage() {
+export default function ScrapOrderCreatePage({ setPage }: { setPage?: (page: PageKey) => void }) {
   const [form] = Form.useForm();
   const navigate = useNavigate();
+  const goToList = () => (setPage ? setPage('scrap-orders') : navigate('/scrap-orders'));
   const [loading, setLoading] = useState(false);
   const [locations, setLocations] = useState<LocationDto[]>([]);
   const [items, setItems] = useState<ItemDto[]>([]);
@@ -73,7 +76,7 @@ export default function ScrapOrderCreatePage() {
       };
       await createScrapOrder(payload);
       message.success('Gửi yêu cầu hủy hàng thành công!');
-      navigate('/scrap-orders');
+      goToList();
     } catch (error: any) {
       message.error(error.message || 'Lỗi gửi yêu cầu');
     } finally {
@@ -229,7 +232,7 @@ export default function ScrapOrderCreatePage() {
 
           <Form.Item className="mt-6 flex justify-end">
             <Space>
-              <Button onClick={() => navigate('/scrap-orders')}>Hủy thao tác</Button>
+              <Button onClick={goToList}>Hủy thao tác</Button>
               <Button type="primary" htmlType="submit" loading={loading}>
                 Gửi yêu cầu loại bỏ
               </Button>

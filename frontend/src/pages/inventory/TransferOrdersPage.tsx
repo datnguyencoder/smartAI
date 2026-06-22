@@ -90,13 +90,22 @@ export default function TransferOrdersPage() {
           {r.status === 'PENDING' && (
             <>
               <Button size="small" type="primary" onClick={async () => {
-                await completeTransferOrder(r.id);
-                message.success('Chuyển kho thành công');
-                load();
+                try {
+                  await completeTransferOrder(r.id);
+                  message.success('Chuyển kho thành công');
+                  load();
+                } catch (e: unknown) {
+                  message.error(e instanceof Error ? e.message : 'Hoàn thành phiếu thất bại');
+                }
               }}>Hoàn thành</Button>
               <Button size="small" danger onClick={async () => {
-                await cancelTransferOrder(r.id);
-                load();
+                try {
+                  await cancelTransferOrder(r.id);
+                  message.success('Đã hủy phiếu chuyển kho');
+                  load();
+                } catch (e: unknown) {
+                  message.error(e instanceof Error ? e.message : 'Hủy phiếu thất bại');
+                }
               }}>Hủy</Button>
             </>
           )}

@@ -5,6 +5,7 @@ import { Modal, Form, Input, Select, Button, message } from 'antd';
 import { Card, CardHeader, StatusChip } from '@/components/ui';
 import type { LocationDto, UserDto } from '@/types/api';
 import type { Product } from '@/lib/itemMapper';
+import type { PageKey } from '@/types/pages';
 import { AiSummary } from '@/components/ai/AiSummary';
 import { updateLocation } from '@/services/wmsApi';
 import { normalizeRole } from '@/lib/permissions';
@@ -14,11 +15,13 @@ export default function LocationsPage({
   productsList,
   authUser,
   reloadCatalog,
+  setPage,
 }: {
   locations: LocationDto[];
   productsList: Product[];
   authUser?: UserDto;
   reloadCatalog?: () => Promise<void>;
+  setPage?: (page: PageKey) => void;
 }) {
   const [selectedLoc, setSelectedLoc] = useState<LocationDto | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -118,7 +121,7 @@ export default function LocationsPage({
           ))}
         </div>
       </Card>
-      <AiSummary setPage={() => {}} />
+      <AiSummary setPage={setPage ?? (() => {})} />
 
       <Modal
         title={isEditing ? 'Chỉnh sửa Vị trí kho' : 'Chi tiết Vị trí kho'}
