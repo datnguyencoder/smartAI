@@ -16,11 +16,7 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 import java.io.IOException;
 import java.time.Duration;
 
-/**
- * Thin delegate that owns the raw Gemini HTTP call with retry logic.
- * Extracted as a separate bean so @Retryable AOP proxy works correctly
- * (Spring cannot intercept self-invocations).
- */
+
 @Component
 public class GeminiApiDelegate {
 
@@ -34,11 +30,6 @@ public class GeminiApiDelegate {
         this.webClient = webClientBuilder.build();
     }
 
-    /**
-     * Calls the Gemini API. Retries up to 3 times on transient network errors.
-     * Returns null if all retries are exhausted (caller handles gracefully).
-     * Does NOT retry on HTTP 4xx/5xx — those are handled separately.
-     */
     @Retryable(
             retryFor = {WebClientRequestException.class, IOException.class},
             noRetryFor = {WebClientResponseException.class},

@@ -50,6 +50,8 @@ export function ordersToInvoices(orders: Awaited<ReturnType<typeof fetchOrders>>
         qty: Number(i.quantity),
         price: Number(i.unitPrice),
         itemId: i.itemId,
+        lotId: i.lotId,
+        lotNumber: i.lotNumber,
       })),
     };
   });

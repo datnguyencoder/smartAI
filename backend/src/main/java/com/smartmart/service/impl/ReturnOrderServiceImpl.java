@@ -122,10 +122,7 @@ public class ReturnOrderServiceImpl implements ReturnOrderService {
 
         for (ReturnLineRequest line : request.getItems()) {
             Item item = itemService.findItem(line.getItemId());
-            ItemLot lot = line.getLotId() != null
-                    ? itemLotRepository.findById(line.getLotId())
-                            .orElseThrow(() -> new NotFoundException("Không tìm thấy lô"))
-                    : null;
+            ItemLot lot = resolveReturnLot(line, item, soldQty, soldItems);
             String key = item.getId() + "-" + (lot != null ? lot.getId() : "null");
 
             if (!soldQty.containsKey(key)) {
@@ -202,5 +199,33 @@ public class ReturnOrderServiceImpl implements ReturnOrderService {
     @Transactional(readOnly = true)
     public List<ReturnOrder> listByOriginalOrder(Long originalOrderId) {
         return returnOrderRepository.findByOriginalOrderIdOrderByIdDesc(originalOrderId);
+    }
+
+    /**
+     * Resolve lot for return line: explicit lotId, or auto-match when invoice has a single lot for the SKU.
+     */
+    private ItemLot resolveReturnLot(
+            ReturnLineRequest line,
+            Item item,
+            Map<String, BigDecimal> soldQty,
+            Map<String, OrderItem> soldItems
+    ) {
+        if (line.getLotId() != null) {
+            return itemLotRepository.findById(line.getLotId())
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy lô"));
+        }
+        String prefix = item.getId() + "-";
+        List<String> matchingKeys = soldQty.keySet().stream()
+                .filter(k -> k.startsWith(prefix))
+                .toList();
+        if (matchingKeys.isEmpty()) {
+            return null;
+        }
+        if (matchingKeys.size() == 1) {
+            OrderItem soldItem = soldItems.get(matchingKeys.get(0));
+            return soldItem != null ? soldItem.getLot() : null;
+        }
+        throw new BadRequestException(
+                "Sản phẩm " + item.getItemName() + " có nhiều lô trên hóa đơn — vui lòng chọn lô khi trả hàng");
     }
 }

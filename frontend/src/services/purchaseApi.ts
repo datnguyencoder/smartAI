@@ -1,0 +1,57 @@
+import { apiRequest } from '@/services/apiClient';
+import type { PageResponseDto, PurchaseOrderDto, SupplierDebtDto } from '@/types/api';
+
+export function createPurchaseOrder(payload: {
+  supplierId: number;
+  locationId: number;
+  paymentDeferred?: boolean;
+  items: { itemId: number; quantity: number; unitPrice: number; expiryDate?: string }[];
+}) {
+  return apiRequest<PurchaseOrderDto>('/api/v1/purchase-orders', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function fetchPurchaseOrdersPaged(page = 0, size = 10, status?: string, keyword?: string, supplierId?: number, locationId?: number, fromDate?: string, toDate?: string) {
+  const params = new URLSearchParams({ page: String(page), size: String(size), sort: 'id,desc' });
+  if (status && status !== 'ALL') params.set('status', status);
+  if (keyword) params.set('search', keyword);
+  if (supplierId) params.set('supplierId', String(supplierId));
+  if (locationId) params.set('locationId', String(locationId));
+  if (fromDate) params.set('fromDate', fromDate);
+  if (toDate) params.set('toDate', toDate);
+  return apiRequest<PageResponseDto<PurchaseOrderDto>>(`/api/v1/purchase-orders?${params}`);
+}
+
+export function receivePurchaseOrder(purchaseId: number) {
+  return apiRequest<PurchaseOrderDto>(`/api/v1/purchase-orders/${purchaseId}/receive`, { method: 'POST' });
+}
+
+export function cancelPurchaseOrder(purchaseId: number) {
+  return apiRequest<PurchaseOrderDto>(`/api/v1/purchase-orders/${purchaseId}/cancel`, { method: 'POST' });
+}
+
+export function fetchPurchaseOrders() {
+  return apiRequest<PurchaseOrderDto[]>('/api/v1/purchase-orders');
+}
+
+export function fetchPurchaseOrderById(purchaseId: number) {
+  return apiRequest<PurchaseOrderDto>(`/api/v1/purchase-orders/${purchaseId}`);
+}
+
+export function fetchSupplierDebts(status?: string) {
+  const qs = status ? `?status=${status}` : '';
+  return apiRequest<SupplierDebtDto[]>(`/api/v1/supplier-debts${qs}`);
+}
+
+export function fetchSupplierDebtsBySupplier(supplierId: number) {
+  return apiRequest<SupplierDebtDto[]>(`/api/v1/supplier-debts/supplier/${supplierId}`);
+}
+
+export function recordDebtPayment(debtId: number, payload: { amount: number; paymentMethod?: string; note?: string }) {
+  return apiRequest<SupplierDebtDto>(`/api/v1/supplier-debts/${debtId}/payments`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}

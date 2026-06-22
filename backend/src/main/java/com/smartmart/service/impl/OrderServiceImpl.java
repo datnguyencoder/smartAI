@@ -409,6 +409,8 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
                 .map(i -> OrderItemResponse.builder()
                         .itemId(i.getItem().getId())
                         .itemName(i.getItem().getItemName())
+                        .lotId(i.getLot() != null ? i.getLot().getId() : null)
+                        .lotNumber(i.getLot() != null ? i.getLot().getLotNumber() : null)
                         .quantity(i.getQuantity())
                         .unitPrice(i.getUnitPrice())
                         .subtotal(i.getSubtotal())

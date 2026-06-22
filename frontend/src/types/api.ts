@@ -76,7 +76,17 @@ export type OrderDto = {
   loyaltyPointsEarned?: number;
   customerLoyaltyPoints?: number;
   customerTier?: string;
-  items?: Array<{ itemId?: number; itemName: string; quantity: number; unitPrice: number }>;
+  items?: OrderItemDto[];
+};
+
+export type OrderItemDto = {
+  itemId?: number;
+  itemName: string;
+  lotId?: number;
+  lotNumber?: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal?: number;
 };
 
 export type CustomerDto = {

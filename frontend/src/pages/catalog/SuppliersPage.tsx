@@ -8,8 +8,9 @@ import { formatMoney as money, type Product } from '@/lib/itemMapper';
 import { canQuickCreate, normalizeRole } from '@/lib/permissions';
 import { createSupplier, fetchSupplierDebtsBySupplier, recordDebtPayment, updateSupplier } from '@/services/wmsApi';
 import type { SupplierDebtDto, SupplierDto, UserDto } from '@/types/api';
+import type { PageKey } from '@/types/pages';
 
-export default function SuppliersPage({ suppliers, productsList, authUser, reloadCatalog }: { suppliers: SupplierDto[]; productsList: Product[]; authUser?: UserDto; reloadCatalog?: () => Promise<void> }) {
+export default function SuppliersPage({ suppliers, productsList, authUser, reloadCatalog, setPage }: { suppliers: SupplierDto[]; productsList: Product[]; authUser?: UserDto; reloadCatalog?: () => Promise<void>; setPage?: (page: PageKey) => void }) {
   const [selectedSup, setSelectedSup] = React.useState<SupplierDto | null>(null);
   const [isEditing, setIsEditing] = React.useState(false);
   const [form] = Form.useForm();
@@ -147,7 +148,7 @@ export default function SuppliersPage({ suppliers, productsList, authUser, reloa
           ))}
         </div>
       </Card>
-      <AiSummary setPage={() => { }} />
+      <AiSummary setPage={setPage ?? (() => {})} />
       <Modal
         title={isEditing ? 'Sửa thông tin Nhà cung cấp' : `Chi tiết: ${selectedSup?.supplierName}`}
         open={!!selectedSup}

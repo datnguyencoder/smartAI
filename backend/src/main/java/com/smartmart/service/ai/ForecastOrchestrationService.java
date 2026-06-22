@@ -23,6 +23,5 @@ public interface ForecastOrchestrationService {
 
     AiStatusResponse getAiStatus();
 
-    /** Bắt đầu training async. Trả về jobId để client poll trạng thái. */
     String submitTrainAsync();
 }

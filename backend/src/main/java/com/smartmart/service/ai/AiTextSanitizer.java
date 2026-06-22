@@ -1,8 +1,6 @@
 package com.smartmart.service.ai;
 
-/**
- * Chuẩn hóa văn bản trả về từ Gemini / Cerebras: không emoji, không icon trang trí.
- */
+
 public final class AiTextSanitizer {
 
     public static final String STYLE_RULES = """

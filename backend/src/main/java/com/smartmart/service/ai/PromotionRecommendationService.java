@@ -8,7 +8,6 @@ import java.util.List;
 
 public interface PromotionRecommendationService {
 
-    /** Gọi Gemini; nếu lỗi tự chuyển sang fallback 15%. Lưu và trả PromotionSuggestionResponse. */
     PromotionSuggestionResponse suggestWithFallback(Long itemId);
 
     PromotionRecommendation saveSuggestion(Long itemId, String geminiText);

@@ -110,13 +110,13 @@ export function PageRenderer({
     return <ProductsPage openProduct={openProduct} openModal={openModal} productsList={productsList} />;
   }
   if (page === 'categories') {
-    return <CategoriesPage categories={categories} productsList={productsList} />;
+    return <CategoriesPage categories={categories} productsList={productsList} setPage={setPage} openProduct={openProduct} />;
   }
   if (page === 'suppliers') {
-    return <SuppliersPage suppliers={suppliers} productsList={productsList} authUser={authUser} reloadCatalog={reloadCatalog} />;
+    return <SuppliersPage suppliers={suppliers} productsList={productsList} authUser={authUser} reloadCatalog={reloadCatalog} setPage={setPage} />;
   }
   if (page === 'locations') {
-    return <LocationsPage locations={locations} productsList={productsList} authUser={authUser} reloadCatalog={reloadCatalog} />;
+    return <LocationsPage locations={locations} productsList={productsList} authUser={authUser} reloadCatalog={reloadCatalog} setPage={setPage} />;
   }
   if (page === 'invoices') {
     return <InvoicesPage setSelectedInvoice={setSelectedInvoice} authUser={authUser} />;
@@ -142,7 +142,7 @@ export function PageRenderer({
     return <InventoryPage openProduct={openProduct} productsList={productsList} />;
   }
   if (page === 'inventory-alerts') {
-    return <InventoryAlertsPage productsList={productsList} setPage={setPage} />;
+    return <InventoryAlertsPage setPage={setPage} />;
   }
   if (page === 'inventory-logs') {
     return <InventoryLogsPage />;
@@ -160,10 +160,10 @@ export function PageRenderer({
     return <ShiftsPage />;
   }
   if (page === 'scrap-orders') {
-    return <ScrapOrdersPage />;
+    return <ScrapOrdersPage setPage={setPage} />;
   }
   if (page === 'scrap-create') {
-    return <ScrapOrderCreatePage />;
+    return <ScrapOrderCreatePage setPage={setPage} />;
   }
   if (page === 'ai-forecast') {
     return <AiForecastPage productsList={productsList} invoicesList={invoicesList} setPage={setPage} />;
