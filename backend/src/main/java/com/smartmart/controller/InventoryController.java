@@ -1,6 +1,7 @@
 package com.smartmart.controller;
 
 import com.smartmart.common.response.ApiResponse;
+import com.smartmart.common.response.PageResponse;
 import com.smartmart.dto.response.InventoryLogResponse;
 import com.smartmart.dto.response.InventoryResponse;
 import com.smartmart.enums.InventoryActionType;
@@ -9,7 +10,6 @@ import com.smartmart.service.InventoryQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -75,8 +75,7 @@ public class InventoryController {
     @GetMapping("/logs")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
     @Operation(summary = "Nhật ký biến động kho")
-    @org.springframework.transaction.annotation.Transactional(readOnly = true)
-    public ResponseEntity<ApiResponse<Page<InventoryLogResponse>>> logs(
+    public ResponseEntity<ApiResponse<PageResponse<InventoryLogResponse>>> logs(
             @RequestParam(required = false) Long itemId,
             @RequestParam(required = false) Long locationId,
             @RequestParam(required = false) String search,
@@ -88,8 +87,8 @@ public class InventoryController {
         LocalDateTime from = fromDate != null ? fromDate.atStartOfDay() : null;
         LocalDateTime to = toDate != null ? toDate.plusDays(1).atStartOfDay() : null;
 
-        return ResponseEntity.ok(ApiResponse.success(
+        return ResponseEntity.ok(ApiResponse.success(PageResponse.of(
                 WmsResponseMapper.toInventoryLogPage(
-                        inventoryQueryService.logs(itemId, locationId, search, actionType, from, to, pageable))));
+                        inventoryQueryService.logs(itemId, locationId, search, actionType, from, to, pageable)))));
     }
 }

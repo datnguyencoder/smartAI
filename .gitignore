@@ -14,6 +14,7 @@ Desktop.ini
 .env.*
 !.env.example
 !**/.env.example
+!**/.env.ngrok.example
 docker/.env
 
 # --- Logs & temp ---

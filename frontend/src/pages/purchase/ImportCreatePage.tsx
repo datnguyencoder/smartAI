@@ -58,7 +58,7 @@ export default function ImportCreatePage({
 }) {
   const [form] = Form.useForm<FormValues>();
   const { authUser } = useAuth();
-  const canEditPrice = authUser?.role === 'MANAGER' || authUser?.role === 'ADMIN';
+  const canEditPrice = authUser?.role === 'ROLE_MANAGER' || authUser?.role === 'ROLE_ADMIN';
   const [submitting, setSubmitting] = React.useState(false);
   const [paymentDeferred, setPaymentDeferred] = React.useState(false);
 
@@ -66,19 +66,13 @@ export default function ImportCreatePage({
     if (prefillItems.length === 0 || productsList.length === 0) {
       return;
     }
-    const items = prefillItems
-      .map((prefill) => {
-        const product = productsList.find((p) => Number(p.key) === prefill.itemId);
-        if (!product) return null;
-        const quantity = Math.max(1, Math.ceil(Number(prefill.suggestedQty) || 1));
-        const price = Number((product.cost * (product.purchaseRatio || 1)).toFixed(2));
-        return {
-          itemId: String(prefill.itemId),
-          quantity,
-          price,
-        };
-      })
-      .filter(Boolean);
+    const items = prefillItems.flatMap((prefill) => {
+      const product = productsList.find((p) => Number(p.key) === prefill.itemId);
+      if (!product) return [];
+      const quantity = Math.max(1, Math.ceil(Number(prefill.suggestedQty) || 1));
+      const price = Number((product.cost * (product.purchaseRatio || 1)).toFixed(2));
+      return [{ itemId: prefill.itemId, quantity, price }];
+    });
 
     if (items.length > 0) {
       form.setFieldsValue({ items });
@@ -90,6 +84,10 @@ export default function ImportCreatePage({
   const handleCreateSlip = async (values: FormValues) => {
     if (!values.items || values.items.length === 0) {
       antdMessage.error('Vui lòng chọn ít nhất 1 sản phẩm');
+      return;
+    }
+    if (values.supplierId == null || values.locationId == null) {
+      antdMessage.error('Vui lòng chọn nhà cung cấp và vị trí kho');
       return;
     }
     setSubmitting(true);

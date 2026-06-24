@@ -25,7 +25,6 @@ export const PAGE_PATHS: Record<PageKey, string> = {
   settings: '/settings',
   'scrap-orders': '/scrap-orders',
   stocktake: '/stocktake',
-  'transfer-orders': '/transfer-orders',
   shifts: '/shifts',
   'item-lots': '/item-lots',
   'audit-logs': '/audit-logs'

@@ -1,6 +1,7 @@
 package com.smartmart.controller;
 
 import com.smartmart.common.response.ApiResponse;
+import com.smartmart.common.response.PageResponse;
 import com.smartmart.dto.request.CreatePurchaseOrderRequest;
 import com.smartmart.dto.response.PurchaseOrderResponse;
 import com.smartmart.enums.PurchaseStatus;
@@ -50,7 +51,7 @@ public class PurchaseOrderController {
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
     @Operation(summary = "Danh sách phiếu nhập")
-    public ResponseEntity<ApiResponse<Page<PurchaseOrderResponse>>> list(
+    public ResponseEntity<ApiResponse<PageResponse<PurchaseOrderResponse>>> list(
             @RequestParam(required = false) Long supplierId,
             @RequestParam(required = false) Long locationId,
             @RequestParam(required = false) String search,
@@ -60,7 +61,7 @@ public class PurchaseOrderController {
             @ParameterObject Pageable pageable) {
         Page<PurchaseOrderResponse> page = purchaseOrderService.list(supplierId, locationId, search, status, fromDate,
                 toDate, pageable);
-        return ResponseEntity.ok(ApiResponse.success(page));
+        return ResponseEntity.ok(ApiResponse.success(PageResponse.of(page)));
     }
 
     @GetMapping("/{id}")

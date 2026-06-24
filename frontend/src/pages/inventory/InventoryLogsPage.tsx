@@ -12,8 +12,8 @@ import ScrapOrderDetailDrawer from '@/components/inventory/ScrapOrderDetailDrawe
 import { InvoiceDrawer, type InvoiceView } from '@/components/sales/InvoiceDrawer';
 import { purchaseToSlip, type ImportSlipRow } from '@/lib/purchaseMapper';
 import { useAuth } from '@/contexts/AuthContext';
-import { fetchOrderById, fetchScrapOrderById, fetchStocktakeById, fetchTransferOrderById } from '@/services/wmsApi';
-import type { StocktakeDto, TransferOrderDto } from '@/types/api';
+import { fetchOrderById, fetchScrapOrderById, fetchStocktakeById } from '@/services/wmsApi';
+import type { StocktakeDto } from '@/types/api';
 
 const { RangePicker } = DatePicker;
 
@@ -55,7 +55,6 @@ export default function InventoryLogsPage() {
   const [viewingSalesOrder, setViewingSalesOrder] = React.useState<InvoiceView | null>(null);
   const [viewingScrapOrder, setViewingScrapOrder] = React.useState<ScrapOrderDto | null>(null);
   const [viewStocktake, setViewStocktake] = React.useState<StocktakeDto | null>(null);
-  const [viewTransferOrder, setViewTransferOrder] = React.useState<TransferOrderDto | null>(null);
 
   const handleViewPurchaseOrder = async (id: number) => {
     try {
@@ -100,15 +99,6 @@ export default function InventoryLogsPage() {
       setViewStocktake(res);
     } catch (e: unknown) {
       antdMessage.error('Không thể tải chi tiết phiếu kiểm kê');
-    }
-  };
-
-  const handleViewTransferOrder = async (id: number) => {
-    try {
-      const res = await fetchTransferOrderById(id);
-      setViewTransferOrder(res);
-    } catch (e: unknown) {
-      antdMessage.error('Không thể tải chi tiết phiếu chuyển kho');
     }
   };
 
@@ -199,13 +189,6 @@ export default function InventoryLogsPage() {
           if (row.referenceType === 'STOCKTAKE') {
             return (
               <a onClick={() => handleViewStocktake(row.referenceId!)} className="text-purple-600 hover:underline cursor-pointer font-medium">
-                {label} #{row.referenceId}
-              </a>
-            );
-          }
-          if (row.referenceType === 'TRANSFER_ORDER') {
-            return (
-              <a onClick={() => handleViewTransferOrder(row.referenceId!)} className="text-cyan-600 hover:underline cursor-pointer font-medium">
                 {label} #{row.referenceId}
               </a>
             );
@@ -455,97 +438,6 @@ export default function InventoryLogsPage() {
                       },
                     },
                   ]}
-                />
-              </div>
-            </div>
-          );
-        })()}
-      </Modal>
-
-      {/* Chi tiết phiếu chuyển kho Modal */}
-      <Modal 
-        title={null} 
-        closable={false}
-        open={!!viewTransferOrder} 
-        onCancel={() => setViewTransferOrder(null)} 
-        footer={[
-          <Button key="close" onClick={() => setViewTransferOrder(null)}>
-            Đóng
-          </Button>
-        ]}
-        width={800}
-        styles={{ body: { padding: 0 } }}
-      >
-        {viewTransferOrder && (() => {
-          return (
-            <div className="flex flex-col">
-              <div className="bg-slate-50 p-5 rounded-t-lg border-b border-slate-100 relative">
-                <button onClick={() => setViewTransferOrder(null)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors">
-                  <span className="text-xl leading-none">&times;</span>
-                </button>
-                <div className="flex items-center justify-between mr-8 pt-1">
-                  <div className="flex items-center gap-3">
-                    <span className="text-lg font-bold text-slate-800">
-                      Chi tiết chuyển kho: TR-{String(viewTransferOrder.id || 0).padStart(4, '0')}
-                    </span>
-                    <StatusChip tone={
-                      viewTransferOrder.status === 'PENDING' ? 'warning' 
-                        : viewTransferOrder.status === 'CANCELLED' ? 'danger' 
-                          : 'success'
-                    }>
-                      {viewTransferOrder.status === 'COMPLETED' ? 'Đã hoàn thành' : viewTransferOrder.status === 'PENDING' ? 'Chờ xử lý' : 'Đã hủy'}
-                    </StatusChip>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mt-6">
-                  <div className="space-y-1.5 text-xs">
-                    <h4 className="font-bold text-slate-400 uppercase tracking-wider mb-2">Thông tin chung</h4>
-                    <div className="flex gap-2">
-                      <span className="text-slate-500 w-20">Kho nguồn:</span> 
-                      <span className="font-semibold text-slate-800">{viewTransferOrder.fromLocationName}</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <span className="text-slate-500 w-20">Kho đích:</span> 
-                      <span className="font-semibold text-slate-800">{viewTransferOrder.toLocationName}</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <span className="text-slate-500 w-20">Người tạo:</span> 
-                      <span className="font-medium text-slate-800">{`ID: ${viewTransferOrder.createdBy}`}</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5 text-xs">
-                    <h4 className="font-bold text-slate-400 uppercase tracking-wider mb-2">Thời gian</h4>
-                    <div className="flex gap-2">
-                      <span className="text-slate-500 w-20">Ngày tạo:</span> 
-                      <span className="font-medium text-slate-800">{dayjs(viewTransferOrder.transferDate).format('DD/MM/YYYY HH:mm')}</span>
-                    </div>
-                    {viewTransferOrder.completedAt && (
-                      <div className="flex gap-2">
-                        <span className="text-slate-500 w-20">Hoàn thành:</span> 
-                        <span className="font-medium text-slate-800">{dayjs(viewTransferOrder.completedAt).format('DD/MM/YYYY HH:mm')}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {viewTransferOrder.note && (
-                    <div className="space-y-1.5 text-xs">
-                      <h4 className="font-bold text-slate-400 uppercase tracking-wider mb-2">Ghi chú</h4>
-                      <div className="flex gap-2 flex-col">
-                        <span className="text-slate-800 line-clamp-2">{viewTransferOrder.note}</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="p-5">
-                <Table size="small" pagination={{ pageSize: 5 }} dataSource={viewTransferOrder.items} rowKey={(i) => `${i.itemId}-${i.lotId}`}
-                  columns={[
-                    { title: 'Sản phẩm', dataIndex: 'itemName' },
-                    { title: 'Lô', dataIndex: 'lotNumber', render: (v?: string) => v || '—' },
-                    { title: 'Số lượng', dataIndex: 'quantity' },
-                  ]} 
                 />
               </div>
             </div>

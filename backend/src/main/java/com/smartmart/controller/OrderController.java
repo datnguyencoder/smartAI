@@ -1,6 +1,7 @@
 package com.smartmart.controller;
 
 import com.smartmart.common.response.ApiResponse;
+import com.smartmart.common.response.PageResponse;
 import com.smartmart.dto.request.CreateOrderRequest;
 import com.smartmart.dto.response.OrderPrintResponse;
 import com.smartmart.dto.response.OrderResponse;
@@ -52,14 +53,15 @@ public class OrderController {
     @GetMapping("/paged")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF','WAREHOUSE')")
     @Operation(summary = "Danh sách hóa đơn phân trang")
-    public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<OrderResponse>>> listPaged(
+    public ResponseEntity<ApiResponse<PageResponse<OrderResponse>>> listPaged(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) OrderStatus status,
             @RequestParam(required = false) java.time.LocalDateTime fromDate,
             @RequestParam(required = false) java.time.LocalDateTime toDate) {
-        return ResponseEntity.ok(ApiResponse.success(orderService.listPaged(page, size, search, status, fromDate, toDate)));
+        return ResponseEntity.ok(ApiResponse.success(PageResponse.of(
+                orderService.listPaged(page, size, search, status, fromDate, toDate))));
     }
 
     @GetMapping("/{id}")

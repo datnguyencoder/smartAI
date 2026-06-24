@@ -1,6 +1,5 @@
 import {
   AlertTriangle,
-  ArrowLeftRight,
   BarChart3,
   Boxes,
   Building2,
@@ -90,7 +89,6 @@ export const navGroups: NavGroup[] = [
       { key: 'inventory', label: 'Tồn kho', icon: Inbox, section: 'Vận hành kho' },
       { key: 'item-lots', label: 'Lô hàng', icon: Package },
       { key: 'stocktake', label: 'Kiểm kê', icon: ClipboardList },
-      { key: 'transfer-orders', label: 'Chuyển kho', icon: ArrowLeftRight },
       { key: 'scrap-orders', label: 'Loại bỏ', icon: Trash2 },
       { key: 'inventory-alerts', label: 'Cảnh báo', icon: AlertTriangle },
       { key: 'inventory-logs', label: 'Biến động kho', icon: ScrollText },

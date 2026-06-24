@@ -25,7 +25,7 @@ public class Promotion extends LongAuditableEntity {
     @Column(nullable = false, length = 20)
     private String type;
 
-    @Column(nullable = false)
+    @Column(name = "\"value\"", nullable = false)
     private BigDecimal value;
 
     @Column(name = "min_order", nullable = false)

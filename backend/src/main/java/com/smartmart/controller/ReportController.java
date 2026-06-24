@@ -102,7 +102,7 @@ public class ReportController {
             fileName += ".xlsx";
             headers.setContentType(org.springframework.http.MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
         } else {
-            return ResponseEntity.badRequest().build();
+            throw new BadRequestException("Định dạng báo cáo không hợp lệ");
         }
 
         headers.setContentDispositionFormData("attachment", fileName);
@@ -135,7 +135,7 @@ public class ReportController {
             fileName += ".xlsx";
             headers.setContentType(org.springframework.http.MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
         } else {
-            return ResponseEntity.badRequest().build();
+            throw new BadRequestException("Định dạng báo cáo không hợp lệ");
         }
 
         headers.setContentDispositionFormData("attachment", fileName);

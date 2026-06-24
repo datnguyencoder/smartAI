@@ -82,7 +82,7 @@ Quản lý vòng đời phiên đăng nhập của người dùng.
 | :--- | :--- | :--- | :--- |
 | **POST** | `/api/v1/auth/login` | Công khai (Public) | Đăng nhập hệ thống bằng Email/Password, nhận về accessToken & refreshToken. |
 | **POST** | `/api/v1/auth/logout` | Đã xác thực | Đăng xuất hệ thống, đưa token hiện tại vào Blacklist của Redis. |
-| **POST** | `/api/v1/auth/refresh-token`| Công khai (Public) | Cấp mới accessToken khi token cũ hết hạn bằng refreshToken hợp lệ. |
+| **POST** | `/api/v1/auth/refresh`| Công khai (Public) | Cấp mới accessToken khi token cũ hết hạn bằng refreshToken hợp lệ. |
 | **GET** | `/api/v1/auth/me` | Đã xác thực | Lấy thông tin chi tiết của người dùng đang đăng nhập dựa trên token. |
 
 #### 2.2. Phân hệ Quản lý Người dùng (User API)
