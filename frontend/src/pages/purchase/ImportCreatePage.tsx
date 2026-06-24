@@ -1,11 +1,11 @@
 import React from 'react';
 import { Form, InputNumber, Button, message as antdMessage, Alert, Spin } from 'antd';
-import { Trash2, Plus, FileText, Package, Calendar, DollarSign, Hash, AlertTriangle } from 'lucide-react';
-import { Card, CardHeader } from '@/components/ui';
-import { createPurchaseOrder } from '@/services/wmsApi';
+import { Trash2, Plus, FileText, Package, Calendar, DollarSign, AlertTriangle } from 'lucide-react';
+import { Card } from '@/components/ui';
+import { createPurchaseOrder, fetchItemsBySupplier } from '@/services/wmsApi';
 import type { Product } from '@/lib/itemMapper';
 import { formatMoney as money } from '@/lib/itemMapper';
-import type { SupplierDto, LocationDto } from '@/types/api';
+import type { SupplierDto, LocationDto, ItemDto } from '@/types/api';
 import type { PageKey, PurchaseSuggestionPrefillItem } from '@/types/pages';
 import { AiSummary } from '@/components/ai/AiSummary';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,7 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 type FormValues = {
   supplierId?: number;
   locationId?: number;
-  items: { itemId: number; quantity: number; price: number; expiryDate?: string }[];
+  items: { itemId: number | ''; quantity: number; price: number; expiryDate?: string }[];
 };
 
 const ReadOnlyPrice = ({ value }: { value?: number }) => (
@@ -61,6 +61,9 @@ export default function ImportCreatePage({
   const canEditPrice = authUser?.role === 'ROLE_MANAGER' || authUser?.role === 'ROLE_ADMIN';
   const [submitting, setSubmitting] = React.useState(false);
   const [paymentDeferred, setPaymentDeferred] = React.useState(false);
+  const [supplierItems, setSupplierItems] = React.useState<ItemDto[]>([]);
+  const [loadingSupplierItems, setLoadingSupplierItems] = React.useState(false);
+  const selectedSupplierId = Form.useWatch('supplierId', form);
 
   React.useEffect(() => {
     if (prefillItems.length === 0 || productsList.length === 0) {
@@ -81,6 +84,26 @@ export default function ImportCreatePage({
     }
   }, [clearPrefillItems, form, prefillItems, productsList]);
 
+  const handleSupplierChange = async (supplierId: number) => {
+    form.setFieldsValue({
+      supplierId,
+      items: [{ itemId: '', quantity: 50, price: 0 }],
+    });
+
+    setSupplierItems([]);
+
+    if (!supplierId) return;
+
+    setLoadingSupplierItems(true);
+    try {
+      const data = await fetchItemsBySupplier(supplierId);
+      setSupplierItems(data);
+    } catch (e) {
+      antdMessage.error(e instanceof Error ? e.message : 'Không tải được sản phẩm của nhà cung cấp');
+    } finally {
+      setLoadingSupplierItems(false);
+    }
+  };
   const handleCreateSlip = async (values: FormValues) => {
     if (!values.items || values.items.length === 0) {
       antdMessage.error('Vui lòng chọn ít nhất 1 sản phẩm');
@@ -172,7 +195,7 @@ export default function ImportCreatePage({
           form={form}
           onFinish={handleCreateSlip}
           className="px-6 pt-6 pb-6"
-          initialValues={{ supplierId: "", locationId: "", items: [{ itemId: "", quantity: 50, price: 0 }] }}
+          initialValues={{ supplierId: "", locationId: "", items: [{ itemId: '', quantity: 50, price: 0 }] }}
         >
           {/* Thông tin chung */}
           <div className="grid gap-4 md:grid-cols-2">
@@ -183,7 +206,7 @@ export default function ImportCreatePage({
             >
               <select
                 className={selectClass}
-                onChange={(e) => form.setFieldsValue({ supplierId: Number(e.target.value) })}
+                onChange={(e) => handleSupplierChange(Number(e.target.value))}
               >
                 <option value="" disabled>-- Chọn nhà cung cấp --</option>
                 {suppliers.map((s) => (
@@ -262,19 +285,27 @@ export default function ImportCreatePage({
                         >
                           <select
                             className={selectClass}
+                            disabled={!selectedSupplierId || loadingSupplierItems}
                             onChange={(e) => {
                               const val = e.target.value;
                               form.setFieldValue(['items', name, 'itemId'], val);
-                              const product = productsList.find((p) => p.key === val);
-                              if (product) {
-                                const calculatedPrice = product.cost * (product.purchaseRatio || 1);
+
+                              const item = supplierItems.find((p) => String(p.id) === String(val));
+
+                              if (item) {
+                                const calculatedPrice = item.costPrice * (item.purchaseRatio || 1);
                                 form.setFieldValue(['items', name, 'price'], Number(calculatedPrice.toFixed(2)));
                               }
                             }}
                           >
-                            <option value="" disabled>-- Chọn sản phẩm --</option>
-                            {productsList.map((p) => (
-                              <option key={p.key} value={p.key}>{p.name} (Tồn: {p.stock} {p.baseUomName || ''})</option>
+                            <option value="" disabled>
+                              {selectedSupplierId ? '-- Chọn sản phẩm --' : '-- Chọn nhà cung cấp trước --'}
+                            </option>
+
+                            {supplierItems.map((item) => (
+                              <option key={item.id} value={item.id}>
+                                {item.itemName} ({item.itemCode})
+                              </option>
                             ))}
                           </select>
                         </Form.Item>
@@ -289,7 +320,7 @@ export default function ImportCreatePage({
                             >
                               {({ getFieldValue }) => {
                                 const selectedId = getFieldValue(['items', name, 'itemId']);
-                                const p = productsList.find((p) => p.key === selectedId);
+                                const p = supplierItems.find((p) => String(p.id) === String(selectedId));
                                 const uom = p?.purchaseUomName || p?.baseUomName || '';
                                 return (
                                   <span className="text-xs font-medium text-slate-600">
@@ -371,7 +402,7 @@ export default function ImportCreatePage({
                 <Form.Item className="mt-3 mb-0">
                   <Button
                     type="dashed"
-                    onClick={() => add({ itemId: "", quantity: 50, price: 0 })}
+                    onClick={() => add({ itemId: '', quantity: 50, price: 0 })}
                     block
                     icon={<Plus size={16} />}
                     className="h-11 border-emerald-300 text-emerald-700 hover:!border-emerald-500 hover:!text-emerald-800"
