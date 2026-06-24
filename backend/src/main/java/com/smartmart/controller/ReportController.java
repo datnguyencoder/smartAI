@@ -23,7 +23,6 @@ import java.util.List;
 @RequestMapping("/api/v1/reports")
 @Tag(name = "Reports", description = "Báo cáo thống kê chuyên sâu")
 @SecurityRequirement(name = "bearerAuth")
-@PreAuthorize("hasAnyRole('ADMIN','MANAGER','ANALYST')")
 public class ReportController {
 
     private final ReportService reportService;
@@ -48,6 +47,7 @@ public class ReportController {
 
     @GetMapping("/sales")
     @Operation(summary = "Báo cáo bán lẻ chuyên sâu theo ngày/tháng/năm")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<ApiResponse<List<SalesReportResponse>>> getSalesReport(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
@@ -60,6 +60,7 @@ public class ReportController {
 
     @GetMapping("/purchase")
     @Operation(summary = "Thống kê số lượng tiền chi nhập hàng theo từng nhà cung cấp")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
     public ResponseEntity<ApiResponse<List<PurchaseReportResponse>>> getPurchaseReport(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
@@ -71,6 +72,7 @@ public class ReportController {
 
     @GetMapping("/inventory")
     @Operation(summary = "Báo cáo chi tiết hao hụt kho, hàng cận date, tỷ lệ quay vòng kho")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
     public ResponseEntity<ApiResponse<List<InventoryReportResponse>>> getInventoryReport(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
@@ -82,6 +84,7 @@ public class ReportController {
 
     @GetMapping("/export")
     @Operation(summary = "Xuất báo cáo dưới dạng Excel hoặc PDF")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER') or (hasRole('WAREHOUSE') and (#type == 'inventory' or #type == 'purchase'))")
     public ResponseEntity<org.springframework.core.io.Resource> exportReport(
             @RequestParam String type,
             @RequestParam String format,
@@ -116,6 +119,7 @@ public class ReportController {
 
     @GetMapping("/comprehensive")
     @Operation(summary = "Xuất báo cáo quản trị tổng hợp (PDF hoặc Excel 3 sheet)")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<org.springframework.core.io.Resource> exportComprehensiveReport(
             @RequestParam(defaultValue = "pdf") String format,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
