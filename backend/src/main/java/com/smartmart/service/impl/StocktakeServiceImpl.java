@@ -4,6 +4,7 @@ import com.smartmart.constant.AuditAction;
 import com.smartmart.dto.request.CreateStocktakeRequest;
 import com.smartmart.dto.request.StocktakeLineRequest;
 import com.smartmart.dto.request.ConfirmStocktakeRequest;
+import com.smartmart.dto.response.StocktakeResponse;
 import com.smartmart.entity.*;
 import com.smartmart.enums.InventoryActionType;
 import com.smartmart.enums.ReferenceType;
@@ -65,9 +66,9 @@ public class StocktakeServiceImpl implements StocktakeService {
     }
 
     @Override
-    public void enrichUsernames(List<com.smartmart.dto.response.StocktakeResponse> responses) {
+    public void enrichUsernames(List<StocktakeResponse> responses) {
         List<Long> userIds = responses.stream()
-                .map(com.smartmart.dto.response.StocktakeResponse::getCreatedBy)
+                .map(StocktakeResponse::getCreatedBy)
                 .filter(Objects::nonNull)
                 .distinct()
                 .toList();
@@ -147,7 +148,7 @@ public class StocktakeServiceImpl implements StocktakeService {
         }
 
         if (request != null && request.getItems() != null) {
-            for (com.smartmart.dto.request.StocktakeLineRequest update : request.getItems()) {
+            for (StocktakeLineRequest update : request.getItems()) {
                 stocktake.getItems().stream()
                         .filter(line -> line.getItem().getId().equals(update.getItemId())
                                 && ((update.getLotId() == null && line.getLot() == null)

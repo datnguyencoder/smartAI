@@ -162,7 +162,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("""
         SELECT o FROM Order o
         LEFT JOIN FETCH o.payments
-        WHERE o.shift.id = :shiftId AND o.status = com.smartmart.enums.OrderStatus.COMPLETED
+        WHERE o.shift.id = :shiftId AND o.status = OrderStatus.COMPLETED
         """)
     List<Order> findCompletedByShiftId(@Param("shiftId") Long shiftId);
 }

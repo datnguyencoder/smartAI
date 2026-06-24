@@ -1,6 +1,7 @@
 package com.smartmart.service;
 
 import com.smartmart.dto.request.CreateScrapOrderRequest;
+import com.smartmart.dto.response.ScrapOrderResponse;
 import com.smartmart.entity.ScrapOrder;
 import com.smartmart.entity.ScrapOrderItem;
 
@@ -20,5 +21,5 @@ public interface ScrapOrderService {
 
     List<ScrapOrder> listAll();
 
-    void enrichUsernames(List<com.smartmart.dto.response.ScrapOrderResponse> responses);
+    void enrichUsernames(List<ScrapOrderResponse> responses);
 }
