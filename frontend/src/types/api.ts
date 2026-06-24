@@ -432,6 +432,7 @@ export type ScrapOrderDto = {
   locationId: number;
   locationName: string;
   createdBy: number;
+  createdByUsername?: string;
   scrapDate: string;
   status: 'PENDING' | 'COMPLETED' | 'CANCELLED';
   note?: string;

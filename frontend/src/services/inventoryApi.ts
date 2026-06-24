@@ -65,6 +65,10 @@ export function fetchScrapOrders(status?: string) {
   return apiRequest<ScrapOrderDto[]>(`/api/v1/scrap-orders${qs}`);
 }
 
+export function fetchScrapOrderById(id: number) {
+  return apiRequest<ScrapOrderDto>(`/api/v1/scrap-orders/${id}`);
+}
+
 export function createScrapOrder(payload: {
   locationId: number;
   items: { itemId: number; lotId?: number; quantity: number; reason?: string }[];

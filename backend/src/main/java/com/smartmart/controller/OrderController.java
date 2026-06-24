@@ -38,7 +38,7 @@ public class OrderController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF','WAREHOUSE')")
     @Operation(summary = "Danh sách hóa đơn")
     public ResponseEntity<ApiResponse<List<OrderResponse>>> list(
             @RequestParam(required = false) String customerPhone
@@ -50,7 +50,7 @@ public class OrderController {
     }
 
     @GetMapping("/paged")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF','WAREHOUSE')")
     @Operation(summary = "Danh sách hóa đơn phân trang")
     public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<OrderResponse>>> listPaged(
             @RequestParam(defaultValue = "0") int page,
@@ -63,7 +63,7 @@ public class OrderController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF','WAREHOUSE')")
     @Operation(summary = "Chi tiết hóa đơn")
     public ResponseEntity<ApiResponse<OrderResponse>> get(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(orderService.getById(id)));

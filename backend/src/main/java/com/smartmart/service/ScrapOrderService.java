@@ -19,4 +19,6 @@ public interface ScrapOrderService {
     ScrapOrder findById(Long id);
 
     List<ScrapOrder> listAll();
+
+    void enrichUsernames(List<com.smartmart.dto.response.ScrapOrderResponse> responses);
 }

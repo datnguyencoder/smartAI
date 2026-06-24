@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Drawer, Button, message as antdMessage, Modal, InputNumber, Input, Checkbox, Tag, Divider } from 'antd';
+import { Modal, Button, message as antdMessage, InputNumber, Input, Checkbox, Tag, Divider, Table } from 'antd';
 import {
   PrinterOutlined,
   RollbackOutlined,
@@ -7,12 +7,7 @@ import {
   CreditCardOutlined,
   GiftOutlined,
   StarOutlined,
-  UserOutlined,
-  PhoneOutlined,
-  CalendarOutlined,
-  TeamOutlined,
 } from '@ant-design/icons';
-import { animateDrawer } from '@/lib/gsapAnimations';
 import { formatMoney as money } from '@/lib/itemMapper';
 import { normalizeRole } from '@/lib/permissions';
 import { buildPrintHtml } from '@/lib/printReceipt';
@@ -55,7 +50,6 @@ const PAYMENT_ICON: Record<string, React.ReactNode> = {
   'Kết hợp': '🔀',
 };
 
-
 export function InvoiceDrawer({ invoice, authUser, onClose, onCancelled }: Props) {
   const role = normalizeRole(authUser.role);
   const canCancel = role === 'ROLE_ADMIN' || role === 'ROLE_MANAGER';
@@ -64,11 +58,6 @@ export function InvoiceDrawer({ invoice, authUser, onClose, onCancelled }: Props
   const [returnReason, setReturnReason] = useState('');
   const [returnLines, setReturnLines] = useState<Record<number, { checked: boolean; qty: number }>>({});
   const [detailItems, setDetailItems] = useState<InvoiceView['items']>([]);
-
-  const bodyRef = React.useRef<HTMLDivElement>(null);
-  React.useEffect(() => {
-    if (invoice) animateDrawer(bodyRef.current, true);
-  }, [invoice]);
 
   React.useEffect(() => {
     if (!invoice?.orderId) {
@@ -90,7 +79,7 @@ export function InvoiceDrawer({ invoice, authUser, onClose, onCancelled }: Props
         );
       })
       .catch(() => {
-        /* keep list view items if detail fetch fails */
+        // keep list view items if detail fetch fails
       });
   }, [invoice?.orderId]);
 
@@ -165,141 +154,176 @@ export function InvoiceDrawer({ invoice, authUser, onClose, onCancelled }: Props
   const subtotal = invoice?.subtotal ?? invoice?.amount ?? 0;
   const discount = invoice?.discount ?? 0;
 
+  if (!invoice) return null;
+
   return (
     <>
-      <Drawer
+      <Modal
         open={Boolean(invoice)}
-        onClose={onClose}
+        onCancel={onClose}
         title={
-          <div className="flex items-center gap-2">
-            <span className="text-base font-bold text-slate-800">Chi tiết hóa đơn</span>
-            {invoice && (
-              <StatusChip tone={isCancelled ? 'danger' : 'success'}>{invoice.status}</StatusChip>
-            )}
+          <div className="flex items-center justify-between mr-8 pt-1">
+            <div className="flex items-center gap-3">
+              <span className="text-lg font-bold text-slate-800">
+                Chi tiết đơn hàng: {invoice.key}
+              </span>
+              <StatusChip tone={isCancelled ? 'danger' : 'success'}>
+                {invoice.status}
+              </StatusChip>
+            </div>
+            
+            <div className="flex gap-2">
+              <Button size="small" type="primary" icon={<PrinterOutlined />} onClick={handlePrint}>
+                In hóa đơn
+              </Button>
+              {canReturn && !isCancelled && (
+                <Button size="small" icon={<RollbackOutlined />} onClick={() => setReturnOpen(true)}>
+                  Trả hàng
+                </Button>
+              )}
+              {canCancel && !isCancelled && (
+                <Button size="small" danger icon={<CloseCircleOutlined />} onClick={handleCancel}>
+                  Hủy hóa đơn
+                </Button>
+              )}
+            </div>
           </div>
         }
-        width={480}
-        bodyStyle={{ padding: 0 }}
+        footer={[
+          <Button key="close" onClick={onClose}>
+            Đóng
+          </Button>
+        ]}
+        width={1100}
       >
-        {invoice ? (
-          <div ref={bodyRef} className="flex h-full flex-col">
-            {/* Receipt-style header */}
-            <div className="border-b border-slate-100 bg-gradient-to-b from-emerald-50 to-white px-6 py-5">
-              <div className="mb-1 flex items-center justify-between">
-                <span className="font-mono text-lg font-extrabold tracking-wide text-emerald-700">
-                  {invoice.key}
-                </span>
+        <div className="max-h-[70vh] overflow-y-auto pr-2 space-y-6 pt-3">
+          {/* Khu vực 2: Metadata Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+            {/* Cột 1: Thông tin hành chính */}
+            <div className="space-y-1.5 text-xs">
+              <h4 className="font-bold text-slate-400 uppercase tracking-wider mb-2">Thông tin chung</h4>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Thu ngân:</span> 
+                <span className="font-semibold text-slate-800">{invoice.cashier}</span>
               </div>
-              <div className="grid grid-cols-2 gap-y-2 text-sm">
-                <span className="flex items-center gap-1.5 text-slate-500">
-                  <CalendarOutlined /> {invoice.time}
-                </span>
-                <span className="flex items-center justify-end gap-1.5 text-slate-500">
-                  <TeamOutlined /> {invoice.cashier}
-                </span>
-                <span className="flex items-center gap-1.5 text-slate-700">
-                  <UserOutlined /> <strong>{invoice.customer}</strong>
-                </span>
-                {invoice.customerPhone && (
-                  <span className="flex items-center justify-end gap-1.5 text-slate-500">
-                    <PhoneOutlined /> {invoice.customerPhone}
-                  </span>
-                )}
-              </div>
-              {(invoice.paymentMethod || invoice.promotionCode) && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {invoice.paymentMethod && (
-                    <Tag color="blue">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500">Thanh toán:</span> 
+                <span>
+                  {invoice.paymentMethod ? (
+                    <Tag color="blue" className="!mr-0">
                       {PAYMENT_ICON[invoice.paymentMethod] ?? <CreditCardOutlined />}{' '}
                       {invoice.paymentMethod}
                     </Tag>
-                  )}
-                  {invoice.promotionCode && (
-                    <Tag color="green" icon={<GiftOutlined />}>
-                      {invoice.promotionCode}
-                    </Tag>
-                  )}
-                  {(invoice.loyaltyPointsRedeemed ?? 0) > 0 && (
-                    <Tag color="purple" icon={<StarOutlined />}>
-                      -{invoice.loyaltyPointsRedeemed} điểm
-                    </Tag>
-                  )}
+                  ) : '—'}
+                </span>
+              </div>
+            </div>
+
+            {/* Cột 2: Đối tác */}
+            <div className="space-y-1.5 text-xs">
+              <h4 className="font-bold text-slate-400 uppercase tracking-wider mb-2">Khách hàng & Ưu đãi</h4>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Khách hàng:</span> 
+                <span className="font-semibold text-indigo-600 cursor-pointer hover:underline">{invoice.customer}</span>
+              </div>
+              {invoice.customerPhone && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Điện thoại:</span> 
+                  <span className="font-medium text-slate-700">{invoice.customerPhone}</span>
+                </div>
+              )}
+              {invoice.promotionCode && (
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500">Mã giảm giá:</span> 
+                  <Tag color="green" icon={<GiftOutlined />} className="!mr-0">{invoice.promotionCode}</Tag>
+                </div>
+              )}
+              {(invoice.loyaltyPointsRedeemed ?? 0) > 0 && (
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500">Điểm đổi:</span> 
+                  <Tag color="purple" icon={<StarOutlined />} className="!mr-0">-{invoice.loyaltyPointsRedeemed} điểm</Tag>
                 </div>
               )}
             </div>
 
-            {/* Items */}
-            <div className="flex-1 overflow-y-auto px-6 py-4">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Chi tiết sản phẩm ({lineItems?.length ?? 0} dòng)
-              </p>
-              <div className="space-y-2">
-                {lineItems?.map((it, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-start justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-slate-800">{it.name}</p>
-                      <p className="mt-0.5 text-xs text-slate-400">
-                        {it.qty} × {money(it.price)}
-                        {it.lotNumber ? ` · Lô ${it.lotNumber}` : ''}
-                      </p>
-                    </div>
-                    <span className="ml-3 shrink-0 font-bold text-slate-700">
-                      {money(it.qty * it.price)}
-                    </span>
-                  </div>
-                ))}
+            {/* Cột 3: Thời gian & Tiến độ */}
+            <div className="space-y-1.5 text-xs">
+              <h4 className="font-bold text-slate-400 uppercase tracking-wider mb-2">Thời gian & Trạng thái</h4>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Thời gian tạo:</span> 
+                <span className="font-medium text-slate-800">{invoice.time}</span>
               </div>
-
-              {/* Summary */}
-              <div className="mt-5 space-y-1.5 rounded-xl border border-slate-100 bg-white p-4">
-                <div className="flex justify-between text-sm text-slate-500">
-                  <span>Tạm tính</span>
-                  <span>{money(subtotal)}</span>
-                </div>
-                {discount > 0 && (
-                  <div className="flex justify-between text-sm text-emerald-600">
-                    <span>Giảm giá{invoice.promotionCode ? ` (${invoice.promotionCode})` : ''}</span>
-                    <span>-{money(discount)}</span>
-                  </div>
-                )}
-                {(invoice.loyaltyPointsRedeemed ?? 0) > 0 && (
-                  <div className="flex justify-between text-sm text-purple-600">
-                    <span>Điểm tích lũy dùng</span>
-                    <span>-{invoice.loyaltyPointsRedeemed} điểm</span>
-                  </div>
-                )}
-                <Divider className="!my-2" />
-                <div className="flex justify-between text-base font-extrabold text-slate-800">
-                  <span>Tổng thanh toán</span>
-                  <span className="text-emerald-700">{money(invoice.amount)}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="border-t border-slate-100 bg-white px-6 py-4">
-              <div className="flex flex-wrap gap-2">
-                <Button type="primary" icon={<PrinterOutlined />} onClick={handlePrint}>
-                  In hóa đơn
-                </Button>
-                {canReturn && !isCancelled && (
-                  <Button icon={<RollbackOutlined />} onClick={() => setReturnOpen(true)}>
-                    Trả hàng
-                  </Button>
-                )}
-                {canCancel && !isCancelled && (
-                  <Button danger icon={<CloseCircleOutlined />} onClick={handleCancel}>
-                    Hủy hóa đơn
-                  </Button>
-                )}
+              <div className="flex justify-between">
+                <span className="text-slate-500">Trạng thái:</span> 
+                <span className={`font-medium ${isCancelled ? 'text-red-500' : 'text-emerald-600'}`}>
+                  {invoice.status}
+                </span>
               </div>
             </div>
           </div>
-        ) : null}
-      </Drawer>
+
+          {/* Thống kê nhanh phía trên bảng */}
+          <div className="flex justify-between items-center bg-white px-4 py-2.5 rounded-lg border border-slate-100 text-xs text-slate-500 font-medium">
+            <div>Danh mục: <strong className="text-slate-800">{lineItems?.length ?? 0} mặt hàng</strong></div>
+            <div>Tạm tính: <strong className="text-slate-800">{money(subtotal)}</strong></div>
+            <div>Giảm giá: <strong className="text-emerald-600">{discount > 0 ? `-${money(discount)}` : '0đ'}</strong></div>
+            <div className="text-sm">Tổng thanh toán: <strong className="text-emerald-700 text-base">{money(invoice.amount)}</strong></div>
+          </div>
+
+          {/* Khu vực 3: Bảng chi tiết hàng hóa */}
+          <div className="space-y-3">
+            <Table
+              dataSource={lineItems || []}
+              pagination={false}
+              size="small"
+              rowKey={(r, idx) => `item_${idx}`}
+              scroll={{ x: 'max-content' }}
+              columns={[
+                { 
+                  title: 'STT', 
+                  width: 50, 
+                  render: (_, __, idx) => idx + 1 
+                },
+                { 
+                  title: 'Tên sản phẩm', 
+                  dataIndex: 'name',
+                  minWidth: 200,
+                  render: (v, r) => (
+                    <div>
+                      <div className="font-medium">{v}</div>
+                      {r.lotNumber && <div className="text-[10px] text-slate-400">Lô: {r.lotNumber}</div>}
+                    </div>
+                  )
+                },
+                { 
+                  title: 'Đơn giá', 
+                  dataIndex: 'price', 
+                  width: 120,
+                  align: 'right',
+                  render: (v) => money(v)
+                },
+                { 
+                  title: 'Số lượng', 
+                  dataIndex: 'qty', 
+                  width: 100,
+                  align: 'right',
+                  render: (v) => <span className="font-semibold text-slate-700">{v}</span>
+                },
+                { 
+                  title: 'Thành tiền', 
+                  width: 130,
+                  align: 'right',
+                  render: (_, record) => (
+                    <span className="font-bold text-slate-800">
+                      {money((record.qty || 0) * (record.price || 0))}
+                    </span>
+                  )
+                }
+              ]}
+            />
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         title="Trả hàng — Chọn sản phẩm"
