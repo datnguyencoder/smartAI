@@ -9,7 +9,9 @@ public enum InventoryActionType {
     SCRAP_COMPLETED,
     SCRAP_CANCELLED,
     ADJUSTMENT,
+    /** @deprecated Legacy inventory logs only — transfer between locations removed (single-store). */
     TRANSFER_OUT,
+    /** @deprecated Legacy inventory logs only — transfer between locations removed (single-store). */
     TRANSFER_IN,
     SALE_RETURN
 }

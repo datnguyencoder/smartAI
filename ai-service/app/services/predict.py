@@ -96,7 +96,7 @@ def forecast_item(
     history = preprocess.extend_history_with_sales(item_id, category_id, recent_sales)
     history_days = int(history["sale_date"].nunique())
 
-    if bundle is None or history_days < preprocess.MIN_ML_HISTORY_DAYS:
+    if not recent_sales or history_days < preprocess.MIN_ML_HISTORY_DAYS:
         return _forecast_with_moving_average(history, horizon), "moving_average"
 
     item_model_types = bundle.get("item_model_types", {})
@@ -120,6 +120,9 @@ def forecast_item(
 
 def forecast_all_items(items: list[dict]) -> list[dict]:
     bundle = model_store.load_model_bundle()
+    if bundle is None:
+        raise RuntimeError("No active model available")
+
     forecasts: list[dict] = []
 
     for item in items:

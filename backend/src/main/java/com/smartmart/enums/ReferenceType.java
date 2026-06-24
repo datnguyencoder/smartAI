@@ -6,6 +6,7 @@ public enum ReferenceType {
     SCRAP_ORDER,
     STOCK_ADJUSTMENT,
     STOCKTAKE,
+    /** @deprecated Legacy inventory logs only — transfer orders removed (single-store). */
     TRANSFER_ORDER,
     RETURN_ORDER
 }

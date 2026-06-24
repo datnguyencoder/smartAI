@@ -25,9 +25,16 @@ const ACTION_LABELS: Record<string, { text: string; color: string }> = {
   SCRAP_PENDING: { text: 'Chờ loại bỏ', color: 'orange' },
   SCRAP_COMPLETED: { text: 'Loại bỏ', color: 'volcano' },
   ADJUSTMENT: { text: 'Điều chỉnh', color: 'blue' },
-  TRANSFER_IN: { text: 'Nhập chuyển kho', color: 'cyan' },
-  TRANSFER_OUT: { text: 'Xuất chuyển kho', color: 'magenta' },
 };
+
+const LEGACY_TRANSFER_ACTIONS = new Set(['TRANSFER_IN', 'TRANSFER_OUT']);
+
+function resolveActionLabel(actionType: string) {
+  if (LEGACY_TRANSFER_ACTIONS.has(actionType)) {
+    return ACTION_LABELS.ADJUSTMENT;
+  }
+  return ACTION_LABELS[actionType] ?? { text: actionType, color: 'default' };
+}
 
 const REF_LABELS: Record<string, string> = {
   PURCHASE_ORDER: 'Phiếu nhập',
@@ -35,7 +42,6 @@ const REF_LABELS: Record<string, string> = {
   SCRAP_ORDER: 'Phiếu hủy',
   STOCK_ADJUSTMENT: 'Điều chỉnh',
   STOCKTAKE: 'Phiếu kiểm kê',
-  TRANSFER_ORDER: 'Chuyển kho',
 };
 
 export default function InventoryLogsPage() {
@@ -155,7 +161,7 @@ export default function InventoryLogsPage() {
       dataIndex: 'actionType',
       width: 140,
       render: (v: string) => {
-        const info = ACTION_LABELS[v] ?? { text: v, color: 'default' };
+        const info = resolveActionLabel(v);
         return <Tag color={info.color}>{info.text}</Tag>;
       },
     },
@@ -163,7 +169,11 @@ export default function InventoryLogsPage() {
       title: 'Tham chiếu',
       width: 150,
       render: (_: unknown, row: InventoryLogDto) => {
-        const label = row.referenceType ? REF_LABELS[row.referenceType] ?? row.referenceType : '-';
+        const label = row.referenceType
+          ? row.referenceType === 'TRANSFER_ORDER'
+            ? 'Điều chỉnh'
+            : REF_LABELS[row.referenceType] ?? row.referenceType
+          : '-';
         if (row.referenceId) {
           if (row.referenceType === 'PURCHASE_ORDER') {
             return (
@@ -230,8 +240,8 @@ export default function InventoryLogsPage() {
       dataIndex: 'note',
       ellipsis: true,
       render: (v: string, row: InventoryLogDto) => {
-        if (!v && (row.actionType === 'TRANSFER_IN' || row.actionType === 'TRANSFER_OUT' || row.referenceType === 'TRANSFER_ORDER')) {
-          return 'Chuyển kho';
+        if (!v && LEGACY_TRANSFER_ACTIONS.has(row.actionType)) {
+          return 'Điều chỉnh';
         }
         return v || '—';
       },
@@ -276,8 +286,6 @@ export default function InventoryLogsPage() {
               <option value="SALE_CANCEL">Hủy bán</option>
               <option value="SCRAP_COMPLETED">Loại bỏ</option>
               <option value="ADJUSTMENT">Điều chỉnh</option>
-              <option value="TRANSFER_IN">Nhập chuyển kho</option>
-              <option value="TRANSFER_OUT">Xuất chuyển kho</option>
             </select>
             <RangePicker
               format="DD/MM/YYYY"

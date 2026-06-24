@@ -113,7 +113,7 @@ sequenceDiagram
 *   **SALE-02:** Hệ thống từ chối bán các sản phẩm có trạng thái `INACTIVE` hoặc sản phẩm đã vượt quá hạn sử dụng (`expiryDate < today`).
 *   **SALE-03:** Giá bán của sản phẩm trong hóa đơn được chốt cố định tại thời điểm tạo hóa đơn, không thay đổi theo biến động giá niêm yết sau này.
 *   **SALE-04:** Sau khi giao dịch bán hàng thành công, hệ thống phải publish ngay một sự kiện Kafka bất đồng bộ để kiểm tra xem sản phẩm có rơi vào trạng thái cần cảnh báo tồn kho hay không.
-*   **SALE-05:** POS phase 1 chỉ được trừ tồn từ location **"Kho bán"**. Hàng ở kho tổng phải được chuyển sang "Kho bán" bằng phiếu chuyển kho trước khi bán.
+*   **SALE-05:** POS trừ tồn tại **một kho bán duy nhất** (siêu thị mini — không chuyển kho giữa các vị trí). Nhập hàng ghi tồn trực tiếp vào kho đó.
 
 ---
 

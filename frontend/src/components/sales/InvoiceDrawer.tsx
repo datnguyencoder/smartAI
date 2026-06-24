@@ -44,7 +44,7 @@ type Props = {
 const PAYMENT_ICON: Record<string, React.ReactNode> = {
   'Tiền mặt': '💵',
   'Thẻ ngân hàng': '💳',
-  'Chuyển khoản': '🏦',
+  'Ngân hàng': '🏦',
   MoMo: '📱',
   VNPay: '📱',
   'Kết hợp': '🔀',

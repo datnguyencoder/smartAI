@@ -145,6 +145,9 @@ export function formatAuditAction(action?: string | null) {
     PROMOTION_CREATE: 'Tạo khuyến mãi',
     PROMOTION_UPDATE: 'Cập nhật khuyến mãi',
     PROMOTION_DELETE: 'Xóa khuyến mãi',
+    TRANSFER_CREATE: 'Tạo phiếu chuyển kho (đã ngừng)',
+    TRANSFER_COMPLETE: 'Hoàn thành chuyển kho (đã ngừng)',
+    TRANSFER_CANCEL: 'Hủy chuyển kho (đã ngừng)',
   };
 
   return labels[action] ?? action
