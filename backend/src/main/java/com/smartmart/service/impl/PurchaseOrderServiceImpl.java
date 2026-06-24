@@ -12,14 +12,10 @@ import com.smartmart.enums.ReferenceType;
 import com.smartmart.event.PurchaseOrderStatusEvent;
 import com.smartmart.exception.BadRequestException;
 import com.smartmart.exception.NotFoundException;
+import com.smartmart.service.*;
 import org.springframework.context.ApplicationEventPublisher;
 import com.smartmart.repository.*;
 import com.smartmart.security.SecurityUtils;
-import com.smartmart.service.AuditLogService;
-import com.smartmart.service.InventoryLedgerService;
-import com.smartmart.service.ItemService;
-import com.smartmart.service.PurchaseOrderService;
-import com.smartmart.service.SupplierDebtService;
 import com.smartmart.util.AuditData;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.domain.Page;
@@ -59,6 +55,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     private final ItemLotRepository itemLotRepository;
     private final ItemRepository itemRepository;
     private final SupplierDebtService supplierDebtService;
+    private final SupplierItemService supplierItemService;
 
     public PurchaseOrderServiceImpl(
             PurchaseOrderRepository purchaseOrderRepository,
@@ -71,7 +68,8 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             AuditLogService auditLogService,
             ItemLotRepository itemLotRepository,
             ItemRepository itemRepository,
-            SupplierDebtService supplierDebtService) {
+            SupplierDebtService supplierDebtService,
+            SupplierItemService supplierItemService) {
         this.purchaseOrderRepository = purchaseOrderRepository;
         this.supplierRepository = supplierRepository;
         this.locationRepository = locationRepository;
@@ -83,6 +81,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         this.itemLotRepository = itemLotRepository;
         this.itemRepository = itemRepository;
         this.supplierDebtService = supplierDebtService;
+        this.supplierItemService = supplierItemService;
     }
 
     @Override
@@ -118,9 +117,13 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
 
         for (PurchaseLineRequest line : request.getItems()) {
             Item item = itemService.findItem(line.getItemId());
+
             if (!item.isActive()) {
                 throw new BadRequestException("Sản phẩm không tồn tại hoặc ngừng kinh doanh.");
             }
+
+            supplierItemService.validateItemSuppliedBySupplier(supplier.getId(), item.getItemCode());
+
             if (line.getQuantity().compareTo(BigDecimal.ZERO) <= 0) {
                 throw new BadRequestException("Số lượng đặt hàng phải lớn hơn 0.");
             }

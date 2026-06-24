@@ -3,7 +3,9 @@ package com.smartmart.controller;
 import com.smartmart.common.response.ApiResponse;
 import com.smartmart.dto.request.CreateSupplierRequest;
 import com.smartmart.dto.request.UpdateSupplierRequest;
+import com.smartmart.dto.response.ItemResponse;
 import com.smartmart.dto.response.SupplierResponse;
+import com.smartmart.service.SupplierItemService;
 import com.smartmart.service.SupplierService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -23,9 +25,11 @@ import java.util.List;
 public class SupplierController {
 
     private final SupplierService supplierService;
+    private final SupplierItemService supplierItemService;
 
-    public SupplierController(SupplierService supplierService) {
+    public SupplierController(SupplierService supplierService, SupplierItemService supplierItemService) {
         this.supplierService = supplierService;
+        this.supplierItemService = supplierItemService;
     }
 
     @GetMapping
@@ -57,5 +61,15 @@ public class SupplierController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateSupplierRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Cập nhật thành công", supplierService.update(id, request)));
+    }
+
+    @GetMapping("/{supplierId}/items")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
+    public ResponseEntity<ApiResponse<List<ItemResponse>>> listItemsBySupplier(
+            @PathVariable Long supplierId
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.success(supplierItemService.listItemsBySupplier(supplierId))
+        );
     }
 }

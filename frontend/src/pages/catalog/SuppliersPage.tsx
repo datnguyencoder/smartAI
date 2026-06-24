@@ -1,4 +1,4 @@
-import { Button, Form, Input, InputNumber, Modal, Tag, message as antdMessage } from 'antd';
+import { Button, Form, Input, InputNumber, Modal, Select, Tag, message as antdMessage } from 'antd';
 import { motion } from 'framer-motion';
 import { Plus, Search, Truck } from 'lucide-react';
 import * as React from 'react';
@@ -6,22 +6,48 @@ import { AiSummary } from '@/components/ai/AiSummary';
 import { Card, StatusChip, UiButton } from '@/components/ui';
 import { formatMoney as money, type Product } from '@/lib/itemMapper';
 import { canQuickCreate, normalizeRole } from '@/lib/permissions';
-import { createSupplier, fetchSupplierDebtsBySupplier, recordDebtPayment, updateSupplier } from '@/services/wmsApi';
-import type { SupplierDebtDto, SupplierDto, UserDto } from '@/types/api';
+import {
+  activateSupplierItem,
+  createSupplier,
+  createSupplierItem,
+  deactivateSupplierItem,
+  fetchSupplierDebtsBySupplier,
+  fetchSupplierItems,
+  recordDebtPayment,
+  updateSupplier,
+  updateSupplierItem,
+} from '@/services/wmsApi';
+import type { SupplierDebtDto, SupplierDto, SupplierItemDto, UserDto } from '@/types/api';
 import type { PageKey } from '@/types/pages';
 
-export default function SuppliersPage({ suppliers, productsList, authUser, reloadCatalog, setPage }: { suppliers: SupplierDto[]; productsList: Product[]; authUser?: UserDto; reloadCatalog?: () => Promise<void>; setPage?: (page: PageKey) => void }) {
+export default function SuppliersPage({
+  suppliers,
+  productsList,
+  authUser,
+  reloadCatalog,
+  setPage,
+}: {
+  suppliers: SupplierDto[];
+  productsList: Product[];
+  authUser?: UserDto;
+  reloadCatalog?: () => Promise<void>;
+  setPage?: (page: PageKey) => void;
+}) {
   const [selectedSup, setSelectedSup] = React.useState<SupplierDto | null>(null);
   const [isEditing, setIsEditing] = React.useState(false);
   const [form] = Form.useForm();
   const [loading, setLoading] = React.useState(false);
   const [debts, setDebts] = React.useState<SupplierDebtDto[]>([]);
-  const [debtTab, setDebtTab] = React.useState<'info' | 'debt'>('info');
+  const [debtTab, setDebtTab] = React.useState<'info' | 'items' | 'debt'>('info');
   const [payAmounts, setPayAmounts] = React.useState<Record<number, number>>({});
+  const [supplierItems, setSupplierItems] = React.useState<SupplierItemDto[]>([]);
+  const [supplierItemsLoading, setSupplierItemsLoading] = React.useState(false);
+  const [supplierItemPrices, setSupplierItemPrices] = React.useState<Record<number, number>>({});
 
   const [searchQuery, setSearchQuery] = React.useState('');
   const [createOpen, setCreateOpen] = React.useState(false);
   const [createForm] = Form.useForm();
+  const [supplierItemForm] = Form.useForm();
   const canEdit = authUser && ['ROLE_ADMIN', 'ROLE_MANAGER'].includes(normalizeRole(authUser.role));
   const canCreate = authUser && canQuickCreate(authUser.role, 'suppliers');
 
@@ -39,11 +65,33 @@ export default function SuppliersPage({ suppliers, productsList, authUser, reloa
     (s.phone && s.phone.includes(searchQuery))
   );
 
+  const loadSupplierItems = async (supplierId: number) => {
+    setSupplierItemsLoading(true);
+    try {
+      const data = await fetchSupplierItems(supplierId);
+      setSupplierItems(data);
+      setSupplierItemPrices(
+        Object.fromEntries(
+          data
+            .filter((item) => item.defaultCostPrice != null)
+            .map((item) => [item.id, Number(item.defaultCostPrice)])
+        )
+      );
+    } catch (e) {
+      setSupplierItems([]);
+      antdMessage.error(e instanceof Error ? e.message : 'Không tải được sản phẩm cung cấp');
+    } finally {
+      setSupplierItemsLoading(false);
+    }
+  };
+
   const handleOpen = (sup: SupplierDto) => {
     setSelectedSup(sup);
     setIsEditing(false);
     setDebtTab('info');
+    supplierItemForm.resetFields();
     fetchSupplierDebtsBySupplier(sup.id).then(setDebts).catch(() => setDebts([]));
+    loadSupplierItems(sup.id);
     form.setFieldsValue({
       supplierName: sup.supplierName,
       contactPerson: sup.contactPerson,
@@ -89,7 +137,7 @@ export default function SuppliersPage({ suppliers, productsList, authUser, reloa
         doUpdate();
       }
     } catch (e: any) {
-      if (e.errorFields) return; // Validation failed
+      if (e.errorFields) return;
     }
   };
 
@@ -115,6 +163,153 @@ export default function SuppliersPage({ suppliers, productsList, authUser, reloa
       setLoading(false);
     }
   };
+
+  const handleCreateSupplierItem = async () => {
+    if (!selectedSup) return;
+    try {
+      const values = await supplierItemForm.validateFields();
+      setSupplierItemsLoading(true);
+      await createSupplierItem({
+        supplierId: selectedSup.id,
+        skuItem: values.skuItem,
+        defaultCostPrice: values.defaultCostPrice,
+      });
+      antdMessage.success('Đã thêm sản phẩm cung cấp');
+      supplierItemForm.resetFields();
+      await loadSupplierItems(selectedSup.id);
+    } catch (e: unknown) {
+      if (e && typeof e === 'object' && 'errorFields' in e) return;
+      antdMessage.error(e instanceof Error ? e.message : 'Thêm sản phẩm cung cấp thất bại');
+    } finally {
+      setSupplierItemsLoading(false);
+    }
+  };
+
+  const handleToggleSupplierItem = async (item: SupplierItemDto) => {
+    if (!selectedSup) return;
+    try {
+      setSupplierItemsLoading(true);
+      if (item.active) {
+        await deactivateSupplierItem(item.id);
+        antdMessage.success('Đã ngưng cung cấp sản phẩm');
+      } else {
+        await activateSupplierItem(item.id);
+        antdMessage.success('Đã kích hoạt lại sản phẩm');
+      }
+      await loadSupplierItems(selectedSup.id);
+    } catch (e) {
+      antdMessage.error(e instanceof Error ? e.message : 'Cập nhật trạng thái thất bại');
+    } finally {
+      setSupplierItemsLoading(false);
+    }
+  };
+
+  const handleUpdateSupplierItemPrice = async (item: SupplierItemDto) => {
+    if (!selectedSup) return;
+    try {
+      setSupplierItemsLoading(true);
+      await updateSupplierItem(item.id, {
+        defaultCostPrice: supplierItemPrices[item.id],
+      });
+      antdMessage.success('Đã cập nhật giá nhập mặc định');
+      await loadSupplierItems(selectedSup.id);
+    } catch (e) {
+      antdMessage.error(e instanceof Error ? e.message : 'Cập nhật giá thất bại');
+    } finally {
+      setSupplierItemsLoading(false);
+    }
+  };
+
+  const mappedSkuSet = new Set(supplierItems.map((item) => item.skuItem.toLowerCase()));
+  const availableProducts = productsList.filter((product) => !mappedSkuSet.has(product.sku.toLowerCase()));
+  const productOptions = availableProducts.map((product) => ({
+    value: product.sku,
+    label: product.name + ' (' + product.sku + ')',
+    searchText: (product.name + ' ' + product.sku + ' ' + product.category).toLowerCase(),
+    category: product.category,
+    cost: product.cost,
+  }));
+
+  const renderSupplierItems = () => (
+    <div className="space-y-3">
+      {canEdit && (
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <Form form={supplierItemForm} layout="vertical">
+            <Form.Item name="skuItem" label="Sản phẩm" rules={[{ required: true, message: 'Vui lòng chọn sản phẩm' }]}>
+              <Select
+                showSearch
+                placeholder="Tìm theo tên, SKU hoặc danh mục"
+                options={productOptions}
+                optionRender={(option) => (
+                  <div>
+                    <div className="font-medium">{option.data.label}</div>
+                    <div className="text-xs text-slate-500">
+                      SKU: {option.data.value} - {option.data.category} - Giá vốn: {money(Number(option.data.cost ?? 0))}
+                    </div>
+                  </div>
+                )}
+                filterOption={(input, option) =>
+                  String((option as { searchText?: string })?.searchText ?? '').includes(input.toLowerCase())
+                }
+                onChange={(sku) => {
+                  const product = productsList.find((p) => p.sku === sku);
+                  if (product) {
+                    supplierItemForm.setFieldValue('defaultCostPrice', product.cost);
+                  }
+                }}
+              />
+            </Form.Item>
+            <div className="grid grid-cols-[1fr_auto] gap-2 items-end">
+              <Form.Item name="defaultCostPrice" label="Giá nhập mặc định" className="mb-0">
+                <InputNumber min={1} className="w-full" />
+              </Form.Item>
+              <Button type="primary" onClick={handleCreateSupplierItem} loading={supplierItemsLoading}>
+                Thêm
+              </Button>
+            </div>
+          </Form>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        {supplierItems.length === 0 ? (
+          <p className="text-slate-400">Nhà cung cấp này chưa được gán sản phẩm nào</p>
+        ) : supplierItems.map((item) => (
+          <div key={item.id} className="rounded-lg border border-slate-200 p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="font-semibold text-slate-800">{item.itemName || item.skuItem}</div>
+                <div className="text-xs text-slate-500">SKU: {item.skuItem}</div>
+                <div className="mt-1">
+                  <Tag color={item.active ? 'green' : 'default'}>{item.active ? 'Đang cung cấp' : 'Đã ngưng'}</Tag>
+                </div>
+              </div>
+              {canEdit && (
+                <Button size="small" danger={item.active} onClick={() => handleToggleSupplierItem(item)}>
+                  {item.active ? 'Ngưng' : 'Kích hoạt lại'}
+                </Button>
+              )}
+            </div>
+            <div className="mt-3 grid grid-cols-[1fr_auto] gap-2 items-center">
+              <InputNumber
+                min={1}
+                className="w-full"
+                disabled={!canEdit}
+                placeholder="Giá nhập mặc định"
+                value={supplierItemPrices[item.id] ?? Number(item.defaultCostPrice ?? 0)}
+                onChange={(value) => setSupplierItemPrices((prev) => ({ ...prev, [item.id]: Number(value) || 0 }))}
+              />
+              {canEdit && (
+                <Button size="small" onClick={() => handleUpdateSupplierItemPrice(item)}>
+                  Lưu giá
+                </Button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
@@ -150,9 +345,10 @@ export default function SuppliersPage({ suppliers, productsList, authUser, reloa
       </Card>
       <AiSummary setPage={setPage ?? (() => {})} />
       <Modal
-        title={isEditing ? 'Sửa thông tin Nhà cung cấp' : `Chi tiết: ${selectedSup?.supplierName}`}
+        title={isEditing ? 'Sửa thông tin Nhà cung cấp' : selectedSup ? 'Chi tiết: ' + selectedSup.supplierName : 'Chi tiết'}
         open={!!selectedSup}
-        onCancel={() => { setSelectedSup(null); setIsEditing(false); }}
+        onCancel={() => { setSelectedSup(null); setIsEditing(false); supplierItemForm.resetFields(); }}
+        width={760}
         footer={
           isEditing ? (
             <div className="flex justify-end gap-2">
@@ -167,17 +363,18 @@ export default function SuppliersPage({ suppliers, productsList, authUser, reloa
       >
         {selectedSup && !isEditing && (
           <div className="space-y-3 mt-4 text-sm text-slate-700">
-            <div className="flex gap-2 mb-3">
+            <div className="flex flex-wrap gap-2 mb-3">
               <Button type={debtTab === 'info' ? 'primary' : 'default'} size="small" onClick={() => setDebtTab('info')}>Thông tin</Button>
+              <Button type={debtTab === 'items' ? 'primary' : 'default'} size="small" onClick={() => setDebtTab('items')}>Sản phẩm cung cấp ({supplierItems.length})</Button>
               <Button type={debtTab === 'debt' ? 'primary' : 'default'} size="small" onClick={() => setDebtTab('debt')}>Công nợ ({debts.length})</Button>
             </div>
-            {debtTab === 'info' ? (
+            {debtTab === 'items' ? renderSupplierItems() : debtTab === 'info' ? (
               <>
-            <div className="grid grid-cols-[120px_1fr] border-b border-slate-100 pb-2"><span className="font-semibold text-slate-500">Tên NCC:</span><span>{selectedSup.supplierName}</span></div>
-            <div className="grid grid-cols-[120px_1fr] border-b border-slate-100 pb-2"><span className="font-semibold text-slate-500">Người liên hệ:</span><span>{selectedSup.contactPerson || '—'}</span></div>
-            <div className="grid grid-cols-[120px_1fr] border-b border-slate-100 pb-2"><span className="font-semibold text-slate-500">SĐT:</span><span>{selectedSup.phone || '—'}</span></div>
-            <div className="grid grid-cols-[120px_1fr] border-b border-slate-100 pb-2"><span className="font-semibold text-slate-500">Email:</span><span>{selectedSup.email || '—'}</span></div>
-            <div className="grid grid-cols-[120px_1fr]"><span className="font-semibold text-slate-500">Địa chỉ:</span><span>{selectedSup.address || '—'}</span></div>
+                <div className="grid grid-cols-[120px_1fr] border-b border-slate-100 pb-2"><span className="font-semibold text-slate-500">Tên NCC:</span><span>{selectedSup.supplierName}</span></div>
+                <div className="grid grid-cols-[120px_1fr] border-b border-slate-100 pb-2"><span className="font-semibold text-slate-500">Người liên hệ:</span><span>{selectedSup.contactPerson || '—'}</span></div>
+                <div className="grid grid-cols-[120px_1fr] border-b border-slate-100 pb-2"><span className="font-semibold text-slate-500">SĐT:</span><span>{selectedSup.phone || '—'}</span></div>
+                <div className="grid grid-cols-[120px_1fr] border-b border-slate-100 pb-2"><span className="font-semibold text-slate-500">Email:</span><span>{selectedSup.email || '—'}</span></div>
+                <div className="grid grid-cols-[120px_1fr]"><span className="font-semibold text-slate-500">Địa chỉ:</span><span>{selectedSup.address || '—'}</span></div>
               </>
             ) : (
               <div className="space-y-3">
@@ -186,7 +383,7 @@ export default function SuppliersPage({ suppliers, productsList, authUser, reloa
                     <div className="flex justify-between"><span>PO #{d.purchaseOrderId}</span>{debtStatusTag(d.status)}</div>
                     <div className="text-xs text-slate-500 mt-1">
                       Tổng: {money(d.amount)} · Đã trả: {money(d.paidAmount)} · Còn: {money(d.remainingAmount)}
-                      {d.dueDate ? ` · Hạn: ${d.dueDate}` : ''}
+                      {d.dueDate ? ' · Hạn: ' + d.dueDate : ''}
                     </div>
                     {d.status !== 'PAID' && canEdit && (
                       <div className="flex gap-2 mt-2">

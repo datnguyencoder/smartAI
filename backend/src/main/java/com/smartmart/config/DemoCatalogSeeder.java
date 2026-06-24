@@ -129,6 +129,16 @@ public class DemoCatalogSeeder implements CommandLineRunner {
                 "0905999000", "gt@unilever.demo", "156 Nguyễn Lương Bằng, Quận 7, TP.HCM");
         upsertSupplier("Orion Food Vina", "Anh Tuấn",
                 "0906111222", "sales@orion.demo", "KCN Mỹ Phước 2, Bình Dương");
+        upsertSupplier("PepsiCo Việt Nam", "Anh Khoa",
+                "0907222333", "orders@pepsico.demo", "KCN Sóng Thần, Bình Dương");
+        upsertSupplier("Trung Nguyên Legend", "Chị Thảo",
+                "0908333444", "sales@trungnguyen.demo", "82-84 Bùi Thị Xuân, Quận 1, TP.HCM");
+        upsertSupplier("Nestlé Việt Nam", "Anh Nam",
+                "0909444555", "orders@nestle.demo", "KCN Amata, Biên Hòa, Đồng Nai");
+        upsertSupplier("Đại lý gạo miền Nam", "Chị Hương",
+                "0910555666", "dailygao@smartmart.demo", "Chợ đầu mối Bình Điền, TP.HCM");
+        upsertSupplier("Colgate-Palmolive Việt Nam", "Anh Long",
+                "0911666777", "gt@colgate.demo", "Tòa nhà Etown, Tân Bình, TP.HCM");
 
         Location khoBan = upsertLocation("Kho bán", "STORE", null);
         Location khoTong = upsertLocation("Kho tổng", "WAREHOUSE", null);

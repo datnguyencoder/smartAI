@@ -8,6 +8,9 @@ import type {
   PageResponseDto,
   SupplierDto,
   UomDto,
+  SupplierItemDto,
+  CreateSupplierItemPayload,
+  UpdateSupplierItemPayload,
 } from '@/types/api';
 
 export function fetchItems(search?: string, categoryId?: number) {
@@ -126,4 +129,38 @@ export function fetchItemLots(itemId?: number, lotNumber?: string) {
 
 export function fetchItemLotById(id: number) {
   return apiRequest<ItemLotDto>(`/api/v1/item-lots/${id}`);
+}
+
+export function fetchItemsBySupplier(supplierId: number) {
+  return apiRequest<ItemDto[]>(`/api/v1/suppliers/${supplierId}/items`);
+}
+
+export function fetchSupplierItems(supplierId: number) {
+  return apiRequest<SupplierItemDto[]>(`/api/v1/supplier-items?supplierId=${supplierId}`);
+}
+
+export function createSupplierItem(payload: CreateSupplierItemPayload) {
+  return apiRequest<SupplierItemDto>('/api/v1/supplier-items', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateSupplierItem(id: number, payload: UpdateSupplierItemPayload) {
+  return apiRequest<SupplierItemDto>(`/api/v1/supplier-items/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deactivateSupplierItem(id: number) {
+  return apiRequest<void>(`/api/v1/supplier-items/${id}/deactivate`, {
+    method: 'PATCH',
+  });
+}
+
+export function activateSupplierItem(id: number) {
+  return apiRequest<void>(`/api/v1/supplier-items/${id}/activate`, {
+    method: 'PATCH',
+  });
 }

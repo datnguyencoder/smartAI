@@ -529,3 +529,24 @@ export type SupplierDebtDto = {
   note?: string;
   payments?: DebtPaymentDto[];
 };
+
+export type SupplierItemDto = {
+  id: number;
+  supplierId: number;
+  supplierName?: string;
+  skuItem: string;
+  itemId?: number;
+  itemName?: string;
+  defaultCostPrice?: number;
+  active: boolean;
+};
+
+export type CreateSupplierItemPayload = {
+  supplierId: number;
+  skuItem: string;
+  defaultCostPrice?: number;
+};
+
+export type UpdateSupplierItemPayload = {
+  defaultCostPrice?: number;
+};
