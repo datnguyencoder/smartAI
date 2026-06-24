@@ -189,17 +189,31 @@ public class TransferOrderServiceImpl implements TransferOrderService {
     @Override
     @Transactional(readOnly = true)
     public TransferOrder findById(Long id) {
-        return transferOrderRepository.findById(id)
+        TransferOrder order = transferOrderRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy phiếu chuyển kho"));
+        for (TransferOrderItem item : order.getItems()) {
+            if (item.getItem() != null) item.getItem().getItemName();
+            if (item.getLot() != null) item.getLot().getLotNumber();
+        }
+        return order;
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<TransferOrder> listAll(TransferStatus status) {
+        List<TransferOrder> list;
         if (status != null) {
-            return transferOrderRepository.findByStatusOrderByIdDesc(status);
+            list = transferOrderRepository.findByStatusOrderByIdDesc(status);
+        } else {
+            list = transferOrderRepository.findAllByOrderByIdDesc();
         }
-        return transferOrderRepository.findAllByOrderByIdDesc();
+        for (TransferOrder order : list) {
+            for (TransferOrderItem item : order.getItems()) {
+                if (item.getItem() != null) item.getItem().getItemName();
+                if (item.getLot() != null) item.getLot().getLotNumber();
+            }
+        }
+        return list;
     }
 
 }

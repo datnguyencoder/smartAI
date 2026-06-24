@@ -21,7 +21,6 @@ export type PageKey =
   | 'reports'
   | 'users'
   | 'settings'
-  | 'scrap-create'
   | 'scrap-orders'
   | 'stocktake'
   | 'transfer-orders'

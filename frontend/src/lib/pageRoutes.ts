@@ -23,7 +23,6 @@ export const PAGE_PATHS: Record<PageKey, string> = {
   reports: '/reports',
   users: '/users',
   settings: '/settings',
-  'scrap-create': '/scrap-orders/create',
   'scrap-orders': '/scrap-orders',
   stocktake: '/stocktake',
   'transfer-orders': '/transfer-orders',

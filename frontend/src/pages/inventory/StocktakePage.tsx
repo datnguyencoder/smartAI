@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Table, Tag, Button, Select, Modal, Input, InputNumber, message, Form, Space } from 'antd';
+import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import {
   cancelStocktake,
   confirmStocktake,
@@ -27,6 +28,8 @@ export default function StocktakePage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [draftLines, setDraftLines] = useState<DraftLine[]>([]);
   const [editCounts, setEditCounts] = useState<Record<string, number>>({});
+  const [selectedStocktake, setSelectedStocktake] = useState<StocktakeDto | null>(null);
+  const [searchKeyword, setSearchKeyword] = useState('');
   const [form] = Form.useForm();
 
   const lineKey = (itemId: number, lotId?: number) => `${itemId}-${lotId ?? 'null'}`;
@@ -114,20 +117,32 @@ export default function StocktakePage() {
       dataIndex: 'status',
       render: (s: string) => {
         const colors: Record<string, string> = { DRAFT: 'processing', CONFIRMED: 'success', CANCELLED: 'error' };
-        return <Tag color={colors[s] || 'default'}>{s}</Tag>;
+        const labels: Record<string, string> = { DRAFT: 'Nháp', CONFIRMED: 'Đã xác nhận', CANCELLED: 'Đã hủy' };
+        return <Tag color={colors[s] || 'default'}>{labels[s] || s}</Tag>;
       },
     },
     {
       title: 'Chênh lệch',
       render: (_: unknown, r: StocktakeDto) => {
-        const total = r.items.reduce((sum, i) => sum + Math.abs(Number(i.variance || 0)), 0);
-        return total > 0 ? <Tag color="orange">{total} đv</Tag> : '—';
+        if (r.status === 'DRAFT') return '—';
+        const netVariance = r.items.reduce((sum, i) => sum + Number(i.variance || 0), 0);
+        if (netVariance === 0) {
+          const absTotal = r.items.reduce((sum, i) => sum + Math.abs(Number(i.variance || 0)), 0);
+          return absTotal > 0 ? <span className="font-bold text-orange-500">{absTotal} đv (Biến động)</span> : '—';
+        }
+        return (
+          <span className={`font-bold flex items-center gap-1 w-max ${netVariance > 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {netVariance} đơn vị
+            {netVariance > 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
+          </span>
+        );
       },
     },
     {
       title: 'Thao tác',
       render: (_: unknown, r: StocktakeDto) => (
         <Space>
+          <Button size="small" onClick={() => setSelectedStocktake(r)}>Chi tiết</Button>
           {r.status === 'DRAFT' && (
             <>
               {canConfirm ? (
@@ -161,59 +176,102 @@ export default function StocktakePage() {
         action={<Button type="primary" onClick={() => setCreateOpen(true)}>Tạo phiếu kiểm kê</Button>}
       />
       <div className="px-5 pb-5">
-        <Select className="mb-4 w-40" value={statusFilter} onChange={setStatusFilter}
-          options={[{ value: 'ALL', label: 'Tất cả' }, { value: 'DRAFT', label: 'Nháp' }, { value: 'CONFIRMED', label: 'Đã xác nhận' }]} />
-        <Table rowKey="id" loading={loading} dataSource={stocktakes} columns={columns}
-          expandable={{
-            expandedRowRender: (r) => (
-              <Table size="small" pagination={false} dataSource={r.items} rowKey={(i) => `${i.itemId}-${i.lotId}`}
-                columns={[
-                  { title: 'Sản phẩm', dataIndex: 'itemName' },
-                  { title: 'Lô', dataIndex: 'lotNumber', render: (v?: string) => v || '—' },
-                  { title: 'Hệ thống', dataIndex: 'systemQuantity' },
-                  {
-                    title: 'Thực tế',
-                    render: (_: unknown, line) => {
-                      const key = `${r.id}-${lineKey(line.itemId, line.lotId)}`;
-                      const value = editCounts[key] ?? Number(line.actualQuantity);
-                      if (r.status !== 'DRAFT') return value;
-                      return (
-                        <InputNumber
-                          min={0}
-                          value={value}
-                          onChange={(v) => setEditCounts((prev) => ({ ...prev, [key]: Number(v) || 0 }))}
-                        />
-                      );
-                    },
-                  },
-                  {
-                    title: 'Chênh lệch',
-                    render: (_: unknown, line) => {
-                      const key = `${r.id}-${lineKey(line.itemId, line.lotId)}`;
-                      const actual = editCounts[key] ?? Number(line.actualQuantity);
-                      const n = actual - Number(line.systemQuantity);
-                      return <span className={n > 0 ? 'text-green-600' : n < 0 ? 'text-red-600' : ''}>{n}</span>;
-                    },
-                  },
-                ]} />
-            ),
-          }} />
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="mb-4 w-40 h-[34px] px-3 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-emerald-500 bg-white"
+        >
+          <option value="ALL">Tất cả</option>
+          <option value="DRAFT">Nháp</option>
+          <option value="CONFIRMED">Đã xác nhận</option>
+        </select>
+        <Table rowKey="id" loading={loading} dataSource={stocktakes} columns={columns} />
       </div>
+
+      {/* Chi tiết Modal */}
+      <Modal 
+        title={`Chi tiết kiểm kê ST-${String(selectedStocktake?.id || 0).padStart(4, '0')}`} 
+        open={!!selectedStocktake} 
+        onCancel={() => setSelectedStocktake(null)} 
+        footer={null} 
+        width={800}
+      >
+        {selectedStocktake && (
+          <Table size="small" pagination={{ pageSize: 5 }} dataSource={selectedStocktake.items} rowKey={(i) => `${i.itemId}-${i.lotId}`}
+            columns={[
+              { title: 'Sản phẩm', dataIndex: 'itemName' },
+              { title: 'Lô', dataIndex: 'lotNumber', render: (v?: string) => v || '—' },
+              { title: 'Hệ thống', dataIndex: 'systemQuantity' },
+              {
+                title: 'Thực tế',
+                render: (_: unknown, line) => {
+                  const key = `${selectedStocktake.id}-${lineKey(line.itemId, line.lotId)}`;
+                  const value = editCounts[key] ?? Number(line.actualQuantity);
+                  if (selectedStocktake.status !== 'DRAFT') return value;
+                  return (
+                    <InputNumber
+                      min={0}
+                      value={value}
+                      onChange={(v) => setEditCounts((prev) => ({ ...prev, [key]: Number(v) || 0 }))}
+                    />
+                  );
+                },
+              },
+              {
+                title: 'Chênh lệch',
+                render: (_: unknown, line) => {
+                  const key = `${selectedStocktake.id}-${lineKey(line.itemId, line.lotId)}`;
+                  const actual = editCounts[key] ?? Number(line.actualQuantity);
+                  const n = actual - Number(line.systemQuantity);
+                  return (
+                    <span className={`font-bold ${n > 0 ? 'text-green-600' : n < 0 ? 'text-red-600' : ''}`}>
+                      {n > 0 ? `+${n}` : n}
+                    </span>
+                  );
+                },
+              },
+            ]} 
+          />
+        )}
+      </Modal>
       <Modal title="Tạo phiếu kiểm kê" open={createOpen} onCancel={() => setCreateOpen(false)} footer={null} width={720}>
         <Form form={form} layout="vertical" onFinish={handleCreate}>
-          <Form.Item name="locationId" label="Kho" rules={[{ required: true }]}>
-            <Select
-              options={locations.map((l) => ({ value: l.id, label: l.locationName }))}
-              onChange={handleLocationChange}
-            />
+          <Form.Item name="locationId" label="Kho" rules={[{ required: true }]} style={{ marginBottom: 12 }}>
+            <select
+              className="w-full h-10 px-3 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-emerald-500 bg-white"
+              defaultValue=""
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                form.setFieldsValue({ locationId: val });
+                handleLocationChange(val);
+                setSearchKeyword('');
+              }}
+            >
+              <option value="" disabled>-- Chọn kho kiểm kê --</option>
+              {locations.map((l) => (
+                <option key={l.id} value={l.id}>{l.locationName}</option>
+              ))}
+            </select>
           </Form.Item>
           {draftLines.length > 0 && (
-            <Table
-              size="small"
-              pagination={false}
-              rowKey={(row) => lineKey(row.itemId, row.lotId)}
-              dataSource={draftLines}
-              columns={[
+            <>
+              <Input.Search
+                placeholder="Tìm tên sản phẩm hoặc mã lô..."
+                allowClear
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
+                className="mb-2"
+              />
+              <Table
+                size="small"
+                pagination={{ pageSize: 4, size: 'small' }}
+                style={{ marginBottom: 8 }}
+                rowKey={(row) => lineKey(row.itemId, row.lotId)}
+                dataSource={draftLines.filter(line => 
+                  line.itemName.toLowerCase().includes(searchKeyword.toLowerCase()) || 
+                  (line.lotNumber && line.lotNumber.toLowerCase().includes(searchKeyword.toLowerCase()))
+                )}
+                columns={[
                 { title: 'Sản phẩm', dataIndex: 'itemName' },
                 { title: 'Lô', dataIndex: 'lotNumber', render: (v?: string) => v || '—' },
                 { title: 'Hệ thống', dataIndex: 'systemQty' },
@@ -236,8 +294,9 @@ export default function StocktakePage() {
                 },
               ]}
             />
+            </>
           )}
-          <Form.Item name="note" label="Ghi chú" className="mt-4"><Input.TextArea rows={2} /></Form.Item>
+          <Form.Item name="note" label="Ghi chú" style={{ marginBottom: 16 }}><Input.TextArea rows={2} /></Form.Item>
           <Button type="primary" htmlType="submit" block disabled={draftLines.length === 0}>Tạo phiếu kiểm kê</Button>
         </Form>
       </Modal>

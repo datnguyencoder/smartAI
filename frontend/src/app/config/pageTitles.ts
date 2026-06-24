@@ -13,7 +13,6 @@ export const pageTitles: Record<PageKey, { title: string; description: string }>
   'import-slips': { title: 'Phiếu nhập hàng', description: 'Quản lý phiếu nhập, trạng thái duyệt và lịch nhận hàng.' },
   inventory: { title: 'Quản lý tồn kho', description: 'Kiểm soát tồn theo kho, ngưỡng cảnh báo và vòng quay hàng.' },
   'scrap-orders': { title: 'Quản lý Yêu cầu loại bỏ hàng hóa', description: 'Danh sách và duyệt các yêu cầu xuất hủy hàng hóa.' },
-  'scrap-create': { title: 'Tạo Yêu cầu loại bỏ hàng hóa', description: 'Tạo phiếu xuất hủy hàng hóa hỏng, lỗi, hoặc hết hạn.' },
   'inventory-alerts': { title: 'Cảnh báo tồn kho', description: 'Ưu tiên sản phẩm hết hàng, sắp hết và tồn bất thường.' },
   'inventory-logs': { title: 'Lịch sử biến động kho', description: 'Nhật ký toàn bộ biến động nhập, xuất, hủy và điều chỉnh tồn kho.' },
   stocktake: { title: 'Kiểm kê kho', description: 'Đối chiếu tồn thực tế với sổ sách và xử lý chênh lệch.' },

@@ -16,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
 import java.util.List;
 
 @RestController
@@ -36,25 +37,28 @@ public class StocktakeController {
     public ResponseEntity<ApiResponse<List<StocktakeResponse>>> list(
             @RequestParam(required = false) StocktakeStatus status
     ) {
-        return ResponseEntity.ok(ApiResponse.success(
-                WmsResponseMapper.toStocktakeResponses(stocktakeService.listAll(status))));
+        List<StocktakeResponse> responses = WmsResponseMapper.toStocktakeResponses(stocktakeService.listAll(status));
+        stocktakeService.enrichUsernames(responses);
+        return ResponseEntity.ok(ApiResponse.success(responses));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
     @Operation(summary = "Chi tiết phiếu kiểm kê")
     public ResponseEntity<ApiResponse<StocktakeResponse>> getById(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.success(
-                WmsResponseMapper.toStocktakeResponse(stocktakeService.findById(id))));
+        StocktakeResponse resp = WmsResponseMapper.toStocktakeResponse(stocktakeService.findById(id));
+        stocktakeService.enrichUsernames(Collections.singletonList(resp));
+        return ResponseEntity.ok(ApiResponse.success(resp));
     }
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
     @Operation(summary = "Tạo phiếu kiểm kê")
     public ResponseEntity<ApiResponse<StocktakeResponse>> create(@Valid @RequestBody CreateStocktakeRequest request) {
+        StocktakeResponse resp = WmsResponseMapper.toStocktakeResponse(stocktakeService.create(request));
+        stocktakeService.enrichUsernames(Collections.singletonList(resp));
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Tạo phiếu kiểm kê thành công",
-                        WmsResponseMapper.toStocktakeResponse(stocktakeService.create(request))));
+                .body(ApiResponse.success("Tạo phiếu kiểm kê thành công", resp));
     }
 
     @PostMapping("/{id}/confirm")
@@ -64,16 +68,18 @@ public class StocktakeController {
             @PathVariable Long id,
             @RequestBody(required = false) ConfirmStocktakeRequest request
     ) {
-        return ResponseEntity.ok(ApiResponse.success("Xác nhận kiểm kê thành công",
-                WmsResponseMapper.toStocktakeResponse(
-                        request != null ? stocktakeService.confirm(id, request) : stocktakeService.confirm(id))));
+        StocktakeResponse resp = WmsResponseMapper.toStocktakeResponse(
+                        request != null ? stocktakeService.confirm(id, request) : stocktakeService.confirm(id));
+        stocktakeService.enrichUsernames(Collections.singletonList(resp));
+        return ResponseEntity.ok(ApiResponse.success("Xác nhận kiểm kê thành công", resp));
     }
 
     @PostMapping("/{id}/cancel")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     @Operation(summary = "Hủy phiếu kiểm kê")
     public ResponseEntity<ApiResponse<StocktakeResponse>> cancel(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.success("Hủy phiếu kiểm kê thành công",
-                WmsResponseMapper.toStocktakeResponse(stocktakeService.cancel(id))));
+        StocktakeResponse resp = WmsResponseMapper.toStocktakeResponse(stocktakeService.cancel(id));
+        stocktakeService.enrichUsernames(Collections.singletonList(resp));
+        return ResponseEntity.ok(ApiResponse.success("Hủy phiếu kiểm kê thành công", resp));
     }
 }

@@ -202,12 +202,12 @@ export function InvoiceDrawer({ invoice, authUser, onClose, onCancelled }: Props
             {/* Cột 1: Thông tin hành chính */}
             <div className="space-y-1.5 text-xs">
               <h4 className="font-bold text-slate-400 uppercase tracking-wider mb-2">Thông tin chung</h4>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Thu ngân:</span> 
+              <div className="flex gap-2">
+                <span className="text-slate-500 w-24">Thu ngân:</span> 
                 <span className="font-semibold text-slate-800">{invoice.cashier}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500">Thanh toán:</span> 
+              <div className="flex gap-2 items-center">
+                <span className="text-slate-500 w-24">Thanh toán:</span> 
                 <span>
                   {invoice.paymentMethod ? (
                     <Tag color="blue" className="!mr-0">
@@ -222,25 +222,25 @@ export function InvoiceDrawer({ invoice, authUser, onClose, onCancelled }: Props
             {/* Cột 2: Đối tác */}
             <div className="space-y-1.5 text-xs">
               <h4 className="font-bold text-slate-400 uppercase tracking-wider mb-2">Khách hàng & Ưu đãi</h4>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Khách hàng:</span> 
+              <div className="flex gap-2">
+                <span className="text-slate-500 w-24">Khách hàng:</span> 
                 <span className="font-semibold text-indigo-600 cursor-pointer hover:underline">{invoice.customer}</span>
               </div>
               {invoice.customerPhone && (
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Điện thoại:</span> 
+                <div className="flex gap-2">
+                  <span className="text-slate-500 w-24">Điện thoại:</span> 
                   <span className="font-medium text-slate-700">{invoice.customerPhone}</span>
                 </div>
               )}
               {invoice.promotionCode && (
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-500">Mã giảm giá:</span> 
+                <div className="flex gap-2 items-center">
+                  <span className="text-slate-500 w-24">Mã giảm giá:</span> 
                   <Tag color="green" icon={<GiftOutlined />} className="!mr-0">{invoice.promotionCode}</Tag>
                 </div>
               )}
               {(invoice.loyaltyPointsRedeemed ?? 0) > 0 && (
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-500">Điểm đổi:</span> 
+                <div className="flex gap-2 items-center">
+                  <span className="text-slate-500 w-24">Điểm đổi:</span> 
                   <Tag color="purple" icon={<StarOutlined />} className="!mr-0">-{invoice.loyaltyPointsRedeemed} điểm</Tag>
                 </div>
               )}
@@ -249,12 +249,12 @@ export function InvoiceDrawer({ invoice, authUser, onClose, onCancelled }: Props
             {/* Cột 3: Thời gian & Tiến độ */}
             <div className="space-y-1.5 text-xs">
               <h4 className="font-bold text-slate-400 uppercase tracking-wider mb-2">Thời gian & Trạng thái</h4>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Thời gian tạo:</span> 
+              <div className="flex gap-2">
+                <span className="text-slate-500 w-24">Thời gian tạo:</span> 
                 <span className="font-medium text-slate-800">{invoice.time}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Trạng thái:</span> 
+              <div className="flex gap-2">
+                <span className="text-slate-500 w-24">Trạng thái:</span> 
                 <span className={`font-medium ${isCancelled ? 'text-red-500' : 'text-emerald-600'}`}>
                   {invoice.status}
                 </span>

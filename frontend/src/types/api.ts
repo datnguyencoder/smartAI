@@ -456,6 +456,7 @@ export type StocktakeDto = {
   locationId: number;
   locationName: string;
   createdBy?: number;
+  createdByUsername?: string;
   stocktakeDate: string;
   status: 'DRAFT' | 'CONFIRMED' | 'CANCELLED';
   note?: string;

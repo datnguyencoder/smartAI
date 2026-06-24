@@ -93,6 +93,10 @@ export function fetchStocktakes(status?: string) {
   return apiRequest<StocktakeDto[]>(`/api/v1/stocktakes${qs}`);
 }
 
+export function fetchStocktakeById(id: number) {
+  return apiRequest<StocktakeDto>(`/api/v1/stocktakes/${id}`);
+}
+
 export function createStocktake(payload: {
   locationId: number;
   note?: string;
@@ -115,6 +119,10 @@ export function cancelStocktake(id: number) {
 export function fetchTransferOrders(status?: string) {
   const qs = status ? `?status=${status}` : '';
   return apiRequest<TransferOrderDto[]>(`/api/v1/transfer-orders${qs}`);
+}
+
+export function fetchTransferOrderById(id: number) {
+  return apiRequest<TransferOrderDto>(`/api/v1/transfer-orders/${id}`);
 }
 
 export function createTransferOrder(payload: {
