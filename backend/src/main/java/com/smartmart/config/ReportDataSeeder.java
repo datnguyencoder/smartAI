@@ -7,7 +7,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
-import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,7 +26,7 @@ import java.util.*;
  */
 @Component
 @Profile({"local", "prod"})
-@Order(6)
+@org.springframework.core.annotation.Order(6)
 public class ReportDataSeeder implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(ReportDataSeeder.class);
@@ -91,10 +90,10 @@ public class ReportDataSeeder implements CommandLineRunner {
 
         // Calculate sold quantities to size purchases realistically
         Map<Long, BigDecimal> soldQuantities = new HashMap<>();
-        List<com.smartmart.entity.Order> completedOrders = orderRepository.findAll().stream()
+        List<Order> completedOrders = orderRepository.findAll().stream()
                 .filter(o -> o.getStatus() == OrderStatus.COMPLETED)
                 .toList();
-        for (com.smartmart.entity.Order order : completedOrders) {
+        for (Order order : completedOrders) {
             for (OrderItem oi : order.getItems()) {
                 Long itemId = oi.getItem().getId();
                 soldQuantities.put(itemId, soldQuantities.getOrDefault(itemId, BigDecimal.ZERO).add(oi.getQuantity()));
@@ -264,11 +263,11 @@ public class ReportDataSeeder implements CommandLineRunner {
         }
 
         // --- B. Logs for sales (from existing COMPLETED orders) ---
-        List<com.smartmart.entity.Order> completedOrders = orderRepository.findAll().stream()
+        List<Order> completedOrders = orderRepository.findAll().stream()
                 .filter(o -> o.getStatus() == OrderStatus.COMPLETED)
                 .toList();
 
-        for (com.smartmart.entity.Order order : completedOrders) {
+        for (Order order : completedOrders) {
             for (OrderItem oi : order.getItems()) {
                 BigDecimal qty = oi.getQuantity();
                 InventoryLog logEntry = InventoryLog.builder()

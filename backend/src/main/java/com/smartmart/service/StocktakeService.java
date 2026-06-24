@@ -2,6 +2,7 @@ package com.smartmart.service;
 
 import com.smartmart.dto.request.ConfirmStocktakeRequest;
 import com.smartmart.dto.request.CreateStocktakeRequest;
+import com.smartmart.dto.response.StocktakeResponse;
 import com.smartmart.entity.Stocktake;
 import com.smartmart.enums.StocktakeStatus;
 
@@ -14,5 +15,5 @@ public interface StocktakeService {
     Stocktake cancel(Long id);
     Stocktake findById(Long id);
     List<Stocktake> listAll(StocktakeStatus status);
-    void enrichUsernames(List<com.smartmart.dto.response.StocktakeResponse> responses);
+    void enrichUsernames(List<StocktakeResponse> responses);
 }

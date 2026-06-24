@@ -5,6 +5,7 @@ import com.smartmart.common.response.PageResponse;
 import com.smartmart.dto.request.CreateItemRequest;
 import com.smartmart.dto.request.UpdateItemRequest;
 import com.smartmart.dto.response.ItemResponse;
+import com.smartmart.dto.response.UomResponse;
 import com.smartmart.service.ItemService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -60,7 +61,7 @@ public class ItemController {
 
     @GetMapping("/{id}/uoms")
     @Operation(summary = "Danh sách đơn vị tính của sản phẩm (Base & Purchase)")
-    public ResponseEntity<ApiResponse<List<com.smartmart.dto.response.UomResponse>>> getItemUoms(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<List<UomResponse>>> getItemUoms(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(itemService.getItemUoms(id)));
     }
 

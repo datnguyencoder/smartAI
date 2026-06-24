@@ -9,7 +9,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
-import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,7 +27,7 @@ import java.util.*;
  */
 @Component
 @Profile({"local", "prod", "test"})
-@Order(6)
+@org.springframework.core.annotation.Order(6)
 public class DemoPosOrderSeeder implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DemoPosOrderSeeder.class);
@@ -174,7 +173,7 @@ public class DemoPosOrderSeeder implements CommandLineRunner {
 
             BigDecimal total = subtotal.subtract(discount).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
 
-            com.smartmart.entity.Order order = com.smartmart.entity.Order.builder()
+            Order order = Order.builder()
                     .orderCode(orderCode)
                     .createdBy(creatorId)
                     .customerName(customerName)

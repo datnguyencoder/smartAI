@@ -2,6 +2,7 @@ package com.smartmart.controller;
 
 import com.smartmart.common.response.ApiResponse;
 import com.smartmart.dto.request.CreateLocationRequest;
+import com.smartmart.dto.request.UpdateLocationRequest;
 import com.smartmart.dto.response.LocationResponse;
 import com.smartmart.service.LocationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -49,7 +50,7 @@ public class LocationController {
     @Operation(summary = "Cập nhật kho")
     public ResponseEntity<ApiResponse<LocationResponse>> update(
             @PathVariable Long id,
-            @Valid @RequestBody com.smartmart.dto.request.UpdateLocationRequest request) {
+            @Valid @RequestBody UpdateLocationRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Cập nhật thành công", locationService.update(id, request)));
     }
 }

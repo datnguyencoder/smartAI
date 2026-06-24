@@ -87,7 +87,7 @@ public class RetailSalesHistorySeeder implements CommandLineRunner {
 
         Map<String, Item> itemsByCode = new HashMap<>();
         Map<String, Category> categoriesByName = new HashMap<>();
-        Map<LocalDate, com.smartmart.entity.Order> ordersByDate = new LinkedHashMap<>();
+        Map<LocalDate, Order> ordersByDate = new LinkedHashMap<>();
 
         int rowCount = 0;
         try (BufferedReader reader = new BufferedReader(
@@ -112,8 +112,8 @@ public class RetailSalesHistorySeeder implements CommandLineRunner {
                         itemRepository.findByItemCode("RETAIL-" + code)
                                 .orElseGet(() -> createRetailItem(code, productName, categoryName, categoriesByName, baseUom)));
 
-                com.smartmart.entity.Order salesOrder = ordersByDate.computeIfAbsent(saleDate, date -> {
-                    com.smartmart.entity.Order o = com.smartmart.entity.Order.builder()
+                Order salesOrder = ordersByDate.computeIfAbsent(saleDate, date -> {
+                    Order o = Order.builder()
                             .orderCode(ORDER_PREFIX + date)
                             .createdBy(staffId)
                             .customerName("Retail dataset import")
@@ -144,7 +144,7 @@ public class RetailSalesHistorySeeder implements CommandLineRunner {
             throw new IllegalStateException("Failed to import retail sales CSV: " + csvClasspath, e);
         }
 
-        for (com.smartmart.entity.Order salesOrder : ordersByDate.values()) {
+        for (Order salesOrder : ordersByDate.values()) {
             orderRepository.save(salesOrder);
         }
         log.info("Imported {} retail sales lines into {} orders from {}", rowCount, ordersByDate.size(), csvClasspath);
@@ -191,7 +191,7 @@ public class RetailSalesHistorySeeder implements CommandLineRunner {
 
     /** DB cũ seed ngày 2011 — dịch sang cửa sổ gần hiện tại một lần khi khởi động. */
     private void shiftRetailOrderDatesIfStale() {
-        List<com.smartmart.entity.Order> retailOrders = orderRepository.findByOrderCodeStartingWith(ORDER_PREFIX);
+        List<Order> retailOrders = orderRepository.findByOrderCodeStartingWith(ORDER_PREFIX);
         if (retailOrders.isEmpty()) {
             return;
         }
@@ -203,7 +203,7 @@ public class RetailSalesHistorySeeder implements CommandLineRunner {
             return;
         }
         long offsetDays = ChronoUnit.DAYS.between(maxDate, LocalDate.now().minusDays(1));
-        for (com.smartmart.entity.Order order : retailOrders) {
+        for (Order order : retailOrders) {
             order.setOrderDate(order.getOrderDate().plusDays(offsetDays));
             String datePart = order.getOrderDate().toLocalDate().toString();
             order.setOrderCode(ORDER_PREFIX + datePart);

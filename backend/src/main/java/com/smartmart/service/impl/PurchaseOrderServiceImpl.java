@@ -5,7 +5,6 @@ import com.smartmart.dto.request.CreatePurchaseOrderRequest;
 import com.smartmart.dto.request.PurchaseLineRequest;
 import com.smartmart.dto.response.PurchaseOrderItemResponse;
 import com.smartmart.dto.response.PurchaseOrderResponse;
-import com.smartmart.dto.response.PurchaseReportResponse;
 import com.smartmart.entity.*;
 import com.smartmart.enums.InventoryActionType;
 import com.smartmart.enums.PurchaseStatus;
@@ -394,13 +393,12 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                 .toList();
     }
 
-
-
-    private BigDecimal calculateMovingAverageCost(Item item, PurchaseOrderItem poi, BigDecimal ratioToCalculateBaseQty, BigDecimal baseQty, BigDecimal oldQty) {
+    private BigDecimal calculateMovingAverageCost(Item item, PurchaseOrderItem poi, BigDecimal ratioToCalculateBaseQty,
+            BigDecimal baseQty, BigDecimal oldQty) {
         BigDecimal newBaseCost = poi.getUnitPrice().divide(ratioToCalculateBaseQty, 4, RoundingMode.HALF_UP);
         BigDecimal totalOldCost = oldQty.multiply(item.getCostPrice() != null ? item.getCostPrice() : BigDecimal.ZERO);
         BigDecimal totalNewCost = baseQty.multiply(newBaseCost);
-        
+
         BigDecimal totalQty = oldQty.add(baseQty);
         if (totalQty.compareTo(BigDecimal.ZERO) == 0) {
             return newBaseCost;
