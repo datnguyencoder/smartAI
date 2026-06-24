@@ -107,7 +107,7 @@ public class SupplierDebtServiceImpl implements SupplierDebtService {
         if (supplierDebtRepository.existsByPurchaseOrderId(purchaseOrderId)) {
             throw new BadRequestException("Công nợ cho phiếu nhập này đã tồn tại");
         }
-        PurchaseOrder po = purchaseOrderRepository.findByIdWithDetails(purchaseOrderId)
+        PurchaseOrder po = purchaseOrderRepository.findWithDetailsById(purchaseOrderId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy phiếu nhập"));
 
         SupplierDebt debt = SupplierDebt.builder()

@@ -6,6 +6,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.repository.query.Param;
+import org.springframework.data.jpa.repository.EntityGraph;
 import jakarta.persistence.LockModeType;
 
 import java.util.List;
@@ -40,20 +42,21 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
                      "AND (:categoryId IS NULL OR i.category.id = :categoryId) " +
                      "AND (:active IS NULL OR i.active = :active) " +
                      "ORDER BY i.id DESC")
-       List<Item> searchFiltered(@org.springframework.data.repository.query.Param("q") String q,
-                     @org.springframework.data.repository.query.Param("categoryId") Long categoryId,
-                     @org.springframework.data.repository.query.Param("active") Boolean active);
+       List<Item> searchFiltered(@Param("q") String q,
+                     @Param("categoryId") Long categoryId,
+                     @Param("active") Boolean active);
 
        @Query("SELECT i FROM Item i WHERE " +
                      "(:q = '' OR LOWER(i.itemName) LIKE LOWER(CONCAT('%', :q, '%')) OR LOWER(i.itemCode) LIKE LOWER(CONCAT('%', :q, '%'))) "
                      +
                      "AND (:categoryId IS NULL OR i.category.id = :categoryId) " +
                      "AND (:active IS NULL OR i.active = :active)")
-       Page<Item> searchFilteredPaged(@org.springframework.data.repository.query.Param("q") String q,
-                     @org.springframework.data.repository.query.Param("categoryId") Long categoryId,
-                     @org.springframework.data.repository.query.Param("active") Boolean active, Pageable pageable);
+       Page<Item> searchFilteredPaged(@Param("q") String q,
+                     @Param("categoryId") Long categoryId,
+                     @Param("active") Boolean active, Pageable pageable);
 
        @Lock(LockModeType.PESSIMISTIC_WRITE)
+       @EntityGraph(attributePaths = {"baseUom", "purchaseUom"})
        @Query("SELECT i FROM Item i WHERE i.id = :id")
-       Optional<Item> findByIdWithPessimisticLock(@org.springframework.data.repository.query.Param("id") Long id);
+       Optional<Item> findByIdWithPessimisticLock(@Param("id") Long id);
 }

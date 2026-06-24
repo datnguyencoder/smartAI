@@ -8,6 +8,19 @@ import { formatMoney as money } from '@/lib/itemMapper';
 import type { SupplierDto, LocationDto } from '@/types/api';
 import type { PageKey, PurchaseSuggestionPrefillItem } from '@/types/pages';
 import { AiSummary } from '@/components/ai/AiSummary';
+import { useAuth } from '@/contexts/AuthContext';
+
+type FormValues = {
+  supplierId?: number;
+  locationId?: number;
+  items: { itemId: number; quantity: number; price: number; expiryDate?: string }[];
+};
+
+const ReadOnlyPrice = ({ value }: { value?: number }) => (
+  <div className="h-[40px] px-3 flex items-center bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium whitespace-nowrap overflow-hidden text-ellipsis">
+    {value ? new Intl.NumberFormat('vi-VN').format(value) : '0'}
+  </div>
+);
 
 function TotalPriceDisplay({ form }: { form: any }) {
   const itemsWatch = Form.useWatch('items', form);
@@ -43,7 +56,9 @@ export default function ImportCreatePage({
   prefillItems?: PurchaseSuggestionPrefillItem[];
   clearPrefillItems?: () => void;
 }) {
-  const [form] = Form.useForm();
+  const [form] = Form.useForm<FormValues>();
+  const { authUser } = useAuth();
+  const canEditPrice = authUser?.role === 'MANAGER' || authUser?.role === 'ADMIN';
   const [submitting, setSubmitting] = React.useState(false);
   const [paymentDeferred, setPaymentDeferred] = React.useState(false);
 
@@ -72,11 +87,7 @@ export default function ImportCreatePage({
     }
   }, [clearPrefillItems, form, prefillItems, productsList]);
 
-  const handleCreateSlip = async (values: {
-    supplierId: number;
-    locationId: number;
-    items: { itemId: number; quantity: number; price: number; expiryDate?: string }[];
-  }) => {
+  const handleCreateSlip = async (values: FormValues) => {
     if (!values.items || values.items.length === 0) {
       antdMessage.error('Vui lòng chọn ít nhất 1 sản phẩm');
       return;
@@ -265,7 +276,7 @@ export default function ImportCreatePage({
                           >
                             <option value="" disabled>-- Chọn sản phẩm --</option>
                             {productsList.map((p) => (
-                              <option key={p.key} value={p.key}>{p.name} (Tồn: {p.stock})</option>
+                              <option key={p.key} value={p.key}>{p.name} (Tồn: {p.stock} {p.baseUomName || ''})</option>
                             ))}
                           </select>
                         </Form.Item>
@@ -273,9 +284,30 @@ export default function ImportCreatePage({
                         <Form.Item
                           {...restField}
                           name={[name, 'quantity']}
-                          label={<span className="text-xs font-medium text-slate-600 whitespace-nowrap">Số lượng</span>}
+                          label={
+                            <Form.Item
+                              shouldUpdate={(prevValues, currentValues) => prevValues.items?.[name]?.itemId !== currentValues.items?.[name]?.itemId}
+                              noStyle
+                            >
+                              {({ getFieldValue }) => {
+                                const selectedId = getFieldValue(['items', name, 'itemId']);
+                                const p = productsList.find((p) => p.key === selectedId);
+                                const uom = p?.purchaseUomName || p?.baseUomName || '';
+                                return (
+                                  <span className="text-xs font-medium text-slate-600">
+                                    Số lượng {uom ? `(${uom})` : ''}
+                                    {p && (p.purchaseUomName || p.baseUomName) && (
+                                      <span className="block text-[10px] text-emerald-600 font-normal leading-tight mt-0.5">
+                                        1 {p.purchaseUomName || p.baseUomName} = {p.purchaseRatio || 1} {p.baseUomName || p.purchaseUomName}
+                                      </span>
+                                    )}
+                                  </span>
+                                );
+                              }}
+                            </Form.Item>
+                          }
                           rules={[{ required: true, message: 'Bắt buộc' }]}
-                          className="mb-0 md:col-span-2"
+                          className="mb-0 md:col-span-3"
                         >
                           <InputNumber size="large" className="w-full" min={1} />
                         </Form.Item>
@@ -291,7 +323,11 @@ export default function ImportCreatePage({
                           rules={[{ required: true, message: 'Bắt buộc' }]}
                           className="mb-0 md:col-span-3"
                         >
-                          <InputNumber size="large" className="w-full" min={1} />
+                          {canEditPrice ? (
+                            <InputNumber size="large" className="w-full" min={1} />
+                          ) : (
+                            <ReadOnlyPrice />
+                          )}
                         </Form.Item>
 
                         <Form.Item

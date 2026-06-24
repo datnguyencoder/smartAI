@@ -14,12 +14,13 @@ import java.time.LocalDateTime;
 import com.smartmart.enums.ReferenceType;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface InventoryLogRepository extends JpaRepository<InventoryLog, Long> {
     Page<InventoryLog> findByItemIdOrderByIdDesc(Long itemId, Pageable pageable);
 
     @Query("SELECT l FROM InventoryLog l WHERE l.referenceType = :refType AND l.referenceId = :refId AND l.item.id = :itemId AND ((l.lot IS NULL AND :lotId IS NULL) OR (l.lot.id = :lotId))")
-    java.util.Optional<InventoryLog> findLogForUpdate(@Param("refType") ReferenceType refType,
+    Optional<InventoryLog> findLogForUpdate(@Param("refType") ReferenceType refType,
             @Param("refId") Long refId, @Param("itemId") Long itemId, @Param("lotId") Long lotId);
 
     void deleteByReferenceTypeAndReferenceId(ReferenceType refType, Long refId);
@@ -45,7 +46,7 @@ public interface InventoryLogRepository extends JpaRepository<InventoryLog, Long
 
     @Modifying
     @Query("UPDATE InventoryLog l SET l.referenceId = :orderId WHERE l.referenceType = 'ORDER' AND l.referenceId IS NULL AND l.actionType = 'SALE' AND l.item.id IN :itemIds AND l.userId = :userId AND l.createdAt >= :since")
-    void backfillSaleReferenceId(@Param("orderId") Long orderId, @Param("itemIds") List<Long> itemIds, @Param("userId") Long userId, @Param("since") java.time.LocalDateTime since);
+    void backfillSaleReferenceId(@Param("orderId") Long orderId, @Param("itemIds") List<Long> itemIds, @Param("userId") Long userId, @Param("since") LocalDateTime since);
 
     @Query(value = """
             SELECT il.item_id,

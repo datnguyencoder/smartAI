@@ -2,6 +2,7 @@ package com.smartmart.controller;
 
 import com.smartmart.common.response.ApiResponse;
 import com.smartmart.dto.request.CreateSupplierRequest;
+import com.smartmart.dto.request.UpdateSupplierRequest;
 import com.smartmart.dto.response.SupplierResponse;
 import com.smartmart.service.SupplierService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -43,12 +44,18 @@ public class SupplierController {
                 .body(ApiResponse.success("Tạo NCC thành công", supplierService.create(request)));
     }
 
+    @GetMapping("/{id}")
+    @Operation(summary = "Chi tiết nhà cung cấp")
+    public ResponseEntity<ApiResponse<SupplierResponse>> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(supplierService.getById(id)));
+    }
+
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     @Operation(summary = "Cập nhật nhà cung cấp")
     public ResponseEntity<ApiResponse<SupplierResponse>> update(
             @PathVariable Long id,
-            @Valid @RequestBody com.smartmart.dto.request.UpdateSupplierRequest request) {
+            @Valid @RequestBody UpdateSupplierRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Cập nhật thành công", supplierService.update(id, request)));
     }
 }

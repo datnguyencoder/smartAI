@@ -32,7 +32,7 @@ export function ProductsTable({ title, rows, openProduct }: Props) {
     },
     { title: 'Danh mục', dataIndex: 'category' },
     { title: 'Đã bán', dataIndex: 'sold', sorter: (a, b) => a.sold - b.sold },
-    { title: 'Tồn', dataIndex: 'stock' },
+    { title: 'Tồn', dataIndex: 'stock', render: (v, row) => `${v} ${row.baseUomName || ''}`.trim() },
     { title: 'Doanh thu', dataIndex: 'price', render: (_, row) => formatMoney(row.price * row.sold) },
     { title: 'Trạng thái', dataIndex: 'status', render: (v) => <StatusChip tone={statusTone(v)}>{v}</StatusChip> },
   ];

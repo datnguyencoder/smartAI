@@ -18,6 +18,9 @@ import com.smartmart.service.InventoryLedgerService;
 import com.smartmart.service.InventoryQueryService;
 import com.smartmart.service.ItemService;
 import com.smartmart.util.AuditData;
+import com.smartmart.exception.InsufficientStockException;
+import com.smartmart.event.ScrapOrderCompletedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,7 +39,7 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
     private final InventoryLedgerService inventoryLedgerService;
     private final AuditLogService auditLogService;
     private final InventoryQueryService inventoryQueryService;
-    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
+    private final ApplicationEventPublisher eventPublisher;
 
     public ScrapOrderServiceImpl(
             ScrapOrderRepository scrapOrderRepository,
@@ -45,7 +48,7 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
             ItemService itemService,
             InventoryLedgerService inventoryLedgerService,
             InventoryQueryService inventoryQueryService,
-            org.springframework.context.ApplicationEventPublisher eventPublisher,
+            ApplicationEventPublisher eventPublisher,
             AuditLogService auditLogService
     ) {
         this.scrapOrderRepository = scrapOrderRepository;
@@ -69,7 +72,7 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
             BigDecimal available = inventoryQueryService.getExactAvailableQty(line.getItemId(), location.getId(), line.getLotId());
             if (available.compareTo(line.getQuantity()) < 0) {
                 Item item = itemService.findItem(line.getItemId());
-                throw new com.smartmart.exception.InsufficientStockException("Không đủ tồn kho khả dụng cho sản phẩm: " + item.getItemName());
+                throw new InsufficientStockException("Không đủ tồn kho khả dụng cho sản phẩm: " + item.getItemName());
             }
         }
 
@@ -162,7 +165,7 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
             );
 
             eventPublisher.publishEvent(
-                    new com.smartmart.event.ScrapOrderCompletedEvent(
+                    new ScrapOrderCompletedEvent(
                             this, updated.getId()
                     )
             );

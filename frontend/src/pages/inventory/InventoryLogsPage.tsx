@@ -1,13 +1,14 @@
 import React from 'react';
-import { Table, Select, DatePicker, Tag, message as antdMessage } from 'antd';
+import { Table, Select, DatePicker, Tag, message as antdMessage, Input } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { Card } from '@/components/ui';
-import { fetchInventoryLogs, fetchLocations } from '@/services/wmsApi';
+import { fetchInventoryLogs, fetchLocations, fetchPurchaseOrderById } from '@/services/wmsApi';
 import { formatMoney } from '@/lib/itemMapper';
 import type { InventoryLogDto, LocationDto } from '@/types/api';
 import { Search } from 'lucide-react';
-import { Input } from 'antd';
 import dayjs from 'dayjs';
+import PurchaseOrderDetailModal from '@/components/purchase/PurchaseOrderDetailModal';
+import { purchaseToSlip, type ImportSlipRow } from '@/lib/purchaseMapper';
 
 const { RangePicker } = DatePicker;
 
@@ -39,6 +40,16 @@ export default function InventoryLogsPage() {
   const [dateRange, setDateRange] = React.useState<[string, string] | undefined>();
   const [locations, setLocations] = React.useState<LocationDto[]>([]);
   const [loading, setLoading] = React.useState(false);
+  const [viewingPurchaseOrder, setViewingPurchaseOrder] = React.useState<ImportSlipRow | null>(null);
+
+  const handleViewPurchaseOrder = async (id: number) => {
+    try {
+      const po = await fetchPurchaseOrderById(id);
+      setViewingPurchaseOrder(purchaseToSlip(po));
+    } catch (e) {
+      antdMessage.error('Không thể tải thông tin phiếu nhập');
+    }
+  };
 
   const fetchData = React.useCallback(async () => {
     setLoading(true);
@@ -101,7 +112,14 @@ export default function InventoryLogsPage() {
       title: 'Tham chiếu',
       width: 150,
       render: (_: unknown, row: InventoryLogDto) => {
-        const label = row.referenceType ? REF_LABELS[row.referenceType] ?? row.referenceType : '—';
+        const label = row.referenceType ? REF_LABELS[row.referenceType] ?? row.referenceType : '-';
+        if (row.referenceType === 'PURCHASE_ORDER' && row.referenceId) {
+          return (
+            <a onClick={() => handleViewPurchaseOrder(row.referenceId!)} className="text-[#006c49] hover:underline cursor-pointer font-medium">
+              {label} #{row.referenceId}
+            </a>
+          );
+        }
         return row.referenceId ? `${label} #${row.referenceId}` : label;
       },
     },
@@ -142,80 +160,88 @@ export default function InventoryLogsPage() {
   ];
 
   return (
-    <Card className="overflow-hidden">
-      <div className="p-5 border-b border-slate-100 flex flex-wrap gap-4 items-center justify-between">
-        <div className="flex gap-4 items-center">
-          <h2 className="font-semibold text-lg">Nhật ký biến động kho</h2>
-          <Input className="w-64" prefix={<Search size={16} />} placeholder="Tìm kiếm sản phẩm, kho, phiếu..." value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setPage(1); }} allowClear />
+    <>
+      <Card className="overflow-hidden">
+        <div className="p-5 border-b border-slate-100 flex flex-wrap gap-4 items-center justify-between">
+          <div className="flex gap-4 items-center">
+            <h2 className="font-semibold text-lg">Nhật ký biến động kho</h2>
+            <Input className="w-64" prefix={<Search size={16} />} placeholder="Tìm kiếm sản phẩm, kho, phiếu..." value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setPage(1); }} allowClear />
+          </div>
+          <div className="flex flex-wrap gap-3 items-center">
+            <select
+              value={locationFilter || ''}
+              onChange={(e) => {
+                const val = e.target.value;
+                setLocationFilter(val ? Number(val) : undefined);
+                setPage(1);
+              }}
+              className="h-[34px] px-3 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-emerald-500 bg-white"
+            >
+              <option value="">Tất cả vị trí kho</option>
+              {locations.map(l => (
+                <option key={l.id} value={l.id}>{l.locationName}</option>
+              ))}
+            </select>
+            <select
+              value={actionFilter ?? 'ALL'}
+              onChange={(e) => {
+                const val = e.target.value;
+                setActionFilter(val === 'ALL' ? undefined : val);
+                setPage(1);
+              }}
+              className="h-[34px] px-3 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-emerald-500 bg-white"
+            >
+              <option value="ALL">Tất cả hành động</option>
+              <option value="PURCHASE_RECEIVE">🟢 Nhập kho</option>
+              <option value="SALE">🔴 Bán hàng</option>
+              <option value="SALE_CANCEL">🟠 Hủy bán</option>
+              <option value="SCRAP_COMPLETED">🔥 Loại bỏ</option>
+              <option value="ADJUSTMENT">🔵 Điều chỉnh</option>
+            </select>
+            <RangePicker
+              format="DD/MM/YYYY"
+              placeholder={['Từ ngày', 'Đến ngày']}
+              onChange={(dates) => {
+                if (dates && dates[0] && dates[1]) {
+                  setDateRange([
+                    dates[0].format('YYYY-MM-DD'),
+                    dates[1].format('YYYY-MM-DD'),
+                  ]);
+                } else {
+                  setDateRange(undefined);
+                }
+                setPage(1);
+              }}
+            />
+          </div>
         </div>
-        <div className="flex flex-wrap gap-3 items-center">
-          <select
-            value={locationFilter || ''}
-            onChange={(e) => {
-              const val = e.target.value;
-              setLocationFilter(val ? Number(val) : undefined);
-              setPage(1);
-            }}
-            className="h-[34px] px-3 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-emerald-500 bg-white"
-          >
-            <option value="">Tất cả vị trí kho</option>
-            {locations.map(l => (
-              <option key={l.id} value={l.id}>{l.locationName}</option>
-            ))}
-          </select>
-          <select
-            value={actionFilter ?? 'ALL'}
-            onChange={(e) => {
-              const val = e.target.value;
-              setActionFilter(val === 'ALL' ? undefined : val);
-              setPage(1);
-            }}
-            className="h-[34px] px-3 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-emerald-500 bg-white"
-          >
-            <option value="ALL">Tất cả hành động</option>
-            <option value="PURCHASE_RECEIVE">🟢 Nhập kho</option>
-            <option value="SALE">🔴 Bán hàng</option>
-            <option value="SALE_CANCEL">🟠 Hủy bán</option>
-            <option value="SCRAP_COMPLETED">🔥 Loại bỏ</option>
-            <option value="ADJUSTMENT">🔵 Điều chỉnh</option>
-          </select>
-          <RangePicker
-            format="DD/MM/YYYY"
-            placeholder={['Từ ngày', 'Đến ngày']}
-            onChange={(dates) => {
-              if (dates && dates[0] && dates[1]) {
-                setDateRange([
-                  dates[0].format('YYYY-MM-DD'),
-                  dates[1].format('YYYY-MM-DD'),
-                ]);
-              } else {
-                setDateRange(undefined);
-              }
-              setPage(1);
-            }}
-          />
-        </div>
-      </div>
-      <Table
-        columns={columns}
-        dataSource={data}
-        loading={loading}
-        pagination={{
-          current: page,
-          pageSize,
-          total,
-          showSizeChanger: true,
-          pageSizeOptions: ['10', '20', '50'],
-          showTotal: (t) => `Tổng ${t} bản ghi`,
-          onChange: (p, s) => {
-            setPage(p);
-            setPageSize(s);
-          },
-        }}
-        rowKey="id"
-        scroll={{ x: 1100 }}
-        size="middle"
+        <Table
+          columns={columns}
+          dataSource={data}
+          loading={loading}
+          pagination={{
+            current: page,
+            pageSize,
+            total,
+            showSizeChanger: true,
+            pageSizeOptions: ['10', '20', '50'],
+            showTotal: (t) => `Tổng ${t} bản ghi`,
+            onChange: (p, s) => {
+              setPage(p);
+              setPageSize(s);
+            },
+          }}
+          rowKey="id"
+          scroll={{ x: 1100 }}
+          size="middle"
+        />
+      </Card>
+
+      <PurchaseOrderDetailModal
+        open={Boolean(viewingPurchaseOrder)}
+        order={viewingPurchaseOrder}
+        onClose={() => setViewingPurchaseOrder(null)}
       />
-    </Card>
+    </>
   );
 }

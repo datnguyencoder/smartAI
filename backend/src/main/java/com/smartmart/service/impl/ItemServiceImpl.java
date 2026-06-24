@@ -5,6 +5,7 @@ import com.smartmart.constant.AuditAction;
 import com.smartmart.dto.request.CreateItemRequest;
 import com.smartmart.dto.request.UpdateItemRequest;
 import com.smartmart.dto.response.ItemResponse;
+import com.smartmart.dto.response.UomResponse;
 import com.smartmart.entity.Item;
 import com.smartmart.entity.Uom;
 import com.smartmart.exception.BadRequestException;
@@ -12,23 +13,24 @@ import com.smartmart.exception.ConflictException;
 import com.smartmart.exception.NotFoundException;
 import com.smartmart.repository.*;
 import com.smartmart.service.AuditLogService;
+import com.smartmart.service.ItemService;
 import com.smartmart.util.AuditData;
 import com.smartmart.util.ItemImageUrls;
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 @Service
 @Transactional
-public class ItemServiceImpl implements com.smartmart.service.ItemService {
+public class ItemServiceImpl implements ItemService {
 
     private final ItemRepository itemRepository;
     private final CategoryRepository categoryRepository;
@@ -98,7 +100,7 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
     @Transactional(readOnly = true)
     public List<com.smartmart.dto.response.UomResponse> getItemUoms(Long id) {
         Item item = findItem(id);
-        List<com.smartmart.dto.response.UomResponse> uoms = new java.util.ArrayList<>();
+        List<UomResponse> uoms = new ArrayList<>();
         if (item.getBaseUom() != null) {
             uoms.add(toUomResponse(item.getBaseUom()));
         }
@@ -108,8 +110,8 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
         return uoms;
     }
 
-    private com.smartmart.dto.response.UomResponse toUomResponse(Uom uom) {
-        return com.smartmart.dto.response.UomResponse.builder()
+    private UomResponse toUomResponse(Uom uom) {
+        return UomResponse.builder()
                 .id(uom.getId())
                 .uomName(uom.getUomName())
                 .category(uom.getCategory())
@@ -119,7 +121,7 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
     }
 
     @Override
-    @CacheEvict(value = { "items", "itemsPage" }, allEntries = true)
+    @CacheEvict(value = { "items", "itemsPage", "purchaseOrders" }, allEntries = true)
     public ItemResponse create(CreateItemRequest req) {
         String itemCode = normalizeItemCode(req.getItemCode());
         String itemName = normalizeItemName(req.getItemName());
@@ -162,13 +164,12 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
                 saved.getId().toString(),
                 "Tạo sản phẩm: " + saved.getItemCode(),
                 null,
-                itemData(saved)
-        );
+                itemData(saved));
         return toResponse(saved, BigDecimal.ZERO);
     }
 
     @Override
-    @CacheEvict(value = { "items", "itemsPage" }, allEntries = true)
+    @CacheEvict(value = { "items", "itemsPage", "purchaseOrders" }, allEntries = true)
     public ItemResponse update(Long id, UpdateItemRequest req) {
         Item item = findItem(id);
         String beforeData = itemData(item);
@@ -242,8 +243,7 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
                 "Cập nhật sản phẩm: " + saved.getItemCode()
                         + " - " + saved.getItemName(),
                 beforeData,
-                itemData(saved)
-        );
+                itemData(saved));
         return toResponse(saved, sold);
     }
 
@@ -255,11 +255,8 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
     private void checkItemUsageForUomChange(Long itemId) {
         boolean hasInventory = !currentInventoryRepository.findByItemId(itemId).isEmpty();
         boolean hasPurchaseHistory = purchaseOrderItemRepository.existsByItemId(itemId);
-        boolean hasSalesHistory = orderItemRepository.existsByItemId(itemId); // assuming this exists or use aggregate
+        boolean hasSalesHistory = orderItemRepository.existsByItemId(itemId);
 
-        // Wait, OrderItemRepository might not have existsByItemId.
-        // Let's just use aggregate map soldQtyMap() which already aggregates by Item
-        // ID!
         if (hasInventory || hasPurchaseHistory || soldQtyMap().containsKey(itemId)) {
             throw new BadRequestException(
                     "Không thể thay đổi Đơn vị tính vì sản phẩm này đã phát sinh giao dịch nhập kho, tồn kho hoặc xuất bán. Vui lòng tạo Mã Sản Phẩm mới.");
@@ -335,6 +332,7 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
                 .baseUomName(item.getBaseUom() != null ? item.getBaseUom().getUomName() : null)
                 .purchaseUomId(item.getPurchaseUom() != null ? item.getPurchaseUom().getId() : null)
                 .purchaseUomName(item.getPurchaseUom() != null ? item.getPurchaseUom().getUomName() : null)
+                .purchaseRatio(item.getPurchaseUom() != null ? item.getPurchaseUom().getConversionRatio() : BigDecimal.ONE)
                 .build();
     }
 
@@ -356,7 +354,6 @@ public class ItemServiceImpl implements com.smartmart.service.ItemService {
                 "sellingPrice", item.getSellingPrice(),
                 "minimumStock", item.getMinimumStock(),
                 "hasExpiry", item.isHasExpiry(),
-                "active", item.isActive()
-        );
+                "active", item.isActive());
     }
 }

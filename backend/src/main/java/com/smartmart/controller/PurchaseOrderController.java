@@ -18,7 +18,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/purchase-orders")
@@ -59,7 +58,8 @@ public class PurchaseOrderController {
             @RequestParam(required = false) LocalDate fromDate,
             @RequestParam(required = false) LocalDate toDate,
             @ParameterObject Pageable pageable) {
-        Page<PurchaseOrderResponse> page = purchaseOrderService.list(supplierId, locationId, search, status, fromDate, toDate, pageable);
+        Page<PurchaseOrderResponse> page = purchaseOrderService.list(supplierId, locationId, search, status, fromDate,
+                toDate, pageable);
         return ResponseEntity.ok(ApiResponse.success(page));
     }
 

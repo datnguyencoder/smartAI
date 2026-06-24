@@ -74,14 +74,19 @@ export function ProductDrawer({ product, onClose, onUpdated }: Props) {
             <ProductThumbnail name={product.name} imageUrl={previewImageUrl} size={96} className="rounded-xl" />
             <div className="min-w-0 flex-1">
               <h2 className="text-xl font-semibold">{product.name}</h2>
-              <p className="text-sm text-muted">
+              <p className="text-sm text-slate-500">
                 {product.sku} · {product.category}
               </p>
+              {product && (product.purchaseUomName || product.baseUomName) && (
+                <div className="mt-1.5 inline-block px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[11px] font-medium rounded border border-emerald-100">
+                  Quy đổi: 1 {product.purchaseUomName || product.baseUomName} = {product.purchaseRatio || 1} {product.baseUomName || product.purchaseUomName}
+                </div>
+              )}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Statistic title="Tồn kho" value={product.stock} />
-            <Statistic title="Đã bán" value={product.sold} />
+            <Statistic title="Tồn kho" value={product.stock} suffix={product.baseUomName || ''} />
+            <Statistic title="Đã bán" value={product.sold} suffix={product.baseUomName || ''} />
             <Statistic title="Giá nhập" value={product.cost} formatter={(v) => formatMoney(Number(v))} />
             <Statistic title="Giá bán" value={product.price} formatter={(v) => formatMoney(Number(v))} />
             <Statistic title="Hạn dùng" value={product.expiry} className="col-span-2" />
@@ -132,7 +137,7 @@ export function ProductDrawer({ product, onClose, onUpdated }: Props) {
                     </div>
                   ),
                 },
-                { title: 'SL', dataIndex: 'quantity', align: 'right' },
+                { title: 'SL', dataIndex: 'quantity', align: 'right', render: (v) => `${v} ${product.baseUomName || ''}`.trim() },
               ]}
             />
           </div>

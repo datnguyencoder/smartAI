@@ -3,9 +3,12 @@ package com.smartmart.service.impl;
 import com.smartmart.constant.AuditAction;
 import com.smartmart.dto.request.CreateSupplierRequest;
 import com.smartmart.dto.response.SupplierResponse;
+import com.smartmart.dto.request.UpdateSupplierRequest;
+import com.smartmart.exception.NotFoundException;
 import com.smartmart.entity.Supplier;
 import com.smartmart.repository.SupplierRepository;
 import com.smartmart.service.AuditLogService;
+import com.smartmart.service.SupplierService;
 import com.smartmart.util.AuditData;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,7 +17,7 @@ import java.util.List;
 
 @Service
 @Transactional
-public class SupplierServiceImpl implements com.smartmart.service.SupplierService {
+public class SupplierServiceImpl implements SupplierService {
 
     private final SupplierRepository supplierRepository;
     private final AuditLogService auditLogService;
@@ -56,9 +59,16 @@ public class SupplierServiceImpl implements com.smartmart.service.SupplierServic
     }
 
     @Override
-    public SupplierResponse update(Long id, com.smartmart.dto.request.UpdateSupplierRequest req) {
+    public SupplierResponse getById(Long id) {
         Supplier supplier = supplierRepository.findById(id)
-                .orElseThrow(() -> new com.smartmart.exception.NotFoundException("Không tìm thấy nhà cung cấp"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy nhà cung cấp"));
+        return toResponse(supplier);
+    }
+
+    @Override
+    public SupplierResponse update(Long id, UpdateSupplierRequest req) {
+        Supplier supplier = supplierRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy nhà cung cấp"));
         String beforeData = supplierData(supplier);
         supplier.setSupplierName(req.getSupplierName());
         supplier.setContactPerson(req.getContactPerson());

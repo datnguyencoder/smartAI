@@ -14,6 +14,6 @@ public class SimpleCacheConfig {
 
     @Bean
     public CacheManager cacheManager() {
-        return new ConcurrentMapCacheManager("items", "itemsPage", "dashboardSummary", "dashboardRevenue");
+        return new ConcurrentMapCacheManager();
     }
 }

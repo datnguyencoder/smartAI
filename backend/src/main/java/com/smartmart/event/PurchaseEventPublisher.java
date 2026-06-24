@@ -4,9 +4,11 @@ import com.smartmart.constant.KafkaTopicConstant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.stereotype.Component;
-
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
+
 import java.util.Map;
 
 @Component
@@ -20,32 +22,16 @@ public class PurchaseEventPublisher {
     }
 
     @Async
-    public void publishPurchaseCreated(Long purchaseId) {
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onPurchaseOrderStatusEvent(PurchaseOrderStatusEvent event) {
+        Long purchaseId = event.getPurchaseId();
+        String eventType = event.getEventType();
         try {
             kafkaTemplate.send(KafkaTopicConstant.PURCHASE_ORDERS, String.valueOf(purchaseId),
-                    Map.of("purchaseId", purchaseId, "event", "PURCHASE_CREATED"));
+                    Map.of("purchaseId", purchaseId, "event", eventType));
+            log.info("Successfully published Kafka event {} for purchase order {}", eventType, purchaseId);
         } catch (Exception ex) {
-            log.warn("Kafka publish failed for purchase created {}: {}", purchaseId, ex.getMessage());
-        }
-    }
-
-    @Async
-    public void publishPurchaseReceived(Long purchaseId) {
-        try {
-            kafkaTemplate.send(KafkaTopicConstant.PURCHASE_ORDERS, String.valueOf(purchaseId),
-                    Map.of("purchaseId", purchaseId, "event", "PURCHASE_RECEIVED"));
-        } catch (Exception ex) {
-            log.warn("Kafka publish failed for purchase {}: {}", purchaseId, ex.getMessage());
-        }
-    }
-
-    @Async
-    public void publishPurchaseCancelled(Long purchaseId) {
-        try {
-            kafkaTemplate.send(KafkaTopicConstant.PURCHASE_ORDERS, String.valueOf(purchaseId),
-                    Map.of("purchaseId", purchaseId, "event", "PURCHASE_CANCELLED"));
-        } catch (Exception ex) {
-            log.warn("Kafka publish failed for purchase cancelled {}: {}", purchaseId, ex.getMessage());
+            log.warn("Kafka publish failed for purchase {} event {}: {}", purchaseId, eventType, ex.getMessage());
         }
     }
 }

@@ -3,6 +3,7 @@ package com.smartmart.service.impl;
 import com.smartmart.constant.AuditAction;
 import com.smartmart.dto.request.CreateStocktakeRequest;
 import com.smartmart.dto.request.StocktakeLineRequest;
+import com.smartmart.dto.request.ConfirmStocktakeRequest;
 import com.smartmart.entity.*;
 import com.smartmart.enums.InventoryActionType;
 import com.smartmart.enums.ReferenceType;
@@ -113,7 +114,7 @@ public class StocktakeServiceImpl implements StocktakeService {
     }
 
     @Override
-    public Stocktake confirm(Long id, com.smartmart.dto.request.ConfirmStocktakeRequest request) {
+    public Stocktake confirm(Long id, ConfirmStocktakeRequest request) {
         Stocktake stocktake = findById(id);
         if (stocktake.getStatus() != StocktakeStatus.DRAFT) {
             throw new BadRequestException("Chỉ có thể xác nhận phiếu kiểm kê ở trạng thái DRAFT");

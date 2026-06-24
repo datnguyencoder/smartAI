@@ -5,22 +5,32 @@ import com.smartmart.dto.request.CreatePurchaseOrderRequest;
 import com.smartmart.dto.request.PurchaseLineRequest;
 import com.smartmart.dto.response.PurchaseOrderItemResponse;
 import com.smartmart.dto.response.PurchaseOrderResponse;
+import com.smartmart.dto.response.PurchaseReportResponse;
 import com.smartmart.entity.*;
 import com.smartmart.enums.InventoryActionType;
 import com.smartmart.enums.PurchaseStatus;
 import com.smartmart.enums.ReferenceType;
-import com.smartmart.event.PurchaseEventPublisher;
+import com.smartmart.event.PurchaseOrderStatusEvent;
 import com.smartmart.exception.BadRequestException;
 import com.smartmart.exception.NotFoundException;
+import org.springframework.context.ApplicationEventPublisher;
 import com.smartmart.repository.*;
 import com.smartmart.security.SecurityUtils;
 import com.smartmart.service.AuditLogService;
 import com.smartmart.service.InventoryLedgerService;
 import com.smartmart.service.ItemService;
 import com.smartmart.service.PurchaseOrderService;
+import com.smartmart.service.SupplierDebtService;
 import com.smartmart.util.AuditData;
+import jakarta.persistence.criteria.Predicate;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -28,10 +38,12 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -40,37 +52,34 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     private final PurchaseOrderRepository purchaseOrderRepository;
     private final SupplierRepository supplierRepository;
     private final LocationRepository locationRepository;
-    private final UomRepository uomRepository;
     private final CurrentInventoryRepository currentInventoryRepository;
     private final ItemService itemService;
     private final InventoryLedgerService inventoryLedgerService;
-    private final PurchaseEventPublisher purchaseEventPublisher;
+    private final ApplicationEventPublisher applicationEventPublisher;
     private final AuditLogService auditLogService;
     private final ItemLotRepository itemLotRepository;
     private final ItemRepository itemRepository;
-    private final com.smartmart.service.SupplierDebtService supplierDebtService;
+    private final SupplierDebtService supplierDebtService;
 
     public PurchaseOrderServiceImpl(
             PurchaseOrderRepository purchaseOrderRepository,
             SupplierRepository supplierRepository,
             LocationRepository locationRepository,
-            UomRepository uomRepository,
             CurrentInventoryRepository currentInventoryRepository,
             ItemService itemService,
             InventoryLedgerService inventoryLedgerService,
-            PurchaseEventPublisher purchaseEventPublisher,
+            ApplicationEventPublisher applicationEventPublisher,
             AuditLogService auditLogService,
             ItemLotRepository itemLotRepository,
             ItemRepository itemRepository,
-            com.smartmart.service.SupplierDebtService supplierDebtService) {
+            SupplierDebtService supplierDebtService) {
         this.purchaseOrderRepository = purchaseOrderRepository;
         this.supplierRepository = supplierRepository;
         this.locationRepository = locationRepository;
-        this.uomRepository = uomRepository;
         this.currentInventoryRepository = currentInventoryRepository;
         this.itemService = itemService;
         this.inventoryLedgerService = inventoryLedgerService;
-        this.purchaseEventPublisher = purchaseEventPublisher;
+        this.applicationEventPublisher = applicationEventPublisher;
         this.auditLogService = auditLogService;
         this.itemLotRepository = itemLotRepository;
         this.itemRepository = itemRepository;
@@ -78,6 +87,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     }
 
     @Override
+    @CacheEvict(value = "purchaseOrders", allEntries = true)
     public PurchaseOrderResponse create(CreatePurchaseOrderRequest request) {
         Supplier supplier = supplierRepository.findById(request.getSupplierId())
                 .orElseThrow(() -> new NotFoundException("Nhà cung cấp không tồn tại hoặc đã ngừng hoạt động."));
@@ -158,18 +168,16 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                         "supplierId", savedPo.getSupplier().getId(),
                         "locationId", savedPo.getLocation().getId(),
                         "totalAmount", savedPo.getTotalAmount(),
-                        "status", savedPo.getStatus()
-                )
-        );
-        purchaseEventPublisher.publishPurchaseCreated(savedPo.getId());
+                        "status", savedPo.getStatus()));
+        applicationEventPublisher.publishEvent(new PurchaseOrderStatusEvent(this, savedPo.getId(), "PURCHASE_CREATED"));
 
         return toResponse(savedPo);
     }
 
     @Override
-    @org.springframework.cache.annotation.CacheEvict(value = { "items", "itemsPage" }, allEntries = true)
+    @CacheEvict(value = { "items", "itemsPage", "purchaseOrders" }, allEntries = true)
     public PurchaseOrderResponse receive(Long purchaseId) {
-        PurchaseOrder po = purchaseOrderRepository.findByIdWithDetails(purchaseId)
+        PurchaseOrder po = purchaseOrderRepository.findWithDetailsById(purchaseId)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy phiếu nhập"));
 
         if (po.getStatus() != PurchaseStatus.PENDING) {
@@ -178,12 +186,10 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
 
         Long userId = SecurityUtils.getCurrentUserId().orElse(null);
 
-        // Sort items by ID to prevent Deadlocks when acquiring Pessimistic Locks
-        List<PurchaseOrderItem> sortedItems = new java.util.ArrayList<>(po.getItems());
-        sortedItems.sort(java.util.Comparator.comparing(poi -> poi.getItem().getId()));
+        List<PurchaseOrderItem> sortedItems = new ArrayList<>(po.getItems());
+        sortedItems.sort(Comparator.comparing(poi -> poi.getItem().getId()));
 
         for (PurchaseOrderItem poi : sortedItems) {
-            // Lock the Item row in the DB to MAC safely
             Item item = itemRepository.findByIdWithPessimisticLock(poi.getItem().getId())
                     .orElseThrow(() -> new NotFoundException("Không tìm thấy sản phẩm"));
 
@@ -191,6 +197,10 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             BigDecimal conversionRatio = orderedUom.getConversionRatio();
             BigDecimal baseRatio = item.getBaseUom() != null ? item.getBaseUom().getConversionRatio() : BigDecimal.ONE;
             BigDecimal ratioToCalculateBaseQty = conversionRatio.divide(baseRatio, 6, RoundingMode.HALF_UP);
+
+            if (ratioToCalculateBaseQty.compareTo(BigDecimal.ZERO) == 0) {
+                throw new BadRequestException("Tỉ lệ quy đổi không hợp lệ (bằng 0). Không thể thực hiện nhận hàng.");
+            }
 
             BigDecimal baseQty = poi.getOrderedQty().multiply(ratioToCalculateBaseQty);
 
@@ -205,12 +215,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                     userId,
                     "Nhập kho");
 
-            BigDecimal newBaseCost = poi.getUnitPrice().divide(ratioToCalculateBaseQty, 4, RoundingMode.HALF_UP);
-            BigDecimal totalOldCost = oldQty
-                    .multiply(item.getCostPrice() != null ? item.getCostPrice() : BigDecimal.ZERO);
-            BigDecimal totalNewCost = baseQty.multiply(newBaseCost);
-            BigDecimal newCostPrice = totalOldCost.add(totalNewCost).divide(oldQty.add(baseQty), 4,
-                    RoundingMode.HALF_UP);
+            BigDecimal newCostPrice = calculateMovingAverageCost(item, poi, ratioToCalculateBaseQty, baseQty, oldQty);
 
             item.setCostPrice(newCostPrice);
 
@@ -230,53 +235,81 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                 beforeData,
                 AuditData.of(
                         "status", po.getStatus(),
-                        "completedAt", po.getCompletedAt()
-                )
-        );
+                        "completedAt", po.getCompletedAt()));
         if (po.isPaymentDeferred()) {
             supplierDebtService.createFromPurchaseOrder(po.getId(), LocalDate.now().plusDays(30));
         }
-        purchaseEventPublisher.publishPurchaseReceived(po.getId());
+        applicationEventPublisher.publishEvent(new PurchaseOrderStatusEvent(this, po.getId(), "PURCHASE_RECEIVED"));
 
         return toResponse(po);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Page<PurchaseOrderResponse> list(Long supplierId, Long locationId, String search, PurchaseStatus status, LocalDate fromDate, LocalDate toDate, Pageable pageable) {
-        LocalDateTime safeFrom = fromDate != null ? fromDate.atStartOfDay() : LocalDateTime.of(2000, 1, 1, 0, 0);
-        LocalDateTime safeTo = toDate != null ? toDate.plusDays(1).atStartOfDay() : LocalDateTime.of(2100, 1, 1, 0, 0);
+    public Page<PurchaseOrderResponse> list(Long supplierId, Long locationId, String search, PurchaseStatus status,
+            LocalDate fromDate, LocalDate toDate, Pageable pageable) {
 
-        Page<Long> idPage = purchaseOrderRepository.findFilteredIdsPaged(supplierId, locationId, search, status, safeFrom, safeTo, pageable);
+        Specification<PurchaseOrder> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
 
-        if (idPage.isEmpty()) {
+            if (supplierId != null) {
+                predicates.add(cb.equal(root.get("supplier").get("id"), supplierId));
+            }
+            if (locationId != null) {
+                predicates.add(cb.equal(root.get("location").get("id"), locationId));
+            }
+            if (status != null) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+            if (search != null && !search.isBlank()) {
+                String pattern = "%" + search.toLowerCase() + "%";
+                predicates.add(cb.or(
+                        cb.like(root.get("id").as(String.class), "%" + search + "%"),
+                        cb.like(cb.lower(root.get("supplier").get("supplierName")), pattern)));
+            }
+
+            LocalDateTime safeFrom = fromDate != null ? fromDate.atStartOfDay() : LocalDateTime.of(2000, 1, 1, 0, 0);
+            LocalDateTime safeTo = toDate != null ? toDate.plusDays(1).atStartOfDay()
+                    : LocalDateTime.of(2100, 1, 1, 0, 0);
+            predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), safeFrom));
+            predicates.add(cb.lessThan(root.get("createdAt"), safeTo));
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<PurchaseOrder> poPage = purchaseOrderRepository.findAll(spec, pageable);
+
+        if (poPage.isEmpty()) {
             return Page.empty(pageable);
         }
 
-        List<PurchaseOrder> pos = purchaseOrderRepository.findByIdsWithDetails(idPage.getContent());
+        List<Long> ids = poPage.getContent().stream().map(PurchaseOrder::getId).toList();
+        List<PurchaseOrder> detailed = purchaseOrderRepository.findByIdInOrderByCreatedAtDesc(ids);
 
-        // order based on original pageIds list
-        java.util.Map<Long, PurchaseOrder> map = pos.stream().collect(
-                java.util.stream.Collectors.toMap(PurchaseOrder::getId, java.util.function.Function.identity()));
-        List<PurchaseOrderResponse> responses = idPage.getContent().stream()
+        Map<Long, PurchaseOrder> map = detailed.stream()
+                .collect(Collectors.toMap(PurchaseOrder::getId, po -> po));
+        List<PurchaseOrderResponse> responses = ids.stream()
                 .map(map::get)
+                .filter(Objects::nonNull)
                 .map(this::toResponse)
                 .toList();
 
-        return new PageImpl<>(responses, pageable, idPage.getTotalElements());
+        return new PageImpl<>(responses, pageable, poPage.getTotalElements());
     }
 
     @Override
+    @Cacheable(value = "purchaseOrders", key = "#id")
     @Transactional(readOnly = true)
     public PurchaseOrderResponse getById(Long id) {
-        return purchaseOrderRepository.findByIdWithDetails(id)
+        return purchaseOrderRepository.findWithDetailsById(id)
                 .map(this::toResponse)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy phiếu nhập"));
     }
 
     @Override
+    @CacheEvict(value = "purchaseOrders", allEntries = true)
     public PurchaseOrderResponse cancel(Long id) {
-        PurchaseOrder po = purchaseOrderRepository.findByIdWithDetails(id)
+        PurchaseOrder po = purchaseOrderRepository.findWithDetailsById(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy phiếu nhập"));
 
         String beforeData = AuditData.of("status", po.getStatus());
@@ -289,7 +322,6 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             throw new BadRequestException("Đã quá thời hạn 24 tiếng để hủy đơn tự động. Vui lòng liên hệ hỗ trợ.");
         }
 
-        // Clean up ItemLot to prevent garbage data in DB
         for (PurchaseOrderItem poi : po.getItems()) {
             if (poi.getLot() != null) {
                 Long lotIdToTrash = poi.getLot().getId();
@@ -307,9 +339,8 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                 po.getId().toString(),
                 "Hủy phiếu nhập #" + po.getId(),
                 beforeData,
-                AuditData.of("status", po.getStatus())
-        );
-        purchaseEventPublisher.publishPurchaseCancelled(po.getId());
+                AuditData.of("status", po.getStatus()));
+        applicationEventPublisher.publishEvent(new PurchaseOrderStatusEvent(this, po.getId(), "PURCHASE_CANCELLED"));
 
         return toResponse(po);
     }
@@ -343,5 +374,37 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                 .totalAmount(po.getTotalAmount())
                 .items(itemResponses)
                 .build();
+    }
+
+    @Override
+    @Cacheable(value = "purchaseOrders", key = "'all'")
+    @Transactional(readOnly = true)
+    public List<PurchaseOrderResponse> listAll() {
+        return purchaseOrderRepository.findAllByOrderByPurchaseDateDesc().stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Override
+    @Cacheable(value = "purchaseOrders", key = "'status-' + #status.name()")
+    @Transactional(readOnly = true)
+    public List<PurchaseOrderResponse> listByStatus(PurchaseStatus status) {
+        return purchaseOrderRepository.findByStatusOrderByPurchaseDateDesc(status, Pageable.unpaged()).stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+
+
+    private BigDecimal calculateMovingAverageCost(Item item, PurchaseOrderItem poi, BigDecimal ratioToCalculateBaseQty, BigDecimal baseQty, BigDecimal oldQty) {
+        BigDecimal newBaseCost = poi.getUnitPrice().divide(ratioToCalculateBaseQty, 4, RoundingMode.HALF_UP);
+        BigDecimal totalOldCost = oldQty.multiply(item.getCostPrice() != null ? item.getCostPrice() : BigDecimal.ZERO);
+        BigDecimal totalNewCost = baseQty.multiply(newBaseCost);
+        
+        BigDecimal totalQty = oldQty.add(baseQty);
+        if (totalQty.compareTo(BigDecimal.ZERO) == 0) {
+            return newBaseCost;
+        }
+        return totalOldCost.add(totalNewCost).divide(totalQty, 4, RoundingMode.HALF_UP);
     }
 }
