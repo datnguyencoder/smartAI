@@ -14,6 +14,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import com.smartmart.enums.ScrapStatus;
+import com.smartmart.entity.ScrapOrder;
+import java.util.Collections;
 import java.util.List;
 
 @RestController
@@ -32,44 +35,56 @@ public class ScrapOrderController {
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
     @Operation(summary = "Danh sách phiếu hủy")
     public ResponseEntity<ApiResponse<List<ScrapOrderResponse>>> list(
-            @RequestParam(required = false) com.smartmart.enums.ScrapStatus status
-    ) {
-        // Here we ideally need a status filter in the service. For now we will filter the list.
-        List<com.smartmart.entity.ScrapOrder> orders = scrapOrderService.listAll();
+            @RequestParam(required = false) ScrapStatus status) {
+        List<ScrapOrder> orders = scrapOrderService.listAll();
         if (status != null) {
             orders = orders.stream().filter(o -> o.getStatus() == status).toList();
         }
-        return ResponseEntity.ok(ApiResponse.success(
-                WmsResponseMapper.toScrapOrderResponses(orders)));
+        List<ScrapOrderResponse> responses = WmsResponseMapper.toScrapOrderResponses(orders);
+        scrapOrderService.enrichUsernames(responses);
+        return ResponseEntity.ok(ApiResponse.success(responses));
+    }
+
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
+    @Operation(summary = "Chi tiết phiếu hủy")
+    public ResponseEntity<ApiResponse<ScrapOrderResponse>> getById(@PathVariable Long id) {
+        ScrapOrder order = scrapOrderService.findById(id);
+        ScrapOrderResponse response = WmsResponseMapper.toScrapOrderResponse(order);
+        scrapOrderService.enrichUsernames(Collections.singletonList(response));
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
     @Operation(summary = "Tạo phiếu hủy (chờ duyệt)")
     public ResponseEntity<ApiResponse<ScrapOrderResponse>> create(@Valid @RequestBody CreateScrapOrderRequest request) {
+        ScrapOrderResponse resp = WmsResponseMapper.toScrapOrderResponse(scrapOrderService.create(request));
+        scrapOrderService.enrichUsernames(Collections.singletonList(resp));
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Tạo phiếu hủy thành công",
-                        WmsResponseMapper.toScrapOrderResponse(scrapOrderService.create(request))));
+                .body(ApiResponse.success("Tạo phiếu hủy thành công", resp));
     }
 
     @PostMapping("/{id}/approve")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     @Operation(summary = "Duyệt phiếu hủy — trừ tồn kho")
     public ResponseEntity<ApiResponse<ScrapOrderResponse>> approve(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.success("Duyệt phiếu hủy thành công",
-                WmsResponseMapper.toScrapOrderResponse(
-                        scrapOrderService.approve(id))));
+        ScrapOrderResponse resp = WmsResponseMapper.toScrapOrderResponse(scrapOrderService.approve(id));
+        scrapOrderService.enrichUsernames(Collections.singletonList(resp));
+        return ResponseEntity.ok(ApiResponse.success("Duyệt phiếu hủy thành công", resp));
     }
-    
+
     @PostMapping("/{id}/cancel")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     @Operation(summary = "Từ chối phiếu hủy")
     public ResponseEntity<ApiResponse<ScrapOrderResponse>> cancel(
             @PathVariable Long id,
-            @RequestParam String reason
-    ) {
-        return ResponseEntity.ok(ApiResponse.success("Từ chối phiếu hủy thành công",
-                WmsResponseMapper.toScrapOrderResponse(
-                        scrapOrderService.cancel(id, reason))));
+            @RequestParam String reason) {
+        ScrapOrderResponse resp = WmsResponseMapper.toScrapOrderResponse(scrapOrderService.cancel(id, reason));
+        scrapOrderService.enrichUsernames(Collections.singletonList(resp));
+        return ResponseEntity.ok(ApiResponse.success("Từ chối phiếu hủy thành công", resp));
     }
+
 }
+
+            

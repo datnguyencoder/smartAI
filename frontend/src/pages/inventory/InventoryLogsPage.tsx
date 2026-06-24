@@ -4,11 +4,15 @@ import type { ColumnsType } from 'antd/es/table';
 import { Card } from '@/components/ui';
 import { fetchInventoryLogs, fetchLocations, fetchPurchaseOrderById } from '@/services/wmsApi';
 import { formatMoney } from '@/lib/itemMapper';
-import type { InventoryLogDto, LocationDto } from '@/types/api';
+import type { InventoryLogDto, LocationDto, ScrapOrderDto } from '@/types/api';
 import { Search } from 'lucide-react';
 import dayjs from 'dayjs';
 import PurchaseOrderDetailModal from '@/components/purchase/PurchaseOrderDetailModal';
+import ScrapOrderDetailDrawer from '@/components/inventory/ScrapOrderDetailDrawer';
+import { InvoiceDrawer, type InvoiceView } from '@/components/sales/InvoiceDrawer';
 import { purchaseToSlip, type ImportSlipRow } from '@/lib/purchaseMapper';
+import { useAuth } from '@/contexts/AuthContext';
+import { fetchOrderById, fetchScrapOrderById } from '@/services/wmsApi';
 
 const { RangePicker } = DatePicker;
 
@@ -40,7 +44,11 @@ export default function InventoryLogsPage() {
   const [dateRange, setDateRange] = React.useState<[string, string] | undefined>();
   const [locations, setLocations] = React.useState<LocationDto[]>([]);
   const [loading, setLoading] = React.useState(false);
+  
+  const { authUser } = useAuth();
   const [viewingPurchaseOrder, setViewingPurchaseOrder] = React.useState<ImportSlipRow | null>(null);
+  const [viewingSalesOrder, setViewingSalesOrder] = React.useState<InvoiceView | null>(null);
+  const [viewingScrapOrder, setViewingScrapOrder] = React.useState<ScrapOrderDto | null>(null);
 
   const handleViewPurchaseOrder = async (id: number) => {
     try {
@@ -48,6 +56,34 @@ export default function InventoryLogsPage() {
       setViewingPurchaseOrder(purchaseToSlip(po));
     } catch (e) {
       antdMessage.error('Không thể tải thông tin phiếu nhập');
+    }
+  };
+
+  const handleViewSalesOrder = async (id: number) => {
+    try {
+      const order = await fetchOrderById(id);
+      setViewingSalesOrder({
+        key: order.orderCode,
+        orderId: order.id,
+        customer: order.customerName,
+        customerPhone: order.customerPhone,
+        amount: order.totalAmount,
+        cashier: order.cashierName || 'Khách',
+        status: order.status,
+        rawStatus: order.status,
+        time: dayjs(order.orderDate).format('DD/MM/YYYY HH:mm'),
+      });
+    } catch (e: any) {
+      antdMessage.error(`Lỗi tải đơn hàng: ${e.message || 'Không xác định'}`);
+    }
+  };
+
+  const handleViewScrapOrder = async (id: number) => {
+    try {
+      const scrap = await fetchScrapOrderById(id);
+      setViewingScrapOrder(scrap);
+    } catch (e: any) {
+      antdMessage.error(`Lỗi tải phiếu hủy: ${e.message || 'Không xác định'}`);
     }
   };
 
@@ -113,12 +149,28 @@ export default function InventoryLogsPage() {
       width: 150,
       render: (_: unknown, row: InventoryLogDto) => {
         const label = row.referenceType ? REF_LABELS[row.referenceType] ?? row.referenceType : '-';
-        if (row.referenceType === 'PURCHASE_ORDER' && row.referenceId) {
-          return (
-            <a onClick={() => handleViewPurchaseOrder(row.referenceId!)} className="text-[#006c49] hover:underline cursor-pointer font-medium">
-              {label} #{row.referenceId}
-            </a>
-          );
+        if (row.referenceId) {
+          if (row.referenceType === 'PURCHASE_ORDER') {
+            return (
+              <a onClick={() => handleViewPurchaseOrder(row.referenceId!)} className="text-[#006c49] hover:underline cursor-pointer font-medium">
+                {label} #{row.referenceId}
+              </a>
+            );
+          }
+          if (row.referenceType === 'ORDER') {
+            return (
+              <a onClick={() => handleViewSalesOrder(row.referenceId!)} className="text-blue-600 hover:underline cursor-pointer font-medium">
+                {label} #{row.referenceId}
+              </a>
+            );
+          }
+          if (row.referenceType === 'SCRAP_ORDER') {
+            return (
+              <a onClick={() => handleViewScrapOrder(row.referenceId!)} className="text-orange-600 hover:underline cursor-pointer font-medium">
+                {label} #{row.referenceId}
+              </a>
+            );
+          }
         }
         return row.referenceId ? `${label} #${row.referenceId}` : label;
       },
@@ -241,6 +293,18 @@ export default function InventoryLogsPage() {
         open={Boolean(viewingPurchaseOrder)}
         order={viewingPurchaseOrder}
         onClose={() => setViewingPurchaseOrder(null)}
+      />
+      {authUser && (
+        <InvoiceDrawer
+          invoice={viewingSalesOrder}
+          authUser={authUser}
+          onClose={() => setViewingSalesOrder(null)}
+        />
+      )}
+      <ScrapOrderDetailDrawer
+        open={Boolean(viewingScrapOrder)}
+        order={viewingScrapOrder}
+        onClose={() => setViewingScrapOrder(null)}
       />
     </>
   );
