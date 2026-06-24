@@ -6,6 +6,7 @@ import com.smartmart.dto.response.OrderResponse;
 import com.smartmart.enums.OrderStatus;
 import org.springframework.data.domain.Page;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface OrderService {
@@ -14,7 +15,7 @@ public interface OrderService {
 
     List<OrderResponse> listAll();
 
-    org.springframework.data.domain.Page<OrderResponse> listPaged(int page, int size, String search, OrderStatus status, java.time.LocalDateTime fromDate, java.time.LocalDateTime toDate);
+    Page<OrderResponse> listPaged(int page, int size, String search, OrderStatus status, LocalDateTime fromDate, LocalDateTime toDate);
 
     OrderResponse getById(Long id);
 

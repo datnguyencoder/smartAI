@@ -3,6 +3,7 @@ package com.smartmart.service.impl;
 import com.smartmart.constant.AuditAction;
 import com.smartmart.dto.request.CreateLocationRequest;
 import com.smartmart.dto.response.LocationResponse;
+import com.smartmart.dto.request.UpdateLocationRequest;
 import com.smartmart.entity.Location;
 import com.smartmart.exception.NotFoundException;
 import com.smartmart.repository.LocationRepository;
@@ -58,7 +59,7 @@ public class LocationServiceImpl implements com.smartmart.service.LocationServic
     }
 
     @Override
-    public LocationResponse update(Long id, com.smartmart.dto.request.UpdateLocationRequest req) {
+    public LocationResponse update(Long id, UpdateLocationRequest req) {
         Location location = locationRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy vị trí kho"));
         String beforeData = locationData(location);

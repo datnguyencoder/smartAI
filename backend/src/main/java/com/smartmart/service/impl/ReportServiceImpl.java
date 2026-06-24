@@ -34,8 +34,7 @@ public class ReportServiceImpl implements ReportService {
             PurchaseOrderRepository purchaseOrderRepository,
             CurrentInventoryRepository currentInventoryRepository,
             ExcelReportGenerator excelReportGenerator,
-            PdfReportGenerator pdfReportGenerator
-    ) {
+            PdfReportGenerator pdfReportGenerator) {
         this.orderRepository = orderRepository;
         this.purchaseOrderRepository = purchaseOrderRepository;
         this.currentInventoryRepository = currentInventoryRepository;
@@ -192,7 +191,8 @@ public class ReportServiceImpl implements ReportService {
 
     // Defensive helper methods to convert Object values from native queries
     private LocalDate toLocalDate(Object obj) {
-        if (obj == null) return null;
+        if (obj == null)
+            return null;
         if (obj instanceof java.sql.Date) {
             return ((java.sql.Date) obj).toLocalDate();
         }
@@ -206,7 +206,8 @@ public class ReportServiceImpl implements ReportService {
     }
 
     private BigDecimal toBigDecimal(Object obj) {
-        if (obj == null) return BigDecimal.ZERO;
+        if (obj == null)
+            return BigDecimal.ZERO;
         if (obj instanceof BigDecimal) {
             return (BigDecimal) obj;
         }
@@ -214,7 +215,8 @@ public class ReportServiceImpl implements ReportService {
     }
 
     private long toLong(Object obj) {
-        if (obj == null) return 0L;
+        if (obj == null)
+            return 0L;
         if (obj instanceof Number) {
             return ((Number) obj).longValue();
         }
@@ -263,7 +265,7 @@ public class ReportServiceImpl implements ReportService {
             List<SalesReportResponse> sales = getSalesReport(from, to, groupBy);
             List<PurchaseReportResponse> purchases = getPurchaseReport(from, to);
             List<InventoryReportResponse> inventory = getInventoryReport(from, to);
-            
+
             return pdfReportGenerator.generateComprehensiveReport(sales, purchases, inventory, from, to);
         } catch (Exception e) {
             throw new RuntimeException("Error generating Comprehensive PDF report", e);
@@ -276,7 +278,7 @@ public class ReportServiceImpl implements ReportService {
             List<SalesReportResponse> sales = getSalesReport(from, to, groupBy);
             List<PurchaseReportResponse> purchases = getPurchaseReport(from, to);
             List<InventoryReportResponse> inventory = getInventoryReport(from, to);
-            
+
             return excelReportGenerator.generateComprehensiveExcel(sales, purchases, inventory, from, to);
         } catch (Exception e) {
             throw new RuntimeException("Error generating Comprehensive Excel report", e);

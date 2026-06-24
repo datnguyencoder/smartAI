@@ -28,4 +28,5 @@ public class ItemResponse {
     private String baseUomName;
     private Long purchaseUomId;
     private String purchaseUomName;
+    private BigDecimal purchaseRatio;
 }

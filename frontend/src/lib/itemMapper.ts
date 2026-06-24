@@ -16,6 +16,8 @@ export type Product = {
   imageUrl?: string;
   purchaseRatio: number;
   minimumStock: number;
+  baseUomName?: string;
+  purchaseUomName?: string;
 };
 
 export function itemToProduct(item: ItemDto): Product {
@@ -25,13 +27,7 @@ export function itemToProduct(item: ItemDto): Product {
   if (qty === 0) status = 'Hết hàng';
   else if (qty <= min) status = 'Sắp hết';
 
-  let purchaseRatio = 1;
-  if (item.purchaseUomName) {
-    const match = item.purchaseUomName.match(/\((\d+)/);
-    if (match) {
-      purchaseRatio = parseInt(match[1], 10);
-    }
-  }
+  let purchaseRatio = item.purchaseRatio ?? 1;
 
   return {
     key: String(item.id),
@@ -49,6 +45,8 @@ export function itemToProduct(item: ItemDto): Product {
     expiry: item.hasExpiry ? '-' : 'Không áp dụng',
     purchaseRatio,
     minimumStock: item.minimumStock ?? 0,
+    baseUomName: item.baseUomName,
+    purchaseUomName: item.purchaseUomName,
   };
 }
 

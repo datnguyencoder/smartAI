@@ -29,7 +29,7 @@ export default function ImportSlipsPage({
   const [locationFilter, setLocationFilter] = React.useState<number | undefined>(undefined);
   const [searchQuery, setSearchQuery] = React.useState('');
   const [dateRange, setDateRange] = React.useState<any>(null);
-  
+
   const [suppliers, setSuppliers] = React.useState<SupplierDto[]>([]);
   const [locations, setLocations] = React.useState<LocationDto[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -78,6 +78,7 @@ export default function ImportSlipsPage({
       await fetchData();
       antdMessage.success('Nhận hàng vào kho thành công');
       setReceiving(null);
+      setViewingDetails(null);
     } catch (e) {
       antdMessage.error(e instanceof Error ? e.message : 'Nhận hàng thất bại');
     } finally {
@@ -146,10 +147,10 @@ export default function ImportSlipsPage({
             <Input className="w-64" prefix={<Search size={16} />} placeholder="Tìm kiếm phiếu nhập..." value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setPage(1); }} allowClear />
           </div>
           <div className="flex gap-3 items-center flex-wrap">
-            <DatePicker.RangePicker 
-              value={dateRange} 
-              onChange={(val) => { setDateRange(val); setPage(1); }} 
-              style={{ width: 250 }} 
+            <DatePicker.RangePicker
+              value={dateRange}
+              onChange={(val) => { setDateRange(val); setPage(1); }}
+              style={{ width: 250 }}
             />
             <select
               className="h-[34px] px-3 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-emerald-500 bg-white"
@@ -233,7 +234,7 @@ export default function ImportSlipsPage({
             <div key={i.id} className="flex justify-between border-b border-slate-100 py-2">
               <span>{i.itemName}</span>
               <span>
-                Đặt {i.orderedQty} · Đã nhận {i.receivedQty}
+                Đặt {i.orderedQty} {i.uomName || ''} · Đã nhận {i.receivedQty} {i.uomName || ''}
               </span>
             </div>
           ))}

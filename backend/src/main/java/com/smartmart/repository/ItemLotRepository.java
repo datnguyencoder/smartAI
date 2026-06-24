@@ -3,7 +3,7 @@ package com.smartmart.repository;
 import com.smartmart.entity.ItemLot;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-
+import com.smartmart.entity.Item;
 import java.util.List;
 import java.util.Optional;
 
@@ -11,7 +11,7 @@ public interface ItemLotRepository extends JpaRepository<ItemLot, Long> {
     Optional<ItemLot> findByItemIdAndLotNumber(Long itemId, String lotNumber);
     List<ItemLot> findAllByOrderByIdDesc();
 
-    Optional<ItemLot> findByItemAndLotNumber(com.smartmart.entity.Item item, String lotNumber);
+    Optional<ItemLot> findByItemAndLotNumber(Item item, String lotNumber);
 
     List<ItemLot> findByItemId(Long itemId);
 

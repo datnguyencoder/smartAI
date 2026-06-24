@@ -48,6 +48,7 @@ export type ItemDto = {
   baseUomName?: string;
   purchaseUomId?: number;
   purchaseUomName?: string;
+  purchaseRatio?: number;
 };
 
 export type PageResponseDto<T> = {

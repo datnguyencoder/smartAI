@@ -1,6 +1,7 @@
 package com.smartmart.service;
 
 import com.smartmart.dto.request.CreateSupplierRequest;
+import com.smartmart.dto.request.UpdateSupplierRequest;
 import com.smartmart.dto.response.SupplierResponse;
 
 import java.util.List;
@@ -11,5 +12,7 @@ public interface SupplierService {
 
     SupplierResponse create(CreateSupplierRequest req);
 
-    SupplierResponse update(Long id, com.smartmart.dto.request.UpdateSupplierRequest req);
+    SupplierResponse getById(Long id);
+
+    SupplierResponse update(Long id, UpdateSupplierRequest req);
 }

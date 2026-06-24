@@ -6,6 +6,7 @@ import com.smartmart.dto.request.OrderLineRequest;
 import com.smartmart.dto.response.OrderItemResponse;
 import com.smartmart.dto.response.OrderPrintResponse;
 import com.smartmart.dto.response.OrderResponse;
+import com.smartmart.dto.response.OrderPaymentResponse;
 import com.smartmart.entity.*;
 import com.smartmart.enums.InventoryActionType;
 import com.smartmart.enums.OrderStatus;
@@ -13,12 +14,10 @@ import com.smartmart.enums.ReferenceType;
 import com.smartmart.event.OrderEventPublisher;
 import com.smartmart.exception.BadRequestException;
 import com.smartmart.exception.ForbiddenException;
-import com.smartmart.repository.InventoryLogRepository;
-import com.smartmart.repository.LocationRepository;
-import com.smartmart.repository.OrderRepository;
-import com.smartmart.repository.ReturnOrderRepository;
-import com.smartmart.repository.UserRepository;
+import com.smartmart.exception.NotFoundException;
+import com.smartmart.repository.*;
 import com.smartmart.security.SecurityUtils;
+import org.springframework.context.ApplicationEventPublisher;
 import com.smartmart.entity.Customer;
 import com.smartmart.entity.Promotion;
 import com.smartmart.service.AuditLogService;
@@ -276,7 +275,7 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
     @Transactional(readOnly = true)
     public OrderResponse getById(Long id) {
         Order order = orderRepository.findByIdWithItems(id)
-                .orElseThrow(() -> new com.smartmart.exception.NotFoundException("Không tìm thấy hóa đơn"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy hóa đơn"));
         assertStaffCanAccessOrder(order);
         return toResponse(order);
     }
@@ -298,7 +297,7 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
     @Transactional(readOnly = true)
     public OrderPrintResponse getPrint(Long id) {
         Order order = orderRepository.findByIdWithItems(id)
-                .orElseThrow(() -> new com.smartmart.exception.NotFoundException("Không tìm thấy hóa đơn"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy hóa đơn"));
         assertStaffCanAccessOrder(order);
 
         String staffName = "Nhân viên";
@@ -359,7 +358,7 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
     @CacheEvict(value = {"items", "itemsPage", "dashboardSummary", "dashboardRevenue"}, allEntries = true)
     public OrderResponse cancel(Long id) {
         Order order = orderRepository.findByIdWithItems(id)
-                .orElseThrow(() -> new com.smartmart.exception.NotFoundException("Không tìm thấy hóa đơn"));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy hóa đơn"));
         String beforeData = AuditData.of(
                 "status", order.getStatus());
         if (order.getStatus() == OrderStatus.CANCELLED) {
@@ -445,7 +444,7 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
                 .customerLoyaltyPoints(order.getCustomer() != null ? order.getCustomer().getLoyaltyPoints() : null)
                 .customerTier(order.getCustomer() != null ? order.getCustomer().getTier() : null)
                 .payments(order.getPayments().stream()
-                        .map(p -> com.smartmart.dto.response.OrderPaymentResponse.builder()
+                        .map(p -> OrderPaymentResponse.builder()
                                 .paymentMethod(p.getPaymentMethod())
                                 .amount(p.getAmount())
                                 .build())
