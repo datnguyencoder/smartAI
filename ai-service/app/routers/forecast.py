@@ -2,7 +2,7 @@ from app.schemas.requests import ForecastAllRequest
 from app.schemas.responses import ForecastAllResponse, ItemForecast
 from app.services import predict as predict_service
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 router = APIRouter(tags=["forecast"])
 
@@ -17,5 +17,8 @@ def forecast_all(request: ForecastAllRequest) -> ForecastAllResponse:
         }
         for item in request.items
     ]
-    results = predict_service.forecast_all_items(payload)
+    try:
+        results = predict_service.forecast_all_items(payload)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     return ForecastAllResponse(forecasts=[ItemForecast(**row) for row in results])

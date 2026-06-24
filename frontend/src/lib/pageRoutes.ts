@@ -35,6 +35,7 @@ const PATH_TO_PAGE = Object.fromEntries(
 ) as Record<string, PageKey>;
 
 export function pageFromPath(pathname: string): PageKey {
+  if (pathname === '/transfer-orders') return 'inventory';
   return PATH_TO_PAGE[pathname] ?? 'dashboard';
 }
 

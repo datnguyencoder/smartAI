@@ -51,6 +51,9 @@ export type NavGroup = {
   flat?: boolean;
 };
 
+/** Các trang đã gỡ — lọc khi filter nav (tránh bundle/Docker cũ còn cache). */
+const REMOVED_NAV_PAGES = new Set<string>(['transfer-orders', 'scrap-create']);
+
 /** 5 nhóm + 1 mục phẳng — gọn nhất, vẫn đủ 28 trang. */
 export const navGroups: NavGroup[] = [
   {
@@ -123,7 +126,9 @@ export function filterNavGroups(role: string | undefined): NavGroup[] {
   return navGroups
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => canAccessPage(role, item.key)),
+      items: group.items.filter(
+        (item) => !REMOVED_NAV_PAGES.has(item.key) && canAccessPage(role, item.key)
+      ),
     }))
     .filter((group) => group.items.length > 0)
     .map((group) => {

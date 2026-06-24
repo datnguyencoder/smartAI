@@ -54,3 +54,23 @@ def test_train_and_forecast_all():
     assert "daily_series" in row
     assert len(row["daily_series"]) > 0
     assert "date" in row["daily_series"][0]
+
+
+def test_forecast_accepts_item_without_recent_sales():
+    forecast_res = client.post(
+        "/ai/forecast/all",
+        json={
+            "items": [
+                {
+                    "item_id": 999,
+                    "category_id": 1,
+                    "recent_sales": [],
+                }
+            ]
+        },
+    )
+    assert forecast_res.status_code == 200
+    row = forecast_res.json()["forecasts"][0]
+    assert row["item_id"] == 999
+    assert row["model_type"] == "moving_average"
+    assert len(row["daily_series"]) == 30

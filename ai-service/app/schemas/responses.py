@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class HealthResponse(BaseModel):
@@ -17,7 +17,7 @@ class TrainResponse(BaseModel):
     training_samples: int = 0
     n_items_ml: int = 0
     n_items_ma: int = 0
-    item_model_types: dict[str, str] = {}
+    item_model_types: dict[str, str] = Field(default_factory=dict)
 
 
 class MetricsResponse(BaseModel):
@@ -26,7 +26,7 @@ class MetricsResponse(BaseModel):
     mape: float
     model_type: str
     trained_at: datetime | None = None
-    item_model_types: dict[str, str] = {}
+    item_model_types: dict[str, str] = Field(default_factory=dict)
     training_samples: int = 0
     n_items_ml: int = 0
     n_items_ma: int = 0
@@ -45,7 +45,7 @@ class ItemForecast(BaseModel):
     model_type: str
     confidence_low: float = 0.0
     confidence_high: float = 0.0
-    daily_series: list[DailyForecastPoint] = []
+    daily_series: list[DailyForecastPoint] = Field(default_factory=list)
 
 
 class ForecastAllResponse(BaseModel):
@@ -60,5 +60,5 @@ class TrainAndForecastResponse(BaseModel):
     training_samples: int = 0
     n_items_ml: int = 0
     n_items_ma: int = 0
-    item_model_types: dict[str, str] = {}
-    forecasts: list[ItemForecast] = []
+    item_model_types: dict[str, str] = Field(default_factory=dict)
+    forecasts: list[ItemForecast] = Field(default_factory=list)

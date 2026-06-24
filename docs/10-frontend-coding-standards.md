@@ -17,7 +17,7 @@ src/
 ├── pages/                  # Màn hình theo domain
 │   ├── dashboard/
 │   ├── catalog/            # products, categories, suppliers, locations
-│   ├── inventory/          # tồn kho, kiểm kê, chuyển kho, scrap
+│   ├── inventory/          # tồn kho, kiểm kê, scrap
 │   ├── sales/              # POS, hóa đơn, khách hàng
 │   ├── purchase/           # phiếu nhập
 │   ├── promotions/

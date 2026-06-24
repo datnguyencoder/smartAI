@@ -581,7 +581,7 @@ export default function PosPage({
                   }} />
                 </div>
                 <div>
-                  <label className="text-xs text-slate-500">Chuyển khoản</label>
+                  <label className="text-xs text-slate-500">Ngân hàng</label>
                   <InputNumber className="w-full" min={0} value={bankAmount} onChange={(v) => {
                     splitAmountsTouchedRef.current = true;
                     setBankAmount(Number(v) || 0);
@@ -600,7 +600,7 @@ export default function PosPage({
                 onClick={() => setPaymentMethod('BANK_TRANSFER')}
                 className={cn('flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm transition', paymentMethod === 'BANK_TRANSFER' ? 'bg-primary border-primary text-white font-bold shadow-md shadow-primary/20' : 'bg-white border-line text-muted font-semibold hover:border-primary hover:text-primary')}
               >
-                <CreditCard size={16} /> Chuyển khoản (F10)
+                <CreditCard size={16} /> Ngân hàng (F10)
               </button>
             </div>
             )}
