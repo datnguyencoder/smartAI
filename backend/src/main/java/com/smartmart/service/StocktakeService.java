@@ -14,4 +14,5 @@ public interface StocktakeService {
     Stocktake cancel(Long id);
     Stocktake findById(Long id);
     List<Stocktake> listAll(StocktakeStatus status);
+    void enrichUsernames(List<com.smartmart.dto.response.StocktakeResponse> responses);
 }

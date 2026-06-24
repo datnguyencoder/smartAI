@@ -12,6 +12,7 @@ import {
 import type { ItemDto, LocationDto, TransferOrderDto } from '@/types/api';
 import dayjs from 'dayjs';
 import { Card, CardHeader } from '@/components/ui';
+import { Trash2 } from 'lucide-react';
 
 type LineForm = { itemId: number; lotId?: number; quantity: number };
 
@@ -27,6 +28,10 @@ export default function TransferOrdersPage() {
   const [fromLoc, setFromLoc] = useState<number>();
   const [toLoc, setToLoc] = useState<number>();
   const [note, setNote] = useState('');
+  const [selectedOrder, setSelectedOrder] = useState<TransferOrderDto | null>(null);
+
+  const selectClass =
+    "h-8 px-2 bg-white border border-slate-200 rounded text-sm text-slate-700 transition-all hover:border-emerald-300 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-100";
 
   const load = async () => {
     setLoading(true);
@@ -80,13 +85,15 @@ export default function TransferOrdersPage() {
       dataIndex: 'status',
       render: (s: string) => {
         const colors: Record<string, string> = { PENDING: 'processing', COMPLETED: 'success', CANCELLED: 'error' };
-        return <Tag color={colors[s]}>{s}</Tag>;
+        const labels: Record<string, string> = { PENDING: 'Chờ xử lý', COMPLETED: 'Đã hoàn thành', CANCELLED: 'Đã hủy' };
+        return <Tag color={colors[s]}>{labels[s] || s}</Tag>;
       },
     },
     {
       title: 'Thao tác',
       render: (_: unknown, r: TransferOrderDto) => (
         <Space>
+          <Button size="small" onClick={() => setSelectedOrder(r)}>Chi tiết</Button>
           {r.status === 'PENDING' && (
             <>
               <Button size="small" type="primary" onClick={async () => {
@@ -119,47 +126,71 @@ export default function TransferOrdersPage() {
       <CardHeader title="Chuyển kho" description="Chuyển hàng giữa các vị trí kho (TRANSFER_OUT / TRANSFER_IN)"
         action={<Button type="primary" onClick={() => setCreateOpen(true)}>Tạo phiếu chuyển</Button>} />
       <div className="px-5 pb-5">
-        <Select className="mb-4 w-40" value={statusFilter} onChange={setStatusFilter}
-          options={[{ value: 'ALL', label: 'Tất cả' }, { value: 'PENDING', label: 'Chờ' }, { value: 'COMPLETED', label: 'Hoàn thành' }]} />
-        <Table rowKey="id" loading={loading} dataSource={orders} columns={columns}
-          expandable={{
-            expandedRowRender: (r) => (
-              <Table size="small" pagination={false} dataSource={r.items} rowKey={(i) => `${i.itemId}-${i.lotId}`}
-                columns={[
-                  { title: 'Sản phẩm', dataIndex: 'itemName' },
-                  { title: 'Lô', dataIndex: 'lotNumber', render: (v?: string) => v || '—' },
-                  { title: 'SL', dataIndex: 'quantity' },
-                ]} />
-            ),
-          }} />
+        <select className={`${selectClass} mb-4 w-40`} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <option value="ALL">Tất cả</option>
+          <option value="PENDING">Chờ</option>
+          <option value="COMPLETED">Hoàn thành</option>
+        </select>
+        <Table rowKey="id" loading={loading} dataSource={orders} columns={columns} />
       </div>
-      <Modal title="Tạo phiếu chuyển kho" open={createOpen} onCancel={() => setCreateOpen(false)} onOk={handleCreate} width={640}>
+
+      <Modal 
+        title={`Chi tiết chuyển kho TR-${String(selectedOrder?.id || 0).padStart(4, '0')}`} 
+        open={!!selectedOrder} 
+        onCancel={() => setSelectedOrder(null)} 
+        footer={null} 
+        width={700}
+      >
+        {selectedOrder && (
+          <Table size="small" pagination={{ pageSize: 5 }} dataSource={selectedOrder.items} rowKey={(i) => `${i.itemId}-${i.lotId}`}
+            columns={[
+              { title: 'Sản phẩm', dataIndex: 'itemName' },
+              { title: 'Lô', dataIndex: 'lotNumber', render: (v?: string) => v || '—' },
+              { title: 'Số lượng', dataIndex: 'quantity' },
+            ]} 
+          />
+        )}
+      </Modal>
+      <Modal title="Tạo phiếu chuyển kho" open={createOpen} onCancel={() => setCreateOpen(false)} onOk={handleCreate} width={800}>
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
             <label className="text-xs font-semibold">Kho nguồn</label>
-            <Select className="w-full mt-1" value={fromLoc} onChange={setFromLoc}
-              options={locations.map((l) => ({ value: l.id, label: l.locationName }))} />
+            <select className={`${selectClass} w-full mt-1`} value={fromLoc || ''} onChange={(e) => setFromLoc(Number(e.target.value) || undefined)}>
+              <option value="" disabled>-- Chọn kho --</option>
+              {locations.map((l) => (<option key={l.id} value={l.id}>{l.locationName}</option>))}
+            </select>
           </div>
           <div>
             <label className="text-xs font-semibold">Kho đích</label>
-            <Select className="w-full mt-1" value={toLoc} onChange={setToLoc}
-              options={locations.map((l) => ({ value: l.id, label: l.locationName }))} />
+            <select className={`${selectClass} w-full mt-1`} value={toLoc || ''} onChange={(e) => setToLoc(Number(e.target.value) || undefined)}>
+              <option value="" disabled>-- Chọn kho --</option>
+              {locations.map((l) => (<option key={l.id} value={l.id}>{l.locationName}</option>))}
+            </select>
           </div>
         </div>
         <Input.TextArea placeholder="Ghi chú" value={note} onChange={(e) => setNote(e.target.value)} className="mb-4" />
-        {lines.map((line, idx) => (
+        {lines.map((line, idx) => {
+          const availableItems = items.filter(i => inventory.some(inv => inv.locationId === fromLoc && inv.itemId === i.id && Number(inv.quantity) > 0));
+          return (
           <div key={idx} className="flex gap-2 mb-2">
-            <Select className="flex-1" placeholder="Sản phẩm" value={line.itemId || undefined}
-              onChange={(v) => setLines(lines.map((l, i) => i === idx ? { ...l, itemId: v } : l))}
-              options={items.map((i) => ({ value: i.id, label: i.itemName }))} />
-            <Select className="w-32" placeholder="Lô" allowClear value={line.lotId}
-              onChange={(v) => setLines(lines.map((l, i) => i === idx ? { ...l, lotId: v } : l))}
-              options={inventory.filter((inv) => inv.itemId === line.itemId && inv.locationId === fromLoc)
-                .map((inv) => ({ value: inv.lotId, label: inv.lotNumber || '—' }))} />
-            <InputNumber min={1} value={line.quantity}
-              onChange={(v) => setLines(lines.map((l, i) => i === idx ? { ...l, quantity: Number(v) || 1 } : l))} />
+            <select className={`${selectClass} flex-1`} value={line.itemId || ''}
+              onChange={(e) => setLines(lines.map((l, i) => i === idx ? { ...l, itemId: Number(e.target.value) || 0, lotId: undefined } : l))}>
+              <option value="" disabled>-- Sản phẩm --</option>
+              {availableItems.map((i) => (<option key={i.id} value={i.id}>{i.itemName}</option>))}
+            </select>
+            <select className={`${selectClass} w-48`} value={line.lotId || ''}
+              onChange={(e) => setLines(lines.map((l, i) => i === idx ? { ...l, lotId: e.target.value ? Number(e.target.value) : undefined } : l))}>
+              <option value="">-- Lô (nếu có) --</option>
+              {inventory.filter((inv) => inv.itemId === line.itemId && inv.locationId === fromLoc && Number(inv.quantity) > 0)
+                .map((inv) => (<option key={inv.lotId} value={inv.lotId || ''}>{inv.lotNumber || '—'} (Còn: {inv.quantity})</option>))}
+            </select>
+            <input type="number" min="1" className={`${selectClass} w-24`} value={line.quantity || ''}
+              onChange={(e) => setLines(lines.map((l, i) => i === idx ? { ...l, quantity: Number(e.target.value) || 1 } : l))} />
+            <button type="button" className="text-red-500 hover:text-red-700 p-1 flex items-center justify-center transition-colors rounded hover:bg-red-50" onClick={() => setLines(lines.filter((_, i) => i !== idx))}>
+              <Trash2 className="w-5 h-5" />
+            </button>
           </div>
-        ))}
+        )})}
         <Button type="dashed" block onClick={() => setLines([...lines, { itemId: 0, quantity: 1 }])}>+ Thêm dòng</Button>
       </Modal>
     </Card>

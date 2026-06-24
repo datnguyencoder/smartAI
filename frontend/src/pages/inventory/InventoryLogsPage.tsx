@@ -1,7 +1,7 @@
 import React from 'react';
-import { Table, Select, DatePicker, Tag, message as antdMessage, Input } from 'antd';
+import { Table, Select, DatePicker, Tag, message as antdMessage, Input, Modal, Button } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { Card } from '@/components/ui';
+import { Card, StatusChip } from '@/components/ui';
 import { fetchInventoryLogs, fetchLocations, fetchPurchaseOrderById } from '@/services/wmsApi';
 import { formatMoney } from '@/lib/itemMapper';
 import type { InventoryLogDto, LocationDto, ScrapOrderDto } from '@/types/api';
@@ -12,7 +12,8 @@ import ScrapOrderDetailDrawer from '@/components/inventory/ScrapOrderDetailDrawe
 import { InvoiceDrawer, type InvoiceView } from '@/components/sales/InvoiceDrawer';
 import { purchaseToSlip, type ImportSlipRow } from '@/lib/purchaseMapper';
 import { useAuth } from '@/contexts/AuthContext';
-import { fetchOrderById, fetchScrapOrderById } from '@/services/wmsApi';
+import { fetchOrderById, fetchScrapOrderById, fetchStocktakeById, fetchTransferOrderById } from '@/services/wmsApi';
+import type { StocktakeDto, TransferOrderDto } from '@/types/api';
 
 const { RangePicker } = DatePicker;
 
@@ -24,6 +25,8 @@ const ACTION_LABELS: Record<string, { text: string; color: string }> = {
   SCRAP_PENDING: { text: 'Chờ loại bỏ', color: 'orange' },
   SCRAP_COMPLETED: { text: 'Loại bỏ', color: 'volcano' },
   ADJUSTMENT: { text: 'Điều chỉnh', color: 'blue' },
+  TRANSFER_IN: { text: 'Nhập chuyển kho', color: 'cyan' },
+  TRANSFER_OUT: { text: 'Xuất chuyển kho', color: 'magenta' },
 };
 
 const REF_LABELS: Record<string, string> = {
@@ -31,6 +34,8 @@ const REF_LABELS: Record<string, string> = {
   ORDER: 'Đơn hàng',
   SCRAP_ORDER: 'Phiếu hủy',
   STOCK_ADJUSTMENT: 'Điều chỉnh',
+  STOCKTAKE: 'Phiếu kiểm kê',
+  TRANSFER_ORDER: 'Chuyển kho',
 };
 
 export default function InventoryLogsPage() {
@@ -49,6 +54,8 @@ export default function InventoryLogsPage() {
   const [viewingPurchaseOrder, setViewingPurchaseOrder] = React.useState<ImportSlipRow | null>(null);
   const [viewingSalesOrder, setViewingSalesOrder] = React.useState<InvoiceView | null>(null);
   const [viewingScrapOrder, setViewingScrapOrder] = React.useState<ScrapOrderDto | null>(null);
+  const [viewStocktake, setViewStocktake] = React.useState<StocktakeDto | null>(null);
+  const [viewTransferOrder, setViewTransferOrder] = React.useState<TransferOrderDto | null>(null);
 
   const handleViewPurchaseOrder = async (id: number) => {
     try {
@@ -74,7 +81,7 @@ export default function InventoryLogsPage() {
         time: dayjs(order.orderDate).format('DD/MM/YYYY HH:mm'),
       });
     } catch (e: any) {
-      antdMessage.error(`Lỗi tải đơn hàng: ${e.message || 'Không xác định'}`);
+      antdMessage.error('Không thể tải thông tin đơn hàng');
     }
   };
 
@@ -83,7 +90,25 @@ export default function InventoryLogsPage() {
       const scrap = await fetchScrapOrderById(id);
       setViewingScrapOrder(scrap);
     } catch (e: any) {
-      antdMessage.error(`Lỗi tải phiếu hủy: ${e.message || 'Không xác định'}`);
+      antdMessage.error('Không thể tải thông tin phiếu hủy');
+    }
+  };
+
+  const handleViewStocktake = async (id: number) => {
+    try {
+      const res = await fetchStocktakeById(id);
+      setViewStocktake(res);
+    } catch (e: unknown) {
+      antdMessage.error('Không thể tải chi tiết phiếu kiểm kê');
+    }
+  };
+
+  const handleViewTransferOrder = async (id: number) => {
+    try {
+      const res = await fetchTransferOrderById(id);
+      setViewTransferOrder(res);
+    } catch (e: unknown) {
+      antdMessage.error('Không thể tải chi tiết phiếu chuyển kho');
     }
   };
 
@@ -171,6 +196,20 @@ export default function InventoryLogsPage() {
               </a>
             );
           }
+          if (row.referenceType === 'STOCKTAKE') {
+            return (
+              <a onClick={() => handleViewStocktake(row.referenceId!)} className="text-purple-600 hover:underline cursor-pointer font-medium">
+                {label} #{row.referenceId}
+              </a>
+            );
+          }
+          if (row.referenceType === 'TRANSFER_ORDER') {
+            return (
+              <a onClick={() => handleViewTransferOrder(row.referenceId!)} className="text-cyan-600 hover:underline cursor-pointer font-medium">
+                {label} #{row.referenceId}
+              </a>
+            );
+          }
         }
         return row.referenceId ? `${label} #${row.referenceId}` : label;
       },
@@ -207,7 +246,12 @@ export default function InventoryLogsPage() {
       title: 'Ghi chú',
       dataIndex: 'note',
       ellipsis: true,
-      render: (v: string) => v || '—',
+      render: (v: string, row: InventoryLogDto) => {
+        if (!v && (row.actionType === 'TRANSFER_IN' || row.actionType === 'TRANSFER_OUT' || row.referenceType === 'TRANSFER_ORDER')) {
+          return 'Chuyển kho';
+        }
+        return v || '—';
+      },
     },
   ];
 
@@ -244,11 +288,13 @@ export default function InventoryLogsPage() {
               className="h-[34px] px-3 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-emerald-500 bg-white"
             >
               <option value="ALL">Tất cả hành động</option>
-              <option value="PURCHASE_RECEIVE">🟢 Nhập kho</option>
-              <option value="SALE">🔴 Bán hàng</option>
-              <option value="SALE_CANCEL">🟠 Hủy bán</option>
-              <option value="SCRAP_COMPLETED">🔥 Loại bỏ</option>
-              <option value="ADJUSTMENT">🔵 Điều chỉnh</option>
+              <option value="PURCHASE_RECEIVE">Nhập kho</option>
+              <option value="SALE">Bán hàng</option>
+              <option value="SALE_CANCEL">Hủy bán</option>
+              <option value="SCRAP_COMPLETED">Loại bỏ</option>
+              <option value="ADJUSTMENT">Điều chỉnh</option>
+              <option value="TRANSFER_IN">Nhập chuyển kho</option>
+              <option value="TRANSFER_OUT">Xuất chuyển kho</option>
             </select>
             <RangePicker
               format="DD/MM/YYYY"
@@ -306,6 +352,206 @@ export default function InventoryLogsPage() {
         order={viewingScrapOrder}
         onClose={() => setViewingScrapOrder(null)}
       />
+
+      <Modal
+        title={
+          <div className="flex items-center justify-between mr-8 pt-1">
+            <div className="flex items-center gap-3">
+              <span className="text-lg font-bold text-slate-800">
+                Chi tiết phiếu kiểm kê: ST-{String(viewStocktake?.id || 0).padStart(4, '0')}
+              </span>
+              <StatusChip tone={
+                viewStocktake?.status === 'DRAFT' ? 'warning' 
+                  : viewStocktake?.status === 'CANCELLED' ? 'danger' 
+                    : 'success'
+              }>
+                {viewStocktake?.status === 'CONFIRMED' ? 'Đã duyệt' : viewStocktake?.status}
+              </StatusChip>
+            </div>
+          </div>
+        }
+        open={!!viewStocktake}
+        onCancel={() => setViewStocktake(null)}
+        footer={[
+          <Button key="close" onClick={() => setViewStocktake(null)}>
+            Đóng
+          </Button>
+        ]}
+        width={1100}
+      >
+        {viewStocktake && (() => {
+          const changedItems = viewStocktake.items.filter(i => {
+            const n = Number(i.actualQuantity) - Number(i.systemQuantity);
+            return n !== 0;
+          });
+          const totalVariance = changedItems.reduce((sum, i) => sum + Math.abs(Number(i.actualQuantity) - Number(i.systemQuantity)), 0);
+
+          return (
+            <div className="max-h-[70vh] overflow-y-auto pr-2 space-y-6 pt-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+                <div className="space-y-1.5 text-xs">
+                  <h4 className="font-bold text-slate-400 uppercase tracking-wider mb-2">Thông tin chung</h4>
+                  <div className="flex gap-2">
+                    <span className="text-slate-500 w-20">Kho kiểm kê:</span> 
+                    <span className="font-semibold text-slate-800">{viewStocktake.locationName}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="text-slate-500 w-20">Người tạo:</span> 
+                    <span className="font-medium text-slate-800">{viewStocktake.createdByUsername || `ID: ${viewStocktake.createdBy}`}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 text-xs">
+                  <h4 className="font-bold text-slate-400 uppercase tracking-wider mb-2">Thời gian</h4>
+                  <div className="flex gap-2">
+                    <span className="text-slate-500 w-20">Ngày tạo:</span> 
+                    <span className="font-medium text-slate-800">{dayjs(viewStocktake.stocktakeDate).format('DD/MM/YYYY HH:mm')}</span>
+                  </div>
+                  {viewStocktake.confirmedAt && (
+                    <div className="flex gap-2">
+                      <span className="text-slate-500 w-20">Ngày duyệt:</span> 
+                      <span className="font-medium text-slate-800">{dayjs(viewStocktake.confirmedAt).format('DD/MM/YYYY HH:mm')}</span>
+                    </div>
+                  )}
+                </div>
+
+                {viewStocktake.note && (
+                  <div className="space-y-1.5 text-xs">
+                    <h4 className="font-bold text-slate-400 uppercase tracking-wider mb-2">Ghi chú</h4>
+                    <div className="flex gap-2 flex-col">
+                      <span className="text-slate-500 w-20">Nội dung:</span> 
+                      <span className="text-slate-800 line-clamp-2">{viewStocktake.note}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-between items-center bg-white px-4 py-2.5 rounded-lg border border-slate-100 text-xs text-slate-500 font-medium">
+                <div>Các món bị đổi: <strong className="text-slate-800">{changedItems.length} mặt hàng</strong></div>
+                <div>Tổng chênh lệch: <strong className="text-slate-800">{totalVariance} SP</strong></div>
+              </div>
+
+              <div className="rounded-lg border border-slate-100 overflow-hidden">
+                <Table 
+                  size="middle" 
+                  pagination={{ pageSize: 10 }} 
+                  dataSource={changedItems} 
+                  rowKey={(i) => `${i.itemId}-${i.lotId}`}
+                  columns={[
+                    { title: 'Sản phẩm', dataIndex: 'itemName', className: 'text-xs', width: '35%' },
+                    { title: 'Lô', dataIndex: 'lotNumber', render: (v?: string) => v || '—', className: 'text-xs' },
+                    { title: 'Sổ sách', dataIndex: 'systemQuantity', className: 'text-xs' },
+                    { title: 'Thực tế', dataIndex: 'actualQuantity', className: 'text-xs font-semibold' },
+                    {
+                      title: 'Chênh lệch',
+                      className: 'text-xs',
+                      render: (_: unknown, line) => {
+                        const n = Number(line.actualQuantity) - Number(line.systemQuantity);
+                        return (
+                          <span className={`font-bold ${n > 0 ? 'text-green-600' : n < 0 ? 'text-red-600' : ''}`}>
+                            {n > 0 ? `+${n}` : n}
+                          </span>
+                        );
+                      },
+                    },
+                  ]}
+                />
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
+
+      {/* Chi tiết phiếu chuyển kho Modal */}
+      <Modal 
+        title={null} 
+        closable={false}
+        open={!!viewTransferOrder} 
+        onCancel={() => setViewTransferOrder(null)} 
+        footer={[
+          <Button key="close" onClick={() => setViewTransferOrder(null)}>
+            Đóng
+          </Button>
+        ]}
+        width={800}
+        styles={{ body: { padding: 0 } }}
+      >
+        {viewTransferOrder && (() => {
+          return (
+            <div className="flex flex-col">
+              <div className="bg-slate-50 p-5 rounded-t-lg border-b border-slate-100 relative">
+                <button onClick={() => setViewTransferOrder(null)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors">
+                  <span className="text-xl leading-none">&times;</span>
+                </button>
+                <div className="flex items-center justify-between mr-8 pt-1">
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg font-bold text-slate-800">
+                      Chi tiết chuyển kho: TR-{String(viewTransferOrder.id || 0).padStart(4, '0')}
+                    </span>
+                    <StatusChip tone={
+                      viewTransferOrder.status === 'PENDING' ? 'warning' 
+                        : viewTransferOrder.status === 'CANCELLED' ? 'danger' 
+                          : 'success'
+                    }>
+                      {viewTransferOrder.status === 'COMPLETED' ? 'Đã hoàn thành' : viewTransferOrder.status === 'PENDING' ? 'Chờ xử lý' : 'Đã hủy'}
+                    </StatusChip>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mt-6">
+                  <div className="space-y-1.5 text-xs">
+                    <h4 className="font-bold text-slate-400 uppercase tracking-wider mb-2">Thông tin chung</h4>
+                    <div className="flex gap-2">
+                      <span className="text-slate-500 w-20">Kho nguồn:</span> 
+                      <span className="font-semibold text-slate-800">{viewTransferOrder.fromLocationName}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <span className="text-slate-500 w-20">Kho đích:</span> 
+                      <span className="font-semibold text-slate-800">{viewTransferOrder.toLocationName}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <span className="text-slate-500 w-20">Người tạo:</span> 
+                      <span className="font-medium text-slate-800">{`ID: ${viewTransferOrder.createdBy}`}</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 text-xs">
+                    <h4 className="font-bold text-slate-400 uppercase tracking-wider mb-2">Thời gian</h4>
+                    <div className="flex gap-2">
+                      <span className="text-slate-500 w-20">Ngày tạo:</span> 
+                      <span className="font-medium text-slate-800">{dayjs(viewTransferOrder.transferDate).format('DD/MM/YYYY HH:mm')}</span>
+                    </div>
+                    {viewTransferOrder.completedAt && (
+                      <div className="flex gap-2">
+                        <span className="text-slate-500 w-20">Hoàn thành:</span> 
+                        <span className="font-medium text-slate-800">{dayjs(viewTransferOrder.completedAt).format('DD/MM/YYYY HH:mm')}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {viewTransferOrder.note && (
+                    <div className="space-y-1.5 text-xs">
+                      <h4 className="font-bold text-slate-400 uppercase tracking-wider mb-2">Ghi chú</h4>
+                      <div className="flex gap-2 flex-col">
+                        <span className="text-slate-800 line-clamp-2">{viewTransferOrder.note}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="p-5">
+                <Table size="small" pagination={{ pageSize: 5 }} dataSource={viewTransferOrder.items} rowKey={(i) => `${i.itemId}-${i.lotId}`}
+                  columns={[
+                    { title: 'Sản phẩm', dataIndex: 'itemName' },
+                    { title: 'Lô', dataIndex: 'lotNumber', render: (v?: string) => v || '—' },
+                    { title: 'Số lượng', dataIndex: 'quantity' },
+                  ]} 
+                />
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
     </>
   );
 }

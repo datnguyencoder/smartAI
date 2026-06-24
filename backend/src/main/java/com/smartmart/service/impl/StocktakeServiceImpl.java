@@ -14,6 +14,7 @@ import com.smartmart.repository.CurrentInventoryRepository;
 import com.smartmart.repository.ItemLotRepository;
 import com.smartmart.repository.LocationRepository;
 import com.smartmart.repository.StocktakeRepository;
+import com.smartmart.repository.UserRepository;
 import com.smartmart.security.SecurityUtils;
 import com.smartmart.service.AuditLogService;
 import com.smartmart.service.InventoryLedgerService;
@@ -26,6 +27,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -38,6 +42,7 @@ public class StocktakeServiceImpl implements StocktakeService {
     private final CurrentInventoryRepository currentInventoryRepository;
     private final InventoryLedgerService inventoryLedgerService;
     private final AuditLogService auditLogService;
+    private final UserRepository userRepository;
 
     public StocktakeServiceImpl(
             StocktakeRepository stocktakeRepository,
@@ -46,7 +51,8 @@ public class StocktakeServiceImpl implements StocktakeService {
             ItemService itemService,
             CurrentInventoryRepository currentInventoryRepository,
             InventoryLedgerService inventoryLedgerService,
-            AuditLogService auditLogService
+            AuditLogService auditLogService,
+            UserRepository userRepository
     ) {
         this.stocktakeRepository = stocktakeRepository;
         this.locationRepository = locationRepository;
@@ -55,6 +61,26 @@ public class StocktakeServiceImpl implements StocktakeService {
         this.currentInventoryRepository = currentInventoryRepository;
         this.inventoryLedgerService = inventoryLedgerService;
         this.auditLogService = auditLogService;
+        this.userRepository = userRepository;
+    }
+
+    @Override
+    public void enrichUsernames(List<com.smartmart.dto.response.StocktakeResponse> responses) {
+        List<Long> userIds = responses.stream()
+                .map(com.smartmart.dto.response.StocktakeResponse::getCreatedBy)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (userIds.isEmpty()) return;
+        Map<Long, String> nameMap = userRepository.findAllById(userIds).stream()
+                .collect(Collectors.toMap(
+                        User::getId,
+                        u -> u.getFullName() != null ? u.getFullName() : u.getUsername()));
+        responses.forEach(r -> {
+            if (r.getCreatedBy() != null) {
+                r.setCreatedByUsername(nameMap.getOrDefault(r.getCreatedBy(), "—"));
+            }
+        });
     }
 
     @Override

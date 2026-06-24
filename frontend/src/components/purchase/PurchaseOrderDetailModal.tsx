@@ -146,12 +146,12 @@ export default function PurchaseOrderDetailModal({
           {/* Cột 1: Thông tin hành chính */}
           <div className="space-y-1.5 text-xs">
             <h4 className="font-bold text-slate-400 uppercase tracking-wider mb-2">Thông tin chung</h4>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Kho nhận:</span> 
+            <div className="flex gap-2">
+              <span className="text-slate-500 w-24">Kho nhận:</span> 
               <span className="font-semibold text-slate-800">{order.locationName}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Thủ kho:</span> 
+            <div className="flex gap-2">
+              <span className="text-slate-500 w-24">Thủ kho:</span> 
               <span className="text-slate-400">—</span>
             </div>
           </div>
@@ -159,16 +159,16 @@ export default function PurchaseOrderDetailModal({
           {/* Cột 2: Đối tác */}
           <div className="space-y-1.5 text-xs">
             <h4 className="font-bold text-slate-400 uppercase tracking-wider mb-2">Đối tác & Đơn đặt</h4>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Nhà cung cấp:</span> 
+            <div className="flex gap-2">
+              <span className="text-slate-500 w-24">Nhà cung cấp:</span> 
               <span className="font-semibold text-indigo-600 cursor-pointer hover:underline">{supplierName}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Mã đơn PO:</span> 
+            <div className="flex gap-2">
+              <span className="text-slate-500 w-24">Mã đơn PO:</span> 
               <span className="text-slate-400">—</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Số hóa đơn:</span> 
+            <div className="flex gap-2">
+              <span className="text-slate-500 w-24">Số hóa đơn:</span> 
               <span className="text-slate-400">—</span>
             </div>
           </div>
@@ -176,17 +176,17 @@ export default function PurchaseOrderDetailModal({
           {/* Cột 3: Thời gian & Tiến độ */}
           <div className="space-y-1.5 text-xs">
             <h4 className="font-bold text-slate-400 uppercase tracking-wider mb-2">Tiến độ & Thời gian</h4>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Ngày tạo:</span> 
-              <span className="font-medium text-slate-800">{displayCreatedDate}</span>
+            <div className="flex gap-2">
+              <span className="text-slate-500 w-24">Ngày tạo:</span> 
+              <span className="font-medium text-slate-800">{order.orderDate ? new Date(order.orderDate).toLocaleString('vi-VN') : displayCreatedDate}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Hoàn thành:</span> 
+            <div className="flex gap-2">
+              <span className="text-slate-500 w-24">Nhập kho lúc:</span> 
               <span className="font-medium text-slate-800">{formattedCompletedAt}</span>
             </div>
-            <div className="flex flex-col pt-1 gap-1">
-              <span className="text-slate-500">Tỷ lệ hoàn thành ({completionRate}%):</span>
-              <Progress percent={completionRate} size="small" status={completionRate === 100 ? "success" : "normal"} />
+            <div className="flex gap-2 items-center">
+              <span className="text-slate-500 w-24">Tiến độ:</span> 
+              <span className="font-semibold text-slate-800">{completionRate}% ({totalReceived}/{totalOrdered})</span>
             </div>
           </div>
         </div>

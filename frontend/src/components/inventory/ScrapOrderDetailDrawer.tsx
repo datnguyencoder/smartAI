@@ -69,15 +69,14 @@ export default function ScrapOrderDetailDrawer({ open, order, onClose }: Props) 
       <div className="max-h-[70vh] overflow-y-auto pr-2 space-y-6 pt-3">
         {/* Metadata Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
-          {/* Cột 1: Thông tin hành chính */}
           <div className="space-y-1.5 text-xs">
             <h4 className="font-bold text-slate-400 uppercase tracking-wider mb-2">Thông tin chung</h4>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Kho xuất hủy:</span> 
+            <div className="flex gap-2">
+              <span className="text-slate-500 w-24">Kho xuất hủy:</span> 
               <span className="font-semibold text-slate-800">{order.locationName}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Người tạo:</span> 
+            <div className="flex gap-2">
+              <span className="text-slate-500 w-24">Người tạo:</span> 
               <span className="font-medium text-slate-800">{order.createdByUsername || `ID: ${order.createdBy}`}</span>
             </div>
           </div>
@@ -85,8 +84,8 @@ export default function ScrapOrderDetailDrawer({ open, order, onClose }: Props) 
           {/* Cột 2: Thời gian */}
           <div className="space-y-1.5 text-xs">
             <h4 className="font-bold text-slate-400 uppercase tracking-wider mb-2">Thời gian</h4>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Ngày tạo:</span> 
+            <div className="flex gap-2">
+              <span className="text-slate-500 w-24">Ngày tạo:</span> 
               <span className="font-medium text-slate-800">{dayjs(order.scrapDate).format('DD/MM/YYYY HH:mm')}</span>
             </div>
           </div>
@@ -94,9 +93,9 @@ export default function ScrapOrderDetailDrawer({ open, order, onClose }: Props) 
           {/* Cột 3: Ghi chú */}
           <div className="space-y-1.5 text-xs">
             <h4 className="font-bold text-slate-400 uppercase tracking-wider mb-2">Ghi chú</h4>
-            <div className="flex justify-between flex-col">
-              <span className="text-slate-500">Nội dung:</span> 
-              <span className="text-slate-800 line-clamp-2 mt-1">{order.note || '—'}</span>
+            <div className="flex gap-2 flex-col">
+              <span className="text-slate-500 w-24">Nội dung:</span> 
+              <span className="text-slate-800 line-clamp-2">{order.note || '—'}</span>
             </div>
           </div>
         </div>

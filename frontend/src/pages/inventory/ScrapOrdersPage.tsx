@@ -1,13 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Tag, Button, Select, Modal, Input, message, Drawer, Space, Typography } from 'antd';
-import { fetchScrapOrders, approveScrapOrder, cancelScrapOrder } from '@/services/wmsApi';
-import type { ScrapOrderDto } from '@/types/api';
+import { Table, Tag, Button, Modal, Input, message, Drawer, Space, Typography } from 'antd';
+import { 
+  fetchScrapOrders, 
+  approveScrapOrder, 
+  cancelScrapOrder,
+  fetchLocations,
+  fetchItems,
+  fetchInventory,
+  createScrapOrder
+} from '@/services/wmsApi';
+import type { ScrapOrderDto, LocationDto, ItemDto, InventoryItemDto } from '@/types/api';
 import dayjs from 'dayjs';
 import { useAuth } from '@/contexts/AuthContext';
+import { Trash2 } from 'lucide-react';
+import { Card, CardHeader } from '@/components/ui';
+import type { PageKey } from '@/types/pages';
 
 const { Text } = Typography;
 
-import type { PageKey } from '@/types/pages';
+const selectClass = "h-8 px-2 bg-white border border-slate-200 rounded text-sm text-slate-700 transition-all hover:border-emerald-300 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-100";
+
+type LineForm = { itemId: number; lotId?: number; quantity: number; reason: string };
 
 export default function ScrapOrdersPage({ setPage }: { setPage: (page: PageKey) => void }) {
   const { authUser } = useAuth();
@@ -17,6 +30,16 @@ export default function ScrapOrdersPage({ setPage }: { setPage: (page: PageKey) 
   const [orders, setOrders] = useState<ScrapOrderDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('PENDING');
+
+  // Base Data for Create Modal
+  const [locations, setLocations] = useState<LocationDto[]>([]);
+  const [items, setItems] = useState<ItemDto[]>([]);
+  const [inventory, setInventory] = useState<InventoryItemDto[]>([]);
+
+  // Create Modal state
+  const [createOpen, setCreateOpen] = useState(false);
+  const [locationId, setLocationId] = useState<number | undefined>();
+  const [lines, setLines] = useState<LineForm[]>([]);
 
   // Drawer state
   const [selectedOrder, setSelectedOrder] = useState<ScrapOrderDto | null>(null);
@@ -41,9 +64,54 @@ export default function ScrapOrdersPage({ setPage }: { setPage: (page: PageKey) 
     }
   };
 
+  const loadBaseData = async () => {
+    try {
+      const [locsRes, itemsRes, invRes] = await Promise.all([
+        fetchLocations(),
+        fetchItems(),
+        fetchInventory(),
+      ]);
+      setLocations(locsRes || []);
+      setItems(itemsRes || []);
+      setInventory(invRes || []);
+    } catch (err: any) {
+      message.error('Lỗi tải dữ liệu cơ sở: ' + err.message);
+    }
+  };
+
   useEffect(() => {
     loadData();
   }, [statusFilter]);
+
+  useEffect(() => {
+    loadBaseData();
+  }, []);
+
+  const handleCreate = async () => {
+    if (!locationId) return message.error("Vui lòng chọn kho xuất hủy");
+    if (lines.length === 0) return message.error("Vui lòng thêm ít nhất một mặt hàng");
+    
+    for (const line of lines) {
+      if (!line.itemId || !line.quantity || !line.reason) {
+        return message.error("Vui lòng nhập đầy đủ thông tin cho các dòng (Sản phẩm, Số lượng, Lý do)");
+      }
+    }
+
+    try {
+      setLoading(true);
+      await createScrapOrder({ locationId, items: lines });
+      message.success('Gửi yêu cầu hủy hàng thành công!');
+      setCreateOpen(false);
+      setLines([]);
+      setLocationId(undefined);
+      loadData();
+      loadBaseData(); // Refresh inventory
+    } catch (err: any) {
+      message.error(err.message || 'Lỗi tạo phiếu hủy');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleApprove = async (id: number) => {
     try {
@@ -148,13 +216,19 @@ export default function ScrapOrdersPage({ setPage }: { setPage: (page: PageKey) 
   ];
 
   return (
-    <div className="p-4 bg-white rounded shadow">
-      <div className="flex justify-between items-center mb-4">
-        <Button type="primary" onClick={() => setPage('scrap-create')}>
-          Tạo phiếu hủy
-        </Button>
+    <Card>
+      <CardHeader
+        title="Phiếu hủy hàng"
+        description="Quản lý và tạo mới các yêu cầu loại bỏ hàng hóa hỏng, lỗi, hoặc hết hạn"
+        action={
+          <Button type="primary" onClick={() => setCreateOpen(true)}>
+            Tạo phiếu hủy
+          </Button>
+        }
+      />
+      <div className="px-5 pb-5">
         <select
-          className="w-[150px] h-8 px-3 border border-slate-200 rounded-lg bg-white text-sm focus:outline-none focus:border-primary"
+          className={`${selectClass} mb-4 w-40`}
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
         >
@@ -163,15 +237,56 @@ export default function ScrapOrdersPage({ setPage }: { setPage: (page: PageKey) 
           <option value="COMPLETED">Đã duyệt</option>
           <option value="CANCELLED">Đã từ chối</option>
         </select>
+
+        <Table
+          dataSource={orders}
+          columns={columns}
+          rowKey="id"
+          loading={loading}
+          pagination={{ pageSize: 10 }}
+        />
       </div>
 
-      <Table
-        dataSource={orders}
-        columns={columns}
-        rowKey="id"
-        loading={loading}
-        pagination={{ pageSize: 10 }}
-      />
+      {/* CREATE MODAL */}
+      <Modal title="Tạo phiếu xuất hủy" open={createOpen} onCancel={() => setCreateOpen(false)} onOk={handleCreate} width={800} okText="Gửi yêu cầu" cancelText="Hủy">
+        <div className="mb-4">
+          <label className="text-xs font-semibold">Kho xuất hủy</label>
+          <select className={`${selectClass} w-full mt-1`} value={locationId || ''} onChange={(e) => {
+            setLocationId(Number(e.target.value) || undefined);
+            setLines([]); 
+          }}>
+            <option value="" disabled>-- Chọn kho --</option>
+            {locations.map((l) => (<option key={l.id} value={l.id}>{l.locationName}</option>))}
+          </select>
+        </div>
+        
+        {lines.map((line, idx) => {
+          const availableItems = items.filter(i => inventory.some(inv => inv.locationId === locationId && inv.itemId === i.id && Number(inv.quantity) > 0));
+          return (
+            <div key={idx} className="flex gap-2 mb-2">
+              <select className={`${selectClass} w-48`} value={line.itemId || ''}
+                onChange={(e) => setLines(lines.map((l, i) => i === idx ? { ...l, itemId: Number(e.target.value) || 0, lotId: undefined } : l))}>
+                <option value="" disabled>-- Sản phẩm --</option>
+                {availableItems.map((i) => (<option key={i.id} value={i.id}>{i.itemName}</option>))}
+              </select>
+              <select className={`${selectClass} w-48`} value={line.lotId || ''}
+                onChange={(e) => setLines(lines.map((l, i) => i === idx ? { ...l, lotId: e.target.value ? Number(e.target.value) : undefined } : l))}>
+                <option value="">-- Lô (nếu có) --</option>
+                {inventory.filter((inv) => inv.itemId === line.itemId && inv.locationId === locationId && Number(inv.quantity) > 0)
+                  .map((inv) => (<option key={inv.lotId} value={inv.lotId || ''}>{inv.lotNumber || '—'} (Còn: {inv.quantity})</option>))}
+              </select>
+              <input type="number" min="0.01" step="0.01" className={`${selectClass} w-24`} value={line.quantity || ''} placeholder="SL"
+                onChange={(e) => setLines(lines.map((l, i) => i === idx ? { ...l, quantity: Number(e.target.value) || 0 } : l))} />
+              <input type="text" className={`${selectClass} flex-1`} value={line.reason || ''} placeholder="Lý do hủy"
+                onChange={(e) => setLines(lines.map((l, i) => i === idx ? { ...l, reason: e.target.value } : l))} />
+              <button type="button" className="text-red-500 hover:text-red-700 p-1 flex items-center justify-center transition-colors rounded hover:bg-red-50" onClick={() => setLines(lines.filter((_, i) => i !== idx))}>
+                <Trash2 className="w-5 h-5" />
+              </button>
+            </div>
+          )
+        })}
+        <Button type="dashed" block disabled={!locationId} onClick={() => setLines([...lines, { itemId: 0, quantity: 1, reason: '' }])}>+ Thêm mặt hàng</Button>
+      </Modal>
 
       <Drawer
         title={`Chi tiết phiếu hủy SCRAP-${selectedOrder?.id?.toString().padStart(4, '0')}`}
@@ -245,6 +360,6 @@ export default function ScrapOrdersPage({ setPage }: { setPage: (page: PageKey) 
           placeholder="Nhập lý do chi tiết..."
         />
       </Modal>
-    </div>
+    </Card>
   );
 }

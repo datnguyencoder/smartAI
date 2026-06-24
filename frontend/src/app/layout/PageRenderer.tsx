@@ -17,7 +17,6 @@ import DashboardPage from '@/pages/dashboard/DashboardPage';
 import InventoryAlertsPage from '@/pages/inventory/InventoryAlertsPage';
 import InventoryLogsPage from '@/pages/inventory/InventoryLogsPage';
 import InventoryPage from '@/pages/inventory/InventoryPage';
-import ScrapOrderCreatePage from '@/pages/inventory/ScrapOrderCreatePage';
 import ScrapOrdersPage from '@/pages/inventory/ScrapOrdersPage';
 import StocktakePage from '@/pages/inventory/StocktakePage';
 import ItemLotsPage from '@/pages/inventory/ItemLotsPage';
@@ -161,9 +160,6 @@ export function PageRenderer({
   }
   if (page === 'scrap-orders') {
     return <ScrapOrdersPage setPage={setPage} />;
-  }
-  if (page === 'scrap-create') {
-    return <ScrapOrderCreatePage setPage={setPage} />;
   }
   if (page === 'ai-forecast') {
     return <AiForecastPage productsList={productsList} invoicesList={invoicesList} setPage={setPage} />;
