@@ -178,7 +178,7 @@ export default function PurchaseOrderDetailModal({
             <h4 className="font-bold text-slate-400 uppercase tracking-wider mb-2">Tiến độ & Thời gian</h4>
             <div className="flex gap-2">
               <span className="text-slate-500 w-24">Ngày tạo:</span> 
-              <span className="font-medium text-slate-800">{order.orderDate ? new Date(order.orderDate).toLocaleString('vi-VN') : displayCreatedDate}</span>
+              <span className="font-medium text-slate-800">{order.purchaseDate ? new Date(order.purchaseDate).toLocaleString('vi-VN') : displayCreatedDate}</span>
             </div>
             <div className="flex gap-2">
               <span className="text-slate-500 w-24">Nhập kho lúc:</span> 

@@ -4,10 +4,11 @@ import {
   getRefreshToken,
   updateTokens,
 } from '@/lib/authSession';
+import { API_BASE_URL } from '@/lib/env';
 import { mapErrorCode } from '@/lib/errorMessages';
 import type { ApiEnvelope, AuthDto } from '@/types/api';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8080';
+const API_BASE = API_BASE_URL;
 
 export class ApiClientError extends Error {
   errorCode?: string;
@@ -114,7 +115,6 @@ export async function apiRequest<T>(
   return body.data as T;
 }
 
-/** Role-restricted endpoints (e.g. orders for WAREHOUSE) — skip without failing the whole batch. */
 export async function ignoreForbidden<T>(promise: Promise<T>, fallback: T): Promise<T> {
   try {
     return await promise;

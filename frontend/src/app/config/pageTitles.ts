@@ -16,7 +16,6 @@ export const pageTitles: Record<PageKey, { title: string; description: string }>
   'inventory-alerts': { title: 'Cảnh báo tồn kho', description: 'Ưu tiên sản phẩm hết hàng, sắp hết và tồn bất thường.' },
   'inventory-logs': { title: 'Lịch sử biến động kho', description: 'Nhật ký toàn bộ biến động nhập, xuất, hủy và điều chỉnh tồn kho.' },
   stocktake: { title: 'Kiểm kê kho', description: 'Đối chiếu tồn thực tế với sổ sách và xử lý chênh lệch.' },
-  'transfer-orders': { title: 'Chuyển kho', description: 'Di chuyển hàng giữa các vị trí kho.' },
   shifts: { title: 'Ca làm việc', description: 'Mở ca, đóng ca và đối soát tiền mặt tại quầy.' },
   'item-lots': { title: 'Quản lý lô hàng', description: 'Theo dõi lô, hạn sử dụng và truy xuất nguồn gốc.' },
   'ai-forecast': { title: 'Dự báo AI', description: 'Mô hình dự báo nhu cầu, doanh thu và rủi ro vận hành.' },

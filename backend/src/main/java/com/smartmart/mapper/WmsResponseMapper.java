@@ -144,36 +144,6 @@ public final class WmsResponseMapper {
                 return list.stream().map(WmsResponseMapper::toStocktakeResponse).toList();
         }
 
-        public static TransferOrderResponse toTransferOrderResponse(TransferOrder order) {
-                List<TransferOrderItemResponse> items = order.getItems().stream()
-                                .map(i -> TransferOrderItemResponse.builder()
-                                                .itemId(i.getItem().getId())
-                                                .itemName(i.getItem().getItemName())
-                                                .lotId(i.getLot() != null ? i.getLot().getId() : null)
-                                                .lotNumber(i.getLot() != null ? i.getLot().getLotNumber() : null)
-                                                .quantity(i.getQuantity())
-                                                .note(i.getNote())
-                                                .build())
-                                .toList();
-                return TransferOrderResponse.builder()
-                                .id(order.getId())
-                                .fromLocationId(order.getFromLocation().getId())
-                                .fromLocationName(order.getFromLocation().getLocationName())
-                                .toLocationId(order.getToLocation().getId())
-                                .toLocationName(order.getToLocation().getLocationName())
-                                .createdBy(order.getCreatedBy())
-                                .transferDate(order.getTransferDate())
-                                .status(order.getStatus())
-                                .note(order.getNote())
-                                .completedAt(order.getCompletedAt())
-                                .items(items)
-                                .build();
-        }
-
-        public static List<TransferOrderResponse> toTransferOrderResponses(List<TransferOrder> list) {
-                return list.stream().map(WmsResponseMapper::toTransferOrderResponse).toList();
-        }
-
         public static ReturnOrderResponse toReturnOrderResponse(ReturnOrder order) {
                 List<ReturnOrderItemResponse> items = order.getItems().stream()
                                 .map(i -> ReturnOrderItemResponse.builder()

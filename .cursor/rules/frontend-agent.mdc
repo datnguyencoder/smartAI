@@ -24,7 +24,7 @@ alwaysApply: false
 
 ## API client
 
-- Base URL via `import.meta.env.VITE_API_BASE_URL` (default `http://localhost:8080`)
+- Base URL: `VITE_API_URL` trong `frontend/.env.local` (đọc qua `@/lib/env` → `API_BASE_URL`, default `http://localhost:8080`)
 - Parse `ApiResponse<T>`: `{ success, message, data }`
 - Attach JWT from storage on every request after login
 

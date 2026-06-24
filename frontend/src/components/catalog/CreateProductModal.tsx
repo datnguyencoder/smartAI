@@ -21,7 +21,6 @@ const pageTitles: Record<PageKey, { title: string }> = {
   'inventory-alerts': { title: 'Cảnh báo tồn kho' },
   'inventory-logs': { title: 'Lịch sử biến động' },
   stocktake: { title: 'Kiểm kê kho' },
-  'transfer-orders': { title: 'Chuyển kho' },
   shifts: { title: 'Ca làm việc' },
   'item-lots': { title: 'Quản lý lô hàng' },
   'ai-forecast': { title: 'Dự báo AI' },
@@ -34,7 +33,6 @@ const pageTitles: Record<PageKey, { title: string }> = {
   users: { title: 'Người dùng' },
   settings: { title: 'Cài đặt hệ thống' },
   'scrap-orders': { title: 'Quản lý Yêu cầu loại bỏ hàng hóa' },
-  'scrap-create': { title: 'Tạo Yêu cầu loại bỏ hàng hóa' },
   'audit-logs': { title: 'Nhật ký hoạt động' },
 
 };

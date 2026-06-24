@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/lib/env';
 import { apiDownloadBlob, apiRequest } from '@/services/apiClient';
 import type {
   CategoryDto,
@@ -108,8 +109,7 @@ export function fetchUoms() {
 }
 
 export function getBarcodeLabelUrl(itemId: number) {
-  const base = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-  return `${base}/api/v1/items/${itemId}/barcode-label`;
+  return `${API_BASE_URL}/api/v1/items/${itemId}/barcode-label`;
 }
 
 export function downloadBarcodeLabel(itemId: number) {

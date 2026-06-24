@@ -464,29 +464,6 @@ export type StocktakeDto = {
   items: StocktakeItemDto[];
 };
 
-export type TransferOrderItemDto = {
-  itemId: number;
-  itemName: string;
-  lotId?: number;
-  lotNumber?: string;
-  quantity: number;
-  note?: string;
-};
-
-export type TransferOrderDto = {
-  id: number;
-  fromLocationId: number;
-  fromLocationName: string;
-  toLocationId: number;
-  toLocationName: string;
-  createdBy?: number;
-  transferDate: string;
-  status: 'PENDING' | 'COMPLETED' | 'CANCELLED';
-  note?: string;
-  completedAt?: string;
-  items: TransferOrderItemDto[];
-};
-
 export type ReturnOrderItemDto = {
   itemId: number;
   itemName: string;

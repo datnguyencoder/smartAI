@@ -33,7 +33,7 @@ public class ItemController {
 
     @GetMapping
     @Operation(summary = "Danh sách sản phẩm")
-    public ResponseEntity<ApiResponse<?>> list(
+    public ResponseEntity<ApiResponse<Object>> list(
             @RequestParam(required = false) String q,
             @RequestParam(required = false) String barcode,
             @RequestParam(required = false) Long categoryId,
@@ -42,15 +42,15 @@ public class ItemController {
             @RequestParam(required = false) Integer size
     ) {
         if (barcode != null && !barcode.isBlank()) {
-            return ResponseEntity.ok(ApiResponse.success(itemService.getByBarcode(barcode.trim())));
+            return ResponseEntity.ok(ApiResponse.success((Object) itemService.getByBarcode(barcode.trim())));
         }
         if (page != null) {
             int pageSize = size != null && size > 0 ? Math.min(size, 200) : 50;
             Pageable pageable = org.springframework.data.domain.PageRequest.of(Math.max(page, 0), pageSize, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id"));
             PageResponse<ItemResponse> result = itemService.listPaged(q, categoryId, active, pageable);
-            return ResponseEntity.ok(ApiResponse.success(result));
+            return ResponseEntity.ok(ApiResponse.success((Object) result));
         }
-        return ResponseEntity.ok(ApiResponse.success(itemService.listAll(q, categoryId, active)));
+        return ResponseEntity.ok(ApiResponse.success((Object) itemService.listAll(q, categoryId, active)));
     }
 
     @GetMapping("/{id}")
