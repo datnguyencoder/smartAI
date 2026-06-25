@@ -300,6 +300,21 @@ public class ForecastOrchestrationServiceImpl implements com.smartmart.service.a
                 .build();
     }
 
+    @Transactional(readOnly = true)
+    @Override
+    public java.util.Map<String, Object> getModelMetrics() {
+        try {
+            JsonNode metrics = aiClient.metrics();
+            if (metrics == null) {
+                return java.util.Map.of("available", false);
+            }
+            return new com.fasterxml.jackson.databind.ObjectMapper().convertValue(
+                    metrics, new com.fasterxml.jackson.core.type.TypeReference<java.util.Map<String, Object>>() {});
+        } catch (Exception e) {
+            return java.util.Map.of("available", false, "message", e.getMessage());
+        }
+    }
+
     private void saveDailySeries(ForecastResult fr, JsonNode dailySeries) {
         if (!dailySeries.isArray()) {
             return;

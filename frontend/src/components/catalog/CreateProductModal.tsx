@@ -15,6 +15,7 @@ const pageTitles: Record<PageKey, { title: string }> = {
   pos: { title: 'Bán hàng tại quầy' },
   customers: { title: 'Khách hàng' },
   invoices: { title: 'Hóa đơn bán hàng' },
+  'return-orders': { title: 'Phiếu trả hàng' },
   'import-create': { title: 'Tạo phiếu nhập' },
   'import-slips': { title: 'Phiếu nhập hàng' },
   inventory: { title: 'Tồn kho' },

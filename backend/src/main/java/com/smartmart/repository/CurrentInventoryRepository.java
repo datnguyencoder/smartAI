@@ -68,6 +68,42 @@ public interface CurrentInventoryRepository extends JpaRepository<CurrentInvento
             """)
     List<CurrentInventory> findNearExpiry(@Param("deadline") LocalDate deadline);
 
+    @Query("""
+            SELECT ci FROM CurrentInventory ci
+            JOIN ci.lot l
+            WHERE ci.item.id = :itemId
+              AND ci.location.id = :locationId
+              AND l.expiryDate IS NOT NULL
+              AND l.expiryDate < CURRENT_DATE
+              AND (ci.quantity - ci.reservedQuantity) > 0
+            """)
+    List<CurrentInventory> findExpiredByItemAndLocation(
+            @Param("itemId") Long itemId,
+            @Param("locationId") Long locationId);
+
+    @Query("""
+            SELECT COALESCE(SUM(ci.quantity - ci.reservedQuantity), 0)
+            FROM CurrentInventory ci
+            JOIN ci.lot l
+            WHERE ci.item.id = :itemId
+              AND ci.location.id = :locationId
+              AND l.expiryDate IS NOT NULL
+              AND l.expiryDate < CURRENT_DATE
+              AND (ci.quantity - ci.reservedQuantity) > 0
+            """)
+    BigDecimal sumExpiredAvailableByItemAndLocation(
+            @Param("itemId") Long itemId,
+            @Param("locationId") Long locationId);
+
+    @Query("""
+            SELECT ci FROM CurrentInventory ci
+            JOIN ci.lot l
+            WHERE l.expiryDate IS NOT NULL
+              AND l.expiryDate < CURRENT_DATE
+              AND (ci.quantity - ci.reservedQuantity) > 0
+            """)
+    List<CurrentInventory> findExpired();
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             SELECT ci FROM CurrentInventory ci

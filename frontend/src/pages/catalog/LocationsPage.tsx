@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Building2, Search as SearchIcon } from 'lucide-react';
+import { Building2, Search as SearchIcon, Plus } from 'lucide-react';
 import { Modal, Form, Input, Select, Button, message } from 'antd';
 import { Card, CardHeader, StatusChip } from '@/components/ui';
 import type { LocationDto, UserDto } from '@/types/api';
 import type { Product } from '@/lib/itemMapper';
 import type { PageKey } from '@/types/pages';
 import { AiSummary } from '@/components/ai/AiSummary';
-import { updateLocation } from '@/services/wmsApi';
+import { updateLocation, createLocation } from '@/services/wmsApi';
 import { normalizeRole } from '@/lib/permissions';
 
 export default function LocationsPage({
@@ -28,6 +28,8 @@ export default function LocationsPage({
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createForm] = Form.useForm();
 
   const canEdit = authUser && ['ROLE_ADMIN', 'ROLE_MANAGER'].includes(normalizeRole(authUser.role));
 
@@ -92,7 +94,14 @@ export default function LocationsPage({
       <Card>
         <div className="p-5 flex items-center justify-between border-b border-slate-100">
           <h2 className="font-semibold text-lg">Danh sách vị trí kho</h2>
-          <Input className="w-64" prefix={<SearchIcon size={16} />} placeholder="Tìm theo tên, mã kho..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} allowClear />
+          <div className="flex gap-2">
+            <Input className="w-64" prefix={<SearchIcon size={16} />} placeholder="Tìm theo tên, mã kho..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} allowClear />
+            {canEdit && (
+              <Button type="primary" icon={<Plus size={16} />} onClick={() => { createForm.resetFields(); setCreateOpen(true); }}>
+                Thêm vị trí
+              </Button>
+            )}
+          </div>
         </div>
         <div className="grid gap-3 px-5 py-5 md:grid-cols-2">
           {filteredLocations.map((loc) => (
@@ -213,6 +222,41 @@ export default function LocationsPage({
             </Form.Item>
           </Form>
         )}
+      </Modal>
+
+      <Modal
+        title="Thêm vị trí kho"
+        open={createOpen}
+        onCancel={() => setCreateOpen(false)}
+        onOk={async () => {
+          const values = await createForm.validateFields();
+          setLoading(true);
+          try {
+            await createLocation(values);
+            message.success('Đã tạo vị trí kho');
+            setCreateOpen(false);
+            if (reloadCatalog) await reloadCatalog();
+          } catch (e: any) {
+            message.error(e.message || 'Tạo thất bại');
+          } finally {
+            setLoading(false);
+          }
+        }}
+        okText="Tạo"
+        confirmLoading={loading}
+      >
+        <Form form={createForm} layout="vertical" className="mt-4">
+          <Form.Item name="locationName" label="Tên vị trí" rules={[{ required: true }]}>
+            <Input placeholder="Kệ A1" />
+          </Form.Item>
+          <Form.Item name="locationType" label="Loại" initialValue="RACK">
+            <select className="h-[34px] w-full rounded-md border border-slate-200 px-3 text-sm">
+              <option value="ZONE">Khu vực (ZONE)</option>
+              <option value="RACK">Kệ (RACK)</option>
+              <option value="BIN">Ô (BIN)</option>
+            </select>
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   );

@@ -33,7 +33,7 @@ Chuẩn ghi tồn:
 | --- | --- | --- |
 | Order | `COMPLETED`, `CANCELLED` | Hóa đơn bán thành công hoặc bị hủy |
 | Purchase Order | `PENDING`, `COMPLETED`, `CANCELLED` | Phiếu nhập đã tạo, đã nhận hàng, hoặc hủy |
-| Transfer Order | `PENDING`, `COMPLETED`, `CANCELLED` | Phiếu chuyển kho chờ xử lý, hoàn tất, hoặc hủy |
+| Transfer Order | *(đã gỡ)* | — |
 | Stocktake | `DRAFT`, `CONFIRMED`, `CANCELLED` | Phiếu kiểm kê nháp, đã chốt điều chỉnh, hoặc hủy |
 | Scrap Order | `PENDING`, `COMPLETED`, `CANCELLED` | Phiếu hủy chờ duyệt, đã trừ tồn, hoặc từ chối |
 | Return Order | `COMPLETED` | Phiếu trả hàng hoàn tất ngay sau khi tạo hợp lệ |
@@ -359,39 +359,24 @@ Nhóm cảnh báo:
 
 ---
 
-## 8. Luồng chuyển kho
+## 8. Mô hình kho đơn (single-store)
+
+> **Đã gỡ (V20):** Luồng chuyển kho giữa các vị trí (`transfer-orders`) không còn trong hệ thống siêu thị mini một kho bán.
 
 ### Mục tiêu nghiệp vụ
 
-Chuyển hàng từ kho này sang kho khác, đặc biệt từ kho tổng sang `Kho bán` trước khi POS bán.
+Siêu thị mini vận hành **một kho bán duy nhất** (`Kho bán`). Nhập hàng ghi tồn trực tiếp; POS trừ tồn tại đó (SALE-05).
 
 ### Luồng chuẩn
 
-1. Chọn kho nguồn và kho đích khác nhau.
-2. Chọn SKU/lô/số lượng.
-3. Backend kiểm tra available tại kho nguồn.
-4. Tạo transfer order `PENDING`.
-5. Khi hoàn thành:
-   - Lock tồn nguồn.
-   - Kiểm tra available lại lần cuối.
-   - Ledger trừ kho nguồn.
-   - Ledger cộng kho đích.
-   - Chuyển trạng thái `COMPLETED`.
-   - Ghi audit.
-6. Nếu hủy, chỉ đổi `PENDING` sang `CANCELLED`, không đổi tồn.
-
-### API chính
-
-- `POST /api/v1/transfer-orders`
-- `GET /api/v1/transfer-orders`
-- `POST /api/v1/transfer-orders/{id}/complete`
-- `POST /api/v1/transfer-orders/{id}/cancel`
+1. Phiếu nhập `receive` → cộng tồn tại `Kho bán` (hoặc vị trí mặc định).
+2. POS bán → FEFO trừ tồn cùng vị trí.
+3. Vị trí kho (`locations`) chỉ dùng để gắn nhãn khu vực lưu trữ, không chuyển tồn giữa chi nhánh.
 
 ### Tiêu chí hoàn tất
 
-- Tổng tồn toàn hệ thống không đổi.
-- Tồn kho nguồn giảm, kho đích tăng cùng số lượng.
-- Chỉ phiếu `PENDING` được complete/cancel.
+- Không có API `transfer-orders`.
+- Tồn không âm; ledger append-only qua `InventoryLedgerService`.
 
 ---
 
@@ -679,7 +664,6 @@ Mọi thao tác thay đổi dữ liệu lõi phải ghi:
 | Trả hàng | Full | Full | Create theo policy | No |
 | Nhập hàng | Full | Full | No | Create/View |
 | Nhận hàng | Full | Full | No | Full |
-| Chuyển kho | Full | Full | No | Full |
 | Kiểm kê | Full | Full | No | Full |
 | Hủy hàng | Full | Approve/Create | No | Create |
 | Promotion | Full | Full | No | No |
@@ -732,7 +716,7 @@ Mọi thao tác thay đổi dữ liệu lõi phải ghi:
 
 - [ ] Nhập hàng `PENDING` không cộng tồn.
 - [ ] Receive nhập hàng cộng tồn và tạo log.
-- [ ] Transfer kho tổng sang kho bán rồi POS bán được.
+- [ ] POS bán tại `Kho bán` sau khi nhập hàng — không cần chuyển kho.
 - [ ] POS bán trừ đúng FEFO.
 - [ ] Return cộng tồn đúng lô/location.
 - [ ] Stocktake confirm tạo adjustment đúng variance.
@@ -747,7 +731,7 @@ Mọi thao tác thay đổi dữ liệu lõi phải ghi:
 
 1. Admin/Manager kiểm tra dashboard đầu ngày.
 2. Warehouse xử lý cảnh báo thiếu hàng/cận date.
-3. Nếu cần, tạo transfer từ kho tổng sang `Kho bán`.
+3. POS bán trực tiếp tại `Kho bán` sau khi nhận hàng.
 4. Staff mở ca và bán POS.
 5. Manager theo dõi doanh thu, hóa đơn lỗi, cảnh báo tồn.
 6. Warehouse nhận hàng từ các phiếu nhập đã đặt.
@@ -765,7 +749,7 @@ Hệ thống được xem là hoàn thiện nghiệp vụ khi:
 
 1. Mỗi SKU là một biến thể hàng hóa độc lập, không nhập nhằng.
 2. Tất cả biến động tồn đi qua ledger và có audit/log.
-3. POS, Purchase, Transfer, Return, Stocktake, Scrap chạy end-to-end không lệch tồn.
+3. POS, Purchase, Return, Stocktake, Scrap chạy end-to-end không lệch tồn.
 4. AI forecast có dữ liệu đủ thật, có fallback và có giải thích dễ hiểu.
 5. Promotion/reorder là đề xuất có duyệt, không tự ý thay đổi vận hành ngoài quyền Manager.
 6. Dashboard/report khớp dữ liệu giao dịch.

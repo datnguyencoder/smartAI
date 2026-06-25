@@ -18,6 +18,8 @@ public final class AuditAction {
     public static final String CUSTOMER_POINTS_EARNED = "CUSTOMER_POINTS_EARNED";
 
     public static final String CATEGORY_CREATE = "CATEGORY_CREATE";
+    public static final String CATEGORY_UPDATE = "CATEGORY_UPDATE";
+    public static final String CATEGORY_DELETE = "CATEGORY_DELETE";
     public static final String ITEM_CREATE = "ITEM_CREATE";
     public static final String ITEM_UPDATE = "ITEM_UPDATE";
     public static final String SUPPLIER_CREATE = "SUPPLIER_CREATE";

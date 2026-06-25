@@ -5,6 +5,7 @@ import com.smartmart.enums.InventoryActionType;
 import com.smartmart.enums.ReferenceType;
 import com.smartmart.exception.BadRequestException;
 import com.smartmart.exception.InsufficientStockException;
+import com.smartmart.exception.ProductExpiredException;
 import com.smartmart.repository.CurrentInventoryRepository;
 import com.smartmart.repository.InventoryLogRepository;
 import com.smartmart.repository.ItemLotRepository;
@@ -135,12 +136,19 @@ public class InventoryLedgerServiceImpl implements com.smartmart.service.Invento
             BigDecimal available = ci.getQuantity().subtract(ci.getReservedQuantity());
             if (available.compareTo(BigDecimal.ZERO) <= 0)
                 continue;
+            validateLotNotExpired(ci.getLot());
             BigDecimal take = available.min(remaining);
             allocations.add(new LotAllocation(ci.getLot(), take));
             remaining = remaining.subtract(take);
         }
 
         if (remaining.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal expiredAvailable = currentInventoryRepository
+                    .sumExpiredAvailableByItemAndLocation(item.getId(), location.getId());
+            if (expiredAvailable.compareTo(BigDecimal.ZERO) > 0) {
+                throw new ProductExpiredException(
+                        "Sản phẩm " + item.getItemName() + " đã hết hạn sử dụng, không thể bán tại POS");
+            }
             throw new InsufficientStockException("Không đủ tồn kho khả dụng cho " + item.getItemName());
         }
         return allocations;
@@ -172,7 +180,8 @@ public class InventoryLedgerServiceImpl implements com.smartmart.service.Invento
 
     public void validateLotNotExpired(ItemLot lot) {
         if (lot != null && lot.getExpiryDate() != null && lot.getExpiryDate().isBefore(LocalDate.now())) {
-            throw new BadRequestException("Sản phẩm lô " + lot.getLotNumber() + " đã hết hạn sử dụng");
+            throw new ProductExpiredException(
+                    "Sản phẩm lô " + lot.getLotNumber() + " đã hết hạn sử dụng");
         }
     }
 

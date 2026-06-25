@@ -6,5 +6,6 @@ public enum AlertType {
     HIGH_RISK,
     OVERSTOCK,
     NEAR_EXPIRY,
+    EXPIRED,
     EXPIRY_RISK
 }

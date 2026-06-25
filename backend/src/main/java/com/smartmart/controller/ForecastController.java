@@ -104,4 +104,11 @@ public class ForecastController {
     public ResponseEntity<ApiResponse<AiStatusResponse>> aiStatus() {
         return ResponseEntity.ok(ApiResponse.success(forecastOrchestrationService.getAiStatus()));
     }
+
+    @GetMapping("/model-metrics")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ANALYST')")
+    @Operation(summary = "Metrics mô hình ML từ AI service (MAPE, model type per SKU)")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> modelMetrics() {
+        return ResponseEntity.ok(ApiResponse.success(forecastOrchestrationService.getModelMetrics()));
+    }
 }

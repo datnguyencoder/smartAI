@@ -72,6 +72,31 @@ export function fetchCategories() {
   return apiRequest<CategoryDto[]>('/api/v1/categories');
 }
 
+export function fetchCategoryById(id: number) {
+  return apiRequest<CategoryDto>(`/api/v1/categories/${id}`);
+}
+
+export function createCategory(payload: { categoryName: string; parentId?: number }) {
+  return apiRequest<CategoryDto>('/api/v1/categories', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateCategory(
+  id: number,
+  payload: { categoryName: string; parentId?: number; active?: boolean }
+) {
+  return apiRequest<CategoryDto>(`/api/v1/categories/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteCategory(id: number) {
+  return apiRequest<void>(`/api/v1/categories/${id}`, { method: 'DELETE' });
+}
+
 export function fetchSuppliers() {
   return apiRequest<SupplierDto[]>('/api/v1/suppliers');
 }
@@ -98,6 +123,13 @@ export function updateSupplier(id: number, payload: Partial<SupplierDto>) {
 
 export function fetchLocations() {
   return apiRequest<LocationDto[]>('/api/v1/locations');
+}
+
+export function createLocation(payload: { locationName: string; locationType?: string; parentId?: number }) {
+  return apiRequest<LocationDto>('/api/v1/locations', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
 
 export function updateLocation(id: number, payload: Partial<LocationDto>) {

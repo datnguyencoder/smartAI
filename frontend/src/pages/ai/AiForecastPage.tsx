@@ -47,6 +47,7 @@ import { normalizeRole } from '@/lib/permissions';
 import {
   fetchAiStatus,
   fetchForecastItemDetail,
+  fetchForecastModelMetrics,
   fetchForecastResults,
   fetchSalesReport,
   fetchTrainJobStatus,
@@ -235,7 +236,8 @@ export default function AiForecastPage({ productsList: _productsList, setPage }:
   const trainPollRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
   const [results, setResults] = React.useState<ForecastResultDto[]>([]);
   const [aiStatus, setAiStatus] = React.useState<AiStatusDto | null>(null);
-  const [revenueChart, setRevenueChart] = React.useState<Array<{ day: string; revenue: number; orders: number }>>([]);
+  const [modelMetrics, setModelMetrics] = React.useState<Record<string, unknown> | null>(null);
+  const [revenueChart, setRevenueChart] = React.useState<Array<{ day: string; revenue: number; profit: number; orders: number }>>([]);
   const [selectedItemId, setSelectedItemId] = React.useState<number | null>(null);
   const [selectedItemName, setSelectedItemName] = React.useState<string>('');
   const [dailyChart, setDailyChart] = React.useState<Array<{ date: string; qty: number; confLow?: number; confHigh?: number }>>([]);
@@ -246,12 +248,14 @@ export default function AiForecastPage({ productsList: _productsList, setPage }:
 
   const refreshStatus = React.useCallback(async () => {
     try {
-      const status = await fetchAiStatus();
+      const [status, metrics] = await Promise.all([fetchAiStatus(), fetchForecastModelMetrics().catch(() => null)]);
       setAiStatus(status);
+      setModelMetrics(metrics);
       if (status.modelLoaded) setWorkflowStep((s) => Math.max(s, 1));
       if ((status.totalForecasts ?? 0) > 0) setWorkflowStep(2);
     } catch {
       setAiStatus(null);
+      setModelMetrics(null);
     }
   }, []);
 
@@ -292,6 +296,7 @@ export default function AiForecastPage({ productsList: _productsList, setPage }:
           rows.map((r) => ({
             day: new Date(r.period).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }),
             revenue: Number(r.totalRevenue),
+            profit: Number(r.grossProfit),
             orders: Number(r.totalOrders),
           }))
         )
@@ -558,6 +563,9 @@ export default function AiForecastPage({ productsList: _productsList, setPage }:
                 <div className="mt-1 flex items-center gap-1 text-xs text-slate-500">
                   {modelTag(aiStatus?.modelType)}
                   <span>v{aiStatus?.aiVersion ?? '—'}</span>
+                  {modelMetrics && typeof modelMetrics.mape === 'number' && (
+                    <span>· MAPE {(modelMetrics.mape as number).toFixed(1)}%</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -1026,6 +1034,7 @@ export default function AiForecastPage({ productsList: _productsList, setPage }:
                       <ChartTooltip content={<SmartTooltip />} />
                       <Legend iconType="circle" iconSize={8} />
                       <Area dataKey="revenue" name="Doanh thu" stroke="#10b981" strokeWidth={2.5} fill="url(#forecastRevenue)" type="monotone" dot={false} />
+                      <Line dataKey="profit" name="Lợi nhuận gộp" stroke="#f59e0b" strokeWidth={2} type="monotone" dot={false} />
                       <Area dataKey="orders" name="Đơn hàng" stroke="#4648d4" strokeWidth={2.5} fill="url(#forecastOrders)" type="monotone" dot={false} />
                     </AreaChart>
                   </ResponsiveContainer>

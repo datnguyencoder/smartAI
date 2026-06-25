@@ -23,5 +23,7 @@ public interface ForecastOrchestrationService {
 
     AiStatusResponse getAiStatus();
 
+    java.util.Map<String, Object> getModelMetrics();
+
     String submitTrainAsync();
 }

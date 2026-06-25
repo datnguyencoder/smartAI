@@ -104,7 +104,7 @@ Dành riêng cho vai trò Admin để vận hành nhân sự.
 | **POST** | `/api/v1/categories` | `ADMIN`, `MANAGER`, `WAREHOUSE` | Tạo mới danh mục sản phẩm. |
 | **GET** | `/api/v1/categories/{id}` | Mọi vai trò đã đăng nhập | Xem chi tiết danh mục theo ID. |
 | **PUT** | `/api/v1/categories/{id}` | `ADMIN`, `MANAGER`, `WAREHOUSE` | Sửa thông tin danh mục. |
-| **DELETE** | `/api/v1/categories/{id}`| `ADMIN`, `MANAGER`, `WAREHOUSE` | Xóa mềm danh mục sản phẩm. |
+| **DELETE** | `/api/v1/categories/{id}`| `ADMIN`, `MANAGER` | Xóa mềm danh mục (chỉ khi không còn sản phẩm ACTIVE). |
 
 #### 2.4. Phân hệ Nhà cung cấp (Supplier API)
 | Method | Endpoint | Quyền truy cập | Mô tả |
@@ -167,7 +167,8 @@ Dành riêng cho vai trò Admin để vận hành nhân sự.
 #### 2.9. Phân hệ Dự báo học máy (Forecast API)
 | Method | Endpoint | Quyền truy cập | Mô tả |
 | :--- | :--- | :--- | :--- |
-| **POST** | `/api/v1/forecast/train` | `ADMIN`, `MANAGER` | Gửi yêu cầu trích xuất dữ liệu bán hàng và huấn luyện lại mô hình ML. |
+| **POST** | `/api/v1/forecast/train` | `ADMIN`, `MANAGER` | Huấn luyện ML **bất đồng bộ**: trả `202 Accepted` + `jobId`, poll `GET /api/v1/forecast/train/status?jobId=`. |
+| **GET** | `/api/v1/forecast/train/status` | `ADMIN`, `MANAGER` | Trạng thái job train (`PENDING` / `RUNNING` / `COMPLETED` / `FAILED`). |
 | **POST** | `/api/v1/forecast/run` | `ADMIN`, `MANAGER` | Kích hoạt chạy dự báo bán lẻ 7/14/30 ngày cho tất cả sản phẩm. |
 | **GET** | `/api/v1/forecast/results` | `ADMIN`, `MANAGER` | Lấy danh sách kết quả dự báo tổng quan hệ thống. |
 | **GET** | `/api/v1/forecast/results/{productId}` | `ADMIN`, `MANAGER` | Xem chi tiết kết quả dự báo theo từng ngày tương lai của sản phẩm. |
@@ -203,8 +204,10 @@ Dành riêng cho vai trò Admin để vận hành nhân sự.
 | **GET** | `/api/v1/reports/sales` | `ADMIN`, `MANAGER` | Xuất dữ liệu thống kê bán lẻ chuyên sâu theo ngày/tháng/năm. |
 | **GET** | `/api/v1/reports/inventory` | `ADMIN`, `MANAGER` | Báo cáo chi tiết hao hụt kho, hàng cận date, tỷ lệ quay vòng kho. |
 | **GET** | `/api/v1/reports/purchase` | `ADMIN`, `MANAGER` | Thống kê số lượng tiền chi nhập hàng theo từng nhà cung cấp. |
-| **GET** | `/api/v1/reports/export/excel` | `ADMIN`, `MANAGER` | Tải về báo cáo định dạng Excel (.xlsx) chuẩn chỉnh có màu sắc. |
-| **GET** | `/api/v1/reports/export/pdf` | `ADMIN`, `MANAGER` | Tải về báo cáo định dạng PDF định dạng A4 sẵn sàng in ấn. |
+| **GET** | `/api/v1/reports/export?format=excel` | `ADMIN`, `MANAGER` | Tải báo cáo Excel (.xlsx). Tham số `type` = `sales` \| `inventory` \| `purchase`. |
+| **GET** | `/api/v1/reports/export?format=pdf` | `ADMIN`, `MANAGER` | Tải báo cáo PDF A4. Tham số `type` như trên. |
+
+> **Ghi chú:** Endpoint cũ `/reports/export/excel` và `/reports/export/pdf` được gộp thành một route với query `format`.
 
 #### 2.13. Phân hệ giải thích ngôn ngữ tự nhiên (AI Insight API)
 | Method | Endpoint | Quyền truy cập | Mô tả |

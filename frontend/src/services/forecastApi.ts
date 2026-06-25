@@ -28,3 +28,7 @@ export function fetchReorderRecommendations() {
 export function fetchAiStatus() {
   return apiRequest<AiStatusDto>('/api/v1/forecast/ai-status');
 }
+
+export function fetchForecastModelMetrics() {
+  return apiRequest<Record<string, unknown>>('/api/v1/forecast/model-metrics');
+}

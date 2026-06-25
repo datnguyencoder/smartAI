@@ -30,4 +30,6 @@ public interface InventoryAlertRepository extends JpaRepository<InventoryAlert, 
         ORDER BY a.createdAt DESC
         """)
     List<InventoryAlert> findByResolvedFalseOrderByCreatedAtDesc();
+
+    long countByResolvedFalse();
 }

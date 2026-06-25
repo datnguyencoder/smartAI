@@ -1,5 +1,5 @@
-import { ConfigProvider, App as AntdApp, message as antdMessage } from 'antd';
 import * as React from 'react';
+import { ConfigProvider, App as AntdApp, message as antdMessage } from 'antd';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { filterNavGroups } from '@/app/config/navItems';
 import { pageTitles } from '@/app/config/pageTitles';
@@ -13,29 +13,13 @@ import { ProductDrawer } from '@/components/catalog/ProductDrawer';
 import { InvoiceDrawer } from '@/components/sales/InvoiceDrawer';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useCatalog } from '@/hooks/useCatalog';
+import { usePosCart } from '@/hooks/usePosCart';
 import { animatePageIn } from '@/lib/gsapAnimations';
-import { itemToProduct, type Product } from '@/lib/itemMapper';
-import { ordersToInvoices } from '@/lib/mappers/ordersToInvoices';
+import type { Product } from '@/lib/itemMapper';
 import { pageFromPath, pathFromPage } from '@/lib/pageRoutes';
-import {
-  canAccessPage,
-  canFetchOrders,
-  defaultPageForRole,
-  normalizeRole,
-} from '@/lib/permissions';
-import type { ImportSlipRow } from '@/lib/purchaseMapper';
+import { canAccessPage, defaultPageForRole } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
-import {
-  fetchCategories,
-  fetchInventory,
-  fetchItems,
-  fetchLocations,
-  fetchOrders,
-  fetchPurchaseOrdersPaged,
-  fetchSuppliers,
-  fetchUoms,
-} from '@/services/wmsApi';
-import type { CategoryDto, LocationDto, SupplierDto, UomDto } from '@/types/api';
 import type { ChatMessage } from '@/pages/ai/AiAssistantPage';
 import type { PageKey, PurchaseSuggestionPrefillItem } from '@/types/pages';
 
@@ -63,14 +47,19 @@ function App() {
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
   const [globalSearch, setGlobalSearch] = React.useState('');
 
-  const [productsList, setProductsList] = React.useState<Product[]>([]);
-  const [invoicesList, setInvoicesList] = React.useState<any[]>([]);
-  const [, setImportSlips] = React.useState<ImportSlipRow[]>([]);
-  const [categories, setCategories] = React.useState<CategoryDto[]>([]);
-  const [suppliers, setSuppliers] = React.useState<SupplierDto[]>([]);
-  const [locations, setLocations] = React.useState<LocationDto[]>([]);
-  const [uoms, setUoms] = React.useState<UomDto[]>([]);
-  const [catalogLoading, setCatalogLoading] = React.useState(false);
+  const {
+    productsList,
+    invoicesList,
+    categories,
+    suppliers,
+    locations,
+    uoms,
+    catalogLoading,
+    reloadCatalog,
+    clearCatalog,
+  } = useCatalog(authUser);
+  const { posCart, setPosCart, clearCart } = usePosCart();
+
   const [chatHistory, setChatHistory] = React.useState<ChatMessage[]>([
     {
       id: 'chat-welcome',
@@ -78,28 +67,19 @@ function App() {
       text: 'Xin chào! Tôi là bộ phận hỗ trợ vận hành SmartMart. Bạn muốn tra cứu tồn kho, phân tích doanh thu hay lên kế hoạch nhập hàng?',
     },
   ]);
-  const [pendingPurchaseSuggestionItems, setPendingPurchaseSuggestionItems] = React.useState<PurchaseSuggestionPrefillItem[]>([]);
-  const [posCart, setPosCart] = React.useState<Array<{ product: Product; quantity: number }>>([]);
+  const [pendingPurchaseSuggestionItems, setPendingPurchaseSuggestionItems] = React.useState<
+    PurchaseSuggestionPrefillItem[]
+  >([]);
   const pageContentRef = React.useRef<HTMLDivElement>(null);
   const cartPanelRef = React.useRef<HTMLDivElement>(null);
 
-  const clearCatalog = React.useCallback(() => {
-    setProductsList([]);
-    setInvoicesList([]);
-    setImportSlips([]);
-    setCategories([]);
-    setSuppliers([]);
-    setLocations([]);
-    setUoms([]);
-  }, []);
-
   const handleLogout = React.useCallback(async () => {
     await authLogout();
-    setPosCart([]);
+    clearCart();
     clearCatalog();
     setPage('dashboard');
     antdMessage.success('Đã đăng xuất');
-  }, [authLogout, clearCatalog, setPage]);
+  }, [authLogout, clearCart, clearCatalog, setPage]);
 
   const visibleNavGroups = React.useMemo(
     () => filterNavGroups(authUser?.role),
@@ -114,61 +94,6 @@ function App() {
       antdMessage.warning('Bạn không có quyền truy cập mục này');
     }
   }, [authUser, page, setPage]);
-
-  const reloadCatalog = React.useCallback(async () => {
-    if (!authUser) return;
-    setCatalogLoading(true);
-    const role = normalizeRole(authUser.role);
-    const ordersTask = canFetchOrders(role) ? fetchOrders() : Promise.resolve([]);
-
-    try {
-      const [items, orders, cats, sups, locs, uomList, inventoryList] = await Promise.all([
-        fetchItems().catch(() => []),
-        authUser && canAccessPage(authUser.role, 'invoices') ? ordersTask.catch(() => []) : Promise.resolve([]),
-        fetchCategories().catch(() => []),
-        authUser && canAccessPage(authUser.role, 'suppliers') ? fetchSuppliers().catch(() => []) : Promise.resolve([]),
-        authUser && canAccessPage(authUser.role, 'locations') ? fetchLocations().catch(() => []) : Promise.resolve([]),
-        fetchUoms().catch(() => []),
-        authUser && canAccessPage(authUser.role, 'inventory') ? fetchInventory().catch(() => []) : Promise.resolve([]),
-      ]);
-
-      const extractArray = (data: any) => {
-        if (!data) return [];
-        if (Array.isArray(data)) return data;
-        if (Array.isArray(data.items)) return data.items;
-        if (Array.isArray(data.content)) return data.content;
-        if (Array.isArray(data.data)) return data.data;
-        return [];
-      };
-      const stockMap: Record<number, number> = {};
-
-      extractArray(inventoryList).forEach((inv: any) => {
-        stockMap[inv.itemId] = (stockMap[inv.itemId] || 0) + Number(inv.quantity || 0);
-      });
-
-      setProductsList(
-        extractArray(items).map((item: any) => {
-          const prod = itemToProduct(item);
-          if (stockMap[item.id] !== undefined) {
-            prod.stock = Math.round(stockMap[item.id]);
-            if (prod.stock === 0) prod.status = 'Hết hàng';
-            else if (prod.stock <= (item.minimumStock ?? 0)) prod.status = 'Sắp hết';
-            else prod.status = 'Còn hàng';
-          }
-          return prod;
-        })
-      );
-      setInvoicesList(ordersToInvoices(extractArray(orders)));
-      setCategories(extractArray(cats));
-      setSuppliers(extractArray(sups));
-      setLocations(extractArray(locs));
-      setUoms(extractArray(uomList));
-    } catch (e) {
-      antdMessage.error(e instanceof Error ? e.message : 'Không tải được dữ liệu API');
-    } finally {
-      setCatalogLoading(false);
-    }
-  }, [authUser]);
 
   React.useEffect(() => {
     if (!authUser) {

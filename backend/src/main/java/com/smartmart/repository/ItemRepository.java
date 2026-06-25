@@ -59,4 +59,6 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
        @EntityGraph(attributePaths = {"baseUom", "purchaseUom"})
        @Query("SELECT i FROM Item i WHERE i.id = :id")
        Optional<Item> findByIdWithPessimisticLock(@Param("id") Long id);
+
+       boolean existsByCategoryIdAndActiveTrue(Long categoryId);
 }
