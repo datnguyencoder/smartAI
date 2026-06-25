@@ -8,6 +8,7 @@ import com.smartmart.dto.response.ItemResponse;
 import com.smartmart.dto.response.UomResponse;
 import com.smartmart.entity.Item;
 import com.smartmart.entity.Uom;
+import com.smartmart.entity.Category;
 import com.smartmart.exception.BadRequestException;
 import com.smartmart.exception.ConflictException;
 import com.smartmart.exception.NotFoundException;
@@ -146,7 +147,7 @@ public class ItemServiceImpl implements ItemService {
                 .itemName(itemName)
                 .itemType(req.getItemType())
                 .category(req.getCategoryId() != null
-                        ? categoryRepository.findById(req.getCategoryId()).orElse(null)
+                        ? resolveActiveCategory(req.getCategoryId())
                         : null)
                 .baseUom(baseUom)
                 .purchaseUom(purchaseUom)
@@ -195,8 +196,7 @@ public class ItemServiceImpl implements ItemService {
             item.setItemType(req.getItemType());
         }
         if (req.getCategoryId() != null) {
-            item.setCategory(categoryRepository.findById(req.getCategoryId())
-                    .orElseThrow(() -> new NotFoundException("Không tìm thấy danh mục")));
+            item.setCategory(resolveActiveCategory(req.getCategoryId()));
         }
         if (req.getBaseUomId() != null && !req.getBaseUomId().equals(item.getBaseUom().getId())) {
             checkItemUsageForUomChange(id);
@@ -245,6 +245,15 @@ public class ItemServiceImpl implements ItemService {
                 beforeData,
                 itemData(saved));
         return toResponse(saved, sold);
+    }
+
+    private Category resolveActiveCategory(Long categoryId) {
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy danh mục"));
+        if (!category.isActive()) {
+            throw new BadRequestException("Không thể gán danh mục đã ngừng hoạt động cho sản phẩm");
+        }
+        return category;
     }
 
     @Override

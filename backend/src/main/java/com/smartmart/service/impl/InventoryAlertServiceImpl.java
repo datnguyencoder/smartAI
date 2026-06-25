@@ -107,6 +107,15 @@ public class InventoryAlertServiceImpl implements InventoryAlertService {
             } else {
                 resolveAlerts(item.getId(), List.of(AlertType.NEAR_EXPIRY.name()));
             }
+
+            boolean hasExpired = currentInventoryRepository.findExpired().stream()
+                    .anyMatch(ci -> ci.getItem().getId().equals(item.getId()));
+            if (hasExpired) {
+                upsertAlert(item, AlertType.EXPIRED, AlertSeverity.CRITICAL,
+                        "Sản phẩm " + item.getItemName() + " có lô đã hết hạn sử dụng — cần lập phiếu hủy");
+            } else {
+                resolveAlerts(item.getId(), List.of(AlertType.EXPIRED.name()));
+            }
         }
     }
 

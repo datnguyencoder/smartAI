@@ -290,6 +290,11 @@ export default function PosPage({
       antdMessage.warning('Giỏ hàng trống! Hãy quét chọn sản phẩm.');
       return;
     }
+    if (!currentShift || currentShift.status !== 'OPEN') {
+      antdMessage.error('Vui lòng mở ca làm việc trước khi thanh toán.');
+      setPage('shifts');
+      return;
+    }
     const phone = customerPhone.replace(/[^0-9+]/g, '').trim();
     if (loyaltyRedeem > 0 && (!phone || phone.length < 9)) {
       antdMessage.error('Vui lòng nhập SĐT khách hàng hợp lệ để đổi điểm');

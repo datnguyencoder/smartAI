@@ -11,6 +11,7 @@ import {
   createSupplier,
   createSupplierItem,
   deactivateSupplierItem,
+  fetchSupplierDebts,
   fetchSupplierDebtsBySupplier,
   fetchSupplierItems,
   recordDebtPayment,
@@ -43,6 +44,18 @@ export default function SuppliersPage({
   const [supplierItems, setSupplierItems] = React.useState<SupplierItemDto[]>([]);
   const [supplierItemsLoading, setSupplierItemsLoading] = React.useState(false);
   const [supplierItemPrices, setSupplierItemPrices] = React.useState<Record<number, number>>({});
+  const [allDebts, setAllDebts] = React.useState<SupplierDebtDto[]>([]);
+
+  React.useEffect(() => {
+    fetchSupplierDebts().then(setAllDebts).catch(() => setAllDebts([]));
+  }, []);
+
+  const debtSummary = React.useMemo(() => {
+    const unpaid = allDebts.filter((d) => d.status !== 'PAID');
+    const overdue = unpaid.filter((d) => d.status === 'OVERDUE');
+    const remaining = unpaid.reduce((s, d) => s + (d.remainingAmount ?? 0), 0);
+    return { unpaid: unpaid.length, overdue: overdue.length, remaining };
+  }, [allDebts]);
 
   const [searchQuery, setSearchQuery] = React.useState('');
   const [createOpen, setCreateOpen] = React.useState(false);
@@ -313,6 +326,21 @@ export default function SuppliersPage({
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
+      <div className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Card className="p-4">
+            <p className="text-xs text-muted">Công nợ chưa trả</p>
+            <p className="text-2xl font-bold text-ink">{debtSummary.unpaid}</p>
+          </Card>
+          <Card className="p-4">
+            <p className="text-xs text-muted">Quá hạn</p>
+            <p className="text-2xl font-bold text-red-600">{debtSummary.overdue}</p>
+          </Card>
+          <Card className="p-4">
+            <p className="text-xs text-muted">Tổng còn phải trả</p>
+            <p className="text-2xl font-bold text-primary">{money(debtSummary.remaining)}</p>
+          </Card>
+        </div>
       <Card>
         <div className="p-5 flex items-center justify-between border-b border-slate-100 gap-3">
           <h2 className="font-semibold text-lg">Nhà cung cấp đối tác</h2>
@@ -343,6 +371,7 @@ export default function SuppliersPage({
           ))}
         </div>
       </Card>
+      </div>
       <AiSummary setPage={setPage ?? (() => {})} />
       <Modal
         title={isEditing ? 'Sửa thông tin Nhà cung cấp' : selectedSup ? 'Chi tiết: ' + selectedSup.supplierName : 'Chi tiết'}

@@ -1,6 +1,7 @@
 import { Badge, Button, Popover } from 'antd';
 import { Bell } from 'lucide-react';
 import * as React from 'react';
+import { API_BASE_URL } from '@/lib/env';
 import { cn } from '@/lib/utils';
 import { fetchRecentAuditLogs } from '@/services/wmsApi';
 import type { AuditLogDto, UserDto } from '@/types/api';
@@ -43,7 +44,16 @@ export function SystemActivityBell({
   React.useEffect(() => {
     loadActivities();
     const timer = window.setInterval(loadActivities, 15_000);
-    return () => window.clearInterval(timer);
+    const token = sessionStorage.getItem('smartmart_token');
+    let es: EventSource | null = null;
+    if (token) {
+      es = new EventSource(`${API_BASE_URL}/api/v1/notifications/stream?token=${encodeURIComponent(token)}`);
+      es.addEventListener('inventory-alerts', () => loadActivities());
+    }
+    return () => {
+      window.clearInterval(timer);
+      es?.close();
+    };
   }, [loadActivities]);
 
   const unreadCount = activities.filter((activity) => !readAt || activity.createdAt > readAt).length;

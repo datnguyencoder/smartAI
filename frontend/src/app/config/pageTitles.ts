@@ -9,6 +9,7 @@ export const pageTitles: Record<PageKey, { title: string; description: string }>
   pos: { title: 'Bán hàng tại quầy POS', description: 'Quét sản phẩm, tạo giỏ hàng và thanh toán nhanh.' },
   customers: { title: 'Quản lý khách hàng', description: 'Tra cứu SĐT, điểm tích lũy và lịch sử mua hàng.' },
   invoices: { title: 'Hóa đơn bán hàng', description: 'Tra cứu hóa đơn, trạng thái thanh toán và giao dịch hoàn tiền.' },
+  'return-orders': { title: 'Phiếu trả hàng', description: 'Danh sách phiếu trả hàng từ quầy POS và hóa đơn gốc.' },
   'import-create': { title: 'Tạo phiếu nhập hàng', description: 'Nhập hàng từ nhà cung cấp với kiểm tra tồn kho tức thời.' },
   'import-slips': { title: 'Phiếu nhập hàng', description: 'Quản lý phiếu nhập, trạng thái duyệt và lịch nhận hàng.' },
   inventory: { title: 'Quản lý tồn kho', description: 'Kiểm soát tồn theo kho, ngưỡng cảnh báo và vòng quay hàng.' },

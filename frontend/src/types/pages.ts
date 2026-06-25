@@ -6,6 +6,7 @@ export type PageKey =
   | 'locations'
   | 'pos'
   | 'invoices'
+  | 'return-orders'
   | 'import-create'
   | 'import-slips'
   | 'inventory'

@@ -3,7 +3,7 @@ import { Button, Form, Input, Modal, Table, Tag, message as antdMessage } from '
 import { Plus, Search, Users } from 'lucide-react';
 import { Card, CardHeader } from '@/components/ui';
 import { formatMoney as money } from '@/lib/itemMapper';
-import { createCustomer, fetchCustomers, fetchOrders, fetchSettings } from '@/services/wmsApi';
+import { createCustomer, fetchCustomers, fetchOrders, fetchSettings, updateCustomer } from '@/services/wmsApi';
 import type { CustomerDto, OrderDto } from '@/types/api';
 
 const tierColors: Record<string, string> = {
@@ -20,7 +20,9 @@ export default function CustomersPage() {
   const [orders, setOrders] = React.useState<OrderDto[]>([]);
   const [ordersLoading, setOrdersLoading] = React.useState(false);
   const [createOpen, setCreateOpen] = React.useState(false);
+  const [editOpen, setEditOpen] = React.useState(false);
   const [form] = Form.useForm();
+  const [editForm] = Form.useForm();
   const [tierThresholds, setTierThresholds] = React.useState({ silver: 500, gold: 2000 });
 
   React.useEffect(() => {
@@ -90,6 +92,29 @@ export default function CustomersPage() {
     }
   };
 
+  const openEdit = (customer: CustomerDto) => {
+    setSelected(customer);
+    editForm.setFieldsValue({
+      fullName: customer.fullName,
+      phone: customer.phone,
+      email: customer.email,
+    });
+    setEditOpen(true);
+  };
+
+  const handleEdit = async () => {
+    if (!selected) return;
+    const values = await editForm.validateFields();
+    try {
+      await updateCustomer(selected.id, values);
+      antdMessage.success('Đã cập nhật khách hàng');
+      setEditOpen(false);
+      loadCustomers(search);
+    } catch (e) {
+      antdMessage.error(e instanceof Error ? e.message : 'Cập nhật thất bại');
+    }
+  };
+
   const columns = [
     { title: 'Tên khách', dataIndex: 'fullName', key: 'fullName' },
     { title: 'SĐT', dataIndex: 'phone', key: 'phone' },
@@ -109,7 +134,10 @@ export default function CustomersPage() {
       title: '',
       key: 'action',
       render: (_: unknown, record: CustomerDto) => (
-        <Button type="link" onClick={() => openDetail(record)}>Lịch sử mua</Button>
+        <div className="flex gap-1">
+          <Button type="link" onClick={() => openDetail(record)}>Lịch sử</Button>
+          <Button type="link" onClick={() => openEdit(record)}>Sửa</Button>
+        </div>
       ),
     },
   ];
@@ -157,6 +185,26 @@ export default function CustomersPage() {
           </Form.Item>
           <Form.Item name="phone" label="Số điện thoại" rules={[{ required: true, message: 'Nhập SĐT' }]}>
             <Input placeholder="0901234567" />
+          </Form.Item>
+          <Form.Item name="email" label="Email">
+            <Input type="email" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        open={editOpen}
+        title="Sửa khách hàng"
+        onCancel={() => setEditOpen(false)}
+        onOk={handleEdit}
+        okText="Lưu"
+      >
+        <Form form={editForm} layout="vertical">
+          <Form.Item name="fullName" label="Họ tên" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="phone" label="Số điện thoại" rules={[{ required: true }]}>
+            <Input />
           </Form.Item>
           <Form.Item name="email" label="Email">
             <Input type="email" />

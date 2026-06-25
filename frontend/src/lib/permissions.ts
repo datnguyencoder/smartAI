@@ -11,6 +11,7 @@ const ALL_PAGES: PageKey[] = [
   'pos',
   'customers',
   'invoices',
+  'return-orders',
   'import-create',
   'import-slips',
   'inventory',
@@ -36,7 +37,7 @@ const ALL_PAGES: PageKey[] = [
 const ROLE_PAGES: Record<string, PageKey[]> = {
   ROLE_ADMIN: ALL_PAGES,
   ROLE_MANAGER: ALL_PAGES.filter((p) => p !== 'users' && p !== 'settings' && p !== 'audit-logs'),
-  ROLE_STAFF: ['dashboard', 'products', 'pos', 'customers', 'invoices', 'inventory-alerts', 'shifts'],
+  ROLE_STAFF: ['dashboard', 'products', 'pos', 'customers', 'invoices', 'return-orders', 'inventory-alerts', 'shifts'],
   ROLE_WAREHOUSE: [
     'products',
     'categories',

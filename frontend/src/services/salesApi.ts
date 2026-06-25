@@ -65,3 +65,13 @@ export function createCustomer(payload: { fullName: string; phone: string; email
     body: JSON.stringify(payload),
   });
 }
+
+export function updateCustomer(
+  id: number,
+  payload: { fullName?: string; phone?: string; email?: string }
+) {
+  return apiRequest<CustomerDto>(`/api/v1/customers/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}

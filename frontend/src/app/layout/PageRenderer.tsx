@@ -28,6 +28,7 @@ import ImportSlipsPage from '@/pages/purchase/ImportSlipsPage';
 import ReportsPage from '@/pages/reports/ReportsPage';
 import CustomersPage from '@/pages/sales/CustomersPage';
 import InvoicesPage from '@/pages/sales/InvoicesPage';
+import ReturnOrdersPage from '@/pages/sales/ReturnOrdersPage';
 import PosPage from '@/pages/sales/PosPage';
 import type { CategoryDto, LocationDto, SupplierDto, UserDto } from '@/types/api';
 import type { PageKey, PurchaseSuggestionPrefillItem } from '@/types/pages';
@@ -108,7 +109,14 @@ export function PageRenderer({
     return <ProductsPage openProduct={openProduct} openModal={openModal} productsList={productsList} />;
   }
   if (page === 'categories') {
-    return <CategoriesPage categories={categories} productsList={productsList} setPage={setPage} openProduct={openProduct} />;
+    return (
+      <CategoriesPage
+        productsList={productsList}
+        setPage={setPage}
+        openProduct={openProduct}
+        reloadCatalog={reloadCatalog}
+      />
+    );
   }
   if (page === 'suppliers') {
     return <SuppliersPage suppliers={suppliers} productsList={productsList} authUser={authUser} reloadCatalog={reloadCatalog} setPage={setPage} />;
@@ -118,6 +126,9 @@ export function PageRenderer({
   }
   if (page === 'invoices') {
     return <InvoicesPage setSelectedInvoice={setSelectedInvoice} authUser={authUser} />;
+  }
+  if (page === 'return-orders') {
+    return <ReturnOrdersPage />;
   }
   if (page === 'import-create') {
     return (

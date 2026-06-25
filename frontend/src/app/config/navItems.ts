@@ -22,6 +22,7 @@ import {
   Warehouse,
   BadgePercent,
   Inbox,
+  RotateCcw,
 } from 'lucide-react';
 import {
   CommentOutlined,
@@ -69,6 +70,7 @@ export const navGroups: NavGroup[] = [
       { key: 'pos', label: 'Quầy POS', icon: MonitorPlay },
       { key: 'customers', label: 'Khách hàng', icon: Users },
       { key: 'invoices', label: 'Hóa đơn', icon: FileInput },
+      { key: 'return-orders', label: 'Trả hàng', icon: RotateCcw },
       { key: 'shifts', label: 'Ca làm việc', icon: Clock },
     ],
   },

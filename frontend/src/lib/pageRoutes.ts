@@ -9,6 +9,7 @@ export const PAGE_PATHS: Record<PageKey, string> = {
   pos: '/pos',
   customers: '/customers',
   invoices: '/invoices',
+  'return-orders': '/return-orders',
   'import-create': '/import/create',
   'import-slips': '/import/slips',
   inventory: '/inventory',
