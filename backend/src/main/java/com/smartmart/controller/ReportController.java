@@ -47,7 +47,7 @@ public class ReportController {
 
     @GetMapping("/sales")
     @Operation(summary = "Báo cáo bán lẻ chuyên sâu theo ngày/tháng/năm")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ANALYST')")
     public ResponseEntity<ApiResponse<List<SalesReportResponse>>> getSalesReport(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
