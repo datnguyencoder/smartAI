@@ -1,6 +1,7 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { Button, Input, Tag, Modal, message as antdMessage, InputNumber } from 'antd';
-import { Search, ShoppingCart, Printer, CreditCard, Banknote, PauseCircle, PlayCircle } from 'lucide-react';
+import { Search, ShoppingCart, Printer, CreditCard, Banknote, PauseCircle, PlayCircle, Home } from 'lucide-react';
 import CreatableSelect from 'react-select/creatable';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { Card, CardHeader, UiButton } from '@/components/ui';
@@ -70,6 +71,7 @@ export default function PosPage({
   const [loadingItems, setLoadingItems] = React.useState(false);
   const [customerOptions, setCustomerOptions] = React.useState<{ value: string; label: string }[]>([]);
   const [customerInput, setCustomerInput] = React.useState('');
+  const [posFocusMode, setPosFocusMode] = React.useState(false);
 
   useHotkeys('f9', (e) => { e.preventDefault(); setPaymentMethod('CASH'); });
   useHotkeys('f10', (e) => { e.preventDefault(); setPaymentMethod('BANK_TRANSFER'); });
@@ -148,6 +150,11 @@ export default function PosPage({
       setLoyaltyCustomer(null);
     }
   };
+
+  const categoryFilters = React.useMemo(
+    () => [{ id: 0, categoryName: 'Tất cả' }, ...categories],
+    [categories]
+  );
 
   const subtotal = posCart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
 
@@ -372,8 +379,24 @@ export default function PosPage({
     }
   };
 
-  return (
-    <div className="grid gap-4 xl:grid-cols-[1.15fr_430px]">
+  const pageContent = (
+    <div className={cn(
+      'grid gap-4',
+      posFocusMode
+        ? 'fixed inset-0 z-[1000] overflow-y-auto bg-slate-50 p-5 xl:grid-cols-[minmax(0,1fr)_430px]'
+        : 'xl:grid-cols-[1.15fr_430px]'
+    )}>
+      {posFocusMode && (
+        <div className="xl:col-span-2 flex flex-col gap-3 rounded-2xl border border-emerald-100 bg-white px-4 py-3 shadow-sm md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">Chế độ POS nhanh</p>
+            <h2 className="text-xl font-extrabold text-ink">Bán hàng tập trung</h2>
+          </div>
+          <Button icon={<Home size={16} />} onClick={() => setPosFocusMode(false)}>
+            Quay về hệ thống
+          </Button>
+        </div>
+      )}
       {currentShift && (
         <div className="xl:col-span-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
           Ca đang mở #{currentShift.id} · Mở lúc {new Date(currentShift.openedAt).toLocaleString('vi-VN')}
@@ -386,8 +409,13 @@ export default function PosPage({
             <h2 className="text-lg font-bold text-ink whitespace-nowrap">Danh sách sản phẩm bán {catalogLoading || loadingItems ? '(đang tải…)' : ''}</h2>
             <p className="text-xs text-slate-400">Click chọn sản phẩm hoặc quét mã vạch (Enter).</p>
           </div>
-          <div className="w-full md:w-auto flex gap-2">
+          <div className="w-full md:w-auto flex flex-wrap gap-2">
             <BarcodeScanner onScan={handleBarcodeScan} />
+            {!posFocusMode && (
+              <Button icon={<PlayCircle size={16} />} onClick={() => setPosFocusMode(true)}>
+                Chế độ POS
+              </Button>
+            )}
             <select
               className="w-full h-8 px-3 border border-slate-200 rounded-lg bg-white text-sm focus:outline-none focus:border-primary"
               value={selectedCategoryId}
@@ -426,7 +454,29 @@ export default function PosPage({
               }
             }}
           />
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 max-h-[500px] overflow-y-auto pr-1 scrollbar-thin">
+          {posFocusMode && (
+            <div className="mt-3 flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+              {categoryFilters.map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setSelectedCategoryId(cat.id)}
+                  className={cn(
+                    'shrink-0 rounded-xl border px-4 py-2 text-sm font-semibold transition',
+                    selectedCategoryId === cat.id
+                      ? 'border-primary bg-primary text-white shadow-sm shadow-primary/20'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-primary hover:text-primary'
+                  )}
+                >
+                  {cat.categoryName}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className={cn(
+            'mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 overflow-y-auto pr-1 scrollbar-thin',
+            posFocusMode ? 'max-h-[calc(100vh-360px)]' : 'max-h-[500px]'
+          )}>
             {filteredProducts.map((product) => (
               <button
                 className={cn(
@@ -452,10 +502,10 @@ export default function PosPage({
         </div>
       </Card>
 
-      <div ref={cartPanelRef}>
+      <div ref={cartPanelRef} className={posFocusMode ? 'xl:sticky xl:top-4 xl:self-start' : undefined}>
         <Card className="flex flex-col h-fit">
           <CardHeader title="Giỏ hàng hiện tại" action={<Tag color="green" className="font-bold">{posCart.length} dòng hàng</Tag>} />
-          <div className="space-y-3 px-5 pb-2 flex-1 max-h-[380px] overflow-y-auto scrollbar-thin">
+          <div className={cn('space-y-3 px-5 pb-2 flex-1 overflow-y-auto scrollbar-thin', posFocusMode ? 'max-h-[calc(100vh-560px)]' : 'max-h-[380px]')}>
             {posCart.map((item) => (
               <div className="flex items-center justify-between rounded-xl bg-slate-50 p-3 border border-slate-100" key={item.product.key}>
                 <ProductThumbnail name={item.product.name} imageUrl={item.product.imageUrl} size={36} className="mr-2 shrink-0" />
@@ -713,4 +763,10 @@ export default function PosPage({
       </Modal>
     </div>
   );
+
+  if (posFocusMode && typeof document !== 'undefined') {
+    return createPortal(pageContent, document.body);
+  }
+
+  return pageContent;
 }
