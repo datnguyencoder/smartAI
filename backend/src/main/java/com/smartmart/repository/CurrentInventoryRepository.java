@@ -173,4 +173,39 @@ public interface CurrentInventoryRepository extends JpaRepository<CurrentInvento
             ORDER BY i.item_name
             """, nativeQuery = true)
     List<Object[]> reportInventoryDetails(LocalDateTime from, LocalDateTime to);
+
+    @Query(value = """
+            SELECT i.id as item_id,
+                   i.item_code,
+                   i.item_name,
+                   u.uom_name,
+                   i.cost_price,
+                   COALESCE(opening.opening_qty, 0) as opening_qty,
+                   COALESCE(mov.imported_qty, 0) as imported_qty,
+                   COALESCE(mov.exported_qty, 0) as exported_qty,
+                   COALESCE(inv.total_stock, 0) as current_stock
+            FROM items i
+            LEFT JOIN uoms u ON u.id = i.base_uom_id
+            LEFT JOIN (
+                SELECT item_id, SUM(quantity) as total_stock
+                FROM current_inventory
+                GROUP BY item_id
+            ) inv ON inv.item_id = i.id
+            LEFT JOIN (
+                SELECT il.item_id, SUM(il.quantity_change) as opening_qty
+                FROM inventory_logs il
+                WHERE il.created_at < :from
+                GROUP BY il.item_id
+            ) opening ON opening.item_id = i.id
+            LEFT JOIN (
+                SELECT il.item_id,
+                       COALESCE(SUM(CASE WHEN il.action_type = 'PURCHASE_RECEIVE' AND il.quantity_change > 0 THEN il.quantity_change ELSE 0 END), 0) as imported_qty,
+                       COALESCE(SUM(CASE WHEN il.action_type IN ('SALE', 'SALE_CANCEL', 'SCRAP', 'SCRAP_COMPLETED', 'ADJUSTMENT') AND il.quantity_change < 0 THEN -il.quantity_change ELSE 0 END), 0) as exported_qty
+                FROM inventory_logs il
+                WHERE il.created_at >= :from AND il.created_at < :to
+                GROUP BY il.item_id
+            ) mov ON mov.item_id = i.id
+            ORDER BY i.item_name
+            """, nativeQuery = true)
+    List<Object[]> reportNxtDetails(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
 }

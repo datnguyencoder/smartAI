@@ -3,8 +3,8 @@ import { Tabs, Select, Checkbox, Popover, Button, message as antdMessage } from 
 import dayjs from 'dayjs';
 
 import type { Product } from '@/lib/itemMapper';
-import type { UserDto, SalesReportDto, PurchaseReportDto, InventoryReportDto, InventoryItemDto } from '@/types/api';
-import { fetchInventoryReport, fetchPurchaseReport, fetchSalesReport, fetchInventory } from '@/services/wmsApi';
+import type { UserDto, SalesReportDto, PurchaseReportDto, InventoryReportDto, InventoryItemDto, InventoryNxtReportDto } from '@/types/api';
+import { fetchInventoryReport, fetchPurchaseReport, fetchSalesReport, fetchInventory, fetchNxtReport } from '@/services/wmsApi';
 
 // Hooks
 import { useReportExport } from '@/components/reports/hooks/useReportExport';
@@ -15,6 +15,7 @@ import { ReportFilters } from '@/components/reports/ReportFilters';
 import { SalesReportTab } from '@/components/reports/sales/SalesReportTab';
 import { PurchaseReportTab } from '@/components/reports/purchase/PurchaseReportTab';
 import { InventoryReportTab } from '@/components/reports/inventory/InventoryReportTab';
+import { NxtReportTab } from '@/components/reports/nxt/NxtReportTab';
 
 type Props = {
   productsList: Product[];
@@ -46,6 +47,7 @@ export default function ReportsPage({ productsList, invoicesList: _invoicesList,
   const [salesData, setSalesData] = React.useState<SalesReportDto[]>([]);
   const [purchaseData, setPurchaseData] = React.useState<PurchaseReportDto[]>([]);
   const [inventoryData, setInventoryData] = React.useState<InventoryReportDto[]>([]);
+  const [nxtData, setNxtData] = React.useState<InventoryNxtReportDto[]>([]);
   const [inventoryLots, setInventoryLots] = React.useState<InventoryItemDto[]>([]);
   const [loadingLots, setLoadingLots] = React.useState(false);
 
@@ -74,6 +76,9 @@ export default function ReportsPage({ productsList, invoicesList: _invoicesList,
       } else if (activeTab === 'purchase') {
         const data = await fetchPurchaseReport(from, to);
         setPurchaseData(data);
+      } else if (activeTab === 'nxt') {
+        const data = await fetchNxtReport(from, to);
+        setNxtData(data);
       } else {
         const data = await fetchInventoryReport(from, to);
         setInventoryData(data);
@@ -234,27 +239,27 @@ export default function ReportsPage({ productsList, invoicesList: _invoicesList,
     } else if (activeTab === 'inventory') {
       return (
         <>
-          <Select
+          <select
             value={selectedCategory}
-            onChange={setSelectedCategory}
-            style={{ width: 160, height: 40 }}
-            placeholder="Chọn danh mục"
-            options={[
-              { value: 'all', label: 'Tất cả danh mục' },
-              ...uniqueCategories.map((cat) => ({ value: cat, label: cat })),
-            ]}
-          />
-          <Select
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+            style={{ height: 40, minWidth: 160 }}
+          >
+            <option value="all">Tất cả danh mục</option>
+            {uniqueCategories.map((cat) => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+          <select
             value={selectedExpiryStatus}
-            onChange={setSelectedExpiryStatus}
-            style={{ width: 170, height: 40 }}
-            placeholder="Chọn hạn dùng"
-            options={[
-              { value: 'all', label: 'Tất cả hạn dùng' },
-              { value: 'nearExpiry', label: 'Cận hạn (≤ 30 ngày)' },
-              { value: 'normal', label: 'Bình thường (> 30 ngày)' },
-            ]}
-          />
+            onChange={(e) => setSelectedExpiryStatus(e.target.value)}
+            className="border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+            style={{ height: 40, minWidth: 170 }}
+          >
+            <option value="all">Tất cả hạn dùng</option>
+            <option value="nearExpiry">Cận hạn (≤ 30 ngày)</option>
+            <option value="normal">Bình thường (&gt; 30 ngày)</option>
+          </select>
           <Popover content={columnToggleMenu} trigger="click" placement="bottomRight">
             <Button
               style={{ height: 40, borderRadius: '0.75rem' }}
@@ -336,6 +341,17 @@ export default function ReportsPage({ productsList, invoicesList: _invoicesList,
                 selectedCategory={selectedCategory}
                 selectedExpiryStatus={selectedExpiryStatus}
                 visibleColumns={visibleColumns}
+              />
+            ),
+          },
+          {
+            key: 'nxt',
+            label: 'Báo cáo Nhập Xuất Tồn',
+            children: (
+              <NxtReportTab
+                nxtData={nxtData}
+                loading={loading}
+                debouncedSearchText={debouncedSearchText}
               />
             ),
           },

@@ -41,6 +41,27 @@ export function ReportFilters({
   onExportComp,
   extra,
 }: ReportFiltersProps) {
+  const [exportOption, setExportOption] = React.useState('excel_current');
+
+  const handleExport = () => {
+    switch (exportOption) {
+      case 'excel_current':
+        onExport('excel');
+        break;
+      case 'pdf_current':
+        onExport('pdf');
+        break;
+      case 'excel_all':
+        onExportComp('excel');
+        break;
+      case 'pdf_all':
+        onExportComp('pdf');
+        break;
+    }
+  };
+
+  const isExporting = exportingExcel || exportingPdf || exportingComp;
+
   return (
     <div className="p-4 bg-white rounded-xl space-y-3 mb-4 shadow-sm border border-slate-100">
       <div className="flex flex-wrap items-center gap-3">
@@ -106,7 +127,6 @@ export function ReportFilters({
         <div className="flex-1" />
         <Button
           onClick={onExportFilteredCSV}
-          icon={<span className="material-symbols-rounded align-middle mr-1 text-indigo-600">download</span>}
           className="hover:border-indigo-500 hover:text-indigo-600 font-semibold"
           style={{ height: 40, borderRadius: '0.75rem' }}
         >
@@ -117,41 +137,25 @@ export function ReportFilters({
       {canExport && (
         <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-slate-100 justify-end">
           <span className="text-xs text-slate-400 mr-2">Xuất dữ liệu gốc từ máy chủ:</span>
-          <Button
-            onClick={() => onExport('excel')}
-            loading={exportingExcel}
-            disabled={exportingPdf || exportingComp}
-            icon={<span className="material-symbols-rounded align-middle mr-1 text-emerald-600">table_view</span>}
-            className="hover:border-emerald-500 hover:text-emerald-600"
+          <select
+            value={exportOption}
+            onChange={(e) => setExportOption(e.target.value)}
+            disabled={isExporting}
+            className="h-10 px-3 rounded-xl border border-slate-300 bg-white text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
           >
-            Xuất Excel (Tab hiện tại)
-          </Button>
+            <option value="excel_current">Xuất Excel (Tab hiện tại)</option>
+            <option value="pdf_current">Xuất PDF (Tab hiện tại)</option>
+            <option value="excel_all">Xuất Excel Tổng Hợp (4 Sheet)</option>
+            <option value="pdf_all">In Báo Cáo Tổng Hợp (PDF)</option>
+          </select>
           <Button
-            onClick={() => onExport('pdf')}
-            loading={exportingPdf}
-            disabled={exportingExcel || exportingComp}
-            icon={<span className="material-symbols-rounded align-middle mr-1 text-red-500">picture_as_pdf</span>}
-            className="hover:border-red-500 hover:text-red-600"
+            onClick={handleExport}
+            loading={isExporting}
+            type="primary"
+            className="bg-indigo-600 hover:bg-indigo-700 font-semibold"
+            style={{ height: 40, borderRadius: '0.75rem' }}
           >
-            Xuất PDF (Tab hiện tại)
-          </Button>
-          <Button
-            onClick={() => onExportComp('excel')}
-            loading={exportingComp}
-            disabled={exportingExcel || exportingPdf}
-            icon={<span className="material-symbols-rounded align-middle mr-1 text-emerald-600">border_all</span>}
-            className="border-emerald-200 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-300 text-emerald-700 font-medium"
-          >
-            Xuất Excel Tổng Hợp (3 Sheet)
-          </Button>
-          <Button
-            onClick={() => onExportComp('pdf')}
-            loading={exportingComp}
-            disabled={exportingExcel || exportingPdf}
-            icon={<span className="material-symbols-rounded align-middle mr-1 text-red-500">picture_as_pdf</span>}
-            className="border-red-200 bg-red-50 hover:bg-red-100 hover:border-red-300 text-red-700 font-medium"
-          >
-            In Báo Cáo Tổng Hợp (PDF)
+            Tải xuống
           </Button>
         </div>
       )}
