@@ -1,5 +1,5 @@
 import { apiDownloadBlob, apiRequest } from '@/services/apiClient';
-import type { InventoryReportDto, PurchaseReportDto, SalesReportDto } from '@/types/api';
+import type { InventoryReportDto, PurchaseReportDto, SalesReportDto, InventoryNxtReportDto } from '@/types/api';
 
 export function fetchSalesReport(from?: string, to?: string, groupBy?: string) {
   const params = new URLSearchParams();
@@ -26,7 +26,15 @@ export function fetchInventoryReport(from?: string, to?: string) {
   return apiRequest<InventoryReportDto[]>(`/api/v1/reports/inventory${qs ? `?${qs}` : ''}`);
 }
 
-export function exportReport(type: 'sales' | 'purchase' | 'inventory', format: 'excel' | 'pdf', from?: string, to?: string, groupBy?: string) {
+export function fetchNxtReport(from?: string, to?: string) {
+  const params = new URLSearchParams();
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  const qs = params.toString();
+  return apiRequest<InventoryNxtReportDto[]>(`/api/v1/reports/nxt${qs ? `?${qs}` : ''}`);
+}
+
+export function exportReport(type: 'sales' | 'purchase' | 'inventory' | 'nxt', format: 'excel' | 'pdf', from?: string, to?: string, groupBy?: string) {
   const params = new URLSearchParams();
   params.set('type', type);
   params.set('format', format);

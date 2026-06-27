@@ -8,12 +8,14 @@ import com.lowagie.text.pdf.*;
 import com.smartmart.dto.response.InventoryReportResponse;
 import com.smartmart.dto.response.PurchaseReportResponse;
 import com.smartmart.dto.response.SalesReportResponse;
+import com.smartmart.dto.response.InventoryNxtReportResponse;
 import com.smartmart.util.ChartGeneratorUtil;
 import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.data.general.DefaultPieDataset;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
+import com.smartmart.service.PdfReportService;
 
 import java.awt.*;
 import java.io.ByteArrayOutputStream;
@@ -26,8 +28,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Component
-public class PdfReportGenerator {
+@Service
+public class PdfReportServiceImpl implements PdfReportService {
 
     @Value("${app.report.footer.text:BÁO CÁO NỘI BỘ - BẢO MẬT}")
     private String footerText;
@@ -35,7 +37,7 @@ public class PdfReportGenerator {
     private final ChartGeneratorUtil chartUtil;
     private String resolvedFontPath;
 
-    public PdfReportGenerator(ChartGeneratorUtil chartUtil) {
+    public PdfReportServiceImpl(ChartGeneratorUtil chartUtil) {
         this.chartUtil = chartUtil;
     }
 
@@ -71,6 +73,7 @@ public class PdfReportGenerator {
     }
 
     // Individual reports implementation
+    @Override
     public byte[] generateSalesReport(List<SalesReportResponse> data, LocalDate from, LocalDate to) {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document document = new Document(PageSize.A4.rotate(), 36, 36, 36, 50);
@@ -103,6 +106,7 @@ public class PdfReportGenerator {
         }
     }
 
+    @Override
     public byte[] generatePurchaseReport(List<PurchaseReportResponse> data, LocalDate from, LocalDate to) {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document document = new Document(PageSize.A4.rotate(), 36, 36, 36, 50);
@@ -135,6 +139,7 @@ public class PdfReportGenerator {
         }
     }
 
+    @Override
     public byte[] generateInventoryReport(List<InventoryReportResponse> data, LocalDate from, LocalDate to) {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document document = new Document(PageSize.A4.rotate(), 36, 36, 36, 50);
@@ -168,9 +173,11 @@ public class PdfReportGenerator {
     }
 
     // ================= COMPREHENSIVE REPORT =================
+    @Override
     public byte[] generateComprehensiveReport(List<SalesReportResponse> sales,
             List<PurchaseReportResponse> purchases,
             List<InventoryReportResponse> inventory,
+            List<InventoryNxtReportResponse> nxt,
             LocalDate from, LocalDate to) throws DocumentException, IOException {
 
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
@@ -207,7 +214,11 @@ public class PdfReportGenerator {
             generateInventorySection(document, inventory);
             document.newPage();
 
-            // 6. Data Dictionary & Signatures
+            // 6. NXT Section
+            generateNxtSection(document, nxt);
+            document.newPage();
+
+            // 7. Data Dictionary & Signatures
             generateDataDictionaryAndSignatures(document);
 
             document.close();
@@ -505,6 +516,46 @@ public class PdfReportGenerator {
                     expiryCell.setBackgroundColor(new Color(255, 204, 204)); // Critical
                 table.addCell(expiryCell);
             }
+        }
+        document.add(table);
+    }
+
+    private void generateNxtSection(Document document, List<InventoryNxtReportResponse> nxt)
+            throws DocumentException {
+        Font headerFont = getVietnameseFont(16, Font.BOLD);
+        Font normalFont = getVietnameseFont(11, Font.NORMAL);
+
+        document.add(new Paragraph("PHẦN IV - NHẬP XUẤT TỒN", headerFont));
+        document.add(new Paragraph(" "));
+
+        PdfPTable table = new PdfPTable(7); // STT, Mã, Tên, Tồn đầu, Nhập, Xuất, Tồn cuối
+        table.setWidthPercentage(100);
+        table.setWidths(new float[] { 0.5f, 1.5f, 3f, 1.5f, 1.5f, 1.5f, 1.5f });
+        table.setHeaderRows(1);
+
+        String[] headers = { "STT", "Mã SP", "Tên Sản Phẩm", "Tồn đầu", "Nhập", "Xuất", "Tồn cuối" };
+        for (String h : headers) {
+            PdfPCell cell = new PdfPCell(new Phrase(h, getVietnameseFont(11, Font.BOLD)));
+            cell.setBackgroundColor(Color.LIGHT_GRAY);
+            cell.setPadding(6);
+            table.addCell(cell);
+        }
+
+        int stt = 1;
+        for (InventoryNxtReportResponse row : nxt) {
+            table.addCell(new Phrase(String.valueOf(stt++), normalFont));
+            table.addCell(new Phrase(row.getItemCode(), normalFont));
+            table.addCell(new Phrase(row.getItemName(), normalFont));
+            
+            table.addCell(new Phrase(row.getOpeningQty() != null ? String.format("%,.0f", row.getOpeningQty()) : "0", normalFont));
+            table.addCell(new Phrase(row.getImportedQty() != null ? String.format("%,.0f", row.getImportedQty()) : "0", normalFont));
+            table.addCell(new Phrase(row.getExportedQty() != null ? String.format("%,.0f", row.getExportedQty()) : "0", normalFont));
+            
+            PdfPCell closingCell = new PdfPCell(new Phrase(row.getClosingQty() != null ? String.format("%,.0f", row.getClosingQty()) : "0", normalFont));
+            if (row.getClosingQty() != null && row.getClosingQty().doubleValue() < 0) {
+                closingCell.setBackgroundColor(new Color(255, 204, 204));
+            }
+            table.addCell(closingCell);
         }
         document.add(table);
     }

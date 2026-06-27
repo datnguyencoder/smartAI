@@ -401,6 +401,21 @@ export type InventoryReportDto = {
   daysUntilExpiry?: number;
 };
 
+export type InventoryNxtReportDto = {
+  itemCode: string;
+  itemName: string;
+  unitName?: string;
+  openingQty: number;
+  openingValue: number;
+  importedQty: number;
+  importedValue: number;
+  exportedQty: number;
+  exportedValue: number;
+  closingQty: number;
+  closingValue: number;
+  referencePrice: number;
+};
+
 export type InventoryLogDto = {
   id: number;
   itemId: number;

@@ -4,6 +4,7 @@ import com.smartmart.common.response.ApiResponse;
 import com.smartmart.dto.response.SalesReportResponse;
 import com.smartmart.dto.response.PurchaseReportResponse;
 import com.smartmart.dto.response.InventoryReportResponse;
+import com.smartmart.dto.response.InventoryNxtReportResponse;
 import com.smartmart.exception.BadRequestException;
 import com.smartmart.service.ReportService;
 import com.smartmart.service.SettingService;
@@ -82,6 +83,18 @@ public class ReportController {
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
+    @GetMapping("/nxt")
+    @Operation(summary = "Báo cáo Nhập Xuất Tồn")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
+    public ResponseEntity<ApiResponse<List<InventoryNxtReportResponse>>> getNxtReport(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+    ) {
+        validateDateRange(from, to);
+        List<InventoryNxtReportResponse> data = reportService.getNxtReport(from, to);
+        return ResponseEntity.ok(ApiResponse.success(data));
+    }
+
     @GetMapping("/export")
     @Operation(summary = "Xuất báo cáo dưới dạng Excel hoặc PDF")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER') or (hasRole('WAREHOUSE') and (#type == 'inventory' or #type == 'purchase'))")
@@ -101,7 +114,11 @@ public class ReportController {
             fileName += ".pdf";
             headers.setContentType(org.springframework.http.MediaType.APPLICATION_PDF);
         } else if ("excel".equalsIgnoreCase(format)) {
-            data = reportService.exportExcel(type, from, to, groupBy);
+            if ("nxt".equalsIgnoreCase(type)) {
+                data = reportService.exportNxtExcel(from, to);
+            } else {
+                data = reportService.exportExcel(type, from, to, groupBy);
+            }
             fileName += ".xlsx";
             headers.setContentType(org.springframework.http.MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
         } else {

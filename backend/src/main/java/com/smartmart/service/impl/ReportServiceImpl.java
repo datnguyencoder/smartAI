@@ -4,10 +4,19 @@ import com.smartmart.dto.response.SalesReportResponse;
 import com.smartmart.dto.response.TopProductResponse;
 import com.smartmart.dto.response.PurchaseReportResponse;
 import com.smartmart.dto.response.InventoryReportResponse;
+import com.smartmart.dto.response.InventoryNxtReportResponse;
+import com.smartmart.dto.response.ForecastResultResponse;
 import com.smartmart.repository.OrderRepository;
 import com.smartmart.repository.PurchaseOrderRepository;
 import com.smartmart.repository.CurrentInventoryRepository;
+import com.smartmart.service.ExcelReportService;
+import com.smartmart.service.PdfReportService;
 import com.smartmart.service.ReportService;
+import com.smartmart.service.SettingService;
+import com.smartmart.service.ai.ForecastOrchestrationService;
+import com.smartmart.service.ai.ReorderRecommendationService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,28 +27,40 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @Transactional(readOnly = true)
 public class ReportServiceImpl implements ReportService {
 
+    private static final Logger log = LoggerFactory.getLogger(ReportServiceImpl.class);
+
     private final OrderRepository orderRepository;
     private final PurchaseOrderRepository purchaseOrderRepository;
     private final CurrentInventoryRepository currentInventoryRepository;
-    private final ExcelReportGenerator excelReportGenerator;
-    private final PdfReportGenerator pdfReportGenerator;
+    private final ExcelReportService excelReportService;
+    private final PdfReportService pdfReportService;
+    private final SettingService settingService;
+    private final ForecastOrchestrationService forecastService;
+    private final ReorderRecommendationService reorderService;
 
     public ReportServiceImpl(
             OrderRepository orderRepository,
             PurchaseOrderRepository purchaseOrderRepository,
             CurrentInventoryRepository currentInventoryRepository,
-            ExcelReportGenerator excelReportGenerator,
-            PdfReportGenerator pdfReportGenerator) {
+            ExcelReportService excelReportService,
+            PdfReportService pdfReportService,
+            SettingService settingService,
+            ForecastOrchestrationService forecastService,
+            ReorderRecommendationService reorderService) {
         this.orderRepository = orderRepository;
         this.purchaseOrderRepository = purchaseOrderRepository;
         this.currentInventoryRepository = currentInventoryRepository;
-        this.excelReportGenerator = excelReportGenerator;
-        this.pdfReportGenerator = pdfReportGenerator;
+        this.excelReportService = excelReportService;
+        this.pdfReportService = pdfReportService;
+        this.settingService = settingService;
+        this.forecastService = forecastService;
+        this.reorderService = reorderService;
     }
 
     @Override
@@ -189,6 +210,65 @@ public class ReportServiceImpl implements ReportService {
         return report;
     }
 
+    @Override
+    public List<InventoryNxtReportResponse> getNxtReport(LocalDate from, LocalDate to) {
+        if (from == null) {
+            from = LocalDate.now().minusDays(30);
+        }
+        if (to == null) {
+            to = LocalDate.now();
+        }
+
+        LocalDateTime fromTime = from.atStartOfDay();
+        LocalDateTime toTime = to.plusDays(1).atStartOfDay();
+
+        List<Object[]> rawNxt = currentInventoryRepository.reportNxtDetails(fromTime, toTime);
+        List<InventoryNxtReportResponse> report = new ArrayList<>();
+
+        for (Object[] row : rawNxt) {
+            String itemCode = (String) row[1];
+            String itemName = (String) row[2];
+            String unitName = (String) row[3];
+            BigDecimal costPrice = toBigDecimal(row[4]);
+            
+            BigDecimal openingQty = toBigDecimal(row[5]);
+            BigDecimal importedQty = toBigDecimal(row[6]);
+            BigDecimal exportedQty = toBigDecimal(row[7]);
+            BigDecimal currentStock = toBigDecimal(row[8]); // Used for verification
+
+            // Calculate closing quantity
+            BigDecimal closingQty = openingQty.add(importedQty).subtract(exportedQty);
+
+            // Verification logging
+            if (to.isEqual(LocalDate.now()) && closingQty.compareTo(currentStock) != 0) {
+                log.warn("NXT Verification Failed for item {}: calculated closingQty={}, actual currentStock={}", itemCode, closingQty, currentStock);
+            }
+
+            // Calculate values (Thành tiền)
+            BigDecimal openingValue = openingQty.multiply(costPrice);
+            BigDecimal importedValue = importedQty.multiply(costPrice);
+            BigDecimal exportedValue = exportedQty.multiply(costPrice);
+            BigDecimal closingValue = closingQty.multiply(costPrice);
+
+            report.add(InventoryNxtReportResponse.builder()
+                    .itemCode(itemCode)
+                    .itemName(itemName)
+                    .unitName(unitName)
+                    .openingQty(openingQty)
+                    .openingValue(openingValue)
+                    .importedQty(importedQty)
+                    .importedValue(importedValue)
+                    .exportedQty(exportedQty)
+                    .exportedValue(exportedValue)
+                    .closingQty(closingQty)
+                    .closingValue(closingValue)
+                    .referencePrice(costPrice)
+                    .build());
+        }
+
+        return report;
+    }
+
     // Defensive helper methods to convert Object values from native queries
     private LocalDate toLocalDate(Object obj) {
         if (obj == null)
@@ -226,13 +306,20 @@ public class ReportServiceImpl implements ReportService {
     @Override
     public byte[] exportExcel(String type, LocalDate from, LocalDate to, String groupBy) {
         try {
+            String companyName = settingService.getValue("company_name", "---");
+            String companyAddress = settingService.getValue("company_address", "---");
             switch (type.toLowerCase()) {
                 case "sales":
-                    return excelReportGenerator.generateSalesReport(getSalesReport(from, to, groupBy), from, to);
+                    List<ForecastResultResponse> forecasts = loadForecastsSafe();
+                    return excelReportService.generateSalesReport(
+                            getSalesReport(from, to, groupBy), from, to, companyName, companyAddress, forecasts);
                 case "purchase":
-                    return excelReportGenerator.generatePurchaseReport(getPurchaseReport(from, to), from, to);
+                    return excelReportService.generatePurchaseReport(
+                            getPurchaseReport(from, to), from, to, companyName, companyAddress);
                 case "inventory":
-                    return excelReportGenerator.generateInventoryReport(getInventoryReport(from, to), from, to);
+                    List<Map<String, Object>> reorderRecs = loadReorderRecsSafe();
+                    return excelReportService.generateInventoryReport(
+                            getInventoryReport(from, to), from, to, companyName, companyAddress, reorderRecs);
                 default:
                     throw new IllegalArgumentException("Unknown report type: " + type);
             }
@@ -242,15 +329,27 @@ public class ReportServiceImpl implements ReportService {
     }
 
     @Override
+    public byte[] exportNxtExcel(LocalDate from, LocalDate to) {
+        try {
+            List<InventoryNxtReportResponse> data = getNxtReport(from, to);
+            String companyName = settingService.getValue("company_name", "---");
+            String companyAddress = settingService.getValue("company_address", "---");
+            return excelReportService.generateNxtReport(data, from, to, companyName, companyAddress);
+        } catch (Exception e) {
+            throw new RuntimeException("Error generating NXT Excel report", e);
+        }
+    }
+
+    @Override
     public byte[] exportPdf(String type, LocalDate from, LocalDate to, String groupBy) {
         try {
             switch (type.toLowerCase()) {
                 case "sales":
-                    return pdfReportGenerator.generateSalesReport(getSalesReport(from, to, groupBy), from, to);
+                    return pdfReportService.generateSalesReport(getSalesReport(from, to, groupBy), from, to);
                 case "purchase":
-                    return pdfReportGenerator.generatePurchaseReport(getPurchaseReport(from, to), from, to);
+                    return pdfReportService.generatePurchaseReport(getPurchaseReport(from, to), from, to);
                 case "inventory":
-                    return pdfReportGenerator.generateInventoryReport(getInventoryReport(from, to), from, to);
+                    return pdfReportService.generateInventoryReport(getInventoryReport(from, to), from, to);
                 default:
                     throw new IllegalArgumentException("Unknown report type: " + type);
             }
@@ -265,8 +364,9 @@ public class ReportServiceImpl implements ReportService {
             List<SalesReportResponse> sales = getSalesReport(from, to, groupBy);
             List<PurchaseReportResponse> purchases = getPurchaseReport(from, to);
             List<InventoryReportResponse> inventory = getInventoryReport(from, to);
+            List<InventoryNxtReportResponse> nxt = getNxtReport(from, to);
 
-            return pdfReportGenerator.generateComprehensiveReport(sales, purchases, inventory, from, to);
+            return pdfReportService.generateComprehensiveReport(sales, purchases, inventory, nxt, from, to);
         } catch (Exception e) {
             throw new RuntimeException("Error generating Comprehensive PDF report", e);
         }
@@ -278,10 +378,38 @@ public class ReportServiceImpl implements ReportService {
             List<SalesReportResponse> sales = getSalesReport(from, to, groupBy);
             List<PurchaseReportResponse> purchases = getPurchaseReport(from, to);
             List<InventoryReportResponse> inventory = getInventoryReport(from, to);
+            List<InventoryNxtReportResponse> nxt = getNxtReport(from, to);
 
-            return excelReportGenerator.generateComprehensiveExcel(sales, purchases, inventory, from, to);
+            String companyName = settingService.getValue("company_name", "---");
+            String companyAddress = settingService.getValue("company_address", "---");
+
+            List<ForecastResultResponse> forecasts = loadForecastsSafe();
+            List<Map<String, Object>> reorderRecs = loadReorderRecsSafe();
+
+            return excelReportService.generateComprehensiveExcel(
+                    sales, purchases, inventory, nxt, from, to, companyName, companyAddress, forecasts, reorderRecs);
         } catch (Exception e) {
             throw new RuntimeException("Error generating Comprehensive Excel report", e);
+        }
+    }
+
+    // --- AI data loading with graceful fallback ---
+
+    private List<ForecastResultResponse> loadForecastsSafe() {
+        try {
+            return forecastService.listResults();
+        } catch (Exception e) {
+            log.warn("Could not load AI forecast data for report: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<Map<String, Object>> loadReorderRecsSafe() {
+        try {
+            return reorderService.listActive();
+        } catch (Exception e) {
+            log.warn("Could not load reorder recommendations for report: {}", e.getMessage());
+            return List.of();
         }
     }
 }
