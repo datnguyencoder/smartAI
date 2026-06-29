@@ -239,6 +239,11 @@ export type InventoryAlertDto = {
   message: string;
   resolved: boolean;
   createdAt: string;
+  currentStock?: number;
+  reservedQuantity?: number;
+  availableQuantity?: number;
+  minimumStock?: number;
+  locationName?: string;
 };
 
 export type AuditLogDto = {

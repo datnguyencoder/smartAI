@@ -3,6 +3,7 @@ package com.smartmart.dto.response;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Getter
@@ -17,4 +18,11 @@ public class InventoryAlertResponse {
     private String message;
     private boolean resolved;
     private LocalDateTime createdAt;
+    
+    // Additional fields for stock visibility
+    private BigDecimal currentStock;
+    private BigDecimal reservedQuantity;
+    private BigDecimal availableQuantity;
+    private Integer minimumStock;
+    private String locationName;
 }
