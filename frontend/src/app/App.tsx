@@ -124,6 +124,7 @@ function App() {
   }
 
   const pageMeta = pageTitles[page];
+  const isStandalonePos = page === 'pos';
 
   return (
     <ConfigProvider
@@ -144,40 +145,46 @@ function App() {
     >
       <AntdApp>
         <div className={cn('min-h-screen text-ink', themeMode === 'dark' ? 'bg-slate-900' : 'bg-[#f8fafc]')}>
-          <Sidebar
-            page={page}
-            setPage={setPage}
-            navGroups={visibleNavGroups}
-            authUser={authUser}
-            onLogout={handleLogout}
-          />
-          <MobileNav
-            open={mobileNavOpen}
-            onClose={() => setMobileNavOpen(false)}
-            page={page}
-            setPage={setPage}
-            navGroups={visibleNavGroups}
-            onLogout={handleLogout}
-          />
-          <main className="min-h-screen md:pl-[260px]">
-            <Topbar
-              title={pageMeta.title}
-              description={pageMeta.description}
-              authUser={authUser}
-              page={page}
-              setPage={setPage}
-              setModalOpen={setModalOpen}
-              openMobileNav={() => setMobileNavOpen(true)}
-              globalSearch={globalSearch}
-              setGlobalSearch={setGlobalSearch}
-              onToggleTheme={toggleTheme}
-              themeMode={themeMode}
-            />
+          {!isStandalonePos && (
+            <>
+              <Sidebar
+                page={page}
+                setPage={setPage}
+                navGroups={visibleNavGroups}
+                authUser={authUser}
+                onLogout={handleLogout}
+              />
+              <MobileNav
+                open={mobileNavOpen}
+                onClose={() => setMobileNavOpen(false)}
+                page={page}
+                setPage={setPage}
+                navGroups={visibleNavGroups}
+                onLogout={handleLogout}
+              />
+            </>
+          )}
+          <main className={cn('min-h-screen', !isStandalonePos && 'md:pl-[260px]')}>
+            {!isStandalonePos && (
+              <Topbar
+                title={pageMeta.title}
+                description={pageMeta.description}
+                authUser={authUser}
+                page={page}
+                setPage={setPage}
+                setModalOpen={setModalOpen}
+                openMobileNav={() => setMobileNavOpen(true)}
+                globalSearch={globalSearch}
+                setGlobalSearch={setGlobalSearch}
+                onToggleTheme={toggleTheme}
+                themeMode={themeMode}
+              />
+            )}
             <div
               ref={pageContentRef}
               className={cn(
-                'mx-auto px-4 py-5 sm:px-6',
-                page === 'ai-assistant' ? 'max-w-[1480px]' : 'max-w-[1220px]'
+                isStandalonePos ? 'min-h-screen' : 'mx-auto px-4 py-5 sm:px-6',
+                page === 'ai-assistant' ? 'max-w-[1480px]' : !isStandalonePos && 'max-w-[1220px]'
               )}
             >
               <PageRenderer

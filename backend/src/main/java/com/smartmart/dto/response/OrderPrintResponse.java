@@ -25,7 +25,21 @@ public class OrderPrintResponse {
     private String promotionCode;
     private Integer loyaltyPointsRedeemed;
     private Integer loyaltyPointsEarned;
+    private Long shiftId;
+    private String storeName;
+    private String storeAddress;
+    private String storePhone;
+    private String receiptFooter;
+    private String paperWidth;
+    private List<PaymentLine> payments;
     private List<PrintLine> items;
+
+    @Getter
+    @Builder
+    public static class PaymentLine {
+        private String paymentMethod;
+        private BigDecimal amount;
+    }
 
     @Getter
     @Builder

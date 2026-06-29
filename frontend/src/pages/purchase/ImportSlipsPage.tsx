@@ -1,12 +1,9 @@
 import React from 'react';
-import { Table, Modal, Button, Select, message as antdMessage, Dropdown, DatePicker, Progress } from 'antd';
-import type { MenuProps } from 'antd';
-import { DownOutlined } from '@ant-design/icons';
-import { Search, Check, X } from 'lucide-react';
-import { Input } from 'antd';
+import { Table, Modal, Button, Select, message as antdMessage, Dropdown, DatePicker, Progress, Form, Input, InputNumber } from 'antd';
+import { Search, RotateCcw } from 'lucide-react';
 import { Card } from '@/components/ui';
 import { StatusChip } from '@/components/ui';
-import { receivePurchaseOrder, cancelPurchaseOrder, fetchPurchaseOrdersPaged, fetchSuppliers, fetchLocations } from '@/services/wmsApi';
+import { receivePurchaseOrder, cancelPurchaseOrder, createPurchaseReturn, fetchPurchaseOrderById, fetchPurchaseOrdersPaged, fetchSuppliers, fetchLocations } from '@/services/wmsApi';
 import type { SupplierDto, LocationDto } from '@/types/api';
 import { purchaseToSlip, type ImportSlipRow } from '@/lib/purchaseMapper';
 import { formatMoney as money } from '@/lib/itemMapper';
@@ -40,6 +37,10 @@ export default function ImportSlipsPage({
   const [cancelLoading, setCancelLoading] = React.useState(false);
   const [viewingDetails, setViewingDetails] = React.useState<ImportSlipRow | null>(null);
   const receiptRef = React.useRef<HTMLDivElement>(null);
+  const [returnOpen, setReturnOpen] = React.useState(false);
+  const [returnLoading, setReturnLoading] = React.useState(false);
+  const [returnForm] = Form.useForm();
+  const [returnLines, setReturnLines] = React.useState<Array<{ itemId: number; itemName: string; quantity: number; unitPrice: number; maxQty: number }>>([]);
 
   const fetchData = React.useCallback(async () => {
     setLoading(true);
@@ -98,6 +99,54 @@ export default function ImportSlipsPage({
       antdMessage.error(e instanceof Error ? e.message : 'Hủy phiếu thất bại');
     } finally {
       setCancelLoading(false);
+    }
+  };
+
+  const loadReturnFromPo = async (poId: number) => {
+    try {
+      const po = await fetchPurchaseOrderById(poId);
+      returnForm.setFieldsValue({ supplierId: po.supplierId, locationId: po.locationId, purchaseOrderId: poId });
+      setReturnLines((po.items ?? []).map((it) => ({
+        itemId: it.itemId,
+        itemName: it.itemName,
+        quantity: Math.max(0, it.receivedQty),
+        unitPrice: it.unitPrice,
+        maxQty: it.receivedQty,
+      })).filter((l) => l.maxQty > 0));
+    } catch (e) {
+      antdMessage.error('Không tải chi tiết phiếu nhập');
+    }
+  };
+
+  const handlePurchaseReturn = async () => {
+    const values = await returnForm.validateFields();
+    const items = returnLines.filter((l) => l.quantity > 0).map((l) => ({
+      itemId: l.itemId,
+      quantity: l.quantity,
+      unitPrice: l.unitPrice,
+    }));
+    if (items.length === 0) {
+      antdMessage.warning('Nhập số lượng trả cho ít nhất 1 dòng');
+      return;
+    }
+    setReturnLoading(true);
+    try {
+      await createPurchaseReturn({
+        supplierId: values.supplierId,
+        locationId: values.locationId,
+        purchaseOrderId: values.purchaseOrderId,
+        note: values.note,
+        items,
+      });
+      antdMessage.success('Tạo phiếu trả hàng NCC thành công');
+      setReturnOpen(false);
+      returnForm.resetFields();
+      setReturnLines([]);
+      await reloadCatalog();
+    } catch (e) {
+      antdMessage.error(e instanceof Error ? e.message : 'Tạo phiếu trả thất bại');
+    } finally {
+      setReturnLoading(false);
     }
   };
 
@@ -193,6 +242,9 @@ export default function ImportSlipsPage({
               <option value="COMPLETED">Đã nhận</option>
               <option value="CANCELLED">Đã hủy</option>
             </select>
+            <Button icon={<RotateCcw size={14} />} onClick={() => { setReturnOpen(true); returnForm.resetFields(); setReturnLines([]); }}>
+              Trả hàng NCC
+            </Button>
           </div>
         </div>
         <Table
@@ -250,6 +302,67 @@ export default function ImportSlipsPage({
         okText="Hủy phiếu"
       >
         <p>Hành động này không thể hoàn tác. Các sản phẩm trong phiếu sẽ không được nhập vào kho.</p>
+      </Modal>
+      <Modal
+        open={returnOpen}
+        title="Tạo phiếu trả hàng nhà cung cấp"
+        onCancel={() => setReturnOpen(false)}
+        onOk={handlePurchaseReturn}
+        confirmLoading={returnLoading}
+        width={680}
+      >
+        <Form form={returnForm} layout="vertical">
+          <Form.Item name="purchaseOrderId" label="Phiếu nhập gốc (tùy chọn)">
+            <Select
+              allowClear
+              showSearch
+              placeholder="Chọn phiếu đã nhận"
+              optionFilterProp="label"
+              onChange={(v) => v && loadReturnFromPo(v)}
+              options={data.filter((d) => d.statusRaw === 'COMPLETED').map((d) => ({
+                value: d.id,
+                label: `${d.key} · ${d.supplier}`,
+              }))}
+            />
+          </Form.Item>
+          <div className="grid grid-cols-2 gap-3">
+            <Form.Item name="supplierId" label="Nhà cung cấp" rules={[{ required: true }]}>
+              <Select options={suppliers.map((s) => ({ value: s.id, label: s.supplierName }))} />
+            </Form.Item>
+            <Form.Item name="locationId" label="Kho trả" rules={[{ required: true }]}>
+              <Select options={locations.map((l) => ({ value: l.id, label: l.locationName }))} />
+            </Form.Item>
+          </div>
+          <Form.Item name="note" label="Ghi chú"><Input.TextArea rows={2} /></Form.Item>
+        </Form>
+        {returnLines.length > 0 && (
+          <Table
+            size="small"
+            pagination={false}
+            rowKey="itemId"
+            dataSource={returnLines}
+            columns={[
+              { title: 'Sản phẩm', dataIndex: 'itemName' },
+              {
+                title: 'SL trả',
+                dataIndex: 'quantity',
+                render: (v: number, _r, idx) => (
+                  <InputNumber
+                    min={0}
+                    max={returnLines[idx].maxQty}
+                    value={v}
+                    onChange={(n) => {
+                      const next = [...returnLines];
+                      next[idx] = { ...next[idx], quantity: Number(n) || 0 };
+                      setReturnLines(next);
+                    }}
+                  />
+                ),
+              },
+              { title: 'Tối đa', dataIndex: 'maxQty', width: 70 },
+            ]}
+          />
+        )}
       </Modal>
     </>
   );

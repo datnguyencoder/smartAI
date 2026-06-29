@@ -134,6 +134,27 @@ Dành riêng cho vai trò Admin để vận hành nhân sự.
 | **GET** | `/api/v1/orders/{id}`| Mọi vai trò đã đăng nhập | Xem chi tiết một hóa đơn cùng các mặt hàng đã mua. |
 | **POST** | `/api/v1/orders/{id}/cancel` | `ADMIN`, `MANAGER` | Hủy hóa đơn (cộng trả hàng lại kho, sinh stock movement hồi trả). |
 | **GET** | `/api/v1/orders/{id}/print` | Mọi vai trò đã đăng nhập | Xuất dữ liệu in hóa đơn dạng HTML/PDF chuẩn POS. |
+| **POST** | `/api/v1/pos/holds` | `ADMIN`, `MANAGER`, `STAFF` | Giữ đơn POS tạm thời trên server, chưa trừ tồn và chưa tạo hóa đơn. |
+| **GET** | `/api/v1/pos/holds` | `ADMIN`, `MANAGER`, `STAFF` | Danh sách đơn POS đang giữ của cashier hiện tại. |
+| **POST** | `/api/v1/pos/holds/{id}/restore` | `ADMIN`, `MANAGER`, `STAFF` | Đánh dấu đơn giữ đã được khôi phục về POS. |
+| **DELETE** | `/api/v1/pos/holds/{id}` | `ADMIN`, `MANAGER`, `STAFF` | Hủy đơn POS đang giữ. |
+
+#### 2.6.1. Phân hệ Công nợ Khách hàng
+| Method | Endpoint | Quyền truy cập | Mô tả |
+| :--- | :--- | :--- | :--- |
+| **GET** | `/api/v1/customer-debts` | `ADMIN`, `MANAGER`, `STAFF` | Danh sách công nợ khách, lọc `UNPAID`, `PARTIAL`, `OVERDUE`, `PAID`. |
+| **GET** | `/api/v1/customer-debts/customer/{customerId}` | `ADMIN`, `MANAGER`, `STAFF` | Công nợ theo khách hàng. |
+| **GET** | `/api/v1/customer-debts/{id}` | `ADMIN`, `MANAGER`, `STAFF` | Chi tiết công nợ và lịch sử thu tiền. |
+| **POST** | `/api/v1/customer-debts/{id}/payments` | `ADMIN`, `MANAGER`, `STAFF` | Ghi nhận thu tiền từng phần/toàn phần; chặn thu vượt số còn lại. |
+
+> POS `POST /api/v1/orders` với `paymentMethod = PAY_LATER` sẽ tạo công nợ khách tự động. Bắt buộc có `customerPhone` hợp lệ.
+
+#### 2.6.2. Phân hệ Thu chi
+| Method | Endpoint | Quyền truy cập | Mô tả |
+| :--- | :--- | :--- | :--- |
+| **GET** | `/api/v1/finance/transactions` | `ADMIN`, `MANAGER` | Danh sách khoản thu/chi, lọc `type`, `from`, `to`; giới hạn khoảng ngày theo setting `report_max_days`. |
+| **POST** | `/api/v1/finance/transactions` | `ADMIN`, `MANAGER` | Ghi nhận khoản `INCOME` hoặc `EXPENSE` với tài khoản tiền `CASH`, `BANK`, `WALLET`, `OTHER`. |
+| **GET** | `/api/v1/finance/summary` | `ADMIN`, `MANAGER` | Tổng thu, tổng chi và dòng tiền ròng theo khoảng ngày. |
 
 #### 2.7. Phân hệ Nhập kho (Purchase Order API)
 | Method | Endpoint | Quyền truy cập | Mô tả |
@@ -161,6 +182,8 @@ Dành riêng cho vai trò Admin để vận hành nhân sự.
 | **GET** | `/api/v1/inventory/low-stock` | `ADMIN`, `MANAGER`, `WAREHOUSE` | Lọc nhanh các sản phẩm đang có số lượng dưới mức tối thiểu. |
 | **GET** | `/api/v1/inventory/out-of-stock`| `ADMIN`, `MANAGER`, `WAREHOUSE` | Lọc nhanh các sản phẩm đã hết hàng sạch trong kho. |
 | **GET** | `/api/v1/inventory/near-expiry` | `ADMIN`, `MANAGER`, `WAREHOUSE` | Lọc sản phẩm sắp hết hạn sử dụng (trong vòng 30 ngày). |
+| **POST** | `/api/v1/inventory/adjustments` | `ADMIN`, `MANAGER`, `WAREHOUSE` | Điều chỉnh tồn kho theo tồn thực tế hoặc số lượng chênh lệch; ghi `ADJUSTMENT` vào ledger. |
+| **POST** | `/api/v1/inventory/transfers` | `ADMIN`, `MANAGER`, `WAREHOUSE` | Điều chuyển tồn giữa hai vị trí kho; ghi `TRANSFER_OUT` và `TRANSFER_IN` vào ledger. |
 | **GET** | `/api/v1/inventory-alerts` | `ADMIN`, `MANAGER`, `WAREHOUSE` | Xem toàn bộ danh sách các cảnh báo tồn kho tự động đang hoạt động. |
 | **PATCH**| `/api/v1/inventory-alerts/{id}/resolve`| `ADMIN`, `MANAGER`, `WAREHOUSE` | Đánh dấu xử lý thủ công / Hoàn thành cảnh báo kho. |
 
@@ -197,6 +220,45 @@ Dành riêng cho vai trò Admin để vận hành nhân sự.
 | **POST** | `/api/v1/shifts/open` | `ADMIN`, `MANAGER`, `STAFF` | Mở ca, body gồm `openingCash`, `note`. |
 | **POST** | `/api/v1/shifts/{id}/close` | `ADMIN`, `MANAGER`, `STAFF` | Đóng ca, body gồm `closingCash`, `varianceReason`, `note`. Nếu lệch tiền thì chuyển `PENDING_REVIEW`. |
 | **POST** | `/api/v1/shifts/{id}/review` | `ADMIN`, `MANAGER` | Duyệt ca lệch tiền, chuyển `PENDING_REVIEW` → `CLOSED`. |
+| **GET** | `/api/v1/shifts/{id}/summary` | `ADMIN`, `MANAGER`, `STAFF` | Báo cáo Z ca: doanh thu, tiền mặt/CK, chênh lệch quỹ. |
+
+#### 2.11.2. Phiếu chuyển kho (Stock Transfer Order)
+| Method | Endpoint | Quyền truy cập | Mô tả |
+| :--- | :--- | :--- | :--- |
+| **POST** | `/api/v1/stock-transfers` | `ADMIN`, `MANAGER`, `WAREHOUSE` | Tạo phiếu chuyển `DRAFT` giữa hai vị trí kho. |
+| **GET** | `/api/v1/stock-transfers` | `ADMIN`, `MANAGER`, `WAREHOUSE` | Danh sách phiếu chuyển. |
+| **GET** | `/api/v1/stock-transfers/{id}` | `ADMIN`, `MANAGER`, `WAREHOUSE` | Chi tiết phiếu chuyển. |
+| **POST** | `/api/v1/stock-transfers/{id}/confirm` | `ADMIN`, `MANAGER`, `WAREHOUSE` | Xác nhận chuyển → ghi ledger `TRANSFER_OUT` / `TRANSFER_IN`. |
+| **POST** | `/api/v1/stock-transfers/{id}/cancel` | `ADMIN`, `MANAGER`, `WAREHOUSE` | Hủy phiếu `DRAFT` hoặc `PENDING`. |
+
+#### 2.11.3. Trả hàng NCC (Purchase Return)
+| Method | Endpoint | Quyền truy cập | Mô tả |
+| :--- | :--- | :--- | :--- |
+| **POST** | `/api/v1/purchase-returns` | `ADMIN`, `MANAGER`, `WAREHOUSE` | Tạo phiếu trả NCC, trừ tồn qua ledger `PURCHASE_RETURN`. |
+| **GET** | `/api/v1/purchase-returns` | `ADMIN`, `MANAGER`, `WAREHOUSE` | Danh sách phiếu trả NCC. |
+| **GET** | `/api/v1/purchase-returns/{id}` | `ADMIN`, `MANAGER`, `WAREHOUSE` | Chi tiết phiếu trả. |
+
+> **POST** `/api/v1/purchase-orders/{id}/receive-partial` — nhận từng dòng theo số lượng; phiếu chuyển `PARTIALLY_RECEIVED` hoặc `COMPLETED`.
+
+#### 2.11.4. Thu chi nâng cao
+| Method | Endpoint | Quyền truy cập | Mô tả |
+| :--- | :--- | :--- | :--- |
+| **GET/POST/PUT/DELETE** | `/api/v1/finance/categories` | `ADMIN`, `MANAGER` | CRUD danh mục thu/chi. |
+| **GET/POST/PUT** | `/api/v1/finance/cash-accounts` | `ADMIN`, `MANAGER` | Quản lý quỹ tiền mặt/ngân hàng. |
+| **POST** | `/api/v1/finance/cash-accounts/transfer` | `ADMIN`, `MANAGER` | Chuyển tiền giữa các quỹ. |
+
+#### 2.11.5. Báo giá, Thương hiệu, Thẻ quà, Đơn online
+| Method | Endpoint | Quyền truy cập | Mô tả |
+| :--- | :--- | :--- | :--- |
+| **GET/POST** | `/api/v1/quotations` | `ADMIN`, `MANAGER`, `STAFF` | Tạo/xem báo giá. |
+| **POST** | `/api/v1/quotations/{id}/convert` | `ADMIN`, `MANAGER`, `STAFF` | Chuyển báo giá thành hóa đơn bán. |
+| **GET/POST/PUT/DELETE** | `/api/v1/brands` | `ADMIN`, `MANAGER`, `WAREHOUSE` | CRUD thương hiệu (gắn optional vào SKU). |
+| **POST** | `/api/v1/gift-cards/issue` | `ADMIN`, `MANAGER` | Phát hành thẻ quà. |
+| **POST** | `/api/v1/gift-cards/redeem` | `ADMIN`, `MANAGER`, `STAFF` | Đổi thẻ quà tại POS. |
+| **GET** | `/api/v1/gift-cards/{code}/balance` | `ADMIN`, `MANAGER`, `STAFF` | Tra cứu số dư thẻ. |
+| **GET/POST/PATCH** | `/api/v1/online-orders` | `ADMIN`, `MANAGER`, `STAFF` | Stub đơn online (nhập thủ công / marketplace). |
+| **GET/POST/PUT/DELETE** | `/api/v1/discount-plans` | `ADMIN`, `MANAGER` | CRUD kế hoạch giảm giá theo SKU/danh mục/thời gian. |
+| **GET** | `/api/v1/discount-plans/apply/{itemId}` | `ADMIN`, `MANAGER`, `STAFF` | Áp dụng rule giảm giá cho SKU. |
 
 #### 2.12. Phân hệ Xuất Báo cáo (Report API)
 | Method | Endpoint | Quyền truy cập | Mô tả |
@@ -206,6 +268,12 @@ Dành riêng cho vai trò Admin để vận hành nhân sự.
 | **GET** | `/api/v1/reports/purchase` | `ADMIN`, `MANAGER` | Thống kê số lượng tiền chi nhập hàng theo từng nhà cung cấp. |
 | **GET** | `/api/v1/reports/export?format=excel` | `ADMIN`, `MANAGER` | Tải báo cáo Excel (.xlsx). Tham số `type` = `sales` \| `inventory` \| `purchase`. |
 | **GET** | `/api/v1/reports/export?format=pdf` | `ADMIN`, `MANAGER` | Tải báo cáo PDF A4. Tham số `type` như trên. |
+| **GET** | `/api/v1/reports/best-sellers` | `ADMIN`, `MANAGER`, `ANALYST` | Top SKU bán chạy theo doanh thu/số lượng. |
+| **GET** | `/api/v1/reports/customer-due` | `ADMIN`, `MANAGER` | Báo cáo công nợ khách hàng. |
+| **GET** | `/api/v1/reports/supplier-due` | `ADMIN`, `MANAGER` | Báo cáo công nợ nhà cung cấp. |
+| **GET** | `/api/v1/reports/product-expiry` | `ADMIN`, `MANAGER`, `WAREHOUSE` | Báo cáo sản phẩm cận/hết hạn. |
+| **GET** | `/api/v1/reports/cash-flow` | `ADMIN`, `MANAGER` | Dòng tiền thu/chi theo kỳ. |
+| **GET** | `/api/v1/reports/profit-loss` | `ADMIN`, `MANAGER` | Báo cáo lãi/lỗ đơn giản (doanh thu − COGS − chi phí). |
 
 > **Ghi chú:** Endpoint cũ `/reports/export/excel` và `/reports/export/pdf` được gộp thành một route với query `format`.
 

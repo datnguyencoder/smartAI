@@ -33,6 +33,10 @@ public final class AuditAction {
     public static final String PURCHASE_CREATE = "PURCHASE_CREATE";
     public static final String PURCHASE_RECEIVE = "PURCHASE_RECEIVE";
     public static final String PURCHASE_CANCEL = "PURCHASE_CANCEL";
+    public static final String PURCHASE_RETURN_CREATE = "PURCHASE_RETURN_CREATE";
+    public static final String STOCK_TRANSFER_CREATE = "STOCK_TRANSFER_CREATE";
+    public static final String STOCK_TRANSFER_CONFIRM = "STOCK_TRANSFER_CONFIRM";
+    public static final String STOCK_TRANSFER_CANCEL = "STOCK_TRANSFER_CANCEL";
     public static final String SCRAP_CREATE = "SCRAP_CREATE";
     public static final String SCRAP_APPROVE = "SCRAP_APPROVE";
     public static final String SCRAP_CANCEL = "SCRAP_CANCEL";

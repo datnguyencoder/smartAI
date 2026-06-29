@@ -13,5 +13,6 @@ public enum InventoryActionType {
     TRANSFER_OUT,
     /** @deprecated Legacy inventory logs only — transfer between locations removed (single-store). */
     TRANSFER_IN,
-    SALE_RETURN
+    SALE_RETURN,
+    PURCHASE_RETURN
 }

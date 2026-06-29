@@ -29,6 +29,10 @@ public class Item extends LongAuditableEntity {
     private Category category;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "brand_id")
+    private Brand brand;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "base_uom_id", nullable = false)
     private Uom baseUom;
 
@@ -49,11 +53,13 @@ public class Item extends LongAuditableEntity {
     private boolean hasExpiry;
 
     @Column(name = "is_active", nullable = false)
+    @Builder.Default
     private boolean active = true;
 
     @Column(name = "image_url", length = 512)
     private String imageUrl;
 
     @Column(name = "purchase_conversion_ratio", nullable = false)
-    private BigDecimal purchaseConversionRatio;
+    @Builder.Default
+    private BigDecimal purchaseConversionRatio = BigDecimal.ONE;
 }

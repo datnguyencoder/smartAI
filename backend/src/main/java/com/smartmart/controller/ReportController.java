@@ -1,10 +1,7 @@
 package com.smartmart.controller;
 
 import com.smartmart.common.response.ApiResponse;
-import com.smartmart.dto.response.SalesReportResponse;
-import com.smartmart.dto.response.PurchaseReportResponse;
-import com.smartmart.dto.response.InventoryReportResponse;
-import com.smartmart.dto.response.InventoryNxtReportResponse;
+import com.smartmart.dto.response.*;
 import com.smartmart.exception.BadRequestException;
 import com.smartmart.service.ReportService;
 import com.smartmart.service.SettingService;
@@ -93,6 +90,58 @@ public class ReportController {
         validateDateRange(from, to);
         List<InventoryNxtReportResponse> data = reportService.getNxtReport(from, to);
         return ResponseEntity.ok(ApiResponse.success(data));
+    }
+
+    @GetMapping("/best-sellers")
+    @Operation(summary = "Báo cáo sản phẩm bán chạy")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ANALYST')")
+    public ResponseEntity<ApiResponse<List<BestSellerReportResponse>>> getBestSellers(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(defaultValue = "10") int limit) {
+        validateDateRange(from, to);
+        return ResponseEntity.ok(ApiResponse.success(reportService.getBestSellers(from, to, limit)));
+    }
+
+    @GetMapping("/customer-due")
+    @Operation(summary = "Báo cáo công nợ khách hàng")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
+    public ResponseEntity<ApiResponse<List<CustomerDueReportResponse>>> getCustomerDue() {
+        return ResponseEntity.ok(ApiResponse.success(reportService.getCustomerDue()));
+    }
+
+    @GetMapping("/supplier-due")
+    @Operation(summary = "Báo cáo công nợ nhà cung cấp")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
+    public ResponseEntity<ApiResponse<List<SupplierDueReportResponse>>> getSupplierDue() {
+        return ResponseEntity.ok(ApiResponse.success(reportService.getSupplierDue()));
+    }
+
+    @GetMapping("/product-expiry")
+    @Operation(summary = "Báo cáo sản phẩm cận hạn")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
+    public ResponseEntity<ApiResponse<List<ProductExpiryReportResponse>>> getProductExpiry() {
+        return ResponseEntity.ok(ApiResponse.success(reportService.getProductExpiry()));
+    }
+
+    @GetMapping("/cash-flow")
+    @Operation(summary = "Báo cáo dòng tiền")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
+    public ResponseEntity<ApiResponse<List<CashFlowReportResponse>>> getCashFlow(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        validateDateRange(from, to);
+        return ResponseEntity.ok(ApiResponse.success(reportService.getCashFlow(from, to)));
+    }
+
+    @GetMapping("/profit-loss")
+    @Operation(summary = "Báo cáo lãi lỗ")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
+    public ResponseEntity<ApiResponse<List<ProfitLossReportResponse>>> getProfitLoss(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        validateDateRange(from, to);
+        return ResponseEntity.ok(ApiResponse.success(reportService.getProfitLoss(from, to)));
     }
 
     @GetMapping("/export")

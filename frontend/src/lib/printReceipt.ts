@@ -19,7 +19,23 @@ export function buildPrintHtml(data: Awaited<ReturnType<typeof fetchOrderPrint>>
     minute: '2-digit',
   });
 
-  const payLabel = PAYMENT_LABEL[data.paymentMethod] ?? data.paymentMethod;
+  const paperWidth = data.paperWidth || '80mm';
+  const storeName = data.storeName || 'SMARTMART AI';
+  const storeAddress = data.storeAddress || '';
+  const storePhone = data.storePhone || '';
+  const receiptFooter = data.receiptFooter || 'Cam on quy khach va hen gap lai';
+
+  const paymentLines = (data.payments && data.payments.length > 0)
+    ? data.payments
+    : [{ paymentMethod: data.paymentMethod, amount: data.totalAmount }];
+
+  const paymentSection = paymentLines
+    .map((p) => {
+      const label = PAYMENT_LABEL[p.paymentMethod] ?? p.paymentMethod;
+      return `<div class="summary-row payment-line"><span>${escapeHtml(label)}</span><span>${fmt(p.amount)}</span></div>`;
+    })
+    .join('');
+
   const subtotal = data.subtotalAmount ?? data.items.reduce((s, i) => s + i.lineTotal, 0);
   const discount = data.discountAmount ?? 0;
   const vat = data.vatAmount ?? 0;
@@ -49,6 +65,9 @@ export function buildPrintHtml(data: Awaited<ReturnType<typeof fetchOrderPrint>>
     ? `<div class="summary-row"><span>Giảm giá</span><span>-${fmt(discount)}</span></div>`
     : '';
   const vatSection = vat > 0 ? `<div class="summary-row"><span>VAT</span><span>${fmt(vat)}</span></div>` : '';
+  const shiftSection = data.shiftId
+    ? `<div class="row"><span>Ca</span><span>#${data.shiftId}</span></div>`
+    : '';
 
   return `<!DOCTYPE html>
 <html lang="vi">
@@ -56,7 +75,7 @@ export function buildPrintHtml(data: Awaited<ReturnType<typeof fetchOrderPrint>>
   <meta charset="UTF-8" />
   <title>Hoa don ${escapeHtml(data.orderCode)}</title>
   <style>
-    @page { size: 80mm auto; margin: 0; }
+    @page { size: ${paperWidth} auto; margin: 0; }
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; background: #f3f4f6; color: #111; }
     body {
@@ -67,7 +86,7 @@ export function buildPrintHtml(data: Awaited<ReturnType<typeof fetchOrderPrint>>
       print-color-adjust: exact;
     }
     .receipt {
-      width: 80mm;
+      width: ${paperWidth};
       min-height: 100vh;
       margin: 0 auto;
       padding: 5mm 4mm 7mm;
@@ -115,6 +134,7 @@ export function buildPrintHtml(data: Awaited<ReturnType<typeof fetchOrderPrint>>
       border-bottom: 1px dashed #111;
       font-weight: 700;
     }
+    .payment-line { font-weight: 600; }
     .footer { margin-top: 10px; text-align: center; font-size: 11px; }
     .barcode {
       margin: 10px auto 2px;
@@ -123,23 +143,24 @@ export function buildPrintHtml(data: Awaited<ReturnType<typeof fetchOrderPrint>>
       background: repeating-linear-gradient(90deg, #111 0 1px, #fff 1px 3px, #111 3px 5px, #fff 5px 7px);
     }
     @media print {
-      html, body { width: 80mm; background: #fff; }
-      .receipt { width: 80mm; min-height: 0; margin: 0; padding: 4mm 3mm 6mm; }
+      html, body { width: ${paperWidth}; background: #fff; }
+      .receipt { width: ${paperWidth}; min-height: 0; margin: 0; padding: 4mm 3mm 6mm; }
     }
   </style>
 </head>
 <body>
   <div class="receipt">
     <div class="center">
-      <div class="store-name">SMARTMART AI</div>
-      <div class="store-meta">Sieu thi mini van hanh thong minh</div>
-      <div class="store-meta">TP. Ho Chi Minh - Hotline: 1900 xxxx</div>
+      <div class="store-name">${escapeHtml(storeName)}</div>
+      ${storeAddress ? `<div class="store-meta">${escapeHtml(storeAddress)}</div>` : ''}
+      ${storePhone ? `<div class="store-meta">Hotline: ${escapeHtml(storePhone)}</div>` : ''}
       <div class="title">HOA DON BAN HANG</div>
     </div>
     <div class="line"></div>
     <div class="row"><span>So HD</span><span>${escapeHtml(data.orderCode)}</span></div>
     <div class="row"><span>Ngay</span><span>${escapeHtml(date)}</span></div>
     <div class="row"><span>Thu ngan</span><span>${escapeHtml(data.staffName || '-')}</span></div>
+    ${shiftSection}
     <div class="row"><span>Khach hang</span><span>${escapeHtml(data.customerName || 'Khach le')}</span></div>
     ${data.customerPhone ? `<div class="row"><span>Dien thoai</span><span>${escapeHtml(data.customerPhone)}</span></div>` : ''}
     <div class="line"></div>
@@ -154,11 +175,13 @@ export function buildPrintHtml(data: Awaited<ReturnType<typeof fetchOrderPrint>>
       ${vatSection}
       <div class="summary-row total"><span>TONG CONG</span><span>${fmt(data.totalAmount)}</span></div>
     </div>
-    <div class="payment row"><span>Thanh toan</span><span>${escapeHtml(payLabel)}</span></div>
+    <div class="payment">
+      <div class="summary-row"><span>Thanh toan</span><span></span></div>
+      ${paymentSection}
+    </div>
     <div class="footer">
-      Cam on quy khach va hen gap lai<br />
-      Vui long kiem tra hang truoc khi roi quay<br />
-      Doi tra trong 7 ngay neu con hoa don
+      ${escapeHtml(receiptFooter).replace(/\n/g, '<br />')}<br />
+      Vui long kiem tra hang truoc khi roi quay
       <div class="barcode"></div>
       ${escapeHtml(data.orderCode)}
     </div>

@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Tag, Button, Modal, InputNumber, message, Statistic, Row, Col, Input } from 'antd';
-import { closeShift, fetchCurrentShift, fetchShifts, openShift, reviewShift } from '@/services/wmsApi';
+import { Table, Tag, Button, Modal, InputNumber, message, Statistic, Row, Col, Input, Descriptions } from 'antd';
+import { closeShift, fetchCurrentShift, fetchShiftSummary, fetchShifts, openShift, reviewShift } from '@/services/wmsApi';
 import { useAuth } from '@/contexts/AuthContext';
 import { normalizeRole } from '@/lib/permissions';
-import type { ShiftDto } from '@/types/api';
+import type { ShiftDto, ShiftSummaryDto } from '@/types/api';
 import dayjs from 'dayjs';
 import { Card, CardHeader } from '@/components/ui';
 import { formatMoney } from '@/lib/itemMapper';
@@ -21,6 +21,8 @@ export default function ShiftsPage() {
   const [openingCash, setOpeningCash] = useState(0);
   const [closingCash, setClosingCash] = useState(0);
   const [varianceReason, setVarianceReason] = useState('');
+  const [zReport, setZReport] = useState<ShiftSummaryDto | null>(null);
+  const [zLoading, setZLoading] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -76,6 +78,18 @@ export default function ShiftsPage() {
     }
   };
 
+  const handleZReport = async (shift: ShiftDto) => {
+    setZLoading(true);
+    try {
+      const summary = await fetchShiftSummary(shift.id);
+      setZReport(summary);
+    } catch (e: unknown) {
+      message.error(e instanceof Error ? e.message : 'Không tải được báo cáo Z');
+    } finally {
+      setZLoading(false);
+    }
+  };
+
   const statusTag = (status: ShiftDto['status']) => {
     if (status === 'OPEN') return <Tag color="green">Đang mở</Tag>;
     if (status === 'PENDING_REVIEW') return <Tag color="orange">Chờ duyệt lệch</Tag>;
@@ -109,9 +123,14 @@ export default function ShiftsPage() {
     {
       title: 'Thao tác',
       render: (_: unknown, row: ShiftDto) => (
-        canListAll && row.status === 'PENDING_REVIEW'
-          ? <Button size="small" type="primary" onClick={() => handleReview(row)}>Duyệt</Button>
-          : null
+        <div className="flex gap-1">
+          <Button size="small" loading={zLoading} onClick={() => handleZReport(row)}>
+            Báo cáo Z
+          </Button>
+          {canListAll && row.status === 'PENDING_REVIEW' ? (
+            <Button size="small" type="primary" onClick={() => handleReview(row)}>Duyệt</Button>
+          ) : null}
+        </div>
       ),
     },
   ];
@@ -160,6 +179,30 @@ export default function ShiftsPage() {
           onChange={(e) => setVarianceReason(e.target.value)}
           placeholder="Ví dụ: thiếu tiền mặt khi đối soát cuối ca"
         />
+      </Modal>
+      <Modal
+        title={`Báo cáo Z — Ca #${zReport?.shiftId ?? ''}`}
+        open={!!zReport}
+        onCancel={() => setZReport(null)}
+        footer={[<Button key="close" onClick={() => setZReport(null)}>Đóng</Button>]}
+        width={560}
+      >
+        {zReport && (
+          <Descriptions bordered size="small" column={1}>
+            <Descriptions.Item label="Thu ngân">{zReport.cashierName || '—'}</Descriptions.Item>
+            <Descriptions.Item label="Mở ca">{dayjs(zReport.openedAt).format('DD/MM/YYYY HH:mm')}</Descriptions.Item>
+            <Descriptions.Item label="Đóng ca">{zReport.closedAt ? dayjs(zReport.closedAt).format('DD/MM/YYYY HH:mm') : '—'}</Descriptions.Item>
+            <Descriptions.Item label="Trạng thái">{zReport.status}</Descriptions.Item>
+            <Descriptions.Item label="Tiền mở ca">{formatMoney(zReport.openingCash)}</Descriptions.Item>
+            <Descriptions.Item label="Tiền đóng ca">{zReport.closingCash != null ? formatMoney(zReport.closingCash) : '—'}</Descriptions.Item>
+            <Descriptions.Item label="Tiền mặt dự kiến">{zReport.expectedCash != null ? formatMoney(zReport.expectedCash) : '—'}</Descriptions.Item>
+            <Descriptions.Item label="Chênh lệch">{zReport.cashVariance != null ? formatMoney(zReport.cashVariance) : '—'}</Descriptions.Item>
+            <Descriptions.Item label="Số đơn">{zReport.totalOrders}</Descriptions.Item>
+            <Descriptions.Item label="Doanh thu">{formatMoney(zReport.totalRevenue)}</Descriptions.Item>
+            <Descriptions.Item label="Bán tiền mặt">{formatMoney(zReport.cashSales)}</Descriptions.Item>
+            <Descriptions.Item label="Bán chuyển khoản">{formatMoney(zReport.bankSales)}</Descriptions.Item>
+          </Descriptions>
+        )}
       </Modal>
     </Card>
   );

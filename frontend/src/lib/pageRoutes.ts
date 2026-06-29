@@ -4,16 +4,23 @@ export const PAGE_PATHS: Record<PageKey, string> = {
   dashboard: '/',
   products: '/products',
   categories: '/categories',
+  brands: '/brands',
   suppliers: '/suppliers',
   locations: '/locations',
   uoms: '/uoms',
   pos: '/pos',
   customers: '/customers',
+  'customer-debts': '/customer-debts',
   invoices: '/invoices',
   'return-orders': '/return-orders',
+  quotations: '/quotations',
+  'online-orders': '/online-orders',
   'import-create': '/import/create',
   'import-slips': '/import/slips',
   inventory: '/inventory',
+  'stock-movements': '/inventory/movements',
+  'barcode-print': '/inventory/barcode-print',
+  'expired-products': '/inventory/expired',
   'inventory-alerts': '/inventory/alerts',
   'inventory-logs': '/inventory/logs',
   'ai-forecast': '/ai/forecast',
@@ -21,15 +28,18 @@ export const PAGE_PATHS: Record<PageKey, string> = {
   'expiry-risk': '/expiry-risk',
   promotions: '/promotions',
   'promotion-manage': '/promotions/manage',
+  'discount-plans': '/promotions/discount-plans',
+  'gift-cards': '/promotions/gift-cards',
   'ai-assistant': '/ai/assistant',
   reports: '/reports',
+  finance: '/finance',
   users: '/users',
   settings: '/settings',
   'scrap-orders': '/scrap-orders',
   stocktake: '/stocktake',
   shifts: '/shifts',
   'item-lots': '/item-lots',
-  'audit-logs': '/audit-logs'
+  'audit-logs': '/audit-logs',
 };
 
 const PATH_TO_PAGE = Object.fromEntries(
@@ -37,7 +47,7 @@ const PATH_TO_PAGE = Object.fromEntries(
 ) as Record<string, PageKey>;
 
 export function pageFromPath(pathname: string): PageKey {
-  if (pathname === '/transfer-orders') return 'inventory';
+  if (pathname === '/transfer-orders') return 'stock-movements';
   return PATH_TO_PAGE[pathname] ?? 'dashboard';
 }
 

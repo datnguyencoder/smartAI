@@ -6,4 +6,6 @@ export const PAYMENT_LABEL: Record<string, string> = {
   MOMO: 'MoMo',
   VNPAY: 'VNPay',
   MIXED: 'Kết hợp',
+  WALLET: 'Ví điện tử',
+  PAY_LATER: 'Ghi nợ',
 };

@@ -208,4 +208,19 @@ public interface CurrentInventoryRepository extends JpaRepository<CurrentInvento
             ORDER BY i.item_name
             """, nativeQuery = true)
     List<Object[]> reportNxtDetails(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    @Query(value = """
+            SELECT i.id, i.item_code, i.item_name,
+                   il.id as lot_id, il.lot_number, il.expiry_date,
+                   COALESCE(ci.quantity, 0) as quantity,
+                   l.location_name
+            FROM item_lots il
+            JOIN items i ON i.id = il.item_id
+            LEFT JOIN current_inventory ci ON ci.lot_id = il.id AND ci.quantity > 0
+            LEFT JOIN locations l ON l.id = ci.location_id
+            WHERE il.expiry_date IS NOT NULL
+              AND il.expiry_date <= CURRENT_DATE + INTERVAL '90 days'
+            ORDER BY il.expiry_date ASC, i.item_name
+            """, nativeQuery = true)
+    List<Object[]> reportProductExpiry();
 }

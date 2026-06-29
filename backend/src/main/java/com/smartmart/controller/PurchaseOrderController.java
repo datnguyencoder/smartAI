@@ -48,6 +48,16 @@ public class PurchaseOrderController {
         return ResponseEntity.ok(ApiResponse.success("Nhận hàng thành công", purchaseOrderService.receive(id)));
     }
 
+    @PostMapping("/{id}/receive-partial")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
+    @Operation(summary = "Nhận hàng một phần theo từng dòng")
+    public ResponseEntity<ApiResponse<PurchaseOrderResponse>> receivePartial(
+            @PathVariable Long id,
+            @Valid @RequestBody com.smartmart.dto.request.PartialReceivePurchaseRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Nhận hàng một phần thành công",
+                purchaseOrderService.receivePartial(id, request)));
+    }
+
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
     @Operation(summary = "Danh sách phiếu nhập")

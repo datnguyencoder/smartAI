@@ -3,6 +3,7 @@ package com.smartmart.service;
 import com.smartmart.dto.request.CloseShiftRequest;
 import com.smartmart.dto.request.OpenShiftRequest;
 import com.smartmart.dto.request.ReviewShiftRequest;
+import com.smartmart.dto.response.ShiftSummaryResponse;
 import com.smartmart.entity.Shift;
 
 import java.util.List;
@@ -16,4 +17,5 @@ public interface ShiftService {
     Shift findById(Long id);
     List<Shift> listAll();
     List<Shift> listByCashier(Long cashierId);
+    ShiftSummaryResponse getSummary(Long id);
 }

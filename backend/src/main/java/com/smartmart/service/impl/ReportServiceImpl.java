@@ -1,14 +1,18 @@
 package com.smartmart.service.impl;
 
-import com.smartmart.dto.response.SalesReportResponse;
-import com.smartmart.dto.response.TopProductResponse;
-import com.smartmart.dto.response.PurchaseReportResponse;
-import com.smartmart.dto.response.InventoryReportResponse;
-import com.smartmart.dto.response.InventoryNxtReportResponse;
-import com.smartmart.dto.response.ForecastResultResponse;
+import com.smartmart.dto.response.*;
+import com.smartmart.entity.CustomerDebt;
+import com.smartmart.entity.FinanceTransaction;
+import com.smartmart.entity.SupplierDebt;
+import com.smartmart.enums.CustomerDebtStatus;
+import com.smartmart.enums.FinanceTransactionType;
+import com.smartmart.enums.SupplierDebtStatus;
+import com.smartmart.repository.CustomerDebtRepository;
+import com.smartmart.repository.FinanceTransactionRepository;
 import com.smartmart.repository.OrderRepository;
 import com.smartmart.repository.PurchaseOrderRepository;
 import com.smartmart.repository.CurrentInventoryRepository;
+import com.smartmart.repository.SupplierDebtRepository;
 import com.smartmart.service.ExcelReportService;
 import com.smartmart.service.PdfReportService;
 import com.smartmart.service.ReportService;
@@ -38,6 +42,9 @@ public class ReportServiceImpl implements ReportService {
     private final OrderRepository orderRepository;
     private final PurchaseOrderRepository purchaseOrderRepository;
     private final CurrentInventoryRepository currentInventoryRepository;
+    private final CustomerDebtRepository customerDebtRepository;
+    private final SupplierDebtRepository supplierDebtRepository;
+    private final FinanceTransactionRepository financeTransactionRepository;
     private final ExcelReportService excelReportService;
     private final PdfReportService pdfReportService;
     private final SettingService settingService;
@@ -48,6 +55,9 @@ public class ReportServiceImpl implements ReportService {
             OrderRepository orderRepository,
             PurchaseOrderRepository purchaseOrderRepository,
             CurrentInventoryRepository currentInventoryRepository,
+            CustomerDebtRepository customerDebtRepository,
+            SupplierDebtRepository supplierDebtRepository,
+            FinanceTransactionRepository financeTransactionRepository,
             ExcelReportService excelReportService,
             PdfReportService pdfReportService,
             SettingService settingService,
@@ -56,6 +66,9 @@ public class ReportServiceImpl implements ReportService {
         this.orderRepository = orderRepository;
         this.purchaseOrderRepository = purchaseOrderRepository;
         this.currentInventoryRepository = currentInventoryRepository;
+        this.customerDebtRepository = customerDebtRepository;
+        this.supplierDebtRepository = supplierDebtRepository;
+        this.financeTransactionRepository = financeTransactionRepository;
         this.excelReportService = excelReportService;
         this.pdfReportService = pdfReportService;
         this.settingService = settingService;
@@ -267,6 +280,153 @@ public class ReportServiceImpl implements ReportService {
         }
 
         return report;
+    }
+
+    @Override
+    public List<BestSellerReportResponse> getBestSellers(LocalDate from, LocalDate to, int limit) {
+        if (from == null) from = LocalDate.now().minusDays(30);
+        if (to == null) to = LocalDate.now();
+        if (limit <= 0) limit = 10;
+        LocalDateTime fromTime = from.atStartOfDay();
+        LocalDateTime toTime = to.plusDays(1).atStartOfDay();
+        List<BestSellerReportResponse> result = new ArrayList<>();
+        for (Object[] row : orderRepository.reportBestSellers(fromTime, toTime, limit)) {
+            result.add(BestSellerReportResponse.builder()
+                    .itemId(toLong(row[0]))
+                    .itemCode((String) row[1])
+                    .itemName((String) row[2])
+                    .quantitySold(toBigDecimal(row[3]))
+                    .revenue(toBigDecimal(row[4]))
+                    .build());
+        }
+        return result;
+    }
+
+    @Override
+    public List<CustomerDueReportResponse> getCustomerDue() {
+        return customerDebtRepository.findAllByOrderByIdDesc().stream()
+                .filter(d -> d.getStatus() != CustomerDebtStatus.PAID)
+                .map(this::toCustomerDue)
+                .toList();
+    }
+
+    @Override
+    public List<SupplierDueReportResponse> getSupplierDue() {
+        return supplierDebtRepository.findAllByOrderByIdDesc().stream()
+                .filter(d -> d.getStatus() != SupplierDebtStatus.PAID)
+                .map(this::toSupplierDue)
+                .toList();
+    }
+
+    @Override
+    public List<ProductExpiryReportResponse> getProductExpiry() {
+        List<ProductExpiryReportResponse> result = new ArrayList<>();
+        for (Object[] row : currentInventoryRepository.reportProductExpiry()) {
+            LocalDate expiry = toLocalDate(row[5]);
+            Integer daysUntil = expiry != null ? (int) ChronoUnit.DAYS.between(LocalDate.now(), expiry) : null;
+            result.add(ProductExpiryReportResponse.builder()
+                    .itemId(toLong(row[0]))
+                    .itemCode((String) row[1])
+                    .itemName((String) row[2])
+                    .lotId(toLong(row[3]))
+                    .lotNumber((String) row[4])
+                    .expiryDate(expiry)
+                    .daysUntilExpiry(daysUntil)
+                    .quantity(toBigDecimal(row[6]))
+                    .locationName((String) row[7])
+                    .build());
+        }
+        return result;
+    }
+
+    @Override
+    public List<CashFlowReportResponse> getCashFlow(LocalDate from, LocalDate to) {
+        if (from == null) from = LocalDate.now().minusDays(30);
+        if (to == null) to = LocalDate.now();
+        List<FinanceTransaction> txs = financeTransactionRepository.findFiltered(null, from, to);
+        BigDecimal running = BigDecimal.ZERO;
+        List<CashFlowReportResponse> result = new ArrayList<>();
+        for (FinanceTransaction tx : txs) {
+            BigDecimal signed = tx.getType() == FinanceTransactionType.INCOME
+                    ? tx.getAmount() : tx.getAmount().negate();
+            running = running.add(signed);
+            result.add(CashFlowReportResponse.builder()
+                    .date(tx.getTransactionDate())
+                    .type(tx.getType())
+                    .category(tx.getCategory())
+                    .amount(tx.getAmount())
+                    .runningBalance(running)
+                    .build());
+        }
+        return result;
+    }
+
+    @Override
+    public List<ProfitLossReportResponse> getProfitLoss(LocalDate from, LocalDate to) {
+        if (from == null) from = LocalDate.now().minusDays(30);
+        if (to == null) to = LocalDate.now();
+        LocalDateTime fromTime = from.atStartOfDay();
+        LocalDateTime toTime = to.plusDays(1).atStartOfDay();
+
+        Map<LocalDate, BigDecimal> dailyRevenue = new java.util.HashMap<>();
+        Map<LocalDate, BigDecimal> dailyCost = new java.util.HashMap<>();
+        for (Object[] row : orderRepository.reportSalesByDay(fromTime, toTime)) {
+            LocalDate date = LocalDate.parse((String) row[0]);
+            dailyRevenue.put(date, toBigDecimal(row[3]));
+            dailyCost.put(date, toBigDecimal(row[4]));
+        }
+
+        Map<LocalDate, BigDecimal> dailyExpense = new java.util.HashMap<>();
+        for (FinanceTransaction tx : financeTransactionRepository.findFiltered(FinanceTransactionType.EXPENSE, from, to)) {
+            dailyExpense.merge(tx.getTransactionDate(), tx.getAmount(), BigDecimal::add);
+        }
+
+        List<ProfitLossReportResponse> result = new ArrayList<>();
+        for (LocalDate d = from; !d.isAfter(to); d = d.plusDays(1)) {
+            BigDecimal revenue = dailyRevenue.getOrDefault(d, BigDecimal.ZERO);
+            BigDecimal cost = dailyCost.getOrDefault(d, BigDecimal.ZERO);
+            BigDecimal expenses = dailyExpense.getOrDefault(d, BigDecimal.ZERO);
+            BigDecimal gross = revenue.subtract(cost);
+            result.add(ProfitLossReportResponse.builder()
+                    .date(d)
+                    .revenue(revenue)
+                    .costOfGoods(cost)
+                    .grossProfit(gross)
+                    .expenses(expenses)
+                    .netProfit(gross.subtract(expenses))
+                    .build());
+        }
+        return result;
+    }
+
+    private CustomerDueReportResponse toCustomerDue(CustomerDebt debt) {
+        BigDecimal remaining = debt.getAmount().subtract(debt.getPaidAmount());
+        return CustomerDueReportResponse.builder()
+                .debtId(debt.getId())
+                .customerId(debt.getCustomer().getId())
+                .customerName(debt.getCustomer().getFullName())
+                .orderId(debt.getOrder().getId())
+                .amount(debt.getAmount())
+                .paidAmount(debt.getPaidAmount())
+                .remainingAmount(remaining)
+                .dueDate(debt.getDueDate())
+                .status(debt.getStatus())
+                .build();
+    }
+
+    private SupplierDueReportResponse toSupplierDue(SupplierDebt debt) {
+        BigDecimal remaining = debt.getAmount().subtract(debt.getPaidAmount());
+        return SupplierDueReportResponse.builder()
+                .debtId(debt.getId())
+                .supplierId(debt.getSupplier().getId())
+                .supplierName(debt.getSupplier().getSupplierName())
+                .purchaseOrderId(debt.getPurchaseOrder() != null ? debt.getPurchaseOrder().getId() : null)
+                .amount(debt.getAmount())
+                .paidAmount(debt.getPaidAmount())
+                .remainingAmount(remaining)
+                .dueDate(debt.getDueDate())
+                .status(debt.getStatus())
+                .build();
     }
 
     // Defensive helper methods to convert Object values from native queries

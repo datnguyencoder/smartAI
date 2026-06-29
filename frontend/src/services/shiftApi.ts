@@ -1,5 +1,5 @@
 import { apiRequest } from '@/services/apiClient';
-import type { ShiftDto } from '@/types/api';
+import type { ShiftDto, ShiftSummaryDto } from '@/types/api';
 
 export function fetchShifts() {
   return apiRequest<ShiftDto[]>('/api/v1/shifts');
@@ -7,6 +7,10 @@ export function fetchShifts() {
 
 export function fetchCurrentShift() {
   return apiRequest<ShiftDto | null>('/api/v1/shifts/current');
+}
+
+export function fetchShiftSummary(id: number) {
+  return apiRequest<ShiftSummaryDto>(`/api/v1/shifts/${id}/summary`);
 }
 
 export function openShift(openingCash: number, note?: string) {

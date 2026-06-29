@@ -2,14 +2,19 @@ package com.smartmart.controller;
 
 import com.smartmart.common.response.ApiResponse;
 import com.smartmart.common.response.PageResponse;
+import com.smartmart.dto.request.CreateStockAdjustmentRequest;
+import com.smartmart.dto.request.CreateStockTransferRequest;
 import com.smartmart.dto.response.InventoryLogResponse;
 import com.smartmart.dto.response.InventoryResponse;
+import com.smartmart.dto.response.StockMovementResponse;
 import com.smartmart.enums.InventoryActionType;
 import com.smartmart.mapper.WmsResponseMapper;
 import com.smartmart.service.InventoryQueryService;
+import com.smartmart.service.StockMovementService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -28,9 +33,11 @@ import java.util.Map;
 public class InventoryController {
 
     private final InventoryQueryService inventoryQueryService;
+    private final StockMovementService stockMovementService;
 
-    public InventoryController(InventoryQueryService inventoryQueryService) {
+    public InventoryController(InventoryQueryService inventoryQueryService, StockMovementService stockMovementService) {
         this.inventoryQueryService = inventoryQueryService;
+        this.stockMovementService = stockMovementService;
     }
 
     @GetMapping
@@ -90,5 +97,21 @@ public class InventoryController {
         return ResponseEntity.ok(ApiResponse.success(PageResponse.of(
                 WmsResponseMapper.toInventoryLogPage(
                         inventoryQueryService.logs(itemId, locationId, search, actionType, from, to, pageable)))));
+    }
+
+    @PostMapping("/adjustments")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
+    @Operation(summary = "Điều chỉnh tồn kho")
+    public ResponseEntity<ApiResponse<StockMovementResponse>> adjust(
+            @Valid @RequestBody CreateStockAdjustmentRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(stockMovementService.adjust(request)));
+    }
+
+    @PostMapping("/transfers")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
+    @Operation(summary = "Điều chuyển tồn giữa hai vị trí kho")
+    public ResponseEntity<ApiResponse<StockMovementResponse>> transfer(
+            @Valid @RequestBody CreateStockTransferRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(stockMovementService.transfer(request)));
     }
 }

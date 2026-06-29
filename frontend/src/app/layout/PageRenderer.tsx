@@ -10,6 +10,7 @@ import AuditLogsPage from '@/pages/admin/AuditLogsPage';
 import SettingsPage from '@/pages/admin/SettingsPage';
 import UsersPage from '@/pages/admin/UsersPage';
 import CategoriesPage from '@/pages/catalog/CategoriesPage';
+import BrandsPage from '@/pages/catalog/BrandsPage';
 import LocationsPage from '@/pages/catalog/LocationsPage';
 import ProductsPage from '@/pages/catalog/ProductsPage';
 import SuppliersPage from '@/pages/catalog/SuppliersPage';
@@ -18,18 +19,27 @@ import DashboardPage from '@/pages/dashboard/DashboardPage';
 import InventoryAlertsPage from '@/pages/inventory/InventoryAlertsPage';
 import InventoryLogsPage from '@/pages/inventory/InventoryLogsPage';
 import InventoryPage from '@/pages/inventory/InventoryPage';
+import BarcodePrintPage from '@/pages/inventory/BarcodePrintPage';
+import ExpiredProductsPage from '@/pages/inventory/ExpiredProductsPage';
 import ScrapOrdersPage from '@/pages/inventory/ScrapOrdersPage';
+import StockMovementsPage from '@/pages/inventory/StockMovementsPage';
 import StocktakePage from '@/pages/inventory/StocktakePage';
 import ItemLotsPage from '@/pages/inventory/ItemLotsPage';
+import FinancePage from '@/pages/finance/FinancePage';
 import ShiftsPage from '@/pages/operations/ShiftsPage';
 import PromotionsManagePage from '@/pages/promotions/PromotionsManagePage';
+import DiscountPlansPage from '@/pages/promotions/DiscountPlansPage';
+import GiftCardsPage from '@/pages/promotions/GiftCardsPage';
 import PromotionsSuggestPage from '@/pages/promotions/PromotionsSuggestPage';
 import ImportCreatePage from '@/pages/purchase/ImportCreatePage';
 import ImportSlipsPage from '@/pages/purchase/ImportSlipsPage';
 import ReportsPage from '@/pages/reports/ReportsPage';
 import CustomersPage from '@/pages/sales/CustomersPage';
+import CustomerDebtsPage from '@/pages/sales/CustomerDebtsPage';
 import InvoicesPage from '@/pages/sales/InvoicesPage';
 import ReturnOrdersPage from '@/pages/sales/ReturnOrdersPage';
+import QuotationsPage from '@/pages/sales/QuotationsPage';
+import OnlineOrdersPage from '@/pages/sales/OnlineOrdersPage';
 import PosPage from '@/pages/sales/PosPage';
 import type { CategoryDto, LocationDto, SupplierDto, UomDto, UserDto } from '@/types/api';
 import type { PageKey, PurchaseSuggestionPrefillItem } from '@/types/pages';
@@ -121,6 +131,9 @@ export function PageRenderer({
       />
     );
   }
+  if (page === 'brands') {
+    return <BrandsPage />;
+  }
   if (page === 'suppliers') {
     return <SuppliersPage suppliers={suppliers} productsList={productsList} authUser={authUser} reloadCatalog={reloadCatalog} setPage={setPage} />;
   }
@@ -135,6 +148,12 @@ export function PageRenderer({
   }
   if (page === 'return-orders') {
     return <ReturnOrdersPage />;
+  }
+  if (page === 'quotations') {
+    return <QuotationsPage productsList={productsList} />;
+  }
+  if (page === 'online-orders') {
+    return <OnlineOrdersPage />;
   }
   if (page === 'import-create') {
     return (
@@ -155,6 +174,15 @@ export function PageRenderer({
   }
   if (page === 'inventory') {
     return <InventoryPage openProduct={openProduct} productsList={productsList} />;
+  }
+  if (page === 'stock-movements') {
+    return <StockMovementsPage productsList={productsList} locations={locations} reloadCatalog={reloadCatalog} />;
+  }
+  if (page === 'barcode-print') {
+    return <BarcodePrintPage productsList={productsList} />;
+  }
+  if (page === 'expired-products') {
+    return <ExpiredProductsPage setPage={setPage} />;
   }
   if (page === 'inventory-alerts') {
     return <InventoryAlertsPage setPage={setPage} />;
@@ -192,11 +220,20 @@ export function PageRenderer({
   if (page === 'customers') {
     return <CustomersPage />;
   }
+  if (page === 'customer-debts') {
+    return <CustomerDebtsPage />;
+  }
   if (page === 'promotions') {
     return <PromotionsSuggestPage setPage={setPage} />;
   }
   if (page === 'promotion-manage') {
     return <PromotionsManagePage />;
+  }
+  if (page === 'discount-plans') {
+    return <DiscountPlansPage productsList={productsList} />;
+  }
+  if (page === 'gift-cards') {
+    return <GiftCardsPage />;
   }
   if (page === 'ai-assistant') {
     return (
@@ -210,6 +247,9 @@ export function PageRenderer({
   }
   if (page === 'reports') {
     return <ReportsPage productsList={productsList} invoicesList={invoicesList} authUser={authUser} />;
+  }
+  if (page === 'finance') {
+    return <FinancePage />;
   }
   if (page === 'users') {
     return <UsersPage />;

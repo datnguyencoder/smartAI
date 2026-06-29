@@ -1,7 +1,22 @@
 import React from 'react';
-import { createPortal } from 'react-dom';
-import { Button, Input, Tag, Modal, message as antdMessage, InputNumber } from 'antd';
-import { Search, ShoppingCart, Printer, CreditCard, Banknote, PauseCircle, PlayCircle, Home } from 'lucide-react';
+import { Button, Input, Tag, Modal, message as antdMessage, InputNumber, Popconfirm } from 'antd';
+import type { InputRef } from 'antd';
+import {
+  Banknote,
+  CreditCard,
+  FileClock,
+  Gauge,
+  Home,
+  LayoutGrid,
+  PauseCircle,
+  PlayCircle,
+  Printer,
+  RotateCcw,
+  Search,
+  ShoppingCart,
+  Smartphone,
+  Store,
+} from 'lucide-react';
 import CreatableSelect from 'react-select/creatable';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { Card, CardHeader, UiButton } from '@/components/ui';
@@ -12,16 +27,21 @@ import { itemToProduct, formatMoney as money, type Product } from '@/lib/itemMap
 import { buildPrintHtml } from '@/lib/printReceipt';
 import {
   createOrder,
+  createHeldOrder,
   fetchCustomers,
   fetchCurrentShift,
+  fetchHeldOrders,
   fetchInventory,
+  fetchItemById,
   fetchItemByBarcode,
   fetchItems,
   fetchOrderPrint,
+  restoreHeldOrder,
   suggestCustomers,
   validatePromotion,
+  cancelHeldOrder,
 } from '@/services/wmsApi';
-import type { CustomerDto, ShiftDto } from '@/types/api';
+import type { CustomerDto, HeldOrderDto, ShiftDto } from '@/types/api';
 import type { PageKey } from '@/types/pages';
 import { animateCartBump, animateModalContent } from '@/lib/gsapAnimations';
 
@@ -59,6 +79,14 @@ function applySellableStock(product: Product, stock?: number) {
   return next;
 }
 
+const paymentOptions = [
+  { value: 'CASH', label: 'Tiền mặt', hotkey: 'F9', icon: Banknote },
+  { value: 'BANK_TRANSFER', label: 'Chuyển khoản', hotkey: 'F10', icon: CreditCard },
+  { value: 'CARD', label: 'Thẻ', icon: CreditCard },
+  { value: 'WALLET', label: 'Ví điện tử', icon: Smartphone },
+  { value: 'PAY_LATER', label: 'Ghi nợ', icon: FileClock },
+];
+
 export default function PosPage({
   categories,
   posCart,
@@ -88,19 +116,25 @@ export default function PosPage({
   const [splitPayment, setSplitPayment] = React.useState(false);
   const [cashAmount, setCashAmount] = React.useState(0);
   const [bankAmount, setBankAmount] = React.useState(0);
+  const [cashReceived, setCashReceived] = React.useState(0);
   const [loyaltyRedeem, setLoyaltyRedeem] = React.useState(0);
-  const [parkedOrders, setParkedOrders] = React.useState<Array<{ id: string; cart: typeof posCart; customer: string }>>([]);
+  const [parkedOrders, setParkedOrders] = React.useState<HeldOrderDto[]>([]);
   const [currentShift, setCurrentShift] = React.useState<ShiftDto | null>(null);
   const [receiptOpen, setReceiptOpen] = React.useState(false);
   const [lastInvoice, setLastInvoice] = React.useState<any | null>(null);
   const receiptRef = React.useRef<HTMLDivElement>(null);
   const splitAmountsTouchedRef = React.useRef(false);
+  const searchInputRef = React.useRef<InputRef>(null);
+
+  React.useEffect(() => {
+    searchInputRef.current?.focus();
+  }, []);
 
   const [localProducts, setLocalProducts] = React.useState<Product[]>([]);
   const [loadingItems, setLoadingItems] = React.useState(false);
   const [customerOptions, setCustomerOptions] = React.useState<{ value: string; label: string }[]>([]);
   const [customerInput, setCustomerInput] = React.useState('');
-  const [posFocusMode, setPosFocusMode] = React.useState(false);
+  const [currentTime, setCurrentTime] = React.useState(() => new Date());
 
   useHotkeys('f9', (e) => { e.preventDefault(); setPaymentMethod('CASH'); });
   useHotkeys('f10', (e) => { e.preventDefault(); setPaymentMethod('BANK_TRANSFER'); });
@@ -112,6 +146,23 @@ export default function PosPage({
   React.useEffect(() => {
     fetchCurrentShift().then(setCurrentShift).catch(() => setCurrentShift(null));
   }, []);
+
+  React.useEffect(() => {
+    const timer = window.setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const loadHeldOrders = React.useCallback(async () => {
+    try {
+      setParkedOrders(await fetchHeldOrders());
+    } catch {
+      setParkedOrders([]);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    loadHeldOrders();
+  }, [loadHeldOrders]);
 
   React.useEffect(() => {
     const pendingCode = sessionStorage.getItem('smartmart_pending_promo_code');
@@ -193,6 +244,16 @@ export default function PosPage({
     [categories]
   );
 
+  const categoryVisuals = React.useMemo(() => {
+    const firstProductByCategory = new Map<number, Product>();
+    localProducts.forEach((product) => {
+      if (!firstProductByCategory.has(product.categoryId)) {
+        firstProductByCategory.set(product.categoryId, product);
+      }
+    });
+    return firstProductByCategory;
+  }, [localProducts]);
+
   const subtotal = posCart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
 
   const validatePromoCode = async (code: string, amount = subtotal) => {
@@ -250,21 +311,80 @@ export default function PosPage({
     }
   }, [total, splitPayment]);
 
-  const handleParkOrder = () => {
-    if (posCart.length === 0) return;
-    const id = `PARK-${Date.now()}`;
-    setParkedOrders([...parkedOrders, { id, cart: [...posCart], customer: selectedCustomer }]);
+  React.useEffect(() => {
+    if (paymentMethod === 'CASH' && !splitPayment) {
+      setCashReceived(total);
+    }
+  }, [paymentMethod, splitPayment, total]);
+
+  const resetTransaction = () => {
     setPosCart([]);
-    antdMessage.info('Đã giữ đơn tạm');
+    setSelectedCustomer('Khách lẻ');
+    setCustomerInput('');
+    setCustomerPhone('');
+    setLoyaltyCustomer(null);
+    setPromotionCode('');
+    setPromoDiscount(0);
+    setPromoMessage('');
+    setPaymentMethod('CASH');
+    setSplitPayment(false);
+    setCashAmount(0);
+    setBankAmount(0);
+    setCashReceived(0);
+    setLoyaltyRedeem(0);
   };
 
-  const handleRestoreParked = (id: string) => {
+  const handleParkOrder = async () => {
+    if (posCart.length === 0) return;
+    try {
+      await createHeldOrder({
+        customerName: (customerInput.trim() && customerInput.trim() !== selectedCustomer) ? customerInput.trim() : selectedCustomer,
+        customerPhone: customerPhone.trim() || undefined,
+        promotionCode: promotionCode.trim() || undefined,
+        loyaltyPointsRedeemed: loyaltyRedeem > 0 ? loyaltyRedeem : undefined,
+        items: posCart.map((item) => ({
+          itemId: Number(item.product.key),
+          quantity: item.quantity,
+        })),
+      });
+      resetTransaction();
+      await loadHeldOrders();
+      antdMessage.info('Đã giữ đơn tạm');
+    } catch (e) {
+      antdMessage.error(e instanceof Error ? e.message : 'Không thể giữ đơn');
+    }
+  };
+
+  const handleCancelParked = async (id: number) => {
+    try {
+      await cancelHeldOrder(id);
+      await loadHeldOrders();
+      antdMessage.success('Đã hủy đơn giữ');
+    } catch (e) {
+      antdMessage.error(e instanceof Error ? e.message : 'Không thể hủy đơn giữ');
+    }
+  };
+
+  const handleRestoreParked = async (id: number) => {
     const parked = parkedOrders.find((p) => p.id === id);
     if (!parked) return;
-    setPosCart(parked.cart);
-    setSelectedCustomer(parked.customer);
-    setParkedOrders(parkedOrders.filter((p) => p.id !== id));
-    antdMessage.success('Đã khôi phục đơn giữ');
+    try {
+      await restoreHeldOrder(id);
+      const products = await Promise.all(parked.items.map(async (line) => {
+        const item = await fetchItemById(line.itemId);
+        return { product: itemToProduct(item), quantity: Number(line.quantity) };
+      }));
+      setPosCart(products);
+      setSelectedCustomer(parked.customerName || 'Khách lẻ');
+      setCustomerInput(parked.customerName || 'Khách lẻ');
+      setCustomerPhone(parked.customerPhone || '');
+      setPromotionCode(parked.promotionCode || '');
+      setLoyaltyRedeem(Number(parked.loyaltyPointsRedeemed || 0));
+      await loadHeldOrders();
+      antdMessage.success('Đã khôi phục đơn giữ');
+    } catch (e) {
+      antdMessage.error(e instanceof Error ? e.message : 'Không thể khôi phục đơn giữ');
+    }
   };
 
   const handleBarcodeScan = async (code: string) => {
@@ -348,6 +468,17 @@ export default function PosPage({
       antdMessage.error(`Tổng thanh toán (${money(cashAmount + bankAmount)}) phải bằng ${money(total)}`);
       return;
     }
+    if (!splitPayment && paymentMethod === 'CASH' && cashReceived < total) {
+      antdMessage.error(`Tiền khách đưa phải tối thiểu ${money(total)}`);
+      return;
+    }
+    if (!splitPayment && paymentMethod === 'PAY_LATER') {
+      const phone = customerPhone.replace(/[^0-9+]/g, '').trim();
+      if (!phone || phone.length < 9) {
+        antdMessage.error('Vui lòng nhập SĐT khách hàng hợp lệ để bán ghi nợ');
+        return;
+      }
+    }
     setCheckoutLoading(true);
     try {
       const order = await createOrder({
@@ -400,10 +531,7 @@ export default function PosPage({
         });
       }
       setReceiptOpen(true);
-      setPosCart([]);
-      setPromotionCode('');
-      setPromoDiscount(0);
-      setLoyaltyRedeem(0);
+      resetTransaction();
       antdMessage.success(
         loyaltyPointsEarned > 0
           ? `Thanh toán thành công, tự động tích ${loyaltyPointsEarned} điểm`
@@ -417,59 +545,30 @@ export default function PosPage({
   };
 
   const pageContent = (
-    <div className={cn(
-      'grid gap-4',
-      posFocusMode
-        ? 'fixed inset-0 z-[1000] overflow-y-auto bg-slate-50 p-5 xl:grid-cols-[minmax(0,1fr)_430px]'
-        : 'xl:grid-cols-[1.15fr_430px]'
-    )}>
-      {posFocusMode && (
-        <div className="xl:col-span-2 flex flex-col gap-3 rounded-2xl border border-emerald-100 bg-white px-4 py-3 shadow-sm md:flex-row md:items-center md:justify-between">
+    <div className="flex min-h-screen flex-col bg-[#f5f7fb]">
+      <header className="sticky top-0 z-30 flex min-h-[62px] items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#06335d] text-white shadow-sm">
+            <Store size={24} />
+          </div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">Chế độ POS nhanh</p>
-            <h2 className="text-xl font-extrabold text-ink">Bán hàng tập trung</h2>
+            <div className="flex items-center gap-1 text-xl font-black leading-none text-[#06335d]">
+              SmartMart <span className="text-xs font-extrabold text-orange-500">POS</span>
+            </div>
+            <p className="text-xs font-medium text-slate-400">Quầy bán hàng tập trung</p>
           </div>
-          <Button icon={<Home size={16} />} onClick={() => setPosFocusMode(false)}>
-            Quay về hệ thống
-          </Button>
-        </div>
-      )}
-      {currentShift && (
-        <div className="xl:col-span-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
-          Ca đang mở #{currentShift.id} · Mở lúc {new Date(currentShift.openedAt).toLocaleString('vi-VN')}
-          · Tiền mặt đầu ca: {money(currentShift.openingCash)}
-        </div>
-      )}
-      <Card>
-        <div className="p-4 border-b border-line flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white rounded-t-2xl">
-          <div>
-            <h2 className="text-lg font-bold text-ink whitespace-nowrap">Danh sách sản phẩm bán {catalogLoading || loadingItems ? '(đang tải…)' : ''}</h2>
-            <p className="text-xs text-slate-400">Click chọn sản phẩm hoặc quét mã vạch (Enter).</p>
-          </div>
-          <div className="w-full md:w-auto flex flex-wrap gap-2">
-            <BarcodeScanner onScan={handleBarcodeScan} />
-            {!posFocusMode && (
-              <Button icon={<PlayCircle size={16} />} onClick={() => setPosFocusMode(true)}>
-                Chế độ POS
-              </Button>
-            )}
-            <select
-              className="w-full h-8 px-3 border border-slate-200 rounded-lg bg-white text-sm focus:outline-none focus:border-primary"
-              value={selectedCategoryId}
-              onChange={(e) => setSelectedCategoryId(Number(e.target.value))}
-            >
-              <option value={0}>Tất cả</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>{cat.categoryName}</option>
-              ))}
-            </select>
+          <div className="ml-2 hidden items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-bold text-white md:flex">
+            <Gauge size={15} />
+            {currentTime.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
           </div>
         </div>
-        <div className="px-5 pb-5 pt-4">
+        <div className="flex min-w-0 flex-1 justify-center">
           <Input
+            ref={searchInputRef}
+            className="max-w-[480px]"
             size="large"
             prefix={<Search size={18} />}
-            placeholder="Tìm theo tên sản phẩm, SKU hoặc quét mã vạch..."
+            placeholder="Tìm sản phẩm, SKU hoặc quét mã vạch..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={async (e) => {
@@ -491,60 +590,127 @@ export default function PosPage({
               }
             }}
           />
-          {posFocusMode && (
-            <div className="mt-3 flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
-              {categoryFilters.map((cat) => (
+        </div>
+        <div className="flex items-center gap-2">
+          <BarcodeScanner onScan={handleBarcodeScan} />
+          <Button type="primary" icon={<Home size={16} />} onClick={() => setPage('dashboard')}>
+            Dashboard
+          </Button>
+        </div>
+      </header>
+
+      <div className="grid flex-1 grid-cols-1 xl:grid-cols-[118px_minmax(0,1fr)_430px]">
+        <aside className="border-r border-slate-200 bg-white px-3 py-5">
+          <div className="flex gap-2 overflow-x-auto xl:flex-col xl:overflow-visible">
+            {categoryFilters.map((cat) => {
+              const sample = cat.id === 0 ? undefined : categoryVisuals.get(cat.id);
+              const active = selectedCategoryId === cat.id;
+              return (
                 <button
                   key={cat.id}
                   type="button"
                   onClick={() => setSelectedCategoryId(cat.id)}
                   className={cn(
-                    'shrink-0 rounded-xl border px-4 py-2 text-sm font-semibold transition',
-                    selectedCategoryId === cat.id
-                      ? 'border-primary bg-primary text-white shadow-sm shadow-primary/20'
-                      : 'border-slate-200 bg-white text-slate-600 hover:border-primary hover:text-primary'
+                    'flex h-[86px] w-[92px] shrink-0 flex-col items-center justify-center gap-2 rounded-lg border bg-white px-2 text-center text-xs font-bold transition',
+                    active
+                      ? 'border-orange-400 text-[#06335d] shadow-sm ring-1 ring-orange-100'
+                      : 'border-slate-200 text-[#06335d] hover:border-orange-300'
                   )}
                 >
-                  {cat.categoryName}
+                  {sample ? (
+                    <ProductThumbnail name={sample.name} imageUrl={sample.imageUrl} size={28} />
+                  ) : (
+                    <LayoutGrid size={28} className={active ? 'text-orange-500' : 'text-slate-400'} />
+                  )}
+                  <span className="line-clamp-2 leading-tight">{cat.categoryName}</span>
                 </button>
-              ))}
+              );
+            })}
+          </div>
+        </aside>
+
+        <section className="min-w-0 px-4 py-5">
+      {currentShift && (
+        <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
+          Ca đang mở #{currentShift.id} · Mở lúc {new Date(currentShift.openedAt).toLocaleString('vi-VN')}
+          · Tiền mặt đầu ca: {money(currentShift.openingCash)}
+        </div>
+      )}
+      <Card>
+        <div className="border-b border-line bg-white p-4">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+              <h2 className="text-xl font-black text-[#06335d]">Welcome, POS cashier</h2>
+              <p className="text-sm text-slate-400">
+                {currentTime.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                {catalogLoading || loadingItems ? ' · Đang tải sản phẩm...' : ''}
+              </p>
+          </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                className="border-[#0f1f46] bg-[#0f1f46] text-white hover:!border-[#0f1f46] hover:!text-white"
+                icon={<LayoutGrid size={16} />}
+                onClick={() => setSelectedCategoryId(0)}
+              >
+                View All
+              </Button>
+              <Button
+                className="border-orange-400 bg-orange-400 text-white hover:!border-orange-500 hover:!text-white"
+                onClick={() => {
+                  const best = localProducts.find((product) => product.stock > 0);
+                  if (best) handleAddToCart(best);
+                }}
+              >
+                Featured
+              </Button>
             </div>
-          )}
+          </div>
+        </div>
+        <div className="px-5 pb-5 pt-4">
           <div className={cn(
-            'mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 overflow-y-auto pr-1 scrollbar-thin',
-            posFocusMode ? 'max-h-[calc(100vh-360px)]' : 'max-h-[500px]'
+            'grid max-h-[calc(100vh-220px)] gap-4 overflow-y-auto pr-1 scrollbar-thin sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4'
           )}>
             {filteredProducts.map((product) => (
               <button
                 className={cn(
-                  'rounded-xl border border-line bg-white p-3 text-left transition hover:border-emerald hover:bg-emerald-50/50 flex flex-col h-[200px] relative overflow-hidden',
-                  product.stock === 0 && 'opacity-60 cursor-not-allowed bg-slate-100/50'
+                  'relative flex h-[284px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-emerald-400 hover:shadow-md',
+                  posCart.some((item) => item.product.key === product.key) && 'border-emerald-400 ring-1 ring-emerald-100',
+                  product.stock === 0 && 'cursor-not-allowed bg-slate-100/50 opacity-60'
                 )}
                 key={product.key}
                 onClick={() => handleAddToCart(product)}
               >
-                <div className="flex justify-center py-1">
-                  <ProductThumbnail name={product.name} imageUrl={product.imageUrl} size={72} />
+                {posCart.some((item) => item.product.key === product.key) && (
+                  <span className="absolute right-3 top-3 grid h-5 w-5 place-items-center rounded-full bg-emerald-500 text-xs font-black text-white">
+                    ✓
+                  </span>
+                )}
+                <div className="flex h-[150px] items-center justify-center rounded-xl bg-slate-50">
+                  <ProductThumbnail name={product.name} imageUrl={product.imageUrl} size={118} />
                 </div>
-                <div className="flex-1 flex flex-col justify-between mt-2">
+                <div className="mt-3 flex flex-1 flex-col justify-between">
                   <div>
-                    <strong className="text-sm font-bold text-ink line-clamp-2 leading-snug">{product.name}</strong>
-                    <p className="mt-1 text-xs text-slate-400 font-medium">
-                      {product.sku} · Tồn {POS_SELLING_LOCATION_NAME} {product.stock}
-                    </p>
+                    <p className="text-sm font-medium text-slate-500">{product.category}</p>
+                    <strong className="line-clamp-2 text-base font-extrabold leading-snug text-slate-800">{product.name}</strong>
                   </div>
-                  <span className="font-extrabold text-primary text-base">{money(product.price)}</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-lg font-black text-[#0f1f46]">{money(product.price)}</span>
+                    <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-500">
+                      Tồn {product.stock}
+                    </span>
+                  </div>
                 </div>
               </button>
             ))}
           </div>
         </div>
       </Card>
+        </section>
 
-      <div ref={cartPanelRef} className={posFocusMode ? 'xl:sticky xl:top-4 xl:self-start' : undefined}>
-        <Card className="flex flex-col h-fit">
-          <CardHeader title="Giỏ hàng hiện tại" action={<Tag color="green" className="font-bold">{posCart.length} dòng hàng</Tag>} />
-          <div className={cn('space-y-3 px-5 pb-2 flex-1 overflow-y-auto scrollbar-thin', posFocusMode ? 'max-h-[calc(100vh-560px)]' : 'max-h-[380px]')}>
+      <aside ref={cartPanelRef} className="border-l border-slate-200 bg-[#e9eef3] p-5">
+        <Card className="flex max-h-[calc(100vh-102px)] flex-col overflow-hidden rounded-xl">
+          <CardHeader title="Order List" action={<Tag color="blue" className="font-bold">#{posCart.length} item</Tag>} />
+          <div className="space-y-3 px-5 pb-2 flex-1 overflow-y-auto scrollbar-thin max-h-[calc(100vh-560px)]">
             {posCart.map((item) => (
               <div className="flex items-center justify-between rounded-xl bg-slate-50 p-3 border border-slate-100" key={item.product.key}>
                 <ProductThumbnail name={item.product.name} imageUrl={item.product.imageUrl} size={36} className="mr-2 shrink-0" />
@@ -683,29 +849,64 @@ export default function PosPage({
                 </div>
               </div>
             ) : (
-            <div className="flex gap-2">
-              <button
-                onClick={() => setPaymentMethod('CASH')}
-                className={cn('flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm transition', paymentMethod === 'CASH' ? 'bg-primary border-primary text-white font-bold shadow-md shadow-primary/20' : 'bg-white border-line text-muted font-semibold hover:border-primary hover:text-primary')}
-              >
-                <Banknote size={16} /> Tiền mặt (F9)
-              </button>
-              <button
-                onClick={() => setPaymentMethod('BANK_TRANSFER')}
-                className={cn('flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm transition', paymentMethod === 'BANK_TRANSFER' ? 'bg-primary border-primary text-white font-bold shadow-md shadow-primary/20' : 'bg-white border-line text-muted font-semibold hover:border-primary hover:text-primary')}
-              >
-                <CreditCard size={16} /> Ngân hàng (F10)
-              </button>
-            </div>
+              <div className="grid grid-cols-2 gap-2">
+                {paymentOptions.map((option) => {
+                  const Icon = option.icon;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setPaymentMethod(option.value)}
+                      className={cn(
+                        'flex min-h-10 items-center justify-center gap-2 rounded-lg border px-2 py-2 text-sm transition',
+                        paymentMethod === option.value
+                          ? 'bg-primary border-primary text-white font-bold shadow-md shadow-primary/20'
+                          : 'bg-white border-line text-muted font-semibold hover:border-primary hover:text-primary'
+                      )}
+                    >
+                      <Icon size={16} />
+                      <span className="truncate">{option.label}{option.hotkey ? ` (${option.hotkey})` : ''}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {!splitPayment && paymentMethod === 'CASH' && (
+              <div className="grid grid-cols-2 gap-2 rounded-lg border border-slate-200 bg-white p-3">
+                <div>
+                  <label className="text-xs text-slate-500">Khách đưa</label>
+                  <InputNumber
+                    className="w-full"
+                    min={0}
+                    value={cashReceived}
+                    onChange={(v) => setCashReceived(Number(v) || 0)}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500">Tiền thối</label>
+                  <div className="mt-1 flex h-8 items-center rounded-md bg-slate-50 px-3 text-sm font-bold text-emerald-700">
+                    {money(Math.max(0, cashReceived - total))}
+                  </div>
+                </div>
+              </div>
             )}
 
             {parkedOrders.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {parkedOrders.map((p) => (
-                  <Button key={p.id} size="small" icon={<PlayCircle size={14} />} onClick={() => handleRestoreParked(p.id)}>
-                    {p.customer} ({p.cart.length})
-                  </Button>
-                ))}
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-slate-500">Đơn đang giữ ({parkedOrders.length})</p>
+                <div className="flex flex-wrap gap-1">
+                  {parkedOrders.map((p) => (
+                    <div key={p.id} className="flex items-center gap-0.5">
+                      <Button size="small" icon={<PlayCircle size={14} />} onClick={() => handleRestoreParked(p.id)}>
+                        {p.customerName} ({p.items.length})
+                      </Button>
+                      <Popconfirm title="Hủy đơn giữ này?" okText="Hủy" cancelText="Không" onConfirm={() => handleCancelParked(p.id)}>
+                        <Button size="small" danger type="text">×</Button>
+                      </Popconfirm>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -713,12 +914,68 @@ export default function PosPage({
               <UiButton className="flex-1" variant="secondary" onClick={handleParkOrder} disabled={posCart.length === 0}>
                 <PauseCircle size={16} className="mr-1 inline" /> Giữ đơn
               </UiButton>
+              <Popconfirm
+                title="Hủy giao dịch hiện tại?"
+                description="Giỏ hàng và thông tin thanh toán sẽ được xóa."
+                okText="Hủy giao dịch"
+                cancelText="Quay lại"
+                onConfirm={resetTransaction}
+              >
+                <UiButton className="flex-1" variant="secondary" disabled={posCart.length === 0}>
+                  <RotateCcw size={16} className="mr-1 inline" /> Reset
+                </UiButton>
+              </Popconfirm>
+            </div>
+            <div className="flex gap-2">
               <UiButton className="flex-1 h-11" variant="primary" onClick={handleCheckout} disabled={checkoutLoading}>
                 {checkoutLoading ? 'Đang xử lý…' : 'Thanh toán'}
               </UiButton>
             </div>
           </div>
         </Card>
+      </aside>
+      </div>
+
+      <div className="sticky bottom-0 z-20 flex flex-wrap items-center justify-center gap-2 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur">
+        <Button
+          className="min-w-[104px] border-orange-600 bg-orange-600 text-white hover:!border-orange-700 hover:!text-white"
+          icon={<PauseCircle size={16} />}
+          onClick={handleParkOrder}
+          disabled={posCart.length === 0}
+        >
+          Hold
+        </Button>
+        <Button
+          className="min-w-[118px] border-[#0f1f46] bg-[#0f1f46] text-white hover:!border-[#0f1f46] hover:!text-white"
+          icon={<PlayCircle size={16} />}
+          disabled={parkedOrders.length === 0}
+          onClick={() => parkedOrders[0] && handleRestoreParked(parkedOrders[0].id)}
+        >
+          View Orders
+        </Button>
+        <Popconfirm
+          title="Hủy giao dịch hiện tại?"
+          description="Giỏ hàng và thông tin thanh toán sẽ được xóa."
+          okText="Hủy giao dịch"
+          cancelText="Quay lại"
+          onConfirm={resetTransaction}
+        >
+          <Button
+            className="min-w-[104px] border-indigo-600 bg-indigo-600 text-white hover:!border-indigo-700 hover:!text-white"
+            icon={<RotateCcw size={16} />}
+            disabled={posCart.length === 0}
+          >
+            Reset
+          </Button>
+        </Popconfirm>
+        <Button
+          className="min-w-[132px] border-red-600 bg-red-600 text-white hover:!border-red-700 hover:!text-white"
+          icon={<CreditCard size={16} />}
+          onClick={handleCheckout}
+          disabled={checkoutLoading}
+        >
+          {checkoutLoading ? 'Processing' : 'Payment'}
+        </Button>
       </div>
 
       <Modal
@@ -802,10 +1059,6 @@ export default function PosPage({
       </Modal>
     </div>
   );
-
-  if (posFocusMode && typeof document !== 'undefined') {
-    return createPortal(pageContent, document.body);
-  }
 
   return pageContent;
 }

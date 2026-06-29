@@ -9,6 +9,7 @@ import {
   Clock,
   FileClock,
   FileInput,
+  FileText,
   FolderClosed,
   LayoutDashboard,
   MonitorPlay,
@@ -24,6 +25,13 @@ import {
   BadgePercent,
   Inbox,
   RotateCcw,
+  ArrowRightLeft,
+  WalletCards,
+  Printer,
+  CalendarX,
+  Tag,
+  Globe,
+  CreditCard,
 } from 'lucide-react';
 import {
   CommentOutlined,
@@ -54,7 +62,7 @@ export type NavGroup = {
 };
 
 /** Các trang đã gỡ — lọc khi filter nav (tránh bundle/Docker cũ còn cache). */
-const REMOVED_NAV_PAGES = new Set<string>(['transfer-orders', 'scrap-create']);
+const REMOVED_NAV_PAGES = new Set<string>(['scrap-create']);
 
 /** 5 nhóm + 1 mục phẳng — gọn nhất, vẫn đủ 28 trang. */
 export const navGroups: NavGroup[] = [
@@ -70,8 +78,11 @@ export const navGroups: NavGroup[] = [
     items: [
       { key: 'pos', label: 'Quầy POS', icon: MonitorPlay },
       { key: 'customers', label: 'Khách hàng', icon: Users },
+      { key: 'customer-debts', label: 'Công nợ khách', icon: FileClock },
       { key: 'invoices', label: 'Hóa đơn', icon: FileInput },
       { key: 'return-orders', label: 'Trả hàng', icon: RotateCcw },
+      { key: 'quotations', label: 'Báo giá', icon: FileText },
+      { key: 'online-orders', label: 'Đơn online', icon: Globe },
       { key: 'shifts', label: 'Ca làm việc', icon: Clock },
     ],
   },
@@ -81,6 +92,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { key: 'products', label: 'Sản phẩm', icon: Boxes },
       { key: 'categories', label: 'Loại hàng', icon: FolderClosed },
+      { key: 'brands', label: 'Thương hiệu', icon: Tag },
       { key: 'suppliers', label: 'Nhà cung cấp', icon: Building2 },
       { key: 'locations', label: 'Vị trí kho', icon: Warehouse },
       { key: 'uoms', label: 'Đơn vị tính', icon: Ruler },
@@ -94,6 +106,9 @@ export const navGroups: NavGroup[] = [
       { key: 'import-slips', label: 'Phiếu nhập kho', icon: ClipboardCheck },
       { key: 'purchase-suggestions', label: 'Gợi ý nhập hàng', icon: antdNavIcon(ShoppingCartOutlined) },
       { key: 'inventory', label: 'Tồn kho', icon: Inbox, section: 'Vận hành kho' },
+      { key: 'stock-movements', label: 'Điều chuyển kho', icon: ArrowRightLeft },
+      { key: 'barcode-print', label: 'In mã vạch', icon: Printer },
+      { key: 'expired-products', label: 'Hàng cận hạn', icon: CalendarX },
       { key: 'item-lots', label: 'Lô hàng', icon: Package },
       { key: 'stocktake', label: 'Kiểm kê', icon: ClipboardList },
       { key: 'scrap-orders', label: 'Loại bỏ', icon: Trash2 },
@@ -109,8 +124,11 @@ export const navGroups: NavGroup[] = [
       { key: 'expiry-risk', label: 'Rủi ro HSD', icon: CalendarClock },
       { key: 'promotions', label: 'Đề xuất KM', icon: antdNavIcon(GiftOutlined) },
       { key: 'promotion-manage', label: 'Mã KM', icon: BadgePercent },
+      { key: 'discount-plans', label: 'Kế hoạch giảm giá', icon: BadgePercent },
+      { key: 'gift-cards', label: 'Thẻ quà tặng', icon: CreditCard },
       { key: 'ai-assistant', label: 'Trợ lý AI', icon: antdNavIcon(CommentOutlined) },
       { key: 'reports', label: 'Báo cáo', icon: BarChart3, section: 'Báo cáo' },
+      { key: 'finance', label: 'Thu chi', icon: WalletCards },
     ],
   },
   {

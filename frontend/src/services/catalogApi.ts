@@ -31,6 +31,10 @@ export function fetchItemByBarcode(barcode: string) {
   return apiRequest<ItemDto>(`/api/v1/items?barcode=${encodeURIComponent(barcode.trim())}`);
 }
 
+export function fetchItemById(id: number) {
+  return apiRequest<ItemDto>(`/api/v1/items/${id}`);
+}
+
 export function createItem(payload: {
   itemCode: string;
   itemName: string;

@@ -238,6 +238,74 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     }
 
     @Override
+    @CacheEvict(value = { "items", "itemsPage", "purchaseOrders" }, allEntries = true)
+    public PurchaseOrderResponse receivePartial(Long purchaseId, com.smartmart.dto.request.PartialReceivePurchaseRequest request) {
+        PurchaseOrder po = purchaseOrderRepository.findWithDetailsById(purchaseId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy phiếu nhập"));
+
+        if (po.getStatus() == PurchaseStatus.COMPLETED || po.getStatus() == PurchaseStatus.CANCELLED) {
+            throw new BadRequestException("Phiếu nhập đã hoàn thành hoặc đã hủy");
+        }
+
+        Long userId = SecurityUtils.getCurrentUserId().orElse(null);
+        Map<Long, PurchaseOrderItem> itemMap = po.getItems().stream()
+                .collect(Collectors.toMap(PurchaseOrderItem::getId, i -> i));
+
+        for (com.smartmart.dto.request.PartialReceiveLineRequest line : request.getItems()) {
+            PurchaseOrderItem poi = itemMap.get(line.getPurchaseOrderItemId());
+            if (poi == null) {
+                throw new BadRequestException("Dòng phiếu nhập không hợp lệ: " + line.getPurchaseOrderItemId());
+            }
+            BigDecimal remaining = poi.getOrderedQty().subtract(poi.getReceivedQty());
+            if (line.getQuantity().compareTo(remaining) > 0) {
+                throw new BadRequestException("Số lượng nhận vượt quá số lượng còn lại cho sản phẩm: "
+                        + poi.getItem().getItemName());
+            }
+            if (line.getQuantity().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new BadRequestException("Số lượng nhận phải lớn hơn 0");
+            }
+
+            Item item = itemRepository.findByIdWithPessimisticLock(poi.getItem().getId())
+                    .orElseThrow(() -> new NotFoundException("Không tìm thấy sản phẩm"));
+            BigDecimal oldQty = currentInventoryRepository.sumQuantityByItemId(item.getId());
+
+            inventoryLedgerService.applyMovement(
+                    item, po.getLocation(), poi.getLot(),
+                    line.getQuantity(),
+                    InventoryActionType.PURCHASE_RECEIVE,
+                    ReferenceType.PURCHASE_ORDER,
+                    po.getId(), userId, "Nhận kho một phần");
+
+            BigDecimal newCostPrice = calculateMovingAverageCost(item, poi, line.getQuantity(), oldQty);
+            item.setCostPrice(newCostPrice);
+            poi.setReceivedQty(poi.getReceivedQty().add(line.getQuantity()));
+        }
+
+        boolean allReceived = po.getItems().stream()
+                .allMatch(i -> i.getReceivedQty().compareTo(i.getOrderedQty()) >= 0);
+        if (allReceived) {
+            po.setStatus(PurchaseStatus.COMPLETED);
+            po.setCompletedAt(LocalDateTime.now());
+            if (po.isPaymentDeferred()) {
+                supplierDebtService.createFromPurchaseOrder(po.getId(), LocalDate.now().plusDays(30));
+            }
+            applicationEventPublisher.publishEvent(new PurchaseOrderStatusEvent(this, po.getId(), "PURCHASE_RECEIVED"));
+        } else {
+            po.setStatus(PurchaseStatus.PARTIALLY_RECEIVED);
+        }
+
+        purchaseOrderRepository.save(po);
+        auditLogService.log(
+                AuditAction.PURCHASE_RECEIVE,
+                "PURCHASE_ORDER",
+                po.getId().toString(),
+                "Nhận kho một phần phiếu #" + po.getId(),
+                null,
+                AuditData.of("status", po.getStatus()));
+        return toResponse(po);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public Page<PurchaseOrderResponse> list(Long supplierId, Long locationId, String search, PurchaseStatus status,
             LocalDate fromDate, LocalDate toDate, Pageable pageable) {

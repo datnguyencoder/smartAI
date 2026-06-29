@@ -62,6 +62,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         LEFT JOIN FETCH oi.item
         LEFT JOIN FETCH oi.lot
         LEFT JOIN FETCH oi.location
+        LEFT JOIN FETCH o.payments
         WHERE o.id = :id
         """)
     Optional<Order> findByIdWithItems(Long id);
@@ -156,6 +157,23 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         LIMIT 5
         """, nativeQuery = true)
     List<Object[]> reportTopProducts(LocalDateTime from, LocalDateTime to);
+
+    @Query(value = """
+        SELECT oi.item_id,
+               i.item_code,
+               i.item_name,
+               SUM(oi.quantity) as quantity_sold,
+               SUM(oi.subtotal) as revenue
+        FROM order_items oi
+        JOIN orders o ON o.id = oi.order_id
+        JOIN items i ON i.id = oi.item_id
+        WHERE o.status = 'COMPLETED'
+          AND o.order_date >= :from AND o.order_date < :to
+        GROUP BY oi.item_id, i.item_code, i.item_name
+        ORDER BY quantity_sold DESC, revenue DESC
+        LIMIT :limit
+        """, nativeQuery = true)
+    List<Object[]> reportBestSellers(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to, @Param("limit") int limit);
 
     List<Order> findByShiftId(Long shiftId);
 

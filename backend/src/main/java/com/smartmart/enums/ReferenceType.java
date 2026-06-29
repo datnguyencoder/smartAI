@@ -8,5 +8,7 @@ public enum ReferenceType {
     STOCKTAKE,
     /** @deprecated Legacy inventory logs only — transfer orders removed (single-store). */
     TRANSFER_ORDER,
-    RETURN_ORDER
+    RETURN_ORDER,
+    STOCK_TRANSFER_ORDER,
+    PURCHASE_RETURN
 }
