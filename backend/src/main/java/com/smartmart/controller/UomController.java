@@ -30,8 +30,10 @@ public class UomController {
 
     @GetMapping
     @Operation(summary = "Danh sách UOM")
-    public ResponseEntity<ApiResponse<List<UomResponse>>> list(@RequestParam(required = false) String categories) {
-        return ResponseEntity.ok(ApiResponse.success(uomService.listByCategories(categories)));
+    public ResponseEntity<ApiResponse<List<UomResponse>>> list(
+            @RequestParam(required = false) String category
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(uomService.list(category)));
     }
 
     @PostMapping
@@ -67,5 +69,10 @@ public class UomController {
     public ResponseEntity<ApiResponse<Void>> activate(@PathVariable Long id) {
         uomService.activate(id);
         return ResponseEntity.ok(ApiResponse.success("Kích hoạt đơn vị tính thành công", null));
+    }
+    @GetMapping("/groups")
+    @Operation(summary = "Danh sách nhóm UOM")
+    public ResponseEntity<ApiResponse<List<String>>> groups() {
+        return ResponseEntity.ok(ApiResponse.success(uomService.listGroups()));
     }
 }

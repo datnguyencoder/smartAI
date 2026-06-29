@@ -17,6 +17,6 @@ public class UpdateUomRequest {
     @NotNull
     @DecimalMin("0.0001")
     private BigDecimal conversionRatio;
-    private Boolean baseUnit;
+    private Long conversionUomId;
     private Boolean active;
 }

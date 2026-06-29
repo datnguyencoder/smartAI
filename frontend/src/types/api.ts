@@ -201,9 +201,10 @@ export type UomCategory = 'COUNT' | 'WEIGHT' | 'VOLUME' | 'PACKAGE' | 'LENGTH' |
 export type UomDto = {
   id: number;
   uomName: string;
-  category?: UomCategory | string;
+  category?: string;
   conversionRatio?: number;
-  baseUnit?: boolean;
+  conversionUomId?: number;
+  conversionUomName?: string;
   active?: boolean;
 };
 

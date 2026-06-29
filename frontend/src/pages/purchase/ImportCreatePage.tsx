@@ -1,5 +1,5 @@
 import React from 'react';
-import { Form, InputNumber, Button, message as antdMessage, Alert, Spin } from 'antd';
+import { Form, InputNumber, Button, message as antdMessage, Alert, Spin, Segmented } from 'antd';
 import { Trash2, Plus, FileText, Package, Calendar, DollarSign, AlertTriangle } from 'lucide-react';
 import { Card } from '@/components/ui';
 import { createPurchaseOrder, fetchItemsBySupplier } from '@/services/wmsApi';
@@ -13,8 +13,43 @@ import { useAuth } from '@/contexts/AuthContext';
 type FormValues = {
   supplierId?: number;
   locationId?: number;
-  items: { itemId: number | ''; quantity: number; price: number; expiryDate?: string }[];
+  items: { itemId: number | ''; inputMode?: ImportMode; quantity: number; price: number; expiryDate?: string }[];
 };
+
+type ImportMode = 'base' | 'purchase';
+
+const getPurchaseRatio = (item?: ItemDto | Product) => {
+  if (!item) return 1;
+  const conversionRatio = 'purchaseConversionRatio' in item ? item.purchaseConversionRatio : undefined;
+  const ratio = Number(conversionRatio ?? item.purchaseRatio ?? 1);
+  return Number.isFinite(ratio) && ratio > 0 ? ratio : 1;
+};
+
+const getDefaultImportMode = (item?: ItemDto | Product): ImportMode => {
+  if (!item?.purchaseUomName || item.purchaseUomName === item.baseUomName) return 'base';
+  return getPurchaseRatio(item) > 1 ? 'purchase' : 'base';
+};
+
+const getLineRatio = (item?: ItemDto | Product, mode?: ImportMode) =>
+  mode === 'purchase' ? getPurchaseRatio(item) : 1;
+
+const getLineUomName = (item?: ItemDto | Product, mode?: ImportMode) =>
+  mode === 'purchase'
+    ? item?.purchaseUomName || item?.baseUomName || ''
+    : item?.baseUomName || item?.purchaseUomName || '';
+
+const getBaseUomName = (item?: ItemDto | Product) =>
+  item?.baseUomName || item?.purchaseUomName || '';
+
+const getSupplierCostPrice = (item?: ItemDto | Product) => {
+  if (!item) return 0;
+  const price = 'costPrice' in item ? item.costPrice : item.cost;
+  const normalizedPrice = Number(price);
+  return Number.isFinite(normalizedPrice) ? normalizedPrice : 0;
+};
+
+const calculateLineTotal = (quantity?: number, basePrice?: number, item?: ItemDto | Product, mode?: ImportMode) =>
+  Number(quantity || 0) * getLineRatio(item, mode) * Number(basePrice || 0);
 
 const ReadOnlyPrice = ({ value }: { value?: number }) => (
   <div className="h-[40px] px-3 flex items-center bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium whitespace-nowrap overflow-hidden text-ellipsis">
@@ -22,10 +57,13 @@ const ReadOnlyPrice = ({ value }: { value?: number }) => (
   </div>
 );
 
-function TotalPriceDisplay({ form }: { form: any }) {
+function TotalPriceDisplay({ form, supplierItems }: { form: any; supplierItems: ItemDto[] }) {
   const itemsWatch = Form.useWatch('items', form);
   const total = (itemsWatch || []).reduce(
-    (acc: number, item: any) => acc + Number(item?.quantity || 0) * Number(item?.price || 0),
+    (acc: number, line: any) => {
+      const item = supplierItems.find((p) => String(p.id) === String(line?.itemId));
+      return acc + calculateLineTotal(line?.quantity, line?.price, item, line?.inputMode);
+    },
     0
   );
   return <span>{money(total)}</span>;
@@ -73,8 +111,8 @@ export default function ImportCreatePage({
       const product = productsList.find((p) => Number(p.key) === prefill.itemId);
       if (!product) return [];
       const quantity = Math.max(1, Math.ceil(Number(prefill.suggestedQty) || 1));
-      const price = Number((product.cost * (product.purchaseRatio || 1)).toFixed(2));
-      return [{ itemId: prefill.itemId, quantity, price }];
+      const price = Number(getSupplierCostPrice(product).toFixed(2));
+      return [{ itemId: prefill.itemId, inputMode: 'base' as ImportMode, quantity, price }];
     });
 
     if (items.length > 0) {
@@ -87,7 +125,7 @@ export default function ImportCreatePage({
   const handleSupplierChange = async (supplierId: number) => {
     form.setFieldsValue({
       supplierId,
-      items: [{ itemId: '', quantity: 50, price: 0 }],
+      items: [{ itemId: '', inputMode: 'purchase', quantity: 50, price: 0 }],
     });
 
     setSupplierItems([]);
@@ -119,12 +157,17 @@ export default function ImportCreatePage({
         supplierId: values.supplierId,
         locationId: values.locationId,
         paymentDeferred,
-        items: values.items.map((i: any) => ({
-          itemId: Number(i.itemId),
-          quantity: Number(i.quantity),
-          unitPrice: Number(i.price),
-          expiryDate: i.expiryDate || undefined,
-        })),
+        items: values.items.map((i: any) => {
+          const item = supplierItems.find((p) => String(p.id) === String(i.itemId));
+          const ratio = getLineRatio(item, i.inputMode);
+
+          return {
+            itemId: Number(i.itemId),
+            quantity: Number(i.quantity) * ratio,
+            unitPrice: Number(i.price),
+            expiryDate: i.expiryDate || undefined,
+          };
+        }),
       });
       await reloadCatalog();
       antdMessage.success(`Tạo phiếu nhập PN-${po.id} thành công!`);
@@ -195,7 +238,7 @@ export default function ImportCreatePage({
           form={form}
           onFinish={handleCreateSlip}
           className="px-6 pt-6 pb-6"
-          initialValues={{ supplierId: "", locationId: "", items: [{ itemId: '', quantity: 50, price: 0 }] }}
+          initialValues={{ supplierId: "", locationId: "", items: [{ itemId: '', inputMode: 'purchase', quantity: 50, price: 0 }] }}
         >
           {/* Thông tin chung */}
           <div className="grid gap-4 md:grid-cols-2">
@@ -275,13 +318,13 @@ export default function ImportCreatePage({
                         )}
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                      <div className="grid grid-cols-1 md:grid-cols-12 xl:grid-cols-24 gap-3 items-end">
                         <Form.Item
                           {...restField}
                           name={[name, 'itemId']}
                           label={<span className="text-xs font-medium text-slate-600 whitespace-nowrap">Sản phẩm</span>}
                           rules={[{ required: true, message: 'Bắt buộc' }]}
-                          className="mb-0 md:col-span-4"
+                          className="mb-0 md:col-span-6 xl:col-span-7"
                         >
                           <select
                             className={selectClass}
@@ -293,8 +336,8 @@ export default function ImportCreatePage({
                               const item = supplierItems.find((p) => String(p.id) === String(val));
 
                               if (item) {
-                                const calculatedPrice = item.costPrice * (item.purchaseRatio || 1);
-                                form.setFieldValue(['items', name, 'price'], Number(calculatedPrice.toFixed(2)));
+                                form.setFieldValue(['items', name, 'inputMode'], getDefaultImportMode(item));
+                                form.setFieldValue(['items', name, 'price'], Number(getSupplierCostPrice(item).toFixed(2)));
                               }
                             }}
                           >
@@ -312,22 +355,46 @@ export default function ImportCreatePage({
 
                         <Form.Item
                           {...restField}
+                          name={[name, 'inputMode']}
+                          label={<span className="text-xs font-medium text-slate-600 whitespace-nowrap">{'Nh\u1eadp theo'}</span>}
+                          rules={[{ required: true, message: 'B\u1eaft bu\u1ed9c' }]}
+                          className="mb-0 md:col-span-6 xl:col-span-5 min-w-[190px]"
+                        >
+                          <Segmented
+                            size="large"
+                            className="w-full min-w-[178px]"
+                            options={[
+                              { label: '\u0110\u01a1n v\u1ecb l\u1ebb', value: 'base' },
+                              { label: '\u0110\u00f3ng g\u00f3i', value: 'purchase' },
+                            ]}
+                          />
+                        </Form.Item>
+
+                        <Form.Item
+                          {...restField}
                           name={[name, 'quantity']}
                           label={
                             <Form.Item
-                              shouldUpdate={(prevValues, currentValues) => prevValues.items?.[name]?.itemId !== currentValues.items?.[name]?.itemId}
+                              shouldUpdate={(prevValues, currentValues) => {
+                                const prev = prevValues.items?.[name];
+                                const curr = currentValues.items?.[name];
+                                return prev?.itemId !== curr?.itemId || prev?.inputMode !== curr?.inputMode;
+                              }}
                               noStyle
                             >
                               {({ getFieldValue }) => {
                                 const selectedId = getFieldValue(['items', name, 'itemId']);
+                                const mode = getFieldValue(['items', name, 'inputMode']) as ImportMode | undefined;
                                 const p = supplierItems.find((p) => String(p.id) === String(selectedId));
-                                const uom = p?.purchaseUomName || p?.baseUomName || '';
+                                const uom = getLineUomName(p, mode);
+                                const ratio = getLineRatio(p, mode);
+                                const baseUom = getBaseUomName(p);
                                 return (
                                   <span className="text-xs font-medium text-slate-600">
-                                    Số lượng {uom ? `(${uom})` : ''}
-                                    {p && (p.purchaseUomName || p.baseUomName) && (
+                                    {'S\u1ed1 l\u01b0\u1ee3ng'} {uom ? '(' + uom + ')' : ''}
+                                    {p && uom && baseUom && (
                                       <span className="block text-[10px] text-emerald-600 font-normal leading-tight mt-0.5">
-                                        1 {p.purchaseUomName || p.baseUomName} = {p.purchaseRatio || 1} {p.baseUomName || p.purchaseUomName}
+                                        1 {uom} = {ratio} {baseUom}
                                       </span>
                                     )}
                                   </span>
@@ -336,7 +403,7 @@ export default function ImportCreatePage({
                             </Form.Item>
                           }
                           rules={[{ required: true, message: 'Bắt buộc' }]}
-                          className="mb-0 md:col-span-3"
+                          className="mb-0 md:col-span-3 xl:col-span-4"
                         >
                           <InputNumber size="large" className="w-full" min={1} />
                         </Form.Item>
@@ -345,12 +412,24 @@ export default function ImportCreatePage({
                           {...restField}
                           name={[name, 'price']}
                           label={
-                            <span className="text-xs font-medium text-slate-600 inline-flex items-center gap-1 whitespace-nowrap">
-                              <DollarSign size={12} /> Đơn giá nhập
-                            </span>
+                            <Form.Item
+                              shouldUpdate={(prevValues, currentValues) => prevValues.items?.[name]?.itemId !== currentValues.items?.[name]?.itemId}
+                              noStyle
+                            >
+                              {({ getFieldValue }) => {
+                                const selectedId = getFieldValue(['items', name, 'itemId']);
+                                const p = supplierItems.find((p) => String(p.id) === String(selectedId));
+                                const baseUom = getBaseUomName(p);
+                                return (
+                                  <span className="text-xs font-medium text-slate-600 inline-flex items-center gap-1 whitespace-nowrap">
+                                    <DollarSign size={12} /> {'\u0110\u01a1n gi\u00e1 NCC /'} {baseUom || '\u0111\u01a1n v\u1ecb l\u1ebb'}
+                                  </span>
+                                );
+                              }}
+                            </Form.Item>
                           }
                           rules={[{ required: true, message: 'Bắt buộc' }]}
-                          className="mb-0 md:col-span-3"
+                          className="mb-0 md:col-span-5 xl:col-span-4"
                         >
                           {canEditPrice ? (
                             <InputNumber size="large" className="w-full" min={1} />
@@ -367,7 +446,7 @@ export default function ImportCreatePage({
                               <Calendar size={12} /> Hạn sử dụng
                             </span>
                           }
-                          className="mb-0 md:col-span-2"
+                          className="mb-0 md:col-span-4 xl:col-span-4"
                         >
                           <input
                             type="date"
@@ -375,21 +454,40 @@ export default function ImportCreatePage({
                           />
                         </Form.Item>
 
-                        <div className="md:col-span-12 mt-2 pt-2 border-t border-slate-100 flex justify-end">
+                        <div className="md:col-span-12 xl:col-span-24 mt-2 pt-2 border-t border-slate-100 flex justify-end">
                           <span className="text-sm text-slate-500 font-medium mr-2">Thành tiền:</span>
                           <span className="text-sm font-bold text-emerald-600">
                             <Form.Item
                               shouldUpdate={(prevValues, currentValues) => {
                                 const prev = prevValues.items?.[name];
                                 const curr = currentValues.items?.[name];
-                                return prev?.quantity !== curr?.quantity || prev?.price !== curr?.price;
+                                return prev?.itemId !== curr?.itemId
+                                  || prev?.inputMode !== curr?.inputMode
+                                  || prev?.quantity !== curr?.quantity
+                                  || prev?.price !== curr?.price;
                               }}
                               noStyle
                             >
                               {({ getFieldValue }) => {
+                                const selectedId = getFieldValue(['items', name, 'itemId']);
+                                const mode = getFieldValue(['items', name, 'inputMode']) as ImportMode | undefined;
+                                const p = supplierItems.find((p) => String(p.id) === String(selectedId));
                                 const qty = getFieldValue(['items', name, 'quantity']) || 0;
                                 const price = getFieldValue(['items', name, 'price']) || 0;
-                                return money(qty * price);
+                                const ratio = getLineRatio(p, mode);
+                                const inputUom = getLineUomName(p, mode);
+                                const baseUom = getBaseUomName(p);
+                                const convertedQty = Number(qty || 0) * ratio;
+                                return (
+                                  <span className="inline-flex flex-col items-end gap-0.5">
+                                    {p && (
+                                      <span className="text-[11px] font-medium text-slate-500">
+                                        {qty || 0} {inputUom} x {ratio} = {convertedQty} {baseUom}
+                                      </span>
+                                    )}
+                                    <span>{money(calculateLineTotal(qty, price, p, mode))}</span>
+                                  </span>
+                                );
                               }}
                             </Form.Item>
                           </span>
@@ -402,7 +500,7 @@ export default function ImportCreatePage({
                 <Form.Item className="mt-3 mb-0">
                   <Button
                     type="dashed"
-                    onClick={() => add({ itemId: '', quantity: 50, price: 0 })}
+                    onClick={() => add({ itemId: '', inputMode: 'purchase', quantity: 50, price: 0 })}
                     block
                     icon={<Plus size={16} />}
                     className="h-11 border-emerald-300 text-emerald-700 hover:!border-emerald-500 hover:!text-emerald-800"
@@ -424,7 +522,7 @@ export default function ImportCreatePage({
                 </div>
               </div>
               <div className="text-2xl md:text-3xl font-bold tracking-tight text-emerald-600">
-                <TotalPriceDisplay form={form} />
+                <TotalPriceDisplay form={form} supplierItems={supplierItems} />
               </div>
             </div>
           </div>

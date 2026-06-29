@@ -53,35 +53,9 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
   const [saving, setSaving] = React.useState(false);
   const [previewName, setPreviewName] = React.useState('');
   const [previewUrl, setPreviewUrl] = React.useState<string | undefined>();
-  const selectedCategoryId = Form.useWatch('categoryId', form);
+  const filteredUoms = React.useMemo(() => uoms.filter((uom) => uom.active !== false), [uoms]);
 
-  const selectedCategory = React.useMemo(
-    () => categories.find((category) => category.id === selectedCategoryId),
-    [categories, selectedCategoryId]
-  );
 
-  const allowedUomCategories = React.useMemo(
-    () => selectedCategory?.uomCategories?.split(',').map((item) => item.trim()).filter(Boolean) ?? [],
-    [selectedCategory]
-  );
-
-  const filteredUoms = React.useMemo(() => {
-    return uoms.filter((uom) => {
-      const active = uom.active !== false;
-      const allowed = allowedUomCategories.length === 0 || allowedUomCategories.includes(String(uom.category));
-      return active && allowed;
-    });
-  }, [allowedUomCategories, uoms]);
-
-  React.useEffect(() => {
-    if (!open || !selectedCategoryId) return;
-    form.setFieldsValue({ baseUomId: undefined, purchaseUomId: undefined, purchaseConversionRatio: undefined });
-  }, [form, open, selectedCategoryId]);
-
-  const handlePurchaseUomChange = (uomId?: number) => {
-    const selectedUom = filteredUoms.find((uom) => uom.id === uomId);
-    form.setFieldValue('purchaseConversionRatio', selectedUom?.conversionRatio ?? 1);
-  };
 
   const handleFinish = async (values: {
     name: string;
@@ -89,7 +63,6 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
     categoryId?: number;
     baseUomId: number;
     purchaseUomId?: number;
-    purchaseConversionRatio?: number;
     price: number;
     costPrice: number;
     hasExpiry?: boolean;
@@ -113,7 +86,6 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
           categoryId: values.categoryId,
           baseUomId: values.baseUomId,
           purchaseUomId: values.purchaseUomId,
-          purchaseConversionRatio: values.purchaseConversionRatio ?? 1,
           costPrice: values.costPrice ?? values.price * 0.8,
           sellingPrice: values.price,
           minimumStock: 10,
@@ -212,13 +184,21 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
                 <Select
                   placeholder="Chọn đơn vị nhập"
                   options={filteredUoms.map((uom) => ({ value: uom.id, label: uom.uomName }))}
-                  onChange={handlePurchaseUomChange}
                   allowClear
                 />
               </Form.Item>
             </div>
-            <Form.Item name="purchaseConversionRatio" label="Tỷ lệ quy đổi nhập" tooltip="Ví dụ: 1 thùng = 24 cái thì nhập 24">
-              <InputNumber className="w-full" min={0.0001} step={0.0001} placeholder="Mặc định 1" />
+            <Form.Item noStyle shouldUpdate={(prev, curr) => prev.purchaseUomId !== curr.purchaseUomId}>
+              {({ getFieldValue }) => {
+                const selectedUom = filteredUoms.find((uom) => uom.id === getFieldValue('purchaseUomId'));
+                if (!selectedUom) return null;
+                return (
+                  <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                    {'Quy \u0111\u1ed5i: 1 '}{selectedUom.uomName} = {selectedUom.conversionRatio ?? 1}{' '}
+                    {selectedUom.conversionUomName ?? selectedUom.uomName}
+                  </div>
+                );
+              }}
             </Form.Item>
             <Form.Item name="imageUrl" label="URL ảnh (tùy chọn)">
               <Input placeholder="/media/items/milk-vnm-1l.svg hoặc https://..." />

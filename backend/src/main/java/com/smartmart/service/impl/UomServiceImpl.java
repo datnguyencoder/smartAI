@@ -49,11 +49,17 @@ public class UomServiceImpl implements UomService {
                 .uomName(uomName)
                 .category(category)
                 .conversionRatio(resolveConversionRatio(request.getConversionRatio()))
-                .baseUnit(request.isBaseUnit())
                 .active(true)
                 .build();
-
+        if(request.getConversionUomId() != null){
+            uom.setConversionUom(findById(request.getConversionUomId()));
+        }
         Uom saved = uomRepository.save(uom);
+
+        if (saved.getConversionUom() == null) {
+            saved.setConversionUom(saved);
+            saved = uomRepository.save(saved);
+        }
 
         auditLogService.log(
                 AuditAction.UOM_CREATE,
@@ -69,20 +75,23 @@ public class UomServiceImpl implements UomService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<UomResponse> listByCategories(String categories) {
-        if (categories == null || categories.isBlank()) {
-            return listAll();
+    public List<UomResponse> list(String category) {
+        if (category == null || category.isBlank()) {
+            return uomRepository.findAllByOrderByIdDesc()
+                    .stream()
+                    .map(this::toResponse)
+                    .toList();
         }
-        List<String> categoryList = Arrays.stream(categories.split(","))
-                .map(String::trim)
-                .filter(s -> !s.isBlank())
-                .map(String::toUpperCase)
-                .toList();
 
-        return uomRepository.findActiveByCategoryInIgnoreCaseOrderByIdDesc(categoryList)
+        return uomRepository.findByCategoryIgnoreCaseAndActiveTrueOrderByIdDesc(category.trim())
                 .stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    @Override
+    public List<String> listGroups() {
+        return uomRepository.findDistinctCategories();
     }
 
     @Override
@@ -102,12 +111,11 @@ public class UomServiceImpl implements UomService {
         uom.setCategory(category);
         uom.setConversionRatio(resolveConversionRatio(request.getConversionRatio()));
 
-        if (request.getBaseUnit() != null) {
-            uom.setBaseUnit(request.getBaseUnit());
-        }
-
         if (request.getActive() != null) {
             uom.setActive(request.getActive());
+        }
+        if (request.getConversionUomId() != null) {
+            uom.setConversionUom(findById(request.getConversionUomId()));
         }
 
         Uom saved = uomRepository.save(uom);
@@ -180,7 +188,7 @@ public class UomServiceImpl implements UomService {
     }
 
     private String normalizeCategory(String value) {
-        return value == null ? null : value.trim().toUpperCase();
+        return value == null ? null : value.trim();
     }
 
     private BigDecimal resolveConversionRatio(BigDecimal value) {
@@ -192,18 +200,22 @@ public class UomServiceImpl implements UomService {
                 "uomName", uom.getUomName(),
                 "category", uom.getCategory(),
                 "conversionRatio", uom.getConversionRatio(),
-                "baseUnit", uom.isBaseUnit(),
-                "active", uom.isActive()
+                "active", uom.isActive(),
+                "conversionUomId", uom.getConversionUom() != null ? uom.getConversionUom().getId() : null,
+                "conversionUomName", uom.getConversionUom() != null ? uom.getConversionUom().getUomName() : null
         );
     }
 
     private UomResponse toResponse(Uom u) {
+        Uom conversionUom = u.getConversionUom();
+
         return UomResponse.builder()
                 .id(u.getId())
                 .uomName(u.getUomName())
                 .category(u.getCategory())
                 .conversionRatio(u.getConversionRatio())
-                .baseUnit(u.isBaseUnit())
+                .conversionUomId(conversionUom != null ? conversionUom.getId() : null)
+                .conversionUomName(conversionUom != null ? conversionUom.getUomName() : null)
                 .active(u.isActive())
                 .build();
     }

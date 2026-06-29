@@ -27,7 +27,7 @@ export function itemToProduct(item: ItemDto): Product {
   if (qty === 0) status = 'Hết hàng';
   else if (qty <= min) status = 'Sắp hết';
 
-  let purchaseRatio = item.purchaseRatio ?? 1;
+  let purchaseRatio = item.purchaseRatio ?? item.purchaseConversionRatio ?? 1;
 
   return {
     key: String(item.id),

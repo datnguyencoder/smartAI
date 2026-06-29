@@ -22,4 +22,11 @@ public interface UomRepository extends JpaRepository<Uom, Long> {
     ORDER BY u.id DESC
 """)
     List<Uom> findActiveByCategoryInIgnoreCaseOrderByIdDesc(@Param("categories") List<String> categories);
+
+    List<Uom> findByActiveTrueOrderByIdDesc();
+
+    List<Uom> findByCategoryIgnoreCaseAndActiveTrueOrderByIdDesc(String category);
+
+    @Query("SELECT DISTINCT u.category FROM Uom u WHERE u.category IS NOT NULL AND u.category <> '' ORDER BY u.category")
+    List<String> findDistinctCategories();
 }

@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -81,8 +82,7 @@ public class SupplierItemServiceImpl implements SupplierItemService {
     public List<ItemResponse> listItemsBySupplier(Long supplierId) {
         return supplierItemRepository.findBySupplierIdAndActiveTrue(supplierId)
                 .stream()
-                .map(SupplierItem::getItem)
-                .filter(item -> item != null && item.isActive())
+                .filter(supplierItem -> supplierItem.getItem() != null && supplierItem.getItem().isActive())
                 .map(this::toItemResponse)
                 .toList();
     }
@@ -106,7 +106,13 @@ public class SupplierItemServiceImpl implements SupplierItemService {
         supplierItemRepository.save(supplierItem);
     }
 
-    private ItemResponse toItemResponse(Item item) {
+    private ItemResponse toItemResponse(SupplierItem supplierItem) {
+        Item item = supplierItem.getItem();
+
+        BigDecimal costPrice = supplierItem.getDefaultCostPrice() != null
+                ? supplierItem.getDefaultCostPrice()
+                : item.getCostPrice();
+
         return ItemResponse.builder()
                 .id(item.getId())
                 .itemCode(item.getItemCode())
@@ -114,7 +120,7 @@ public class SupplierItemServiceImpl implements SupplierItemService {
                 .itemType(item.getItemType())
                 .categoryId(item.getCategory() != null ? item.getCategory().getId() : null)
                 .categoryName(item.getCategory() != null ? item.getCategory().getCategoryName() : null)
-                .costPrice(item.getCostPrice())
+                .costPrice(costPrice)
                 .sellingPrice(item.getSellingPrice())
                 .minimumStock(item.getMinimumStock())
                 .hasExpiry(item.isHasExpiry())
@@ -124,6 +130,8 @@ public class SupplierItemServiceImpl implements SupplierItemService {
                 .baseUomName(item.getBaseUom() != null ? item.getBaseUom().getUomName() : null)
                 .purchaseUomId(item.getPurchaseUom() != null ? item.getPurchaseUom().getId() : null)
                 .purchaseUomName(item.getPurchaseUom() != null ? item.getPurchaseUom().getUomName() : null)
+                .purchaseConversionRatio(item.getPurchaseConversionRatio())
+                .purchaseRatio(item.getPurchaseConversionRatio())
                 .build();
     }
 

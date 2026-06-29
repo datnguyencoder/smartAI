@@ -16,18 +16,20 @@ import java.math.BigDecimal;
 public class Uom extends LongAuditableEntity {
 
     @Column(name = "uom_name", nullable = false)
-    private String uomName;
+    private String uomName; // tên đơn vị
 
-    private String category; // nhóm đo lường
+    private String category; // nhóm đơn vị do admin tạo
 
     @Column(name = "conversion_ratio", nullable = false)
-    private BigDecimal conversionRatio; // tỷ lệ mặc định/gợi ý
-
-    @Column(name = "is_base_unit", nullable = false)
-    private boolean baseUnit;
+    private BigDecimal conversionRatio; // tỷ lệ chuyển đổi về
 
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private boolean active = true;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "conversion_uom_id")
+    private Uom conversionUom;
+
 
 }

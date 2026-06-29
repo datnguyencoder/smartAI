@@ -37,6 +37,7 @@ public class ItemServiceImpl implements ItemService {
     private final OrderItemRepository orderItemRepository;
     private final PurchaseOrderItemRepository purchaseOrderItemRepository;
     private final AuditLogService auditLogService;
+    private final SupplierItemRepository supplierItemRepository;
 
     public ItemServiceImpl(
             ItemRepository itemRepository,
@@ -45,7 +46,8 @@ public class ItemServiceImpl implements ItemService {
             CurrentInventoryRepository currentInventoryRepository,
             OrderItemRepository orderItemRepository,
             PurchaseOrderItemRepository purchaseOrderItemRepository,
-            AuditLogService auditLogService) {
+            AuditLogService auditLogService,
+            SupplierItemRepository supplierItemRepository) {
         this.itemRepository = itemRepository;
         this.categoryRepository = categoryRepository;
         this.uomRepository = uomRepository;
@@ -53,6 +55,7 @@ public class ItemServiceImpl implements ItemService {
         this.orderItemRepository = orderItemRepository;
         this.purchaseOrderItemRepository = purchaseOrderItemRepository;
         this.auditLogService = auditLogService;
+        this.supplierItemRepository = supplierItemRepository;
     }
 
     @Override
@@ -114,7 +117,6 @@ public class ItemServiceImpl implements ItemService {
                 .uomName(uom.getUomName())
                 .category(uom.getCategory())
                 .conversionRatio(uom.getConversionRatio())
-                .baseUnit(uom.isBaseUnit())
                 .build();
     }
 
@@ -142,9 +144,7 @@ public class ItemServiceImpl implements ItemService {
         validateUomMatchesCategory(baseUom, category);
         validateUomMatchesCategory(purchaseUom, category);
 
-        BigDecimal purchaseConversionRatio = req.getPurchaseConversionRatio() != null
-                ? req.getPurchaseConversionRatio()
-                : purchaseUom.getConversionRatio();
+        BigDecimal purchaseConversionRatio = purchaseUom.getConversionRatio();
 
         String imageUrl = resolveImageUrlForCreate(req.getImageUrl(), itemCode);
 
@@ -214,9 +214,12 @@ public class ItemServiceImpl implements ItemService {
             Long currentPurchaseUomId = item.getPurchaseUom() != null ? item.getPurchaseUom().getId() : null;
             if (!req.getPurchaseUomId().equals(currentPurchaseUomId)) {
                 checkItemUsageForUomChange(id);
-                item.setPurchaseUom(uomRepository.findById(req.getPurchaseUomId())
-                        .orElseThrow(() -> new NotFoundException("Không tìm thấy UOM nhập")));
+                Uom purchaseUom = uomRepository.findById(req.getPurchaseUomId())
+                        .orElseThrow(() -> new NotFoundException("Không tìm thấy UOM nhập"));
+                item.setPurchaseUom(purchaseUom);
+                item.setPurchaseConversionRatio(purchaseUom.getConversionRatio());
             }
+
         }
         if (req.getCostPrice() != null) {
             item.setCostPrice(req.getCostPrice());
@@ -240,9 +243,6 @@ public class ItemServiceImpl implements ItemService {
             item.setImageUrl(req.getImageUrl().isBlank()
                     ? ItemImageUrls.defaultItemPath(item.getItemCode())
                     : req.getImageUrl().trim());
-        }
-        if (req.getPurchaseConversionRatio() != null) {
-            item.setPurchaseConversionRatio(req.getPurchaseConversionRatio());
         }
         BigDecimal sold = soldQtyMap().getOrDefault(id, BigDecimal.ZERO);
         validateUomMatchesCategory(item.getBaseUom(), item.getCategory());
@@ -341,7 +341,7 @@ public class ItemServiceImpl implements ItemService {
                 .itemType(item.getItemType())
                 .categoryId(item.getCategory() != null ? item.getCategory().getId() : null)
                 .categoryName(item.getCategory() != null ? item.getCategory().getCategoryName() : null)
-                .costPrice(item.getCostPrice())
+                .costPrice(resolveDisplayCostPrice(item))
                 .sellingPrice(item.getSellingPrice())
                 .minimumStock(item.getMinimumStock())
                 .hasExpiry(item.isHasExpiry())
@@ -394,5 +394,14 @@ public class ItemServiceImpl implements ItemService {
         if (uom.getCategory() == null || !allowed.contains(uom.getCategory().toUpperCase())) {
             throw new BadRequestException("Đơn vị tính không phù hợp với danh mục sản phẩm");
         }
+    }
+
+    private BigDecimal resolveDisplayCostPrice(Item item) {
+        BigDecimal averageSupplierCost = supplierItemRepository
+                .averageDefaultCostPriceBySkuItem(item.getItemCode());
+
+        return averageSupplierCost != null
+                ? averageSupplierCost
+                : item.getCostPrice();
     }
 }

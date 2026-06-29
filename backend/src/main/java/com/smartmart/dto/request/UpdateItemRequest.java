@@ -28,6 +28,5 @@ public class UpdateItemRequest {
     private Boolean hasExpiry;
     private Boolean active;
     private String imageUrl;
-    @DecimalMin("1")
-    private BigDecimal purchaseConversionRatio;
+
 }

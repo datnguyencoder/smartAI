@@ -34,6 +34,4 @@ public class CreateItemRequest {
     private Integer minimumStock = 0;
     private boolean hasExpiry;
     private String imageUrl;
-    @DecimalMin("1")
-    private BigDecimal purchaseConversionRatio;
 }

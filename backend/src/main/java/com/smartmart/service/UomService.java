@@ -12,7 +12,9 @@ public interface UomService {
 
     UomResponse create(CreateUomRequest req);
 
-    List<UomResponse> listByCategories(String category);
+    List<UomResponse> list(String category);
+
+    List<String> listGroups();
 
     UomResponse update(Long id, UpdateUomRequest request);
 
