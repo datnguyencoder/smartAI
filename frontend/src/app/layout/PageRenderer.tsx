@@ -13,6 +13,7 @@ import CategoriesPage from '@/pages/catalog/CategoriesPage';
 import LocationsPage from '@/pages/catalog/LocationsPage';
 import ProductsPage from '@/pages/catalog/ProductsPage';
 import SuppliersPage from '@/pages/catalog/SuppliersPage';
+import UomsPage from '@/pages/catalog/UomsPage';
 import DashboardPage from '@/pages/dashboard/DashboardPage';
 import InventoryAlertsPage from '@/pages/inventory/InventoryAlertsPage';
 import InventoryLogsPage from '@/pages/inventory/InventoryLogsPage';
@@ -30,7 +31,7 @@ import CustomersPage from '@/pages/sales/CustomersPage';
 import InvoicesPage from '@/pages/sales/InvoicesPage';
 import ReturnOrdersPage from '@/pages/sales/ReturnOrdersPage';
 import PosPage from '@/pages/sales/PosPage';
-import type { CategoryDto, LocationDto, SupplierDto, UserDto } from '@/types/api';
+import type { CategoryDto, LocationDto, SupplierDto, UomDto, UserDto } from '@/types/api';
 import type { PageKey, PurchaseSuggestionPrefillItem } from '@/types/pages';
 
 export function PageRenderer({
@@ -45,6 +46,7 @@ export function PageRenderer({
   categories,
   suppliers,
   locations,
+  uoms,
   chatHistory,
   setChatHistory,
   posCart,
@@ -67,6 +69,7 @@ export function PageRenderer({
   categories: CategoryDto[];
   suppliers: SupplierDto[];
   locations: LocationDto[];
+  uoms: UomDto[];
   chatHistory: ChatMessage[];
   setChatHistory: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
   posCart: any[];
@@ -123,6 +126,9 @@ export function PageRenderer({
   }
   if (page === 'locations') {
     return <LocationsPage locations={locations} productsList={productsList} authUser={authUser} reloadCatalog={reloadCatalog} setPage={setPage} />;
+  }
+  if (page === 'uoms') {
+    return <UomsPage uoms={uoms} reloadCatalog={reloadCatalog} />;
   }
   if (page === 'invoices') {
     return <InvoicesPage setSelectedInvoice={setSelectedInvoice} authUser={authUser} />;

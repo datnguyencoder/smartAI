@@ -2,6 +2,7 @@ package com.smartmart.controller;
 
 import com.smartmart.common.response.ApiResponse;
 import com.smartmart.dto.request.CreateUomRequest;
+import com.smartmart.dto.request.UpdateUomRequest;
 import com.smartmart.dto.response.UomResponse;
 import com.smartmart.service.UomService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -29,8 +30,8 @@ public class UomController {
 
     @GetMapping
     @Operation(summary = "Danh sách UOM")
-    public ResponseEntity<ApiResponse<List<UomResponse>>> list() {
-        return ResponseEntity.ok(ApiResponse.success(uomService.listAll()));
+    public ResponseEntity<ApiResponse<List<UomResponse>>> list(@RequestParam(required = false) String categories) {
+        return ResponseEntity.ok(ApiResponse.success(uomService.listByCategories(categories)));
     }
 
     @PostMapping
@@ -39,5 +40,32 @@ public class UomController {
     public ResponseEntity<ApiResponse<UomResponse>> create(@Valid @RequestBody CreateUomRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Tạo UOM thành công", uomService.create(request)));
+    }
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @Operation(summary = "Cập nhật UOM")
+    public ResponseEntity<ApiResponse<UomResponse>> update(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateUomRequest request
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.success("Cập nhật đơn vị tính thành công", uomService.update(id, request))
+        );
+    }
+
+    @PatchMapping("/{id}/deactivate")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @Operation(summary = "Ngưng hoạt động UOM")
+    public ResponseEntity<ApiResponse<Void>> deactivate(@PathVariable Long id) {
+        uomService.deactivate(id);
+        return ResponseEntity.ok(ApiResponse.success("Ngưng hoạt động đơn vị tính thành công", null));
+    }
+
+    @PatchMapping("/{id}/activate")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @Operation(summary = "Kích hoạt UOM")
+    public ResponseEntity<ApiResponse<Void>> activate(@PathVariable Long id) {
+        uomService.activate(id);
+        return ResponseEntity.ok(ApiResponse.success("Kích hoạt đơn vị tính thành công", null));
     }
 }

@@ -192,6 +192,7 @@ function App() {
                 categories={categories}
                 suppliers={suppliers}
                 locations={locations}
+                uoms={uoms}
                 chatHistory={chatHistory}
                 setChatHistory={setChatHistory}
                 posCart={posCart}

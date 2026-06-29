@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   MonitorPlay,
   Package,
+  Ruler,
   PlusCircle,
   ScrollText,
   Settings,
@@ -82,6 +83,7 @@ export const navGroups: NavGroup[] = [
       { key: 'categories', label: 'Loại hàng', icon: FolderClosed },
       { key: 'suppliers', label: 'Nhà cung cấp', icon: Building2 },
       { key: 'locations', label: 'Vị trí kho', icon: Warehouse },
+      { key: 'uoms', label: 'Đơn vị tính', icon: Ruler },
     ],
   },
   {

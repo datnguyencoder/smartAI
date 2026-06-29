@@ -53,4 +53,7 @@ public class Item extends LongAuditableEntity {
 
     @Column(name = "image_url", length = 512)
     private String imageUrl;
+
+    @Column(name = "purchase_conversion_ratio", nullable = false)
+    private BigDecimal purchaseConversionRatio;
 }

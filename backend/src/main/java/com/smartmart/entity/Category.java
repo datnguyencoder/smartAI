@@ -25,4 +25,7 @@ public class Category extends LongAuditableEntity {
 
     @Column(name = "image_url", length = 512)
     private String imageUrl;
+
+    @Column(name = "uom_categories", length = 255)
+    private String uomCategories;
 }

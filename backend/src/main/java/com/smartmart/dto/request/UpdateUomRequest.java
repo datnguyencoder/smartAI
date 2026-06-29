@@ -7,16 +7,16 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
-
 @Getter
 @Setter
-public class CreateUomRequest {
+public class UpdateUomRequest {
     @NotBlank
     private String uomName;
     @NotBlank
     private String category;
     @NotNull
     @DecimalMin("0.0001")
-    private BigDecimal conversionRatio = BigDecimal.ONE;
-    private boolean baseUnit;
+    private BigDecimal conversionRatio;
+    private Boolean baseUnit;
+    private Boolean active;
 }

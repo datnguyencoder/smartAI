@@ -13,4 +13,5 @@ public class UomResponse {
     private String category;
     private BigDecimal conversionRatio;
     private boolean baseUnit;
+    private boolean active;
 }

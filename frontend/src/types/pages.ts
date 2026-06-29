@@ -4,6 +4,7 @@ export type PageKey =
   | 'categories'
   | 'suppliers'
   | 'locations'
+  | 'uoms'
   | 'pos'
   | 'invoices'
   | 'return-orders'

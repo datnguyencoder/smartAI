@@ -49,6 +49,7 @@ export type ItemDto = {
   purchaseUomId?: number;
   purchaseUomName?: string;
   purchaseRatio?: number;
+  purchaseConversionRatio?: number;
 };
 
 export type PageResponseDto<T> = {
@@ -167,7 +168,14 @@ export type OrderPrintDto = {
   }>;
 };
 
-export type CategoryDto = { id: number; categoryName: string; active: boolean; imageUrl?: string };
+export type CategoryDto = {
+  id: number;
+  categoryName: string;
+  parentId?: number;
+  active: boolean;
+  imageUrl?: string;
+  uomCategories?: string;
+};
 export type SupplierDto = {
   id: number;
   supplierName: string;
@@ -188,7 +196,16 @@ export type LocationDto = {
   parentId?: number;
   active?: boolean;
 };
-export type UomDto = { id: number; uomName: string };
+export type UomCategory = 'COUNT' | 'WEIGHT' | 'VOLUME' | 'PACKAGE' | 'LENGTH' | 'OTHER';
+
+export type UomDto = {
+  id: number;
+  uomName: string;
+  category?: UomCategory | string;
+  conversionRatio?: number;
+  baseUnit?: boolean;
+  active?: boolean;
+};
 
 export type PurchaseOrderItemDto = {
   id: number;
