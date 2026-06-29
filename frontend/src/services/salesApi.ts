@@ -1,5 +1,5 @@
 import { ApiClientError, apiRequest } from '@/services/apiClient';
-import type { CustomerDto, OrderDto, OrderPrintDto, PageResponseDto } from '@/types/api';
+import type { CustomerDebtDto, CustomerDto, HeldOrderDto, OrderDto, OrderPrintDto, PageResponseDto } from '@/types/api';
 
 export function createOrder(payload: {
   customerName?: string;
@@ -14,6 +14,32 @@ export function createOrder(payload: {
     method: 'POST',
     body: JSON.stringify(payload),
   });
+}
+
+export function createHeldOrder(payload: {
+  customerName?: string;
+  customerPhone?: string;
+  promotionCode?: string;
+  loyaltyPointsRedeemed?: number;
+  note?: string;
+  items: { itemId: number; quantity: number }[];
+}) {
+  return apiRequest<HeldOrderDto>('/api/v1/pos/holds', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function fetchHeldOrders() {
+  return apiRequest<HeldOrderDto[]>('/api/v1/pos/holds');
+}
+
+export function restoreHeldOrder(id: number) {
+  return apiRequest<HeldOrderDto>(`/api/v1/pos/holds/${id}/restore`, { method: 'POST' });
+}
+
+export function cancelHeldOrder(id: number) {
+  return apiRequest<HeldOrderDto>(`/api/v1/pos/holds/${id}`, { method: 'DELETE' });
 }
 
 export async function fetchOrders(customerPhone?: string) {
@@ -72,6 +98,18 @@ export function updateCustomer(
 ) {
   return apiRequest<CustomerDto>(`/api/v1/customers/${id}`, {
     method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function fetchCustomerDebts(status?: string) {
+  const qs = status && status !== 'ALL' ? `?status=${status}` : '';
+  return apiRequest<CustomerDebtDto[]>(`/api/v1/customer-debts${qs}`);
+}
+
+export function recordCustomerDebtPayment(id: number, payload: { amount: number; paymentMethod?: string; note?: string }) {
+  return apiRequest<CustomerDebtDto>(`/api/v1/customer-debts/${id}/payments`, {
+    method: 'POST',
     body: JSON.stringify(payload),
   });
 }

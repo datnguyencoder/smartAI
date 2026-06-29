@@ -5,6 +5,7 @@ import com.smartmart.dto.request.CloseShiftRequest;
 import com.smartmart.dto.request.OpenShiftRequest;
 import com.smartmart.dto.request.ReviewShiftRequest;
 import com.smartmart.dto.response.ShiftResponse;
+import com.smartmart.dto.response.ShiftSummaryResponse;
 import com.smartmart.entity.Shift;
 import com.smartmart.mapper.WmsResponseMapper;
 import com.smartmart.repository.UserRepository;
@@ -56,6 +57,13 @@ public class ShiftController {
     @Operation(summary = "Chi tiết ca làm việc")
     public ResponseEntity<ApiResponse<ShiftResponse>> getById(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(toResponse(shiftService.findById(id))));
+    }
+
+    @GetMapping("/{id}/summary")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF')")
+    @Operation(summary = "Báo cáo Z ca làm việc")
+    public ResponseEntity<ApiResponse<ShiftSummaryResponse>> summary(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(shiftService.getSummary(id)));
     }
 
     @PostMapping("/open")

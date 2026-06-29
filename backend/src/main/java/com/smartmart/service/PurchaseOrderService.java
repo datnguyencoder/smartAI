@@ -15,6 +15,8 @@ public interface PurchaseOrderService {
 
     PurchaseOrderResponse receive(Long purchaseId);
 
+    PurchaseOrderResponse receivePartial(Long purchaseId, com.smartmart.dto.request.PartialReceivePurchaseRequest request);
+
     Page<PurchaseOrderResponse> list(Long supplierId, Long locationId, String search, PurchaseStatus status,
             LocalDate fromDate, LocalDate toDate, Pageable pageable);
 

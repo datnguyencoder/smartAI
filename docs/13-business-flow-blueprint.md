@@ -33,7 +33,7 @@ Chuẩn ghi tồn:
 | --- | --- | --- |
 | Order | `COMPLETED`, `CANCELLED` | Hóa đơn bán thành công hoặc bị hủy |
 | Purchase Order | `PENDING`, `COMPLETED`, `CANCELLED` | Phiếu nhập đã tạo, đã nhận hàng, hoặc hủy |
-| Transfer Order | *(đã gỡ)* | — |
+| Stock Transfer | `COMPLETED` | Điều chuyển nhanh giữa hai vị trí kho, ghi ledger ngay khi tạo |
 | Stocktake | `DRAFT`, `CONFIRMED`, `CANCELLED` | Phiếu kiểm kê nháp, đã chốt điều chỉnh, hoặc hủy |
 | Scrap Order | `PENDING`, `COMPLETED`, `CANCELLED` | Phiếu hủy chờ duyệt, đã trừ tồn, hoặc từ chối |
 | Return Order | `COMPLETED` | Phiếu trả hàng hoàn tất ngay sau khi tạo hợp lệ |
@@ -47,6 +47,17 @@ Chuẩn ghi tồn:
 - Không đủ quyền: trả `403 FORBIDDEN`.
 - AI offline: không làm sập POS/Purchase/Inventory; forecast/reorder dùng fallback khi có thể.
 - Mọi transaction ghi nhiều bảng phải rollback toàn bộ nếu lỗi ở bất kỳ bước nào.
+
+### 1.5. Luồng stock movement thủ công
+
+Điều chỉnh tồn và điều chuyển kho dùng chung nguyên tắc ledger:
+
+- Không cập nhật trực tiếp `current_inventory` từ controller.
+- `POST /api/v1/inventory/adjustments` ghi action `ADJUSTMENT`.
+- `POST /api/v1/inventory/transfers` ghi hai action: `TRANSFER_OUT` ở kho nguồn và `TRANSFER_IN` ở kho đích.
+- Không cho điều chuyển cùng một vị trí kho.
+- Không cho điều chuyển vượt tồn khả dụng của item/location/lot.
+- Nếu cần quy trình duyệt nhiều bước, nâng cấp thành `StockTransferOrder` có trạng thái ở phase sau.
 
 ---
 
@@ -146,19 +157,22 @@ Staff, Manager, Admin.
 1. Thu ngân mở POS.
 2. Quét barcode hoặc tìm SKU.
 3. Thêm số lượng, khách hàng, khuyến mãi, điểm đổi nếu có.
-4. Frontend validate giỏ hàng, số lượng, thanh toán.
-5. Backend nhận `POST /api/v1/orders`.
-6. Backend tìm location mặc định `Kho bán`.
-7. Với từng dòng:
+4. Nếu khách tạm dừng mua hàng, frontend gọi `POST /api/v1/pos/holds` để giữ đơn trên server; đơn giữ không trừ tồn.
+5. Khi khách quay lại, frontend gọi `POST /api/v1/pos/holds/{id}/restore`, nạp lại giỏ hàng rồi checkout bằng luồng bán thường.
+6. Frontend validate giỏ hàng, số lượng, thanh toán.
+7. Backend nhận `POST /api/v1/orders`.
+8. Backend tìm location mặc định `Kho bán`.
+9. Với từng dòng:
    - Check item active.
    - Allocate tồn bằng FEFO tại `Kho bán`.
    - Gọi ledger trừ tồn với `InventoryActionType.SALE`.
    - Chốt giá bán tại thời điểm bán.
-8. Backend áp mã khuyến mãi, điểm tích lũy, tổng tiền.
-9. Backend lưu order, order items, payments.
-10. Backend backfill `referenceId` cho inventory logs.
-11. Backend publish order event, evaluate stock alert, ghi audit.
-12. Frontend hiển thị thành công và in hóa đơn.
+10. Backend áp mã khuyến mãi, điểm tích lũy, tổng tiền.
+11. Nếu `paymentMethod = PAY_LATER`, backend bắt buộc có SĐT khách và tạo `CustomerDebt` sau khi lưu order.
+12. Backend lưu order, order items, payments hoặc customer debt.
+13. Backend backfill `referenceId` cho inventory logs.
+14. Backend publish order event, evaluate stock alert, ghi audit.
+15. Frontend hiển thị thành công và in hóa đơn.
 
 ### API chính
 
@@ -168,6 +182,12 @@ Staff, Manager, Admin.
 - `GET /api/v1/orders/{id}`
 - `GET /api/v1/orders/{id}/print`
 - `POST /api/v1/orders/{id}/cancel`
+- `POST /api/v1/pos/holds`
+- `GET /api/v1/pos/holds`
+- `POST /api/v1/pos/holds/{id}/restore`
+- `DELETE /api/v1/pos/holds/{id}`
+- `GET /api/v1/customer-debts`
+- `POST /api/v1/customer-debts/{id}/payments`
 
 ### Dữ liệu ghi nhận
 
@@ -177,12 +197,44 @@ Staff, Manager, Admin.
 - `current_inventory`
 - `inventory_logs`
 - `customers` / loyalty nếu có
+- `customer_debts` / `customer_debt_payments` nếu ghi nợ
 - `audit_logs`
 
 ### Rule bắt buộc
 
 - Không bán item inactive.
 - Không bán vượt tồn khả dụng.
+
+## 5. Luồng thu chi cửa hàng
+
+### Mục tiêu nghiệp vụ
+
+Ghi nhận tiền vào/ra ngoài POS để chủ cửa hàng nhìn được dòng tiền vận hành cơ bản.
+
+### Actor
+
+Manager, Admin.
+
+### Luồng chuẩn
+
+1. Manager mở màn hình Thu chi.
+2. Lọc giao dịch theo loại `INCOME` / `EXPENSE` nếu cần.
+3. Tạo khoản thu/chi với số tiền, ngày giao dịch, tài khoản tiền và nội dung.
+4. Backend validate số tiền dương, loại giao dịch và tài khoản tiền.
+5. Backend lưu `finance_transactions`.
+6. Frontend reload danh sách và tổng hợp `totalIncome`, `totalExpense`, `netCashFlow`.
+
+### API chính
+
+- `GET /api/v1/finance/transactions`
+- `POST /api/v1/finance/transactions`
+- `GET /api/v1/finance/summary`
+
+### Rule bắt buộc
+
+- Chỉ `ADMIN`, `MANAGER` được xem và ghi thu chi.
+- Không cho ghi số tiền bằng 0 hoặc âm.
+- Khoảng lọc ngày không vượt quá setting `report_max_days`.
 - Không lấy hàng từ kho tổng nếu chưa chuyển sang `Kho bán`.
 - Giá trên hóa đơn là giá snapshot, không thay đổi khi giá item đổi sau này.
 - Thanh toán phải đủ tổng tiền; tiền mặt được phép lớn hơn để thối tiền.
@@ -359,24 +411,31 @@ Nhóm cảnh báo:
 
 ---
 
-## 8. Mô hình kho đơn (single-store)
-
-> **Đã gỡ (V20):** Luồng chuyển kho giữa các vị trí (`transfer-orders`) không còn trong hệ thống siêu thị mini một kho bán.
+## 8. Luồng điều chuyển & điều chỉnh tồn kho
 
 ### Mục tiêu nghiệp vụ
 
-Siêu thị mini vận hành **một kho bán duy nhất** (`Kho bán`). Nhập hàng ghi tồn trực tiếp; POS trừ tồn tại đó (SALE-05).
+Siêu thị mini có thể có nhiều vị trí lưu trữ (`Kho bán`, `Kho tổng`, `Tủ mát`). POS chỉ bán từ **Kho bán**; hàng phải được chuyển trước khi bán.
 
-### Luồng chuẩn
+### Luồng điều chỉnh nhanh
 
-1. Phiếu nhập `receive` → cộng tồn tại `Kho bán` (hoặc vị trí mặc định).
-2. POS bán → FEFO trừ tồn cùng vị trí.
-3. Vị trí kho (`locations`) chỉ dùng để gắn nhãn khu vực lưu trữ, không chuyển tồn giữa chi nhánh.
+1. `POST /api/v1/inventory/adjustments` — điều chỉnh tồn tại một vị trí, ghi `ADJUSTMENT` vào ledger.
+
+### Luồng điều chuyển nhanh
+
+1. `POST /api/v1/inventory/transfers` — chuyển tức thì giữa hai vị trí (TRANSFER_OUT + TRANSFER_IN).
+
+### Luồng phiếu chuyển kho (có trạng thái)
+
+1. Tạo `StockTransferOrder` trạng thái `DRAFT`.
+2. Thêm dòng SKU/lô/số lượng.
+3. `confirm` → ghi ledger; `cancel` nếu chưa xác nhận.
 
 ### Tiêu chí hoàn tất
 
-- Không có API `transfer-orders`.
-- Tồn không âm; ledger append-only qua `InventoryLedgerService`.
+- Không chuyển cùng kho nguồn/đích.
+- Không chuyển vượt tồn khả dụng.
+- Mọi biến động có `inventory_logs` với reference rõ ràng.
 
 ---
 

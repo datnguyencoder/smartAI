@@ -1,10 +1,35 @@
 import * as React from 'react';
-import { Tabs, Select, Checkbox, Popover, Button, message as antdMessage } from 'antd';
+import { Tabs, Select, Checkbox, Popover, Button, message as antdMessage, Table } from 'antd';
 import dayjs from 'dayjs';
 
 import type { Product } from '@/lib/itemMapper';
-import type { UserDto, SalesReportDto, PurchaseReportDto, InventoryReportDto, InventoryItemDto, InventoryNxtReportDto } from '@/types/api';
-import { fetchInventoryReport, fetchPurchaseReport, fetchSalesReport, fetchInventory, fetchNxtReport } from '@/services/wmsApi';
+import type {
+  UserDto,
+  SalesReportDto,
+  PurchaseReportDto,
+  InventoryReportDto,
+  InventoryItemDto,
+  InventoryNxtReportDto,
+  BestSellerReportDto,
+  CustomerDueReportDto,
+  SupplierDueReportDto,
+  ProductExpiryReportDto,
+  CashFlowReportDto,
+  ProfitLossReportDto,
+} from '@/types/api';
+import {
+  fetchBestSellers,
+  fetchCashFlowReport,
+  fetchCustomerDueReport,
+  fetchInventory,
+  fetchInventoryReport,
+  fetchNxtReport,
+  fetchProductExpiryReport,
+  fetchProfitLossReport,
+  fetchPurchaseReport,
+  fetchSalesReport,
+  fetchSupplierDueReport,
+} from '@/services/wmsApi';
 
 // Hooks
 import { useReportExport } from '@/components/reports/hooks/useReportExport';
@@ -48,6 +73,12 @@ export default function ReportsPage({ productsList, invoicesList: _invoicesList,
   const [purchaseData, setPurchaseData] = React.useState<PurchaseReportDto[]>([]);
   const [inventoryData, setInventoryData] = React.useState<InventoryReportDto[]>([]);
   const [nxtData, setNxtData] = React.useState<InventoryNxtReportDto[]>([]);
+  const [bestSellerData, setBestSellerData] = React.useState<BestSellerReportDto[]>([]);
+  const [customerDueData, setCustomerDueData] = React.useState<CustomerDueReportDto[]>([]);
+  const [supplierDueData, setSupplierDueData] = React.useState<SupplierDueReportDto[]>([]);
+  const [expiryData, setExpiryData] = React.useState<ProductExpiryReportDto[]>([]);
+  const [cashFlowData, setCashFlowData] = React.useState<CashFlowReportDto[]>([]);
+  const [profitLossData, setProfitLossData] = React.useState<ProfitLossReportDto[]>([]);
   const [inventoryLots, setInventoryLots] = React.useState<InventoryItemDto[]>([]);
   const [loadingLots, setLoadingLots] = React.useState(false);
 
@@ -79,6 +110,18 @@ export default function ReportsPage({ productsList, invoicesList: _invoicesList,
       } else if (activeTab === 'nxt') {
         const data = await fetchNxtReport(from, to);
         setNxtData(data);
+      } else if (activeTab === 'best-sellers') {
+        setBestSellerData(await fetchBestSellers(from, to, 20));
+      } else if (activeTab === 'customer-due') {
+        setCustomerDueData(await fetchCustomerDueReport());
+      } else if (activeTab === 'supplier-due') {
+        setSupplierDueData(await fetchSupplierDueReport());
+      } else if (activeTab === 'product-expiry') {
+        setExpiryData(await fetchProductExpiryReport());
+      } else if (activeTab === 'cash-flow') {
+        setCashFlowData(await fetchCashFlowReport(from, to));
+      } else if (activeTab === 'profit-loss') {
+        setProfitLossData(await fetchProfitLossReport(from, to));
       } else {
         const data = await fetchInventoryReport(from, to);
         setInventoryData(data);
@@ -352,6 +395,113 @@ export default function ReportsPage({ productsList, invoicesList: _invoicesList,
                 nxtData={nxtData}
                 loading={loading}
                 debouncedSearchText={debouncedSearchText}
+              />
+            ),
+          },
+          {
+            key: 'best-sellers',
+            label: 'Bán chạy',
+            children: (
+              <Table
+                rowKey="itemId"
+                loading={loading}
+                dataSource={bestSellerData}
+                columns={[
+                  { title: 'Mã SP', dataIndex: 'itemCode' },
+                  { title: 'Tên', dataIndex: 'itemName' },
+                  { title: 'SL bán', dataIndex: 'quantitySold', align: 'right' },
+                  { title: 'Doanh thu', dataIndex: 'revenue', align: 'right', render: (v: number) => `${Number(v).toLocaleString('vi-VN')} đ` },
+                ]}
+              />
+            ),
+          },
+          {
+            key: 'customer-due',
+            label: 'Công nợ KH',
+            children: (
+              <Table
+                rowKey="debtId"
+                loading={loading}
+                dataSource={customerDueData}
+                columns={[
+                  { title: 'Khách hàng', dataIndex: 'customerName' },
+                  { title: 'Còn nợ', dataIndex: 'remainingAmount', align: 'right', render: (v: number) => `${Number(v).toLocaleString('vi-VN')} đ` },
+                  { title: 'Hạn', dataIndex: 'dueDate' },
+                  { title: 'Trạng thái', dataIndex: 'status' },
+                ]}
+              />
+            ),
+          },
+          {
+            key: 'supplier-due',
+            label: 'Công nợ NCC',
+            children: (
+              <Table
+                rowKey="debtId"
+                loading={loading}
+                dataSource={supplierDueData}
+                columns={[
+                  { title: 'Nhà cung cấp', dataIndex: 'supplierName' },
+                  { title: 'Còn nợ', dataIndex: 'remainingAmount', align: 'right', render: (v: number) => `${Number(v).toLocaleString('vi-VN')} đ` },
+                  { title: 'Hạn', dataIndex: 'dueDate' },
+                  { title: 'Trạng thái', dataIndex: 'status' },
+                ]}
+              />
+            ),
+          },
+          {
+            key: 'product-expiry',
+            label: 'Cận hạn',
+            children: (
+              <Table
+                rowKey={(r) => `${r.itemId}-${r.lotId}`}
+                loading={loading}
+                dataSource={expiryData}
+                columns={[
+                  { title: 'Mã SP', dataIndex: 'itemCode' },
+                  { title: 'Tên', dataIndex: 'itemName' },
+                  { title: 'Lô', dataIndex: 'lotNumber' },
+                  { title: 'HSD', dataIndex: 'expiryDate' },
+                  { title: 'Còn (ngày)', dataIndex: 'daysUntilExpiry' },
+                  { title: 'SL', dataIndex: 'quantity', align: 'right' },
+                ]}
+              />
+            ),
+          },
+          {
+            key: 'cash-flow',
+            label: 'Dòng tiền',
+            children: (
+              <Table
+                rowKey={(r, i) => `${r.date}-${r.category}-${i}`}
+                loading={loading}
+                dataSource={cashFlowData}
+                columns={[
+                  { title: 'Ngày', dataIndex: 'date' },
+                  { title: 'Loại', dataIndex: 'type' },
+                  { title: 'Danh mục', dataIndex: 'category' },
+                  { title: 'Số tiền', dataIndex: 'amount', align: 'right', render: (v: number) => `${Number(v).toLocaleString('vi-VN')} đ` },
+                  { title: 'Số dư lũy kế', dataIndex: 'runningBalance', align: 'right', render: (v: number) => `${Number(v).toLocaleString('vi-VN')} đ` },
+                ]}
+              />
+            ),
+          },
+          {
+            key: 'profit-loss',
+            label: 'Lãi lỗ',
+            children: (
+              <Table
+                rowKey="date"
+                loading={loading}
+                dataSource={profitLossData}
+                columns={[
+                  { title: 'Ngày', dataIndex: 'date' },
+                  { title: 'Doanh thu', dataIndex: 'revenue', align: 'right', render: (v: number) => `${Number(v).toLocaleString('vi-VN')} đ` },
+                  { title: 'Giá vốn', dataIndex: 'costOfGoods', align: 'right', render: (v: number) => `${Number(v).toLocaleString('vi-VN')} đ` },
+                  { title: 'Lãi gộp', dataIndex: 'grossProfit', align: 'right', render: (v: number) => `${Number(v).toLocaleString('vi-VN')} đ` },
+                  { title: 'Chi phí', dataIndex: 'expenses', align: 'right', render: (v: number) => `${Number(v).toLocaleString('vi-VN')} đ` },
+                  { title: 'Lãi ròng', dataIndex: 'netProfit', align: 'right', render: (v: number) => `${Number(v).toLocaleString('vi-VN')} đ` },
+                ]}
               />
             ),
           },

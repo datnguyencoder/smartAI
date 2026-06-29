@@ -6,6 +6,7 @@ import type {
   PageResponseDto,
   ReturnOrderDto,
   ScrapOrderDto,
+  StockMovementDto,
   StocktakeDto,
 } from '@/types/api';
 
@@ -55,6 +56,34 @@ export function fetchInventoryLogs(
   if (fromDate) params.set('fromDate', fromDate);
   if (toDate) params.set('toDate', toDate);
   return apiRequest<PageResponseDto<InventoryLogDto>>(`/api/v1/inventory/logs?${params}`);
+}
+
+export function createStockAdjustment(payload: {
+  itemId: number;
+  locationId: number;
+  lotId?: number;
+  actualQuantity: number;
+  quantityChange?: number;
+  note?: string;
+}) {
+  return apiRequest<StockMovementDto>('/api/v1/inventory/adjustments', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function createStockTransfer(payload: {
+  itemId: number;
+  fromLocationId: number;
+  toLocationId: number;
+  lotId?: number;
+  quantity: number;
+  note?: string;
+}) {
+  return apiRequest<StockMovementDto>('/api/v1/inventory/transfers', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
 
 export function fetchScrapOrders(status?: string) {

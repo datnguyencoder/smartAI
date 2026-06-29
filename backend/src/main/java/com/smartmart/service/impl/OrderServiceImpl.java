@@ -10,6 +10,7 @@ import com.smartmart.dto.response.OrderPaymentResponse;
 import com.smartmart.entity.*;
 import com.smartmart.enums.InventoryActionType;
 import com.smartmart.enums.OrderStatus;
+import com.smartmart.enums.PaymentMethod;
 import com.smartmart.enums.ReferenceType;
 import com.smartmart.event.OrderEventPublisher;
 import com.smartmart.exception.BadRequestException;
@@ -22,6 +23,7 @@ import com.smartmart.entity.Customer;
 import com.smartmart.entity.Promotion;
 import com.smartmart.service.AuditLogService;
 import com.smartmart.service.CustomerService;
+import com.smartmart.service.CustomerDebtService;
 import com.smartmart.service.InventoryAlertService;
 import com.smartmart.service.InventoryLedgerService;
 import com.smartmart.service.ItemService;
@@ -55,6 +57,7 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
     private final UserRepository userRepository;
     private final ReturnOrderRepository returnOrderRepository;
     private final CustomerService customerService;
+    private final CustomerDebtService customerDebtService;
     private final PromotionService promotionService;
     private final ShiftService shiftService;
     private final SettingService settingService;
@@ -71,6 +74,7 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
             UserRepository userRepository,
             ReturnOrderRepository returnOrderRepository,
             CustomerService customerService,
+            CustomerDebtService customerDebtService,
             PromotionService promotionService,
             ShiftService shiftService,
             SettingService settingService
@@ -86,6 +90,7 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
         this.userRepository = userRepository;
         this.returnOrderRepository = returnOrderRepository;
         this.customerService = customerService;
+        this.customerDebtService = customerDebtService;
         this.promotionService = promotionService;
         this.shiftService = shiftService;
         this.settingService = settingService;
@@ -106,6 +111,9 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
         Customer customer = customerService.findOrCreateByPhone(request.getCustomerPhone(), customerName);
         if (customer != null) {
             customerName = customer.getFullName();
+        }
+        if (request.getPaymentMethod() == PaymentMethod.PAY_LATER && customer == null) {
+            throw new BadRequestException("Cần SĐT khách hàng hợp lệ để bán ghi nợ");
         }
 
         Order order = Order.builder()
@@ -184,7 +192,9 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
         order.setTotalAmount(total.subtract(discountAmount).max(BigDecimal.ZERO));
         order.getItems().addAll(orderItems);
 
-        if (request.getPayments() != null && !request.getPayments().isEmpty()) {
+        if (request.getPaymentMethod() == PaymentMethod.PAY_LATER) {
+            // Công nợ khách được tạo sau khi order lưu thành công, không ghi nhận payment thu tiền ngay.
+        } else if (request.getPayments() != null && !request.getPayments().isEmpty()) {
             BigDecimal paymentSum = request.getPayments().stream()
                     .map(p -> p.getAmount())
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -212,6 +222,10 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
 
         LocalDateTime movementStart = LocalDateTime.now().minusSeconds(5);
         Order saved = orderRepository.save(order);
+
+        if (request.getPaymentMethod() == PaymentMethod.PAY_LATER && customer != null) {
+            customerDebtService.createFromOrder(saved, customer);
+        }
 
         int loyaltyPointsEarned = customer != null
                 ? customerService.awardPoints(customer.getId(), saved.getTotalAmount())
@@ -317,6 +331,18 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
                         .build())
                 .toList();
 
+        List<OrderPrintResponse.PaymentLine> paymentLines = order.getPayments() != null && !order.getPayments().isEmpty()
+                ? order.getPayments().stream()
+                        .map(p -> OrderPrintResponse.PaymentLine.builder()
+                                .paymentMethod(p.getPaymentMethod() != null ? p.getPaymentMethod().name() : "CASH")
+                                .amount(p.getAmount())
+                                .build())
+                        .toList()
+                : List.of(OrderPrintResponse.PaymentLine.builder()
+                        .paymentMethod(order.getPaymentMethod() != null ? order.getPaymentMethod().name() : "CASH")
+                        .amount(order.getTotalAmount())
+                        .build());
+
         java.math.BigDecimal subtotal = order.getItems().stream()
                 .map(i -> i.getSubtotal() != null ? i.getSubtotal() : java.math.BigDecimal.ZERO)
                 .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
@@ -350,6 +376,13 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
                 .paymentMethod(order.getPaymentMethod() != null ? order.getPaymentMethod().name() : "CASH")
                 .promotionCode(order.getPromotion() != null ? order.getPromotion().getCode() : null)
                 .loyaltyPointsRedeemed(order.getLoyaltyPointsRedeemed())
+                .shiftId(order.getShift() != null ? order.getShift().getId() : null)
+                .storeName(settingService.getValue("store_name", "SMARTMART AI"))
+                .storeAddress(settingService.getValue("store_address", "TP. Hồ Chí Minh"))
+                .storePhone(settingService.getValue("store_phone", ""))
+                .receiptFooter(settingService.getValue("receipt_footer", "Cảm ơn quý khách và hẹn gặp lại"))
+                .paperWidth(settingService.getValue("receipt_paper_width", "80mm"))
+                .payments(paymentLines)
                 .items(lines)
                 .build();
     }

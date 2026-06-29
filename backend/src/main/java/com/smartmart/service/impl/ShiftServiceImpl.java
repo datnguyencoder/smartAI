@@ -4,6 +4,7 @@ import com.smartmart.constant.AuditAction;
 import com.smartmart.dto.request.CloseShiftRequest;
 import com.smartmart.dto.request.OpenShiftRequest;
 import com.smartmart.dto.request.ReviewShiftRequest;
+import com.smartmart.dto.response.ShiftSummaryResponse;
 import com.smartmart.entity.Order;
 import com.smartmart.entity.Shift;
 import com.smartmart.enums.PaymentMethod;
@@ -13,6 +14,7 @@ import com.smartmart.exception.NotFoundException;
 import com.smartmart.repository.OrderPaymentRepository;
 import com.smartmart.repository.OrderRepository;
 import com.smartmart.repository.ShiftRepository;
+import com.smartmart.repository.UserRepository;
 import com.smartmart.security.SecurityUtils;
 import com.smartmart.service.AuditLogService;
 import com.smartmart.service.ShiftService;
@@ -34,17 +36,20 @@ public class ShiftServiceImpl implements ShiftService {
     private final OrderRepository orderRepository;
     private final OrderPaymentRepository orderPaymentRepository;
     private final AuditLogService auditLogService;
+    private final UserRepository userRepository;
 
     public ShiftServiceImpl(
             ShiftRepository shiftRepository,
             OrderRepository orderRepository,
             OrderPaymentRepository orderPaymentRepository,
-            AuditLogService auditLogService
+            AuditLogService auditLogService,
+            UserRepository userRepository
     ) {
         this.shiftRepository = shiftRepository;
         this.orderRepository = orderRepository;
         this.orderPaymentRepository = orderPaymentRepository;
         this.auditLogService = auditLogService;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -195,5 +200,41 @@ public class ShiftServiceImpl implements ShiftService {
     @Transactional(readOnly = true)
     public List<Shift> listByCashier(Long cashierId) {
         return shiftRepository.findByCashierIdOrderByIdDesc(cashierId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ShiftSummaryResponse getSummary(Long id) {
+        Shift shift = findById(id);
+        List<Order> orders = orderRepository.findCompletedByShiftId(shift.getId());
+        BigDecimal cashSales = orderPaymentRepository.sumCashByShiftId(shift.getId());
+        BigDecimal bankSales = orderPaymentRepository.sumByShiftIdAndMethod(shift.getId(), PaymentMethod.BANK_TRANSFER);
+        for (Order order : orders) {
+            if (order.getPayments().isEmpty()) {
+                if (order.getPaymentMethod() == PaymentMethod.CASH) {
+                    cashSales = cashSales.add(order.getTotalAmount());
+                } else if (order.getPaymentMethod() == PaymentMethod.BANK_TRANSFER) {
+                    bankSales = bankSales.add(order.getTotalAmount());
+                }
+            }
+        }
+        String cashierName = userRepository.findById(shift.getCashierId())
+                .map(u -> u.getFullName() != null ? u.getFullName() : u.getUsername())
+                .orElse("N/A");
+        return ShiftSummaryResponse.builder()
+                .shiftId(shift.getId())
+                .cashierName(cashierName)
+                .openedAt(shift.getOpenedAt())
+                .closedAt(shift.getClosedAt())
+                .status(shift.getStatus().name())
+                .openingCash(shift.getOpeningCash())
+                .closingCash(shift.getClosingCash())
+                .expectedCash(shift.getExpectedCash())
+                .cashVariance(shift.getCashVariance())
+                .totalOrders(orders.size())
+                .totalRevenue(orders.stream().map(Order::getTotalAmount).reduce(BigDecimal.ZERO, BigDecimal::add))
+                .cashSales(cashSales)
+                .bankSales(bankSales)
+                .build();
     }
 }

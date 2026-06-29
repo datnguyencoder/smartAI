@@ -1,5 +1,5 @@
 import { apiRequest } from '@/services/apiClient';
-import type { PageResponseDto, PurchaseOrderDto, SupplierDebtDto } from '@/types/api';
+import type { PageResponseDto, PurchaseOrderDto, PurchaseReturnDto, SupplierDebtDto } from '@/types/api';
 
 export function createPurchaseOrder(payload: {
   supplierId: number;
@@ -52,6 +52,23 @@ export function fetchSupplierDebtsBySupplier(supplierId: number) {
 
 export function recordDebtPayment(debtId: number, payload: { amount: number; paymentMethod?: string; note?: string }) {
   return apiRequest<SupplierDebtDto>(`/api/v1/supplier-debts/${debtId}/payments`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function fetchPurchaseReturns() {
+  return apiRequest<PurchaseReturnDto[]>('/api/v1/purchase-returns');
+}
+
+export function createPurchaseReturn(payload: {
+  supplierId: number;
+  locationId: number;
+  purchaseOrderId?: number;
+  note?: string;
+  items: { itemId: number; lotId?: number; quantity: number; unitPrice: number }[];
+}) {
+  return apiRequest<PurchaseReturnDto>('/api/v1/purchase-returns', {
     method: 'POST',
     body: JSON.stringify(payload),
   });

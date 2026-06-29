@@ -91,6 +91,72 @@ export type OrderItemDto = {
   subtotal?: number;
 };
 
+export type HeldOrderItemDto = {
+  itemId: number;
+  itemCode: string;
+  itemName: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+};
+
+export type HeldOrderDto = {
+  id: number;
+  holdCode: string;
+  cashierId?: number;
+  shiftId?: number;
+  customerName: string;
+  customerPhone?: string;
+  promotionCode?: string;
+  loyaltyPointsRedeemed?: number;
+  subtotalAmount: number;
+  note?: string;
+  status: 'ACTIVE' | 'RESTORED' | 'CANCELLED' | string;
+  createdAt?: string;
+  items: HeldOrderItemDto[];
+};
+
+export type CustomerDebtDto = {
+  id: number;
+  customerId: number;
+  customerName: string;
+  customerPhone?: string;
+  orderId: number;
+  orderCode: string;
+  amount: number;
+  paidAmount: number;
+  remainingAmount: number;
+  dueDate?: string;
+  status: 'UNPAID' | 'PARTIAL' | 'OVERDUE' | 'PAID' | string;
+  note?: string;
+  createdAt?: string;
+  payments?: {
+    id: number;
+    amount: number;
+    paymentDate: string;
+    paymentMethod?: string;
+    note?: string;
+  }[];
+};
+
+export type FinanceTransactionDto = {
+  id: number;
+  type: 'INCOME' | 'EXPENSE' | string;
+  category: string;
+  amount: number;
+  paymentAccount: 'CASH' | 'BANK' | 'WALLET' | 'OTHER' | string;
+  transactionDate: string;
+  note?: string;
+  createdBy?: number;
+  createdAt?: string;
+};
+
+export type FinanceSummaryDto = {
+  totalIncome: number;
+  totalExpense: number;
+  netCashFlow: number;
+};
+
 export type CustomerDto = {
   id: number;
   fullName: string;
@@ -144,6 +210,11 @@ export type ForecastItemDetailDto = {
   dailySeries: ForecastDailyPointDto[];
 };
 
+export type OrderPrintPaymentLineDto = {
+  paymentMethod: string;
+  amount: number;
+};
+
 export type OrderPrintDto = {
   id: number;
   orderCode: string;
@@ -154,11 +225,19 @@ export type OrderPrintDto = {
   subtotalAmount?: number;
   discountAmount?: number;
   vatAmount?: number;
+  vatRate?: number;
   totalAmount: number;
   paymentMethod: string;
   promotionCode?: string;
   loyaltyPointsRedeemed?: number;
   loyaltyPointsEarned?: number;
+  shiftId?: number;
+  storeName?: string;
+  storeAddress?: string;
+  storePhone?: string;
+  receiptFooter?: string;
+  paperWidth?: string;
+  payments?: OrderPrintPaymentLineDto[];
   items: Array<{
     itemCode: string;
     itemName: string;
@@ -236,6 +315,25 @@ export type InventoryItemDto = {
   availableQuantity: number;
   daysUntilExpiry?: number;
   riskQuantity?: number;
+};
+
+export type StockMovementDto = {
+  itemId: number;
+  itemName: string;
+  fromLocationId?: number;
+  fromLocationName?: string;
+  toLocationId?: number;
+  toLocationName?: string;
+  locationId?: number;
+  locationName?: string;
+  lotId?: number;
+  lotNumber?: string;
+  actionType: string;
+  quantity: number;
+  quantityBefore?: number;
+  quantityAfter?: number;
+  note?: string;
+  createdAt?: string;
 };
 
 export type ItemLotDto = {
@@ -587,4 +685,225 @@ export type CreateSupplierItemPayload = {
 
 export type UpdateSupplierItemPayload = {
   defaultCostPrice?: number;
+};
+
+export type ShiftSummaryDto = {
+  shiftId: number;
+  cashierName?: string;
+  openedAt: string;
+  closedAt?: string;
+  status: string;
+  openingCash: number;
+  closingCash?: number;
+  expectedCash?: number;
+  cashVariance?: number;
+  totalOrders: number;
+  totalRevenue: number;
+  cashSales: number;
+  bankSales: number;
+};
+
+export type BestSellerReportDto = {
+  itemId: number;
+  itemCode: string;
+  itemName: string;
+  quantitySold: number;
+  revenue: number;
+};
+
+export type CustomerDueReportDto = {
+  debtId: number;
+  customerId: number;
+  customerName: string;
+  orderId?: number;
+  amount: number;
+  paidAmount: number;
+  remainingAmount: number;
+  dueDate?: string;
+  status: string;
+};
+
+export type SupplierDueReportDto = {
+  debtId: number;
+  supplierId: number;
+  supplierName: string;
+  purchaseOrderId?: number;
+  amount: number;
+  paidAmount: number;
+  remainingAmount: number;
+  dueDate?: string;
+  status: string;
+};
+
+export type ProductExpiryReportDto = {
+  itemId: number;
+  itemCode: string;
+  itemName: string;
+  lotId?: number;
+  lotNumber?: string;
+  expiryDate?: string;
+  daysUntilExpiry?: number;
+  quantity: number;
+  locationName?: string;
+};
+
+export type CashFlowReportDto = {
+  date: string;
+  type: 'INCOME' | 'EXPENSE' | string;
+  category: string;
+  amount: number;
+  runningBalance: number;
+};
+
+export type ProfitLossReportDto = {
+  date: string;
+  revenue: number;
+  costOfGoods: number;
+  grossProfit: number;
+  expenses: number;
+  netProfit: number;
+};
+
+export type StockTransferOrderItemDto = {
+  itemId: number;
+  itemCode?: string;
+  itemName: string;
+  lotId?: number;
+  lotNumber?: string;
+  quantity: number;
+};
+
+export type StockTransferOrderDto = {
+  id: number;
+  transferCode: string;
+  fromLocationId: number;
+  fromLocationName: string;
+  toLocationId: number;
+  toLocationName: string;
+  status: string;
+  note?: string;
+  createdBy?: number;
+  confirmedAt?: string;
+  createdAt: string;
+  items: StockTransferOrderItemDto[];
+};
+
+export type PurchaseReturnItemDto = {
+  itemId: number;
+  itemName: string;
+  lotId?: number;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+};
+
+export type PurchaseReturnDto = {
+  id: number;
+  supplierId: number;
+  supplierName: string;
+  locationId: number;
+  locationName: string;
+  purchaseOrderId?: number;
+  status: string;
+  returnDate: string;
+  totalAmount: number;
+  note?: string;
+  items: PurchaseReturnItemDto[];
+};
+
+export type FinanceCategoryDto = {
+  id: number;
+  name: string;
+  type: 'INCOME' | 'EXPENSE' | string;
+  active: boolean;
+  createdAt?: string;
+};
+
+export type CashAccountDto = {
+  id: number;
+  accountName: string;
+  accountType: string;
+  balance: number;
+  active: boolean;
+  createdAt?: string;
+};
+
+export type AccountTransferDto = {
+  id: number;
+  fromAccountId: number;
+  fromAccountName?: string;
+  toAccountId: number;
+  toAccountName?: string;
+  amount: number;
+  note?: string;
+  transferredAt: string;
+};
+
+export type DiscountPlanDto = {
+  id: number;
+  planName: string;
+  planType: 'CATEGORY' | 'ITEM' | 'GLOBAL' | string;
+  categoryId?: number;
+  categoryName?: string;
+  itemId?: number;
+  itemName?: string;
+  discountPercent: number;
+  startDate?: string;
+  endDate?: string;
+  active: boolean;
+  createdAt?: string;
+};
+
+export type BrandDto = {
+  id: number;
+  brandName: string;
+  description?: string;
+  active: boolean;
+  createdAt?: string;
+};
+
+export type QuotationItemDto = {
+  itemId: number;
+  itemName: string;
+  itemCode?: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+};
+
+export type QuotationDto = {
+  id: number;
+  quoteCode: string;
+  customerName?: string;
+  customerPhone?: string;
+  status: string;
+  subtotalAmount: number;
+  validUntil?: string;
+  note?: string;
+  convertedOrderId?: number;
+  createdAt: string;
+  items: QuotationItemDto[];
+};
+
+export type GiftCardDto = {
+  id: number;
+  cardCode: string;
+  initialBalance: number;
+  currentBalance: number;
+  status: string;
+  issuedAt: string;
+  expiresAt?: string;
+  note?: string;
+};
+
+export type OnlineOrderRequestDto = {
+  id: number;
+  requestCode: string;
+  customerName?: string;
+  customerPhone?: string;
+  deliveryAddress?: string;
+  status: string;
+  totalAmount: number;
+  note?: string;
+  createdAt: string;
 };
