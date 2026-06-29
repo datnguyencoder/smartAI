@@ -195,15 +195,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             Item item = itemRepository.findByIdWithPessimisticLock(poi.getItem().getId())
                     .orElseThrow(() -> new NotFoundException("Không tìm thấy sản phẩm"));
 
-            BigDecimal ratioToCalculateBaseQty = item.getPurchaseConversionRatio() != null
-                    ? item.getPurchaseConversionRatio()
-                    : BigDecimal.ONE;
-
-            if (ratioToCalculateBaseQty.compareTo(BigDecimal.ZERO) <= 0) {
-                throw new BadRequestException("Tỉ lệ quy đổi không hợp lệ. Không thể thực hiện nhận hàng.");
-            }
-
-            BigDecimal baseQty = poi.getOrderedQty().multiply(ratioToCalculateBaseQty);
+            BigDecimal baseQty = poi.getOrderedQty();
 
             BigDecimal oldQty = currentInventoryRepository.sumQuantityByItemId(item.getId());
 
@@ -216,7 +208,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                     userId,
                     "Nhập kho");
 
-            BigDecimal newCostPrice = calculateMovingAverageCost(item, poi, ratioToCalculateBaseQty, baseQty, oldQty);
+            BigDecimal newCostPrice = calculateMovingAverageCost(item, poi, baseQty, oldQty);
 
             item.setCostPrice(newCostPrice);
 
@@ -352,8 +344,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                         .id(i.getId())
                         .itemId(i.getItem().getId())
                         .itemName(i.getItem().getItemName())
-                        .uomName(i.getItem().getPurchaseUom() != null ? i.getItem().getPurchaseUom().getUomName()
-                                : (i.getItem().getBaseUom() != null ? i.getItem().getBaseUom().getUomName() : null))
+                        .uomName(i.getItem().getBaseUom() != null ? i.getItem().getBaseUom().getUomName() : null)
                         .orderedQty(i.getOrderedQty())
                         .receivedQty(i.getReceivedQty())
                         .unitPrice(i.getUnitPrice())
@@ -395,9 +386,9 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                 .toList();
     }
 
-    private BigDecimal calculateMovingAverageCost(Item item, PurchaseOrderItem poi, BigDecimal ratioToCalculateBaseQty,
-            BigDecimal baseQty, BigDecimal oldQty) {
-        BigDecimal newBaseCost = poi.getUnitPrice().divide(ratioToCalculateBaseQty, 4, RoundingMode.HALF_UP);
+    private BigDecimal calculateMovingAverageCost(Item item, PurchaseOrderItem poi, BigDecimal baseQty,
+            BigDecimal oldQty) {
+        BigDecimal newBaseCost = poi.getUnitPrice();
         BigDecimal totalOldCost = oldQty.multiply(item.getCostPrice() != null ? item.getCostPrice() : BigDecimal.ZERO);
         BigDecimal totalNewCost = baseQty.multiply(newBaseCost);
 

@@ -12,6 +12,7 @@ public class UomResponse {
     private String uomName;
     private String category;
     private BigDecimal conversionRatio;
-    private boolean baseUnit;
     private boolean active;
+    private Long conversionUomId;
+    private String conversionUomName;
 }

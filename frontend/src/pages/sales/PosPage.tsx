@@ -14,6 +14,7 @@ import {
   createOrder,
   fetchCustomers,
   fetchCurrentShift,
+  fetchInventory,
   fetchItemByBarcode,
   fetchItems,
   fetchOrderPrint,
@@ -29,6 +30,34 @@ const tierColors: Record<string, string> = {
   SILVER: 'blue',
   GOLD: 'gold',
 };
+
+const POS_SELLING_LOCATION_NAME = 'Kho b\u00e1n';
+
+function availableQty(row: any) {
+  const quantity = Number(row?.quantity ?? 0);
+  const reserved = Number(row?.reservedQuantity ?? 0);
+  const available = Number(row?.availableQuantity ?? quantity - reserved);
+  return Number.isFinite(available) ? available : 0;
+}
+
+function stockBySellingLocation(rows: any[]) {
+  return rows.reduce<Record<number, number>>((acc, row) => {
+    if (row?.locationName !== POS_SELLING_LOCATION_NAME) return acc;
+    const itemId = Number(row?.itemId);
+    if (!Number.isFinite(itemId)) return acc;
+    acc[itemId] = (acc[itemId] || 0) + availableQty(row);
+    return acc;
+  }, {});
+}
+
+function applySellableStock(product: Product, stock?: number) {
+  if (stock === undefined) return product;
+  const next = { ...product, stock: Math.max(0, Math.round(stock)) };
+  if (next.stock === 0) next.status = 'Hết hàng';
+  else if (next.stock <= next.minimumStock) next.status = 'Sắp hết';
+  else next.status = 'Còn hàng';
+  return next;
+}
 
 export default function PosPage({
   categories,
@@ -97,8 +126,16 @@ export default function PosPage({
     const loadItems = async () => {
       setLoadingItems(true);
       try {
-        const res = await fetchItems(searchQuery, selectedCategoryId === 0 ? undefined : selectedCategoryId);
-        if (active) setLocalProducts(res.map(itemToProduct));
+        const [items, inventory] = await Promise.all([
+          fetchItems(searchQuery, selectedCategoryId === 0 ? undefined : selectedCategoryId),
+          fetchInventory().catch(() => []),
+        ]);
+        const stockMap = stockBySellingLocation(inventory as any[]);
+        if (active) {
+          setLocalProducts(
+            items.map((item) => applySellableStock(itemToProduct(item), stockMap[Number(item.id)]))
+          );
+        }
       } catch (e) {
         console.error('Failed to fetch items', e);
       } finally {
@@ -492,7 +529,9 @@ export default function PosPage({
                 <div className="flex-1 flex flex-col justify-between mt-2">
                   <div>
                     <strong className="text-sm font-bold text-ink line-clamp-2 leading-snug">{product.name}</strong>
-                    <p className="mt-1 text-xs text-slate-400 font-medium">{product.sku} · Tồn {product.stock}</p>
+                    <p className="mt-1 text-xs text-slate-400 font-medium">
+                      {product.sku} · Tồn {POS_SELLING_LOCATION_NAME} {product.stock}
+                    </p>
                   </div>
                   <span className="font-extrabold text-primary text-base">{money(product.price)}</span>
                 </div>

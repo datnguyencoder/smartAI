@@ -173,6 +173,7 @@ public class RetailSalesHistorySeeder implements CommandLineRunner {
                 .category(category)
                 .baseUom(baseUom)
                 .purchaseUom(baseUom)
+                .purchaseConversionRatio(baseUom.getConversionRatio())
                 .costPrice(new BigDecimal("10000"))
                 .sellingPrice(new BigDecimal("15000"))
                 .minimumStock(10)

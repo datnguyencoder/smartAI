@@ -18,5 +18,6 @@ public class CreateUomRequest {
     @NotNull
     @DecimalMin("0.0001")
     private BigDecimal conversionRatio = BigDecimal.ONE;
-    private boolean baseUnit;
+    private Long conversionUomId;
+    private boolean active;
 }

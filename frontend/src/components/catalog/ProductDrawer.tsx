@@ -87,7 +87,7 @@ export function ProductDrawer({ product, onClose, onUpdated }: Props) {
           <div className="grid grid-cols-2 gap-3">
             <Statistic title="Tồn kho" value={product.stock} suffix={product.baseUomName || ''} />
             <Statistic title="Đã bán" value={product.sold} suffix={product.baseUomName || ''} />
-            <Statistic title="Giá nhập" value={product.cost} formatter={(v) => formatMoney(Number(v))} />
+            <Statistic title="Giá nhập TB" value={product.cost} formatter={(v) => formatMoney(Number(v))} />
             <Statistic title="Giá bán" value={product.price} formatter={(v) => formatMoney(Number(v))} />
             <Statistic title="Hạn dùng" value={product.expiry} className="col-span-2" />
           </div>

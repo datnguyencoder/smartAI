@@ -12,7 +12,7 @@ import java.util.Optional;
 
 @Repository
 public interface SupplierRepository extends JpaRepository<Supplier, Long> {
-    Optional<Supplier> findBySupplierName(String supplierName);
+    Optional<Supplier> findFirstBySupplierNameOrderByIdAsc(String supplierName);
 
     @Query("SELECT s FROM Supplier s WHERE " +
             "(:q = '' OR LOWER(s.supplierName) LIKE LOWER(CONCAT('%', :q, '%')) OR LOWER(s.phone) LIKE LOWER(CONCAT('%', :q, '%')) OR LOWER(s.email) LIKE LOWER(CONCAT('%', :q, '%'))) "

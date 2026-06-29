@@ -2,8 +2,11 @@ package com.smartmart.repository;
 
 import com.smartmart.entity.SupplierItem;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,4 +21,13 @@ public interface SupplierItemRepository extends JpaRepository<SupplierItem, Long
     Optional<SupplierItem> findBySupplierIdAndSkuItemIgnoreCase(Long supplierId, String skuItem);
 
     boolean existsBySupplierIdAndSkuItemIgnoreCase(Long supplierId, String skuItem);
+
+    @Query("""
+    SELECT AVG(si.defaultCostPrice)
+    FROM SupplierItem si
+    WHERE LOWER(si.skuItem) = LOWER(:skuItem)
+      AND si.active = true
+      AND si.defaultCostPrice IS NOT NULL
+""")
+    BigDecimal averageDefaultCostPriceBySkuItem(@Param("skuItem") String skuItem);
 }

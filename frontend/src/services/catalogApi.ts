@@ -37,7 +37,6 @@ export function createItem(payload: {
   categoryId?: number;
   baseUomId: number;
   purchaseUomId?: number;
-  purchaseConversionRatio?: number;
   costPrice: number;
   sellingPrice: number;
   minimumStock?: number;
@@ -58,7 +57,6 @@ export function updateItem(
     categoryId?: number;
     baseUomId?: number;
     purchaseUomId?: number;
-    purchaseConversionRatio?: number;
     costPrice?: number;
     sellingPrice?: number;
     minimumStock?: number;
@@ -143,8 +141,8 @@ export function updateLocation(id: number, payload: Partial<LocationDto>) {
   });
 }
 
-export function fetchUoms(categories?: string) {
-  const query = categories ? `?categories=${encodeURIComponent(categories)}` : '';
+export function fetchUoms(category?: string) {
+  const query = category ? `?category=${encodeURIComponent(category)}` : '';
   return apiRequest<UomDto[]>(`/api/v1/uoms${query}`);
 }
 
@@ -152,7 +150,7 @@ export function createUom(payload: {
   uomName: string;
   category: string;
   conversionRatio: number;
-  baseUnit?: boolean;
+  conversionUomId?: number;
 }) {
   return apiRequest<UomDto>('/api/v1/uoms', {
     method: 'POST',
@@ -164,7 +162,7 @@ export function updateUom(id: number, payload: {
   uomName: string;
   category: string;
   conversionRatio: number;
-  baseUnit?: boolean;
+  conversionUomId?: number;
   active?: boolean;
 }) {
   return apiRequest<UomDto>(`/api/v1/uoms/${id}`, {

@@ -104,12 +104,12 @@ public class DemoCatalogSeeder implements CommandLineRunner {
 
         seedManagerUser();
 
-        Uom cai = findOrCreateUom("Cái", BigDecimal.ONE, true, "Bán lẻ");
-        Uom thung = findOrCreateUom("Thùng", bd("24"), false, "Đóng gói");
-        Uom hop = findOrCreateUom("Hộp", BigDecimal.ONE, true, "Bán lẻ");
-        Uom goi = findOrCreateUom("Gói", BigDecimal.ONE, true, "Bán lẻ");
-        Uom tui = findOrCreateUom("Túi", BigDecimal.ONE, true, "Bán lẻ");
-        Uom kg = findOrCreateUom("Kg", BigDecimal.ONE, true, "Đo lường");
+        Uom cai = findOrCreateUom("Cái", BigDecimal.ONE, "Bán lẻ", null);
+        Uom thung = findOrCreateUom("Thùng 24 cái", bd("24"), "Đóng gói", cai);
+        Uom hop = findOrCreateUom("Hộp", BigDecimal.ONE, "Bán lẻ", null);
+        Uom goi = findOrCreateUom("Gói", BigDecimal.ONE, "Bán lẻ", null);
+        Uom tui = findOrCreateUom("Túi", BigDecimal.ONE, "Bán lẻ", null);
+        Uom kg = findOrCreateUom("Kg", BigDecimal.ONE, "Đo lường", null);
 
         Category doUong = findOrCreateCategory("Đồ uống", IMG_DRINKS);
         Category suaLanh = findOrCreateCategory("Sữa & trứng lạnh", IMG_MILK);
@@ -328,20 +328,25 @@ public class DemoCatalogSeeder implements CommandLineRunner {
         return categoryRepository.save(category);
     }
 
-    private Uom findOrCreateUom(String name, BigDecimal ratio, boolean baseUnit, String category) {
+    private Uom findOrCreateUom(String name, BigDecimal ratio, String category, Uom conversionUom) {
         return uomRepository.findAll().stream()
                 .filter(u -> name.equals(u.getUomName()))
                 .findFirst()
-                .orElseGet(() -> uomRepository.save(Uom.builder()
-                        .uomName(name)
-                        .conversionRatio(ratio)
-                        .baseUnit(baseUnit)
-                        .category(category)
-                        .build()));
+                .orElseGet(() -> {
+                    Uom saved = uomRepository.save(Uom.builder()
+                            .uomName(name)
+                            .conversionRatio(ratio)
+                            .category(category)
+                            .active(true)
+                            .build());
+
+                    saved.setConversionUom(conversionUom != null ? conversionUom : saved);
+                    return uomRepository.save(saved);
+                });
     }
 
     private Supplier upsertSupplier(String name, String contact, String phone, String email, String address) {
-        Supplier supplier = supplierRepository.findBySupplierName(name)
+        Supplier supplier = supplierRepository.findFirstBySupplierNameOrderByIdAsc(name)
                 .orElseGet(() -> Supplier.builder().supplierName(name).build());
         supplier.setContactPerson(contact);
         supplier.setPhone(phone);
@@ -368,6 +373,7 @@ public class DemoCatalogSeeder implements CommandLineRunner {
         item.setCategory(seed.category());
         item.setBaseUom(seed.baseUom());
         item.setPurchaseUom(seed.purchaseUom());
+        item.setPurchaseConversionRatio(seed.purchaseUom().getConversionRatio());
         item.setCostPrice(seed.cost());
         item.setSellingPrice(seed.sell());
         item.setMinimumStock(seed.minStock());
