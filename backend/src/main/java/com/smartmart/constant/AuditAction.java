@@ -57,4 +57,10 @@ public final class AuditAction {
     public static final String DEBT_CREATE = "DEBT_CREATE";
     public static final String DEBT_PAYMENT = "DEBT_PAYMENT";
 
+    public static final String UOM_UPDATE = "UOM_UPDATE";
+    public static final String UOM_ACTIVATE = "UOM_ACTIVATE";
+    public static final String UOM_DEACTIVATE = "UOM_DEACTIVATE";
+
+
+
 }

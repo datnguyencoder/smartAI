@@ -11,4 +11,5 @@ public class CategoryResponse {
     private Long parentId;
     private boolean active;
     private String imageUrl;
+    private String uomCategories;
 }

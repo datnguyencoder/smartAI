@@ -8,6 +8,7 @@ const ALL_PAGES: PageKey[] = [
   'categories',
   'suppliers',
   'locations',
+  'uoms',
   'pos',
   'customers',
   'invoices',
@@ -43,6 +44,7 @@ const ROLE_PAGES: Record<string, PageKey[]> = {
     'categories',
     'suppliers',
     'locations',
+    'uoms',
     'import-create',
     'import-slips',
     'inventory',
@@ -59,6 +61,7 @@ const ROLE_PAGES: Record<string, PageKey[]> = {
 const QUICK_CREATE_PAGES: Partial<Record<PageKey, string[]>> = {
   products: ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_WAREHOUSE'],
   categories: ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_WAREHOUSE'],
+  uoms: ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_WAREHOUSE'],
   suppliers: ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_WAREHOUSE'],
   'import-create': ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_WAREHOUSE'],
 };

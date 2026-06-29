@@ -6,6 +6,7 @@ export const PAGE_PATHS: Record<PageKey, string> = {
   categories: '/categories',
   suppliers: '/suppliers',
   locations: '/locations',
+  uoms: '/uoms',
   pos: '/pos',
   customers: '/customers',
   invoices: '/invoices',

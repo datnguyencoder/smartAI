@@ -12,6 +12,7 @@ const pageTitles: Record<PageKey, { title: string }> = {
   categories: { title: 'Danh mục' },
   suppliers: { title: 'Nhà cung cấp' },
   locations: { title: 'Vị trí kho' },
+  uoms: { title: 'Đơn vị tính' },
   pos: { title: 'Bán hàng tại quầy' },
   customers: { title: 'Khách hàng' },
   invoices: { title: 'Hóa đơn bán hàng' },
@@ -52,12 +53,43 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
   const [saving, setSaving] = React.useState(false);
   const [previewName, setPreviewName] = React.useState('');
   const [previewUrl, setPreviewUrl] = React.useState<string | undefined>();
-  const baseUom = uoms.find((u) => u.uomName === 'Cái') ?? uoms[0];
+  const selectedCategoryId = Form.useWatch('categoryId', form);
+
+  const selectedCategory = React.useMemo(
+    () => categories.find((category) => category.id === selectedCategoryId),
+    [categories, selectedCategoryId]
+  );
+
+  const allowedUomCategories = React.useMemo(
+    () => selectedCategory?.uomCategories?.split(',').map((item) => item.trim()).filter(Boolean) ?? [],
+    [selectedCategory]
+  );
+
+  const filteredUoms = React.useMemo(() => {
+    return uoms.filter((uom) => {
+      const active = uom.active !== false;
+      const allowed = allowedUomCategories.length === 0 || allowedUomCategories.includes(String(uom.category));
+      return active && allowed;
+    });
+  }, [allowedUomCategories, uoms]);
+
+  React.useEffect(() => {
+    if (!open || !selectedCategoryId) return;
+    form.setFieldsValue({ baseUomId: undefined, purchaseUomId: undefined, purchaseConversionRatio: undefined });
+  }, [form, open, selectedCategoryId]);
+
+  const handlePurchaseUomChange = (uomId?: number) => {
+    const selectedUom = filteredUoms.find((uom) => uom.id === uomId);
+    form.setFieldValue('purchaseConversionRatio', selectedUom?.conversionRatio ?? 1);
+  };
 
   const handleFinish = async (values: {
     name: string;
     sku: string;
     categoryId?: number;
+    baseUomId: number;
+    purchaseUomId?: number;
+    purchaseConversionRatio?: number;
     price: number;
     costPrice: number;
     hasExpiry?: boolean;
@@ -69,8 +101,8 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
     address?: string;
   }) => {
     if (page === 'products') {
-      if (!baseUom) {
-        antdMessage.error('Chưa có đơn vị tính (UOM) trên hệ thống');
+      if (!values.baseUomId) {
+        antdMessage.error('Vui lòng chọn đơn vị cơ sở');
         return;
       }
       setSaving(true);
@@ -79,7 +111,9 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
           itemCode: values.sku || `SKU-${Date.now()}`,
           itemName: values.name,
           categoryId: values.categoryId,
-          baseUomId: baseUom.id,
+          baseUomId: values.baseUomId,
+          purchaseUomId: values.purchaseUomId,
+          purchaseConversionRatio: values.purchaseConversionRatio ?? 1,
           costPrice: values.costPrice ?? values.price * 0.8,
           sellingPrice: values.price,
           minimumStock: 10,
@@ -163,9 +197,29 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
                 <Select
                   placeholder="Chọn danh mục"
                   options={categories.map((c) => ({ value: c.id, label: c.categoryName }))}
+                  allowClear
                 />
               </Form.Item>
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Form.Item name="baseUomId" label="Đơn vị cơ sở" rules={[{ required: true, message: 'Vui lòng chọn đơn vị cơ sở' }]}>
+                <Select
+                  placeholder="Chọn đơn vị cơ sở"
+                  options={filteredUoms.map((uom) => ({ value: uom.id, label: uom.uomName }))}
+                />
+              </Form.Item>
+              <Form.Item name="purchaseUomId" label="Đơn vị nhập">
+                <Select
+                  placeholder="Chọn đơn vị nhập"
+                  options={filteredUoms.map((uom) => ({ value: uom.id, label: uom.uomName }))}
+                  onChange={handlePurchaseUomChange}
+                  allowClear
+                />
+              </Form.Item>
+            </div>
+            <Form.Item name="purchaseConversionRatio" label="Tỷ lệ quy đổi nhập" tooltip="Ví dụ: 1 thùng = 24 cái thì nhập 24">
+              <InputNumber className="w-full" min={0.0001} step={0.0001} placeholder="Mặc định 1" />
+            </Form.Item>
             <Form.Item name="imageUrl" label="URL ảnh (tùy chọn)">
               <Input placeholder="/media/items/milk-vnm-1l.svg hoặc https://..." />
             </Form.Item>

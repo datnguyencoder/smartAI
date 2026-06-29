@@ -6,6 +6,7 @@ export const pageTitles: Record<PageKey, { title: string; description: string }>
   categories: { title: 'Quản lý danh mục', description: 'Tổ chức nhóm hàng, biên lợi nhuận và số lượng sản phẩm.' },
   suppliers: { title: 'Quản lý nhà cung cấp', description: 'Theo dõi đối tác, công nợ, lịch giao hàng và SLA.' },
   locations: { title: 'Vị trí kho hàng', description: 'Sơ đồ kho, sức chứa và khu vực lưu trữ hàng hóa.' },
+  uoms: { title: 'Quản lý đơn vị tính', description: 'Cấu hình đơn vị đếm, khối lượng, dung tích và đóng gói cho sản phẩm.' },
   pos: { title: 'Bán hàng tại quầy POS', description: 'Quét sản phẩm, tạo giỏ hàng và thanh toán nhanh.' },
   customers: { title: 'Quản lý khách hàng', description: 'Tra cứu SĐT, điểm tích lũy và lịch sử mua hàng.' },
   invoices: { title: 'Hóa đơn bán hàng', description: 'Tra cứu hóa đơn, trạng thái thanh toán và giao dịch hoàn tiền.' },

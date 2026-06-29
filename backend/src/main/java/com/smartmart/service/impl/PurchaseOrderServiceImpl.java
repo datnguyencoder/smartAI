@@ -195,13 +195,12 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             Item item = itemRepository.findByIdWithPessimisticLock(poi.getItem().getId())
                     .orElseThrow(() -> new NotFoundException("Không tìm thấy sản phẩm"));
 
-            Uom orderedUom = item.getPurchaseUom() != null ? item.getPurchaseUom() : item.getBaseUom();
-            BigDecimal conversionRatio = orderedUom.getConversionRatio();
-            BigDecimal baseRatio = item.getBaseUom() != null ? item.getBaseUom().getConversionRatio() : BigDecimal.ONE;
-            BigDecimal ratioToCalculateBaseQty = conversionRatio.divide(baseRatio, 6, RoundingMode.HALF_UP);
+            BigDecimal ratioToCalculateBaseQty = item.getPurchaseConversionRatio() != null
+                    ? item.getPurchaseConversionRatio()
+                    : BigDecimal.ONE;
 
-            if (ratioToCalculateBaseQty.compareTo(BigDecimal.ZERO) == 0) {
-                throw new BadRequestException("Tỉ lệ quy đổi không hợp lệ (bằng 0). Không thể thực hiện nhận hàng.");
+            if (ratioToCalculateBaseQty.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new BadRequestException("Tỉ lệ quy đổi không hợp lệ. Không thể thực hiện nhận hàng.");
             }
 
             BigDecimal baseQty = poi.getOrderedQty().multiply(ratioToCalculateBaseQty);

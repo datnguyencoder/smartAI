@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Button, Form, Input, Modal, Switch, message } from 'antd';
+import { Button, Form, Input, Modal, Select, Switch, message } from 'antd';
 import { motion } from 'framer-motion';
 import { Plus, Search, Tags } from 'lucide-react';
 import { AiSummary } from '@/components/ai/AiSummary';
@@ -16,6 +16,19 @@ import {
 } from '@/services/wmsApi';
 import type { CategoryDto } from '@/types/api';
 import type { PageKey } from '@/types/pages';
+
+const UOM_CATEGORY_OPTIONS = [
+  { value: 'COUNT', label: 'Số lượng' },
+  { value: 'WEIGHT', label: 'Khối lượng' },
+  { value: 'VOLUME', label: 'Dung tích' },
+  { value: 'PACKAGE', label: 'Đóng gói' },
+  { value: 'LENGTH', label: 'Chiều dài' },
+  { value: 'OTHER', label: 'Khác' },
+];
+
+function splitUomCategories(value?: string) {
+  return value?.split(',').map((item) => item.trim()).filter(Boolean) ?? [];
+}
 
 type Props = {
   productsList: Product[];
@@ -58,24 +71,39 @@ export default function CategoriesPage({ productsList, setPage, openProduct, rel
   const openCreate = () => {
     setEditing(null);
     form.resetFields();
-    form.setFieldsValue({ active: true });
+    form.setFieldsValue({ active: true, uomCategories: ['COUNT', 'PACKAGE'] });
     setModalOpen(true);
   };
 
   const openEdit = (cat: CategoryDto) => {
     setEditing(cat);
-    form.setFieldsValue({ categoryName: cat.categoryName, active: cat.active });
+    form.setFieldsValue({
+      categoryName: cat.categoryName,
+      active: cat.active,
+      uomCategories: splitUomCategories(cat.uomCategories),
+    });
     setModalOpen(true);
   };
 
   const handleSave = async () => {
     const values = await form.validateFields();
+    const payload = {
+      categoryName: values.categoryName,
+      active: values.active,
+      uomCategories: Array.isArray(values.uomCategories)
+        ? values.uomCategories.join(',')
+        : values.uomCategories,
+    };
+
     try {
       if (editing) {
-        await updateCategory(editing.id, values);
+        await updateCategory(editing.id, payload);
         message.success('Cập nhật danh mục thành công');
       } else {
-        await createCategory({ categoryName: values.categoryName });
+        await createCategory({
+          categoryName: payload.categoryName,
+          uomCategories: payload.uomCategories,
+        });
         message.success('Tạo danh mục thành công');
       }
       setModalOpen(false);
@@ -184,6 +212,13 @@ export default function CategoriesPage({ productsList, setPage, openProduct, rel
         <Form form={form} layout="vertical" className="mt-4">
           <Form.Item name="categoryName" label="Tên danh mục" rules={[{ required: true }]}>
             <Input />
+          </Form.Item>
+          <Form.Item
+            name="uomCategories"
+            label="Nhóm đơn vị được dùng"
+            rules={[{ required: true, message: 'Vui lòng chọn ít nhất một nhóm đơn vị' }]}
+          >
+            <Select mode="multiple" options={UOM_CATEGORY_OPTIONS} placeholder="Chọn nhóm đơn vị" />
           </Form.Item>
           {editing && (
             <Form.Item name="active" label="Đang kinh doanh" valuePropName="checked">

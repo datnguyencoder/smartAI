@@ -17,7 +17,9 @@ import com.smartmart.util.ItemImageUrls;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -63,6 +65,7 @@ public class CategoryServiceImpl implements CategoryService {
                 .parent(parent)
                 .active(true)
                 .imageUrl(ItemImageUrls.DEFAULT_CATEGORY)
+                .uomCategories(normalizeUomCategories(req.getUomCategories()))
                 .build();
         Category saved = categoryRepository.save(category);
         auditLogService.log(
@@ -94,6 +97,9 @@ public class CategoryServiceImpl implements CategoryService {
         }
         if (req.getActive() != null) {
             category.setActive(req.getActive());
+        }
+        if (req.getUomCategories() != null) {
+            category.setUomCategories(normalizeUomCategories(req.getUomCategories()));
         }
         Category saved = categoryRepository.save(category);
         auditLogService.log(
@@ -144,6 +150,7 @@ public class CategoryServiceImpl implements CategoryService {
                 .parentId(c.getParent() != null ? c.getParent().getId() : null)
                 .active(c.isActive())
                 .imageUrl(ItemImageUrls.resolveCategory(c))
+                .uomCategories(c.getUomCategories())
                 .build();
     }
 
@@ -151,6 +158,19 @@ public class CategoryServiceImpl implements CategoryService {
         return AuditData.of(
                 "categoryName", c.getCategoryName(),
                 "parentId", c.getParent() != null ? c.getParent().getId() : null,
-                "active", c.isActive());
+                "active", c.isActive(),
+                "uomCategories", c.getUomCategories());
+    }
+    private static String normalizeUomCategories(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        return Arrays.stream(value.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .map(String::toUpperCase)
+                .distinct()
+                .collect(Collectors.joining(","));
     }
 }

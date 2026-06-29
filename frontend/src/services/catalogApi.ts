@@ -37,6 +37,7 @@ export function createItem(payload: {
   categoryId?: number;
   baseUomId: number;
   purchaseUomId?: number;
+  purchaseConversionRatio?: number;
   costPrice: number;
   sellingPrice: number;
   minimumStock?: number;
@@ -55,6 +56,9 @@ export function updateItem(
     itemCode?: string;
     itemName?: string;
     categoryId?: number;
+    baseUomId?: number;
+    purchaseUomId?: number;
+    purchaseConversionRatio?: number;
     costPrice?: number;
     sellingPrice?: number;
     minimumStock?: number;
@@ -76,7 +80,7 @@ export function fetchCategoryById(id: number) {
   return apiRequest<CategoryDto>(`/api/v1/categories/${id}`);
 }
 
-export function createCategory(payload: { categoryName: string; parentId?: number }) {
+export function createCategory(payload: { categoryName: string; parentId?: number; uomCategories?: string }) {
   return apiRequest<CategoryDto>('/api/v1/categories', {
     method: 'POST',
     body: JSON.stringify(payload),
@@ -85,7 +89,7 @@ export function createCategory(payload: { categoryName: string; parentId?: numbe
 
 export function updateCategory(
   id: number,
-  payload: { categoryName: string; parentId?: number; active?: boolean }
+  payload: { categoryName: string; parentId?: number; active?: boolean; uomCategories?: string }
 ) {
   return apiRequest<CategoryDto>(`/api/v1/categories/${id}`, {
     method: 'PUT',
@@ -139,8 +143,46 @@ export function updateLocation(id: number, payload: Partial<LocationDto>) {
   });
 }
 
-export function fetchUoms() {
-  return apiRequest<UomDto[]>('/api/v1/uoms');
+export function fetchUoms(categories?: string) {
+  const query = categories ? `?categories=${encodeURIComponent(categories)}` : '';
+  return apiRequest<UomDto[]>(`/api/v1/uoms${query}`);
+}
+
+export function createUom(payload: {
+  uomName: string;
+  category: string;
+  conversionRatio: number;
+  baseUnit?: boolean;
+}) {
+  return apiRequest<UomDto>('/api/v1/uoms', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateUom(id: number, payload: {
+  uomName: string;
+  category: string;
+  conversionRatio: number;
+  baseUnit?: boolean;
+  active?: boolean;
+}) {
+  return apiRequest<UomDto>(`/api/v1/uoms/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deactivateUom(id: number) {
+  return apiRequest<void>(`/api/v1/uoms/${id}/deactivate`, {
+    method: 'PATCH',
+  });
+}
+
+export function activateUom(id: number) {
+  return apiRequest<void>(`/api/v1/uoms/${id}/activate`, {
+    method: 'PATCH',
+  });
 }
 
 export function getBarcodeLabelUrl(itemId: number) {

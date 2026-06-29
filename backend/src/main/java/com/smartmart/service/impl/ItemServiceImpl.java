@@ -24,10 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 @Transactional
@@ -126,6 +123,9 @@ public class ItemServiceImpl implements ItemService {
     public ItemResponse create(CreateItemRequest req) {
         String itemCode = normalizeItemCode(req.getItemCode());
         String itemName = normalizeItemName(req.getItemName());
+        Category category = req.getCategoryId() != null
+                ? resolveActiveCategory(req.getCategoryId())
+                : null;
         if (itemRepository.existsByItemCodeIgnoreCase(itemCode)) {
             throw new ConflictException("Mã SKU đã tồn tại: " + itemCode
                     + ". Mỗi biến thể phải tạo SKU riêng, ví dụ MI-HAOHAO-TOM và MI-HAOHAO-CHUA-CAY.");
@@ -139,6 +139,12 @@ public class ItemServiceImpl implements ItemService {
                 ? uomRepository.findById(req.getPurchaseUomId())
                         .orElseThrow(() -> new NotFoundException("Không tìm thấy UOM nhập"))
                 : baseUom;
+        validateUomMatchesCategory(baseUom, category);
+        validateUomMatchesCategory(purchaseUom, category);
+
+        BigDecimal purchaseConversionRatio = req.getPurchaseConversionRatio() != null
+                ? req.getPurchaseConversionRatio()
+                : purchaseUom.getConversionRatio();
 
         String imageUrl = resolveImageUrlForCreate(req.getImageUrl(), itemCode);
 
@@ -157,6 +163,7 @@ public class ItemServiceImpl implements ItemService {
                 .hasExpiry(req.isHasExpiry())
                 .active(true)
                 .imageUrl(imageUrl)
+                .purchaseConversionRatio(purchaseConversionRatio)
                 .build();
         Item saved = itemRepository.save(item);
         auditLogService.log(
@@ -234,7 +241,12 @@ public class ItemServiceImpl implements ItemService {
                     ? ItemImageUrls.defaultItemPath(item.getItemCode())
                     : req.getImageUrl().trim());
         }
+        if (req.getPurchaseConversionRatio() != null) {
+            item.setPurchaseConversionRatio(req.getPurchaseConversionRatio());
+        }
         BigDecimal sold = soldQtyMap().getOrDefault(id, BigDecimal.ZERO);
+        validateUomMatchesCategory(item.getBaseUom(), item.getCategory());
+        validateUomMatchesCategory(item.getPurchaseUom(), item.getCategory());
         Item saved = itemRepository.save(item);
         auditLogService.log(
                 AuditAction.ITEM_UPDATE,
@@ -341,7 +353,8 @@ public class ItemServiceImpl implements ItemService {
                 .baseUomName(item.getBaseUom() != null ? item.getBaseUom().getUomName() : null)
                 .purchaseUomId(item.getPurchaseUom() != null ? item.getPurchaseUom().getId() : null)
                 .purchaseUomName(item.getPurchaseUom() != null ? item.getPurchaseUom().getUomName() : null)
-                .purchaseRatio(item.getPurchaseUom() != null ? item.getPurchaseUom().getConversionRatio() : BigDecimal.ONE)
+                .purchaseRatio(item.getPurchaseConversionRatio())
+                .purchaseConversionRatio(item.getPurchaseConversionRatio())
                 .build();
     }
 
@@ -363,6 +376,23 @@ public class ItemServiceImpl implements ItemService {
                 "sellingPrice", item.getSellingPrice(),
                 "minimumStock", item.getMinimumStock(),
                 "hasExpiry", item.isHasExpiry(),
+                "purchaseConversionRatio", item.getPurchaseConversionRatio(),
                 "active", item.isActive());
+    }
+
+    private void validateUomMatchesCategory(Uom uom, Category category) {
+        if (uom == null || category == null || category.getUomCategories() == null || category.getUomCategories().isBlank()) {
+            return;
+        }
+
+        List<String> allowed = Arrays.stream(category.getUomCategories().split(","))
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .map(String::toUpperCase)
+                .toList();
+
+        if (uom.getCategory() == null || !allowed.contains(uom.getCategory().toUpperCase())) {
+            throw new BadRequestException("Đơn vị tính không phù hợp với danh mục sản phẩm");
+        }
     }
 }
