@@ -166,8 +166,9 @@ public class InventoryAlertServiceImpl implements InventoryAlertService {
     @Override
     @Transactional(readOnly = true)
     public List<InventoryAlertResponse> listUnresolved() {
-        return WmsResponseMapper.toInventoryAlertResponses(
-                inventoryAlertRepository.findByResolvedFalseOrderByCreatedAtDesc());
+        return inventoryAlertRepository.findByResolvedFalseOrderByCreatedAtDesc().stream()
+                .map(this::mapToResponseWithStock)
+                .toList();
     }
 
     @Override
@@ -187,6 +188,23 @@ public class InventoryAlertServiceImpl implements InventoryAlertService {
                 beforeData,
                 AuditData.of("resolved", saved.isResolved())
         );
-        return WmsResponseMapper.toInventoryAlertResponse(saved);
+        return mapToResponseWithStock(saved);
+    }
+    
+    private InventoryAlertResponse mapToResponseWithStock(InventoryAlert alert) {
+        Long itemId = alert.getItem().getId();
+        BigDecimal currentStock = currentInventoryRepository.sumQuantityByItemId(itemId);
+        if (currentStock == null) currentStock = BigDecimal.ZERO;
+        
+        BigDecimal availableQuantity = currentInventoryRepository.sumAvailableByItemId(itemId).orElse(BigDecimal.ZERO);
+        BigDecimal reservedQuantity = currentStock.subtract(availableQuantity);
+        
+        Integer minimumStock = alert.getItem().getMinimumStock();
+        
+        // As a summary, we just show "Tất cả kho" or you could fetch distinct locations. 
+        // For now, returning "Tất cả kho" is fine as the stock is aggregated.
+        String locationName = "Tất cả kho";
+        
+        return WmsResponseMapper.toInventoryAlertResponse(alert, currentStock, reservedQuantity, availableQuantity, minimumStock, locationName);
     }
 }

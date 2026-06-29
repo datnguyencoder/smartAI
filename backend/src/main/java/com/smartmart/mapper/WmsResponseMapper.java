@@ -67,7 +67,9 @@ public final class WmsResponseMapper {
                 return page.map(WmsResponseMapper::toInventoryLogResponse);
         }
 
-        public static InventoryAlertResponse toInventoryAlertResponse(InventoryAlert alert) {
+        public static InventoryAlertResponse toInventoryAlertResponse(InventoryAlert alert,
+                        java.math.BigDecimal currentStock, java.math.BigDecimal reservedQuantity,
+                        java.math.BigDecimal availableQuantity, Integer minimumStock, String locationName) {
                 Item item = alert.getItem();
                 return InventoryAlertResponse.builder()
                                 .id(alert.getId())
@@ -79,11 +81,12 @@ public final class WmsResponseMapper {
                                 .message(alert.getMessage())
                                 .resolved(alert.isResolved())
                                 .createdAt(alert.getCreatedAt())
+                                .currentStock(currentStock)
+                                .reservedQuantity(reservedQuantity)
+                                .availableQuantity(availableQuantity)
+                                .minimumStock(minimumStock)
+                                .locationName(locationName)
                                 .build();
-        }
-
-        public static List<InventoryAlertResponse> toInventoryAlertResponses(List<InventoryAlert> list) {
-                return list.stream().map(WmsResponseMapper::toInventoryAlertResponse).toList();
         }
 
         public static ScrapOrderResponse toScrapOrderResponse(ScrapOrder order) {
