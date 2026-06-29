@@ -108,6 +108,8 @@ public class DemoCatalogSeeder implements CommandLineRunner {
         Uom thung = findOrCreateUom("Thùng", bd("24"), false, "Đóng gói");
         Uom hop = findOrCreateUom("Hộp", BigDecimal.ONE, true, "Bán lẻ");
         Uom goi = findOrCreateUom("Gói", BigDecimal.ONE, true, "Bán lẻ");
+        Uom tui = findOrCreateUom("Túi", BigDecimal.ONE, true, "Bán lẻ");
+        Uom kg = findOrCreateUom("Kg", BigDecimal.ONE, true, "Đo lường");
 
         Category doUong = findOrCreateCategory("Đồ uống", IMG_DRINKS);
         Category suaLanh = findOrCreateCategory("Sữa & trứng lạnh", IMG_MILK);
@@ -211,11 +213,11 @@ public class DemoCatalogSeeder implements CommandLineRunner {
                         bd("5700"), bd("8900"), 72, true, IMG_NOODLES, bd("180"), bd("300"), "LOT-OM-BH-2609", 150),
                 new SeedItem("MI-KOKOMI-90", "Mì Kokomi tôm chua cay 90g", thucPham, goi, thung,
                         bd("3100"), bd("5000"), 120, true, IMG_NOODLES, bd("360"), bd("540"), "LOT-KOK-2609", 150),
-                new SeedItem("GAO-ST25-5KG", "Gạo ST25 túi 5kg", thucPham, cai, cai,
+                new SeedItem("GAO-ST25-5KG", "Gạo ST25 túi 5kg", thucPham, tui, tui,
                         bd("98000"), bd("125000"), 18, false, IMG_RICE, bd("52"), bd("84"), null, 0),
-                new SeedItem("GAO-JASMINE-5KG", "Gạo thơm Jasmine túi 5kg", thucPham, cai, cai,
+                new SeedItem("GAO-JASMINE-5KG", "Gạo thơm Jasmine túi 5kg", thucPham, tui, tui,
                         bd("79000"), bd("105000"), 20, false, IMG_RICE, bd("64"), bd("96"), null, 0),
-                new SeedItem("GAO-NANG-HOA-5KG", "Gạo Nàng Hoa túi 5kg", thucPham, cai, cai,
+                new SeedItem("GAO-NANG-HOA-5KG", "Gạo Nàng Hoa túi 5kg", thucPham, tui, tui,
                         bd("86000"), bd("112000"), 18, false, IMG_RICE, bd("42"), bd("72"), null, 0),
                 new SeedItem("NUOC-MAM-NN", "Nước mắm Nam Ngư 500ml", giaVi, cai, thung,
                         bd("18500"), bd("28500"), 24, true, IMG_COOKING, bd("88"), bd("144"), "LOT-NM-2701", 365),
