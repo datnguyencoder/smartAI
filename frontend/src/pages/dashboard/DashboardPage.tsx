@@ -76,6 +76,7 @@ type StatItem = {
   tone: StatTone;
   icon: React.ReactNode;
   progress?: number;
+  targetPage?: PageKey;
 };
 
 const toneClasses: Record<StatTone, { shell: string; icon: string; text: string; bar: string }> = {
@@ -100,10 +101,27 @@ function formatQty(value: unknown) {
   return Math.round(numberFrom(value)).toLocaleString('vi-VN');
 }
 
-function StatTile({ item }: { item: StatItem }) {
+function StatTile({ item, setPage }: { item: StatItem; setPage: (page: PageKey) => void }) {
   const tone = toneClasses[item.tone];
+  const clickable = Boolean(item.targetPage);
   return (
-    <div className={cn('min-h-[148px] min-w-0 overflow-hidden rounded-xl border p-4', tone.shell)}>
+    <div
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onClick={() => item.targetPage && setPage(item.targetPage)}
+      onKeyDown={(event) => {
+        if (!item.targetPage) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          setPage(item.targetPage);
+        }
+      }}
+      className={cn(
+        'min-h-[148px] min-w-0 overflow-hidden rounded-xl border p-4',
+        tone.shell,
+        clickable && 'cursor-pointer transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-400'
+      )}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-lg', tone.icon)}>{item.icon}</div>
         <span className={cn('max-w-[45%] shrink-0 truncate text-right text-xs font-bold', tone.text)}>{item.helper}</span>
@@ -166,7 +184,11 @@ function DashboardHeader({
         </div>
 
         <div className="grid gap-3 rounded-2xl border border-white/10 bg-white/10 p-4">
-          <div className="rounded-xl bg-white p-4 text-slate-950">
+          <button
+            type="button"
+            onClick={() => setPage('inventory-alerts')}
+            className="rounded-xl bg-white p-4 text-left text-slate-950 transition hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-emerald-300"
+          >
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-xs font-bold uppercase text-slate-400">Cảnh báo cần xử lý</div>
@@ -174,8 +196,12 @@ function DashboardHeader({
               </div>
               <AlertTriangle className={totalAlerts > 0 ? 'text-red-500' : 'text-emerald-500'} size={34} />
             </div>
-          </div>
-          <div className="rounded-xl bg-white p-4 text-slate-950">
+          </button>
+          <button
+            type="button"
+            onClick={() => setPage('ai-forecast')}
+            className="rounded-xl bg-white p-4 text-left text-slate-950 transition hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-300"
+          >
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-xs font-bold uppercase text-slate-400">Rủi ro AI</div>
@@ -183,7 +209,7 @@ function DashboardHeader({
               </div>
               <Sparkles className="text-purple-600" size={34} />
             </div>
-          </div>
+          </button>
         </div>
       </div>
     </section>
@@ -482,12 +508,12 @@ export default function DashboardPage({
   const inventoryHealth = Math.max(0, Math.min(100, 100 - Math.round(((lowStock + outOfStock + nearExpiry) / Math.max(productsList.length, 1)) * 100)));
 
   const stats: StatItem[] = [
-    { label: 'Doanh thu hôm nay', value: money(todayRevenue), helper: `${formatQty(todayOrders)} đơn`, tone: 'emerald', icon: <TrendingUp size={19} />, progress: Math.min(100, Math.round(todayRevenue / 1_000_000)) },
-    { label: 'Lợi nhuận gộp', value: grossProfit > 0 ? money(grossProfit) : 'Đang tính', helper: 'Hôm nay', tone: 'blue', icon: <BarChart3 size={19} />, progress: grossProfit > 0 && todayRevenue > 0 ? Math.round((grossProfit / todayRevenue) * 100) : 0 },
-    { label: 'Tồn khả dụng', value: formatQty(totalAvailable), helper: `${inventorySummary?.inventoryRows ?? productsList.length} dòng tồn`, tone: 'purple', icon: <Warehouse size={19} />, progress: inventoryHealth },
-    { label: 'Cảnh báo tồn', value: formatQty(unresolvedAlerts), helper: 'Chưa xử lý', tone: unresolvedAlerts > 0 ? 'red' : 'emerald', icon: <AlertTriangle size={19} />, progress: Math.min(100, unresolvedAlerts * 12) },
-    { label: 'SKU thiếu hàng', value: formatQty(lowStock + outOfStock), helper: `${outOfStock} hết hàng`, tone: 'amber', icon: <Boxes size={19} />, progress: Math.min(100, (lowStock + outOfStock) * 10) },
-    { label: 'Cận hạn', value: formatQty(nearExpiry), helper: 'Cần xả/hủy', tone: nearExpiry > 0 ? 'red' : 'emerald', icon: <CalendarClock size={19} />, progress: Math.min(100, nearExpiry * 12) },
+    { label: 'Doanh thu hôm nay', value: money(todayRevenue), helper: `${formatQty(todayOrders)} đơn`, tone: 'emerald', icon: <TrendingUp size={19} />, progress: Math.min(100, Math.round(todayRevenue / 1_000_000)), targetPage: 'reports' },
+    { label: 'Lợi nhuận gộp', value: grossProfit > 0 ? money(grossProfit) : 'Đang tính', helper: 'Hôm nay', tone: 'blue', icon: <BarChart3 size={19} />, progress: grossProfit > 0 && todayRevenue > 0 ? Math.round((grossProfit / todayRevenue) * 100) : 0, targetPage: 'reports' },
+    { label: 'Tồn khả dụng', value: formatQty(totalAvailable), helper: `${inventorySummary?.inventoryRows ?? productsList.length} dòng tồn`, tone: 'purple', icon: <Warehouse size={19} />, progress: inventoryHealth, targetPage: 'inventory' },
+    { label: 'Cảnh báo tồn', value: formatQty(unresolvedAlerts), helper: 'Chưa xử lý', tone: unresolvedAlerts > 0 ? 'red' : 'emerald', icon: <AlertTriangle size={19} />, progress: Math.min(100, unresolvedAlerts * 12), targetPage: 'inventory-alerts' },
+    { label: 'SKU thiếu hàng', value: formatQty(lowStock + outOfStock), helper: `${outOfStock} hết hàng`, tone: 'amber', icon: <Boxes size={19} />, progress: Math.min(100, (lowStock + outOfStock) * 10), targetPage: 'purchase-suggestions' },
+    { label: 'Cận hạn', value: formatQty(nearExpiry), helper: 'Cần xả/hủy', tone: nearExpiry > 0 ? 'red' : 'emerald', icon: <CalendarClock size={19} />, progress: Math.min(100, nearExpiry * 12), targetPage: 'expiry-risk' },
   ];
 
   if (!isManagerOrAdmin) {
@@ -510,7 +536,7 @@ export default function DashboardPage({
       />
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {stats.map((item) => <StatTile key={item.label} item={item} />)}
+        {stats.map((item) => <StatTile key={item.label} item={item} setPage={setPage} />)}
       </section>
 
       <div className="grid gap-4 xl:grid-cols-[1.5fr_0.85fr]">
