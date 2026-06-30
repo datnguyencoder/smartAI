@@ -14,7 +14,6 @@ export type PageKey =
   | 'import-create'
   | 'import-slips'
   | 'inventory'
-  | 'stock-movements'
   | 'barcode-print'
   | 'expired-products'
   | 'inventory-alerts'

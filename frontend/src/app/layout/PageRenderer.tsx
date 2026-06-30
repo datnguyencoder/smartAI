@@ -22,7 +22,6 @@ import InventoryPage from '@/pages/inventory/InventoryPage';
 import BarcodePrintPage from '@/pages/inventory/BarcodePrintPage';
 import ExpiredProductsPage from '@/pages/inventory/ExpiredProductsPage';
 import ScrapOrdersPage from '@/pages/inventory/ScrapOrdersPage';
-import StockMovementsPage from '@/pages/inventory/StockMovementsPage';
 import StocktakePage from '@/pages/inventory/StocktakePage';
 import ItemLotsPage from '@/pages/inventory/ItemLotsPage';
 import FinancePage from '@/pages/finance/FinancePage';
@@ -174,9 +173,6 @@ export function PageRenderer({
   }
   if (page === 'inventory') {
     return <InventoryPage openProduct={openProduct} productsList={productsList} />;
-  }
-  if (page === 'stock-movements') {
-    return <StockMovementsPage productsList={productsList} locations={locations} reloadCatalog={reloadCatalog} />;
   }
   if (page === 'barcode-print') {
     return <BarcodePrintPage productsList={productsList} />;

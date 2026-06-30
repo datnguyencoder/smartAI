@@ -18,7 +18,6 @@ export const pageTitles: Record<PageKey, { title: string; description: string }>
   'import-create': { title: 'Tạo phiếu nhập hàng', description: 'Nhập hàng từ nhà cung cấp với kiểm tra tồn kho tức thời.' },
   'import-slips': { title: 'Phiếu nhập hàng', description: 'Quản lý phiếu nhập, trạng thái duyệt và lịch nhận hàng.' },
   inventory: { title: 'Quản lý tồn kho', description: 'Kiểm soát tồn theo kho, ngưỡng cảnh báo và vòng quay hàng.' },
-  'stock-movements': { title: 'Điều chuyển & điều chỉnh kho', description: 'Ghi nhận điều chuyển, điều chỉnh tồn và theo dõi phát sinh kho.' },
   'barcode-print': { title: 'In mã vạch', description: 'Chọn sản phẩm và in nhãn mã vạch hàng loạt.' },
   'expired-products': { title: 'Hàng cận hạn', description: 'Danh sách lô hàng sắp hết hạn và thao tác nhanh.' },
   'scrap-orders': { title: 'Quản lý Yêu cầu loại bỏ hàng hóa', description: 'Danh sách và duyệt các yêu cầu xuất hủy hàng hóa.' },
