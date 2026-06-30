@@ -254,6 +254,12 @@ export default function PosPage({
     return firstProductByCategory;
   }, [localProducts]);
 
+  const cartQuantityByProductKey = React.useMemo(() => {
+    const result = new Map<string, number>();
+    posCart.forEach((item) => result.set(item.product.key, item.quantity));
+    return result;
+  }, [posCart]);
+
   const subtotal = posCart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
 
   const validatePromoCode = async (code: string, amount = subtotal) => {
@@ -599,7 +605,7 @@ export default function PosPage({
         </div>
       </header>
 
-      <div className="grid flex-1 grid-cols-1 xl:grid-cols-[118px_minmax(0,1fr)_430px]">
+      <div className="grid min-h-0 flex-1 grid-cols-1 xl:grid-cols-[118px_minmax(0,1fr)_430px]">
         <aside className="border-r border-slate-200 bg-white px-3 py-5">
           <div className="flex gap-2 overflow-x-auto xl:flex-col xl:overflow-visible">
             {categoryFilters.map((cat) => {
@@ -670,19 +676,21 @@ export default function PosPage({
           <div className={cn(
             'grid max-h-[calc(100vh-220px)] gap-4 overflow-y-auto pr-1 scrollbar-thin sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4'
           )}>
-            {filteredProducts.map((product) => (
-              <button
-                className={cn(
-                  'relative flex h-[284px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-emerald-400 hover:shadow-md',
-                  posCart.some((item) => item.product.key === product.key) && 'border-emerald-400 ring-1 ring-emerald-100',
-                  product.stock === 0 && 'cursor-not-allowed bg-slate-100/50 opacity-60'
-                )}
-                key={product.key}
-                onClick={() => handleAddToCart(product)}
-              >
-                {posCart.some((item) => item.product.key === product.key) && (
-                  <span className="absolute right-3 top-3 grid h-5 w-5 place-items-center rounded-full bg-emerald-500 text-xs font-black text-white">
-                    ✓
+            {filteredProducts.map((product) => {
+              const selectedQty = cartQuantityByProductKey.get(product.key) ?? 0;
+              return (
+                <button
+                  className={cn(
+                    'relative flex h-[284px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-emerald-400 hover:shadow-md',
+                    selectedQty > 0 && 'border-emerald-500 bg-emerald-50/20 ring-2 ring-emerald-100',
+                    product.stock === 0 && 'cursor-not-allowed bg-slate-100/50 opacity-60'
+                  )}
+                  key={product.key}
+                  onClick={() => handleAddToCart(product)}
+                >
+                {selectedQty > 0 && (
+                  <span className="absolute right-3 top-3 z-10 inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-emerald-600 px-2 text-xs font-black text-white shadow-sm ring-2 ring-white">
+                    x{selectedQty}
                   </span>
                 )}
                 <div className="flex h-[150px] items-center justify-center rounded-xl bg-slate-50">
@@ -700,30 +708,33 @@ export default function PosPage({
                     </span>
                   </div>
                 </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </div>
         </div>
       </Card>
         </section>
 
-      <aside ref={cartPanelRef} className="border-l border-slate-200 bg-[#e9eef3] p-5">
-        <Card className="flex max-h-[calc(100vh-102px)] flex-col overflow-hidden rounded-xl">
+      <aside ref={cartPanelRef} className="min-h-0 border-l border-slate-200 bg-[#e9eef3] p-5">
+        <Card className="flex h-[calc(100vh-126px)] min-h-[620px] flex-col overflow-hidden rounded-xl">
           <CardHeader title="Order List" action={<Tag color="blue" className="font-bold">#{posCart.length} item</Tag>} />
-          <div className="space-y-3 px-5 pb-2 flex-1 overflow-y-auto scrollbar-thin max-h-[calc(100vh-560px)]">
+          <div className="min-h-[180px] flex-[1.05] space-y-3 overflow-y-auto px-5 pb-4 scrollbar-thin">
             {posCart.map((item) => (
-              <div className="flex items-center justify-between rounded-xl bg-slate-50 p-3 border border-slate-100" key={item.product.key}>
+              <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3" key={item.product.key}>
                 <ProductThumbnail name={item.product.name} imageUrl={item.product.imageUrl} size={36} className="mr-2 shrink-0" />
-                <div className="min-w-0 flex-1 pr-3">
+                <div className="min-w-0">
                   <strong className="text-sm font-semibold text-ink line-clamp-1">{item.product.name}</strong>
                   <p className="text-xs text-slate-400 mt-0.5">{money(item.product.price)}</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button size="small" shape="circle" onClick={() => updateQuantity(item.product.key, -1)}>-</Button>
-                  <span className="text-sm font-bold w-6 text-center">{item.quantity}</span>
-                  <Button size="small" shape="circle" onClick={() => updateQuantity(item.product.key, 1)}>+</Button>
+                <div className="flex flex-col items-end gap-2">
+                  <div className="flex items-center gap-1">
+                    <Button size="small" shape="circle" onClick={() => updateQuantity(item.product.key, -1)}>-</Button>
+                    <span className="w-6 text-center text-sm font-bold">{item.quantity}</span>
+                    <Button size="small" shape="circle" onClick={() => updateQuantity(item.product.key, 1)}>+</Button>
+                  </div>
+                  <span className="min-w-[80px] text-right text-sm font-bold text-slate-700">{money(item.product.price * item.quantity)}</span>
                 </div>
-                <span className="font-bold text-slate-700 ml-4 min-w-[70px] text-right">{money(item.product.price * item.quantity)}</span>
               </div>
             ))}
             {posCart.length === 0 && (
@@ -734,7 +745,7 @@ export default function PosPage({
             )}
           </div>
 
-          <div className="p-5 border-t border-slate-100 bg-slate-50/50 space-y-4 rounded-b-2xl">
+          <div className="flex-[1.2] space-y-4 overflow-y-auto border-t border-slate-100 bg-slate-50/50 p-5 scrollbar-thin">
             <div>
               <label className="text-xs font-semibold text-slate-500 mb-1 block">Số điện thoại khách</label>
               <Input

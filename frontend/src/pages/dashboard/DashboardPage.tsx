@@ -84,7 +84,7 @@ const toneClasses: Record<StatTone, { shell: string; icon: string; text: string;
   blue: { shell: 'border-blue-100 bg-blue-50', icon: 'bg-blue-600 text-white', text: 'text-blue-700', bar: '#2563eb' },
   amber: { shell: 'border-amber-100 bg-amber-50', icon: 'bg-amber-500 text-white', text: 'text-amber-700', bar: '#f59e0b' },
   red: { shell: 'border-red-100 bg-red-50', icon: 'bg-red-600 text-white', text: 'text-red-700', bar: '#ef4444' },
-  purple: { shell: 'border-purple-100 bg-purple-50', icon: 'bg-purple-600 text-white', text: 'text-purple-700', bar: '#8b5cf6' },
+  purple: { shell: 'border-indigo-100 bg-indigo-50', icon: 'bg-indigo text-white', text: 'text-indigo', bar: '#4648d4' },
 };
 
 function formatWeekdayLabel(day: string): string {
@@ -103,6 +103,13 @@ function formatQty(value: unknown) {
 
 function StatTile({ item, setPage }: { item: StatItem; setPage: (page: PageKey) => void }) {
   const tone = toneClasses[item.tone];
+  const accentMap: Record<StatTone, string> = {
+    emerald: '#10b981',
+    blue: '#2563eb',
+    amber: '#f59e0b',
+    red: '#ef4444',
+    purple: '#4648d4',
+  };
   const clickable = Boolean(item.targetPage);
   return (
     <div
@@ -117,18 +124,18 @@ function StatTile({ item, setPage }: { item: StatItem; setPage: (page: PageKey) 
         }
       }}
       className={cn(
-        'min-h-[148px] min-w-0 overflow-hidden rounded-xl border p-4',
-        tone.shell,
-        clickable && 'cursor-pointer transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-400'
+        'kpi-tile min-h-[132px] min-w-0 rounded-xl border border-slate-200/90 bg-white p-4 shadow-sm',
+        clickable && 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-400/40'
       )}
+      style={{ ['--kpi-accent' as string]: accentMap[item.tone] }}
     >
       <div className="flex items-start justify-between gap-2">
-        <div className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-lg', tone.icon)}>{item.icon}</div>
-        <span className={cn('max-w-[45%] shrink-0 truncate text-right text-xs font-bold', tone.text)}>{item.helper}</span>
+        <div className={cn('grid h-11 w-11 shrink-0 place-items-center rounded-xl shadow-sm', tone.icon)}>{item.icon}</div>
+        <span className={cn('max-w-[46%] shrink-0 truncate rounded-full px-2.5 py-1 text-right text-[11px] font-bold', tone.shell, tone.text)}>{item.helper}</span>
       </div>
-      <div className="mt-4 min-w-0">
-        <div className="truncate text-sm font-semibold text-slate-500">{item.label}</div>
-        <div className="mt-1 break-all text-base font-black tabular-nums leading-snug tracking-tight text-slate-950 sm:text-lg lg:text-xl [overflow-wrap:anywhere]">
+      <div className="mt-3 min-w-0">
+        <div className="truncate text-[12px] font-semibold uppercase tracking-wide text-slate-400">{item.label}</div>
+        <div className="mt-1 break-all text-lg font-black tabular-nums leading-snug tracking-tight text-slate-950 sm:text-xl [overflow-wrap:anywhere]">
           {item.value}
         </div>
       </div>
@@ -140,54 +147,63 @@ function StatTile({ item, setPage }: { item: StatItem; setPage: (page: PageKey) 
 }
 
 function DashboardHeader({
+  authUser,
   canImport,
   setPage,
   onRefresh,
   totalAlerts,
   forecastRisk,
 }: {
+  authUser: UserDto;
   canImport: boolean;
   setPage: (page: PageKey) => void;
   onRefresh: () => void;
   totalAlerts: number;
   forecastRisk: number;
 }) {
+  const today = new Intl.DateTimeFormat('vi-VN', {
+    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(new Date());
+
   return (
-    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-950 text-white shadow-[0_18px_50px_rgba(15,23,42,0.18)]">
-      <div className="grid gap-5 p-5 lg:grid-cols-[1fr_360px]">
+    <section className="chart-card overflow-hidden rounded-2xl shadow-sm">
+      <div className="grid gap-5 p-5 lg:grid-cols-[1fr_390px]">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-bold text-slate-100 ring-1 ring-white/15">
-              <BarChart3 size={14} /> SmartMart Command Center
+            <span className="inline-flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 ring-1 ring-emerald-100/80">
+              <BarChart3 size={14} /> Tổng quan vận hành
             </span>
-            <span className="rounded-lg bg-emerald-400/15 px-3 py-1.5 text-xs font-bold text-emerald-100 ring-1 ring-emerald-300/20">Realtime</span>
+            <span className="rounded-lg bg-slate-100/90 px-3 py-1.5 text-xs font-semibold text-slate-500">{today}</span>
           </div>
-          <h1 className="mt-4 max-w-3xl text-[30px] font-black leading-tight tracking-normal md:text-[38px]">
-            Bảng điều khiển vận hành
+          <h1 className="smart-card-header mt-4 max-w-3xl text-[28px] font-black leading-tight tracking-tight text-slate-950 md:text-[32px]">
+            Xin chào, {authUser.fullName || authUser.username}
           </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-            Theo dõi doanh thu, tồn kho, cảnh báo và rủi ro AI trong một màn hình để quyết định nhanh trước mỗi ca bán.
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+            Theo dõi doanh thu, tồn kho, cảnh báo và AI forecast — một màn hình quản trị gọn cho siêu thị mini SmartMart.
           </p>
           <div className="mt-5 flex flex-wrap gap-2">
-            <Button type="primary" size="large" icon={<ShoppingCart size={16} />} onClick={() => setPage('pos')}>
-              Tạo hóa đơn POS
+            <Button type="primary" size="large" className="bg-emerald-600 hover:!bg-emerald-700" icon={<ShoppingCart size={16} />} onClick={() => setPage('pos')}>
+              Mở quầy POS
             </Button>
             {canImport && (
-              <Button size="large" className="border-white/25 bg-white text-slate-950 hover:!border-white hover:!bg-slate-100" icon={<FileInput size={16} />} onClick={() => setPage('import-create')}>
+              <Button size="large" icon={<FileInput size={16} />} onClick={() => setPage('import-create')}>
                 Tạo phiếu nhập
               </Button>
             )}
-            <Button size="large" className="border-white/25 bg-transparent text-white hover:!border-white hover:!bg-white/10 hover:!text-white" icon={<RefreshCw size={16} />} onClick={onRefresh}>
+            <Button size="large" icon={<RefreshCw size={16} />} onClick={onRefresh}>
               Làm mới
             </Button>
           </div>
         </div>
 
-        <div className="grid gap-3 rounded-2xl border border-white/10 bg-white/10 p-4">
+        <div className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
           <button
             type="button"
             onClick={() => setPage('inventory-alerts')}
-            className="rounded-xl bg-white p-4 text-left text-slate-950 transition hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-emerald-300"
+            className="rounded-xl border border-slate-100 bg-white p-4 text-left text-slate-950 transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
           >
             <div className="flex items-center justify-between">
               <div>
@@ -200,14 +216,14 @@ function DashboardHeader({
           <button
             type="button"
             onClick={() => setPage('ai-forecast')}
-            className="rounded-xl bg-white p-4 text-left text-slate-950 transition hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-300"
+            className="rounded-xl border border-slate-100 bg-white p-4 text-left text-slate-950 transition hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-400/40"
           >
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-xs font-bold uppercase text-slate-400">Rủi ro AI</div>
                 <div className="mt-2 text-3xl font-black">{forecastRisk}</div>
               </div>
-              <Sparkles className="text-purple-600" size={34} />
+              <Sparkles className="text-indigo" size={34} />
             </div>
           </button>
         </div>
@@ -223,10 +239,10 @@ function RevenuePanel({ chartData, salesRows }: { chartData: Array<{ day: string
   const margin = totalRevenue > 0 ? Math.round((totalProfit / totalRevenue) * 100) : 0;
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="chart-card overflow-hidden">
       <CardHeader
-        title="Hiệu suất doanh thu"
-        description="7 ngày gần nhất, tính trên đơn đã hoàn tất"
+        title="Doanh thu & nhập hàng"
+        description="Biểu đồ doanh thu 7 ngày gần nhất (VND)"
         action={<Tag color="green">Biên LN {margin}%</Tag>}
       />
       <div className="grid gap-4 px-5 pb-5 lg:grid-cols-[1fr_180px]">
@@ -291,13 +307,13 @@ function RiskPanel({
   const data = [
     { name: 'Hết hàng', value: out, color: '#ef4444' },
     { name: 'Tồn thấp', value: low, color: '#f59e0b' },
-    { name: 'Cận date', value: expiry, color: '#8b5cf6' },
+    { name: 'Cận date', value: expiry, color: '#4648d4' },
     { name: 'AI risk', value: forecastRisk, color: '#2563eb' },
   ];
 
   return (
     <Card className="overflow-hidden">
-      <CardHeader title="Trung tâm rủi ro" description="Ưu tiên xử lý tồn kho và forecast" />
+      <CardHeader title="Phân tích tồn kho" description="Ưu tiên xử lý thiếu hàng, cận date và rủi ro AI" />
       <div className="h-[230px] px-3">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} layout="vertical" margin={{ top: 8, right: 16, bottom: 8, left: 12 }}>
@@ -314,7 +330,7 @@ function RiskPanel({
       <div className="grid grid-cols-2 gap-2 px-5 pb-5">
         <div className="rounded-xl bg-red-50 p-3 text-sm font-bold text-red-700">Hết hàng: {out}</div>
         <div className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-700">Tồn thấp: {low}</div>
-        <div className="rounded-xl bg-purple-50 p-3 text-sm font-bold text-purple-700">Cận date: {expiry}</div>
+        <div className="rounded-xl bg-indigo-50 p-3 text-sm font-bold text-indigo">Cận date: {expiry}</div>
         <div className="rounded-xl bg-blue-50 p-3 text-sm font-bold text-blue-700">AI risk: {forecastRisk}</div>
       </div>
     </Card>
@@ -358,7 +374,7 @@ function AlertsPanel({ alerts, setPage }: { alerts: InventoryAlertDto[]; setPage
   return (
     <Card>
       <CardHeader
-        title="Việc cần xử lý"
+        title="Cảnh báo tồn kho"
         description="Cảnh báo chưa giải quyết"
         action={<Button size="small" onClick={() => setPage('inventory-alerts')}>Mở kho</Button>}
       />
@@ -390,14 +406,14 @@ function AlertsPanel({ alerts, setPage }: { alerts: InventoryAlertDto[]; setPage
 
 function OperationsPanel({ setPage, canImport }: { setPage: (page: PageKey) => void; canImport: boolean }) {
   const actions = [
-    { label: 'Bán hàng POS', helper: 'Tạo hóa đơn mới', icon: <ReceiptText size={18} />, page: 'pos' as PageKey, enabled: true },
-    { label: 'Nhập hàng', helper: 'Tạo phiếu nhập', icon: <FileInput size={18} />, page: 'import-create' as PageKey, enabled: canImport },
-    { label: 'Dự báo AI', helper: 'Xem rủi ro 30 ngày', icon: <LineChart size={18} />, page: 'ai-forecast' as PageKey, enabled: true },
-    { label: 'Gợi ý nhập', helper: 'SKU cần đặt hàng', icon: <PackageOpen size={18} />, page: 'purchase-suggestions' as PageKey, enabled: true },
+    { label: 'Bán hàng', helper: 'Mở quầy POS', icon: <ReceiptText size={18} />, page: 'pos' as PageKey, enabled: true, color: 'bg-emerald-50 text-emerald-700' },
+    { label: 'Nhập hàng', helper: 'Tạo phiếu nhập', icon: <FileInput size={18} />, page: 'import-create' as PageKey, enabled: canImport, color: 'bg-blue-50 text-blue-700' },
+    { label: 'AI Forecast', helper: 'Rủi ro 30 ngày', icon: <LineChart size={18} />, page: 'ai-forecast' as PageKey, enabled: true, color: 'bg-indigo-50 text-indigo' },
+    { label: 'Gợi ý nhập', helper: 'Reorder thông minh', icon: <PackageOpen size={18} />, page: 'purchase-suggestions' as PageKey, enabled: true, color: 'bg-amber-50 text-amber-700' },
   ];
   return (
     <Card>
-      <CardHeader title="Hành động nhanh" description="Đi tới nghiệp vụ đang dùng nhiều nhất" />
+      <CardHeader title="Thao tác nhanh" description="Lối tắt vận hành hàng ngày" />
       <div className="grid gap-2 px-5 pb-5 sm:grid-cols-2 xl:grid-cols-4">
         {actions.map((action) => (
           <button
@@ -405,10 +421,10 @@ function OperationsPanel({ setPage, canImport }: { setPage: (page: PageKey) => v
             type="button"
             disabled={!action.enabled}
             onClick={() => setPage(action.page)}
-            className="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-4 py-3 text-left transition hover:border-emerald-200 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-4 py-3 text-left transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
           >
             <span className="flex items-center gap-3">
-              <span className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-700">{action.icon}</span>
+              <span className={cn('grid h-10 w-10 place-items-center rounded-xl', action.color)}>{action.icon}</span>
               <span>
                 <span className="block text-sm font-bold text-slate-900">{action.label}</span>
                 <span className="text-xs text-slate-400">{action.helper}</span>
@@ -518,16 +534,17 @@ export default function DashboardPage({
 
   if (!isManagerOrAdmin) {
     return (
-      <div className="space-y-4 rounded-2xl bg-slate-50/70 p-3">
-        <DashboardHeader canImport={canImport} setPage={setPage} onRefresh={() => setRefreshKey((x) => x + 1)} totalAlerts={0} forecastRisk={0} />
+      <div className="space-y-4">
+        <DashboardHeader authUser={authUser} canImport={canImport} setPage={setPage} onRefresh={() => setRefreshKey((x) => x + 1)} totalAlerts={0} forecastRisk={0} />
         <OperationsPanel setPage={setPage} canImport={canImport} />
       </div>
     );
   }
 
   return (
-    <div className="space-y-4 rounded-2xl bg-slate-50/70 p-3">
+    <div className="space-y-4">
       <DashboardHeader
+        authUser={authUser}
         canImport={canImport}
         setPage={setPage}
         onRefresh={() => setRefreshKey((x) => x + 1)}
@@ -552,18 +569,19 @@ export default function DashboardPage({
       <OperationsPanel setPage={setPage} canImport={canImport} />
 
       <Card className="overflow-hidden">
-        <div className="grid gap-3 p-5 md:grid-cols-3">
-          <div className="rounded-xl bg-emerald-50 p-4">
+        <CardHeader title="Tổng quan kinh doanh" description="Chỉ số phụ trợ cho quản trị ca bán và kho" />
+        <div className="grid gap-3 px-5 pb-5 md:grid-cols-3">
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
             <div className="flex items-center gap-2 text-sm font-bold text-emerald-700"><CheckCircle2 size={16} /> Sức khỏe kho</div>
             <div className="mt-2 text-2xl font-black text-slate-950">{inventoryHealth}%</div>
             <div className="mt-1 text-xs text-slate-500">Tính từ thiếu hàng, hết hàng và cận date</div>
           </div>
-          <div className="rounded-xl bg-blue-50 p-4">
+          <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
             <div className="flex items-center gap-2 text-sm font-bold text-blue-700"><Sparkles size={16} /> SKU có forecast</div>
             <div className="mt-2 text-2xl font-black text-slate-950">{formatQty(forecastSummary?.itemsWithForecast)}</div>
             <div className="mt-1 text-xs text-slate-500">Dữ liệu hỗ trợ gợi ý nhập hàng</div>
           </div>
-          <div className="rounded-xl bg-slate-100 p-4">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
             <div className="flex items-center gap-2 text-sm font-bold text-slate-700"><Clock3 size={16} /> Cập nhật</div>
             <div className="mt-2 text-2xl font-black text-slate-950">Realtime</div>
             <div className="mt-1 text-xs text-slate-500">Làm mới để kéo dữ liệu mới nhất</div>
