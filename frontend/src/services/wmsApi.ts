@@ -17,5 +17,4 @@ export * from './reportApi';
 export * from './salesApi';
 export * from './settingsApi';
 export * from './shiftApi';
-export * from './stockTransferApi';
 export * from './userApi';

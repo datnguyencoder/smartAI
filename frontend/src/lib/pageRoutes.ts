@@ -18,7 +18,6 @@ export const PAGE_PATHS: Record<PageKey, string> = {
   'import-create': '/import/create',
   'import-slips': '/import/slips',
   inventory: '/inventory',
-  'stock-movements': '/inventory/movements',
   'barcode-print': '/inventory/barcode-print',
   'expired-products': '/inventory/expired',
   'inventory-alerts': '/inventory/alerts',
@@ -47,7 +46,7 @@ const PATH_TO_PAGE = Object.fromEntries(
 ) as Record<string, PageKey>;
 
 export function pageFromPath(pathname: string): PageKey {
-  if (pathname === '/transfer-orders') return 'stock-movements';
+  if (pathname === '/transfer-orders' || pathname === '/inventory/movements') return 'inventory';
   return PATH_TO_PAGE[pathname] ?? 'dashboard';
 }
 

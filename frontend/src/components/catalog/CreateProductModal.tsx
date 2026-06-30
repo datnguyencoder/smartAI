@@ -24,7 +24,6 @@ const pageTitles: Record<PageKey, { title: string }> = {
   'import-create': { title: 'Tạo phiếu nhập' },
   'import-slips': { title: 'Phiếu nhập hàng' },
   inventory: { title: 'Tồn kho' },
-  'stock-movements': { title: 'Điều chuyển kho' },
   'barcode-print': { title: 'In mã vạch' },
   'expired-products': { title: 'Hàng cận hạn' },
   'inventory-alerts': { title: 'Cảnh báo tồn kho' },
