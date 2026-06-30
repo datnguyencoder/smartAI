@@ -30,16 +30,20 @@ public class DemoCatalogSeeder implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DemoCatalogSeeder.class);
 
-    private static final String IMG_DRINKS = "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=640&q=80";
-    private static final String IMG_MILK = "https://images.unsplash.com/photo-1563636619-e9143da7973b?auto=format&fit=crop&w=640&q=80";
-    private static final String IMG_YOGURT = "https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=640&q=80";
-    private static final String IMG_NOODLES = "https://images.unsplash.com/photo-1612929633738-8fe44f7ec841?auto=format&fit=crop&w=640&q=80";
-    private static final String IMG_RICE = "https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=640&q=80";
-    private static final String IMG_COOKING = "https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=640&q=80";
-    private static final String IMG_SNACKS = "https://images.unsplash.com/photo-1621939514649-280e2ee25f60?auto=format&fit=crop&w=640&q=80";
-    private static final String IMG_COFFEE = "https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=640&q=80";
-    private static final String IMG_CLEANING = "https://images.unsplash.com/photo-1583947215259-38e31be8751f?auto=format&fit=crop&w=640&q=80";
-    private static final String IMG_PERSONAL_CARE = "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=640&q=80";
+    private static final String IMG_DRINKS = "/media/categories/do-uong.svg";
+    private static final String IMG_MILK = "/media/items/milk-vnm-1l.svg";
+    private static final String IMG_YOGURT = "/media/items/sua-chua-vnm.svg";
+    private static final String IMG_NOODLES = "/media/items/mi-haohao.svg";
+    private static final String IMG_RICE = "/media/items/gao-st25-5kg.svg";
+    private static final String IMG_COOKING = "/media/items/nuoc-mam-nn.svg";
+    private static final String IMG_SNACKS = "/media/items/snack-lays.svg";
+    private static final String IMG_COFFEE = "/media/items/coffee-g7.svg";
+    private static final String IMG_CLEANING = "/media/items/bot-giat-omo.svg";
+    private static final String IMG_PERSONAL_CARE = "/media/items/kdr-ps-180.svg";
+    private static final String IMG_FROZEN = "/media/categories/thuc-pham-kho.svg";
+    private static final String IMG_BABY = "/media/categories/cham-soc.svg";
+    private static final String IMG_HOME = "/media/categories/retail.svg";
+    private static final String IMG_STATIONERY = "/media/categories/default.svg";
 
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
@@ -110,6 +114,8 @@ public class DemoCatalogSeeder implements CommandLineRunner {
         Uom goi = findOrCreateUom("Gói", BigDecimal.ONE, "Bán lẻ", null);
         Uom tui = findOrCreateUom("Túi", BigDecimal.ONE, "Bán lẻ", null);
         Uom kg = findOrCreateUom("Kg", BigDecimal.ONE, "Đo lường", null);
+        Uom ram = findOrCreateUom("Ram", BigDecimal.ONE, "Văn phòng phẩm", null);
+        Uom quyen = findOrCreateUom("Quyển", BigDecimal.ONE, "Văn phòng phẩm", null);
 
         Category doUong = findOrCreateCategory("Đồ uống", IMG_DRINKS);
         Category suaLanh = findOrCreateCategory("Sữa & trứng lạnh", IMG_MILK);
@@ -118,6 +124,10 @@ public class DemoCatalogSeeder implements CommandLineRunner {
         Category snack = findOrCreateCategory("Snack & bánh kẹo", IMG_SNACKS);
         Category chamSoc = findOrCreateCategory("Chăm sóc cá nhân", IMG_PERSONAL_CARE);
         Category veSinh = findOrCreateCategory("Vệ sinh nhà cửa", IMG_CLEANING);
+        Category dongLanh = findOrCreateCategory("Đông lạnh & chế biến sẵn", IMG_FROZEN);
+        Category meVaBe = findOrCreateCategory("Mẹ & bé", IMG_BABY);
+        Category giaDungNhanh = findOrCreateCategory("Gia dụng nhanh", IMG_HOME);
+        Category vanPhongPham = findOrCreateCategory("Văn phòng phẩm", IMG_STATIONERY);
 
         upsertSupplier("Công ty Cổ phần Sữa Việt Nam (Vinamilk)", "Chị Lan",
                 "0901888100", "sales@vinamilk.demo", "10 Tân Trào, Quận 7, TP.HCM");
@@ -141,6 +151,16 @@ public class DemoCatalogSeeder implements CommandLineRunner {
                 "0910555666", "dailygao@smartmart.demo", "Chợ đầu mối Bình Điền, TP.HCM");
         upsertSupplier("Colgate-Palmolive Việt Nam", "Anh Long",
                 "0911666777", "gt@colgate.demo", "Tòa nhà Etown, Tân Bình, TP.HCM");
+        upsertSupplier("CP Foods Việt Nam", "Chị Yến",
+                "0912777888", "orders@cpfoods.demo", "KCN Biên Hòa 2, Đồng Nai");
+        upsertSupplier("Vissan", "Anh Hải",
+                "0913888999", "sales@vissan.demo", "420 Nơ Trang Long, Bình Thạnh, TP.HCM");
+        upsertSupplier("Bibo Mart Distribution", "Chị Nhi",
+                "0914999000", "supply@bibomart.demo", "Quận Tân Phú, TP.HCM");
+        upsertSupplier("Thiên Long Group", "Anh Quân",
+                "0915000111", "gt@thienlong.demo", "Lô 6-8-10-12, KCN Tân Tạo, TP.HCM");
+        upsertSupplier("Điện Quang", "Chị Vy",
+                "0916111222", "sales@dienquang.demo", "125 Hàm Nghi, Quận 1, TP.HCM");
 
         Location khoBan = upsertLocation("Kho bán", "STORE", null);
         Location khoTong = upsertLocation("Kho tổng", "WAREHOUSE", null);
@@ -272,7 +292,67 @@ public class DemoCatalogSeeder implements CommandLineRunner {
                 new SeedItem("DAU-GOI-CLEAR-630", "Dầu gội Clear bạc hà 630g", chamSoc, cai, thung,
                         bd("118000"), bd("165000"), 8, false, IMG_PERSONAL_CARE, bd("18"), bd("36"), null, 0),
                 new SeedItem("SUA-TAM-LIFEBUOY-850", "Sữa tắm Lifebuoy bảo vệ 850g", chamSoc, cai, thung,
-                        bd("92000"), bd("135000"), 8, false, IMG_PERSONAL_CARE, bd("20"), bd("36"), null, 0)
+                        bd("92000"), bd("135000"), 8, false, IMG_PERSONAL_CARE, bd("20"), bd("36"), null, 0),
+                new SeedItem("XUC-XICH-CP-500", "Xúc xích CP gói 500g", dongLanh, goi, thung,
+                        bd("45500"), bd("69000"), 18, true, IMG_FROZEN, bd("62"), bd("96"), "LOT-CPXX-2608", 45),
+                new SeedItem("CHA-GIO-CP-500", "Chả giò CP nhân thịt 500g", dongLanh, goi, thung,
+                        bd("52000"), bd("79000"), 16, true, IMG_FROZEN, bd("48"), bd("84"), "LOT-CPCG-2608", 50),
+                new SeedItem("CA-VIEN-VISSAN-500", "Cá viên Vissan 500g", dongLanh, goi, thung,
+                        bd("38000"), bd("59000"), 18, true, IMG_FROZEN, bd("54"), bd("90"), "LOT-VS-CV-2608", 50),
+                new SeedItem("BO-VIEN-VISSAN-500", "Bò viên Vissan 500g", dongLanh, goi, thung,
+                        bd("72000"), bd("99000"), 12, true, IMG_FROZEN, bd("36"), bd("72"), "LOT-VS-BV-2608", 50),
+                new SeedItem("KHOAI-TAY-DL-1KG", "Khoai tây đông lạnh 1kg", dongLanh, tui, thung,
+                        bd("49500"), bd("72000"), 14, true, IMG_FROZEN, bd("42"), bd("84"), "LOT-KTDL-2608", 60),
+                new SeedItem("DUMPLING-HQ-500", "Há cảo Hàn Quốc 500g", dongLanh, goi, thung,
+                        bd("68500"), bd("96000"), 10, true, IMG_FROZEN, bd("28"), bd("60"), "LOT-HC-2608", 55),
+                new SeedItem("TRUNG-GA-HOP10", "Trứng gà sạch hộp 10 quả", suaLanh, hop, thung,
+                        bd("26500"), bd("39000"), 24, true, IMG_MILK, bd("84"), bd("120"), "LOT-EGG-2607", 21),
+                new SeedItem("TRUNG-VIT-HOP10", "Trứng vịt sạch hộp 10 quả", suaLanh, hop, thung,
+                        bd("29500"), bd("43000"), 18, true, IMG_MILK, bd("52"), bd("84"), "LOT-DUCKEGG-2607", 21),
+                new SeedItem("SUA-BOT-DIELAC-900", "Sữa bột Dielac Alpha Gold 900g", meVaBe, hop, thung,
+                        bd("245000"), bd("315000"), 8, true, IMG_BABY, bd("18"), bd("36"), "LOT-DIELAC-2702", 300),
+                new SeedItem("SUA-BOT-NAN-800", "Sữa bột NAN Optipro 800g", meVaBe, hop, thung,
+                        bd("365000"), bd("449000"), 6, true, IMG_BABY, bd("14"), bd("30"), "LOT-NAN-2702", 300),
+                new SeedItem("TA-BIM-HUGGIES-M56", "Tã bỉm Huggies size M 56 miếng", meVaBe, tui, thung,
+                        bd("218000"), bd("279000"), 6, false, IMG_BABY, bd("16"), bd("32"), null, 0),
+                new SeedItem("TA-BIM-BOBBY-L46", "Tã bỉm Bobby size L 46 miếng", meVaBe, tui, thung,
+                        bd("205000"), bd("265000"), 6, false, IMG_BABY, bd("18"), bd("32"), null, 0),
+                new SeedItem("KHAN-UOT-MAMYPOKO-80", "Khăn ướt Mamypoko 80 miếng", meVaBe, goi, thung,
+                        bd("24500"), bd("39000"), 24, false, IMG_BABY, bd("72"), bd("120"), null, 0),
+                new SeedItem("PHAN-ROM-JOHNSON-200", "Phấn rôm Johnson's Baby 200g", meVaBe, cai, thung,
+                        bd("32000"), bd("49000"), 12, true, IMG_BABY, bd("34"), bd("72"), "LOT-JB-2704", 540),
+                new SeedItem("PIN-AA-PANASONIC-4V", "Pin AA Panasonic vỉ 4 viên", giaDungNhanh, goi, thung,
+                        bd("27500"), bd("42000"), 18, false, IMG_HOME, bd("58"), bd("120"), null, 0),
+                new SeedItem("PIN-AAA-ENERGIZER-4V", "Pin AAA Energizer vỉ 4 viên", giaDungNhanh, goi, thung,
+                        bd("38500"), bd("59000"), 16, false, IMG_HOME, bd("42"), bd("96"), null, 0),
+                new SeedItem("BONG-DEN-DQ-9W", "Bóng đèn LED Điện Quang 9W", giaDungNhanh, cai, thung,
+                        bd("26500"), bd("45000"), 12, false, IMG_HOME, bd("36"), bd("72"), null, 0),
+                new SeedItem("BONG-DEN-RANGDONG-12W", "Bóng đèn LED Rạng Đông 12W", giaDungNhanh, cai, thung,
+                        bd("31500"), bd("52000"), 12, false, IMG_HOME, bd("30"), bd("60"), null, 0),
+                new SeedItem("MANG-BOC-TP-30CM", "Màng bọc thực phẩm 30cm x 100m", giaDungNhanh, cai, thung,
+                        bd("25500"), bd("39000"), 18, false, IMG_HOME, bd("46"), bd("84"), null, 0),
+                new SeedItem("GIAY-BAC-FOIL-5M", "Giấy bạc nướng thực phẩm 5m", giaDungNhanh, cai, thung,
+                        bd("18500"), bd("30000"), 18, false, IMG_HOME, bd("52"), bd("96"), null, 0),
+                new SeedItem("BUT-BI-TL-027", "Bút bi Thiên Long TL-027", vanPhongPham, cai, hop,
+                        bd("2800"), bd("5000"), 80, false, IMG_STATIONERY, bd("260"), bd("500"), null, 0),
+                new SeedItem("BUT-GEL-FLEXOFFICE", "Bút gel FlexOffice FO-024", vanPhongPham, cai, hop,
+                        bd("4200"), bd("7500"), 60, false, IMG_STATIONERY, bd("180"), bd("360"), null, 0),
+                new SeedItem("VO-HOC-SINH-96T", "Vở học sinh 96 trang", vanPhongPham, cai, thung,
+                        bd("5600"), bd("9500"), 60, false, IMG_STATIONERY, bd("210"), bd("420"), null, 0),
+                new SeedItem("BANG-KEO-TRONG-5CM", "Băng keo trong 5cm", vanPhongPham, cai, thung,
+                        bd("7200"), bd("12000"), 40, false, IMG_STATIONERY, bd("144"), bd("240"), null, 0),
+                new SeedItem("GIAY-IN-A4-70G", "Giấy in A4 Double A 70gsm", vanPhongPham, ram, thung,
+                        bd("68000"), bd("89000"), 12, false, IMG_STATIONERY, bd("32"), bd("64"), null, 0),
+                new SeedItem("BIEN-LAI-2LIEN", "Phiếu thu chi 2 liên", vanPhongPham, quyen, thung,
+                        bd("12500"), bd("22000"), 20, false, IMG_STATIONERY, bd("54"), bd("120"), null, 0),
+                new SeedItem("NGU-COC-CALBEE-700", "Ngũ cốc Calbee trái cây 700g", thucPham, tui, thung,
+                        bd("125000"), bd("169000"), 10, true, IMG_RICE, bd("24"), bd("48"), "LOT-CALBEE-2701", 240),
+                new SeedItem("YEN-MACH-QUAKER-600", "Yến mạch Quaker 600g", thucPham, hop, thung,
+                        bd("62000"), bd("89000"), 12, true, IMG_RICE, bd("36"), bd("72"), "LOT-QUAKER-2701", 300),
+                new SeedItem("BOT-BANH-XEO-400", "Bột bánh xèo Tài Ký 400g", thucPham, goi, thung,
+                        bd("14500"), bd("24000"), 18, true, IMG_RICE, bd("64"), bd("120"), "LOT-BBX-2701", 365),
+                new SeedItem("BOT-CHIEN-GION-150", "Bột chiên giòn Aji-Quick 150g", thucPham, goi, thung,
+                        bd("7600"), bd("13000"), 24, true, IMG_RICE, bd("96"), bd("180"), "LOT-BCG-2701", 365)
         );
 
         int upserted = 0;
@@ -288,7 +368,7 @@ public class DemoCatalogSeeder implements CommandLineRunner {
         seedDemoAlerts();
         seedPromotionDemoData();
 
-        log.info("Demo catalog ready: {} Vietnamese retail SKUs with real-photo URLs, stock, customers, alerts and AI promo scenarios", upserted);
+        log.info("Demo catalog ready: {} Vietnamese retail SKUs with local images, stock, customers, alerts and AI promo scenarios", upserted);
     }
 
     private void seedManagerUser() {

@@ -32,15 +32,15 @@ export function Topbar({
 }) {
   const showQuickCreate = canQuickCreate(authUser.role, page);
   return (
-    <header className="sticky top-0 z-20 border-b border-line bg-[#f8fafc]/88 backdrop-blur">
-      <div className="mx-auto flex max-w-[1220px] items-center justify-between gap-4 px-4 py-4 sm:px-6">
+    <header className="z-20 shrink-0 border-b border-line/80 bg-white/90 backdrop-blur-md supports-[backdrop-filter]:bg-white/80">
+      <div className="mx-auto flex max-w-[1220px] items-center justify-between gap-4 px-4 py-3.5 sm:px-6">
         <Button className="md:hidden" icon={<Menu size={17} />} onClick={openMobileNav} aria-label="Mở menu" />
         <div className="min-w-0 flex-1">
-          <div className="mb-1 flex items-center gap-2 text-xs font-semibold text-muted">
-            <Home size={14} /> SmartMart AI <ChevronRight size={14} /> {title}
+          <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-muted">
+            <Home size={14} className="text-primary" /> SmartMart AI <ChevronRight size={14} className="text-slate-300" /> <span className="text-slate-600">{title}</span>
           </div>
-          <h1 className="text-[24px] font-semibold tracking-[-0.01em] text-ink">{title}</h1>
-          <p className="text-sm text-muted">{description}</p>
+          <h1 className="smart-card-header text-[22px] font-bold tracking-tight text-ink sm:text-[24px]">{title}</h1>
+          <p className="mt-0.5 text-sm leading-relaxed text-muted">{description}</p>
         </div>
         <div className="hidden min-w-[480px] items-center justify-end gap-3 lg:flex">
           <Input

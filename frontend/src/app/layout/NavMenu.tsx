@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import type { MouseEvent } from 'react';
 import type { NavGroup } from '@/app/config/navItems';
 import { cn } from '@/lib/utils';
 import type { PageKey } from '@/types/pages';
@@ -34,7 +34,7 @@ function NavLink({
 }: {
   item: NavGroup['items'][number];
   active: boolean;
-  onClick: () => void;
+  onClick: (event: MouseEvent<HTMLButtonElement>) => void;
   layoutIdPrefix: string;
 }) {
   const Icon = item.icon;
@@ -43,18 +43,13 @@ function NavLink({
       type="button"
       onClick={onClick}
       className={cn(
-        'relative mb-0.5 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors',
-        active ? 'text-white' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
+        'relative mb-0.5 flex w-full items-center gap-3 rounded-lg border-l-[3px] px-3 py-2.5 text-left text-sm font-medium transition-[background-color,border-color,color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40',
+        active
+          ? 'border-emerald bg-primary/90 text-white shadow-[0_2px_12px_rgba(0,108,73,0.22)]'
+          : 'border-transparent text-slate-300 hover:border-slate-600 hover:bg-slate-800/60 hover:text-white'
       )}
     >
-      {active && (
-        <motion.div
-          layoutId={`${layoutIdPrefix}ActiveBg`}
-          className="absolute inset-0 rounded-lg border-l-[3px] border-emerald bg-primary/90 shadow-[0_2px_12px_rgba(16,185,129,0.15)]"
-          transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-        />
-      )}
-      <span className="relative z-10 flex min-w-0 items-center gap-3">
+      <span className="flex min-w-0 items-center gap-3">
         <Icon size={18} className="shrink-0" />
         <span className="truncate">{item.label}</span>
       </span>
@@ -64,9 +59,15 @@ function NavLink({
 
 /** Menu nhóm — luôn hiển thị đủ mục con, không thu gọn accordion. */
 export function NavMenu({ groups, page, setPage, onNavigate, layoutIdPrefix = 'sidebar' }: Props) {
-  const navigate = (key: PageKey) => {
+  const navigate = (key: PageKey, event: MouseEvent<HTMLButtonElement>) => {
+    const scrollContainer = event.currentTarget.closest('nav');
+    const scrollTop = scrollContainer?.scrollTop ?? 0;
+    event.currentTarget.blur();
     setPage(key);
     onNavigate?.();
+    window.requestAnimationFrame(() => {
+      if (scrollContainer) scrollContainer.scrollTop = scrollTop;
+    });
   };
 
   return (
@@ -80,7 +81,7 @@ export function NavMenu({ groups, page, setPage, onNavigate, layoutIdPrefix = 's
               <NavLink
                 item={item}
                 active={page === item.key}
-                onClick={() => navigate(item.key)}
+                onClick={(event) => navigate(item.key, event)}
                 layoutIdPrefix={layoutIdPrefix}
               />
             </div>

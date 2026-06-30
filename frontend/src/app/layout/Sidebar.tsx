@@ -19,20 +19,23 @@ export function Sidebar({
   onLogout: () => void;
 }) {
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-[260px] flex-col border-r border-slate-800 bg-navy py-4 md:flex">
-      <div className="mb-5 flex items-center gap-3 px-5">
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-emerald to-indigo text-white shadow-pop">
+    <aside className="fixed inset-y-0 left-0 z-30 hidden h-screen w-[260px] flex-col overflow-hidden border-r border-slate-800 bg-navy md:flex">
+      <div className="h-0.5 shrink-0 bg-gradient-to-r from-primary via-emerald to-indigo/70" />
+      <div className="shrink-0 px-4 pb-4 pt-4">
+        <div className="flex items-center gap-3 px-1">
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary to-emerald text-white shadow-[0_8px_20px_rgba(0,108,73,0.35)] ring-1 ring-white/10">
           <Store size={22} />
         </div>
         <div className="min-w-0">
           <h1 className="truncate text-lg font-bold leading-tight text-white">SmartMart AI</h1>
           <p className="truncate text-xs text-slate-400">Quản lý siêu thị mini</p>
         </div>
+        </div>
       </div>
-      <nav className="scrollbar-thin flex-1 overflow-y-auto px-1">
+      <nav className="scrollbar-thin min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-3">
         <NavMenu groups={groups} page={page} setPage={setPage} layoutIdPrefix="sidebar" />
       </nav>
-      <div className="mx-3 rounded-xl border border-slate-700 bg-slate-800/70 p-3">
+      <div className="mx-3 mb-4 mt-3 shrink-0 rounded-xl border border-slate-700/80 bg-slate-800/60 p-3 ring-1 ring-emerald-500/10">
         <p className="mb-1 truncate px-1 text-sm font-medium text-slate-300">
           {authUser.fullName ?? authUser.username}
         </p>

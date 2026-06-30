@@ -21,6 +21,7 @@ import { pageFromPath, pathFromPage } from '@/lib/pageRoutes';
 import { canAccessPage, defaultPageForRole } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
 import type { ChatMessage } from '@/pages/ai/AiAssistantPage';
+import PosPage from '@/pages/sales/PosPage';
 import type { PageKey, PurchaseSuggestionPrefillItem } from '@/types/pages';
 
 function App() {
@@ -34,7 +35,10 @@ function App() {
   const setPage = React.useCallback(
     (p: PageKey) => {
       setPageState(p);
-      navigate(pathFromPage(p));
+      navigate(pathFromPage(p), { preventScrollReset: true });
+      window.requestAnimationFrame(() => {
+        mainScrollRef.current?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      });
     },
     [navigate]
   );
@@ -71,6 +75,7 @@ function App() {
     PurchaseSuggestionPrefillItem[]
   >([]);
   const pageContentRef = React.useRef<HTMLDivElement>(null);
+  const mainScrollRef = React.useRef<HTMLDivElement>(null);
   const cartPanelRef = React.useRef<HTMLDivElement>(null);
 
   const handleLogout = React.useCallback(async () => {
@@ -124,93 +129,114 @@ function App() {
   }
 
   const pageMeta = pageTitles[page];
-  const isStandalonePos = page === 'pos';
+  const isStandalonePos = location.pathname === '/pos' || page === 'pos';
+  const antdTheme = {
+    algorithm: antdAlgorithm,
+    token: {
+      colorPrimary: '#006c49',
+      colorInfo: '#4648d4',
+      borderRadius: 8,
+      fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
+    },
+    components: {
+      Button: { controlHeight: 40, fontWeight: 600 },
+      Table: { headerBg: '#f8fafc', headerColor: '#64748b', rowHoverBg: '#f8fffc' },
+      Input: { controlHeight: 40 },
+    },
+  };
+  const renderedPage = (
+    <PageRenderer
+      page={page}
+      authUser={authUser}
+      openProduct={setDrawerProduct}
+      openModal={() => setModalOpen(true)}
+      setPage={setPage}
+      globalSearch={globalSearch}
+      productsList={productsList}
+      invoicesList={invoicesList}
+      categories={categories}
+      suppliers={suppliers}
+      locations={locations}
+      uoms={uoms}
+      chatHistory={chatHistory}
+      setChatHistory={setChatHistory}
+      posCart={posCart}
+      setPosCart={setPosCart}
+      cartPanelRef={cartPanelRef}
+      setSelectedInvoice={setSelectedInvoice}
+      reloadCatalog={reloadCatalog}
+      catalogLoading={catalogLoading}
+      pendingPurchaseSuggestionItems={pendingPurchaseSuggestionItems}
+      setPendingPurchaseSuggestionItems={setPendingPurchaseSuggestionItems}
+    />
+  );
+
+  if (isStandalonePos) {
+    return (
+      <ConfigProvider theme={antdTheme}>
+        <AntdApp>
+          <div ref={pageContentRef} className="h-[100dvh] overflow-hidden text-ink">
+            <PosPage
+              categories={categories}
+              posCart={posCart}
+              setPosCart={setPosCart}
+              setPage={setPage}
+              reloadCatalog={reloadCatalog}
+              catalogLoading={catalogLoading}
+              cartPanelRef={cartPanelRef}
+            />
+          </div>
+        </AntdApp>
+      </ConfigProvider>
+    );
+  }
 
   return (
-    <ConfigProvider
-      theme={{
-        algorithm: antdAlgorithm,
-        token: {
-          colorPrimary: '#006c49',
-          colorInfo: '#4648d4',
-          borderRadius: 8,
-          fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
-        },
-        components: {
-          Button: { controlHeight: 40, fontWeight: 600 },
-          Table: { headerBg: '#f8fafc', headerColor: '#64748b', rowHoverBg: '#f8fffc' },
-          Input: { controlHeight: 40 },
-        },
-      }}
-    >
+    <ConfigProvider theme={antdTheme}>
       <AntdApp>
-        <div className={cn('min-h-screen text-ink', themeMode === 'dark' ? 'bg-slate-900' : 'bg-[#f8fafc]')}>
-          {!isStandalonePos && (
-            <>
-              <Sidebar
-                page={page}
-                setPage={setPage}
-                navGroups={visibleNavGroups}
-                authUser={authUser}
-                onLogout={handleLogout}
-              />
-              <MobileNav
-                open={mobileNavOpen}
-                onClose={() => setMobileNavOpen(false)}
-                page={page}
-                setPage={setPage}
-                navGroups={visibleNavGroups}
-                onLogout={handleLogout}
-              />
-            </>
-          )}
-          <main className={cn('min-h-screen', !isStandalonePos && 'md:pl-[260px]')}>
-            {!isStandalonePos && (
-              <Topbar
-                title={pageMeta.title}
-                description={pageMeta.description}
-                authUser={authUser}
-                page={page}
-                setPage={setPage}
-                setModalOpen={setModalOpen}
-                openMobileNav={() => setMobileNavOpen(true)}
-                globalSearch={globalSearch}
-                setGlobalSearch={setGlobalSearch}
-                onToggleTheme={toggleTheme}
-                themeMode={themeMode}
-              />
-            )}
+        <div className={cn('h-[100dvh] overflow-hidden text-ink', themeMode === 'dark' ? 'bg-slate-900' : 'app-shell-bg')}>
+          <Sidebar
+            page={page}
+            setPage={setPage}
+            navGroups={visibleNavGroups}
+            authUser={authUser}
+            onLogout={handleLogout}
+          />
+          <MobileNav
+            open={mobileNavOpen}
+            onClose={() => setMobileNavOpen(false)}
+            page={page}
+            setPage={setPage}
+            navGroups={visibleNavGroups}
+            onLogout={handleLogout}
+          />
+          <main className="flex h-[100dvh] flex-col overflow-hidden md:pl-[260px]">
+            <Topbar
+              title={pageMeta.title}
+              description={pageMeta.description}
+              authUser={authUser}
+              page={page}
+              setPage={setPage}
+              setModalOpen={setModalOpen}
+              openMobileNav={() => setMobileNavOpen(true)}
+              globalSearch={globalSearch}
+              setGlobalSearch={setGlobalSearch}
+              onToggleTheme={toggleTheme}
+              themeMode={themeMode}
+            />
             <div
-              ref={pageContentRef}
-              className={cn(
-                isStandalonePos ? 'min-h-screen' : 'mx-auto px-4 py-5 sm:px-6',
-                page === 'ai-assistant' ? 'max-w-[1480px]' : !isStandalonePos && 'max-w-[1220px]'
-              )}
+              ref={mainScrollRef}
+              className="scrollbar-thin min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain"
             >
-              <PageRenderer
-                page={page}
-                authUser={authUser}
-                openProduct={setDrawerProduct}
-                openModal={() => setModalOpen(true)}
-                setPage={setPage}
-                globalSearch={globalSearch}
-                productsList={productsList}
-                invoicesList={invoicesList}
-                categories={categories}
-                suppliers={suppliers}
-                locations={locations}
-                uoms={uoms}
-                chatHistory={chatHistory}
-                setChatHistory={setChatHistory}
-                posCart={posCart}
-                setPosCart={setPosCart}
-                cartPanelRef={cartPanelRef}
-                setSelectedInvoice={setSelectedInvoice}
-                reloadCatalog={reloadCatalog}
-                catalogLoading={catalogLoading}
-                pendingPurchaseSuggestionItems={pendingPurchaseSuggestionItems}
-                setPendingPurchaseSuggestionItems={setPendingPurchaseSuggestionItems}
-              />
+              <div
+                ref={pageContentRef}
+                className={cn(
+                  'mx-auto px-4 py-5 sm:px-6',
+                  page === 'ai-assistant' ? 'max-w-[1480px]' : 'max-w-[1220px]'
+                )}
+              >
+                {renderedPage}
+              </div>
             </div>
           </main>
           <ProductDrawer
