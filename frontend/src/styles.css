@@ -102,6 +102,18 @@ select {
     #ffffff;
 }
 
+.product-thumb-fallback {
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #ecfdf5, #eef2ff);
+  color: #006c49;
+  font-weight: 800;
+}
+
+.product-thumb-fallback::after {
+  content: attr(data-initial);
+}
+
 .app-shell-bg {
   background:
     radial-gradient(ellipse 80% 50% at 100% 0%, rgba(0, 108, 73, 0.04), transparent 55%),

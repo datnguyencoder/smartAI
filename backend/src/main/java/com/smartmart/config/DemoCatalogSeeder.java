@@ -4,6 +4,7 @@ import com.smartmart.entity.*;
 import com.smartmart.enums.Role;
 import com.smartmart.enums.UserStatus;
 import com.smartmart.repository.*;
+import com.smartmart.util.ItemImageUrls;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -459,7 +460,8 @@ public class DemoCatalogSeeder implements CommandLineRunner {
         item.setMinimumStock(seed.minStock());
         item.setHasExpiry(seed.hasExpiry());
         item.setActive(true);
-        item.setImageUrl(seed.imageUrl());
+        String realImageUrl = ItemImageUrls.realProductImage(seed.code());
+        item.setImageUrl(realImageUrl != null ? realImageUrl : ItemImageUrls.defaultItemPath(seed.code()));
         return itemRepository.save(item);
     }
 
