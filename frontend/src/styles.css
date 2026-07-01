@@ -96,6 +96,12 @@ select {
   border: 1px solid rgba(226, 232, 240, 0.8);
 }
 
+.smart-dashboard-hero {
+  background:
+    linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(70, 72, 212, 0.06) 45%, rgba(255, 255, 255, 0.92)),
+    #ffffff;
+}
+
 .app-shell-bg {
   background:
     radial-gradient(ellipse 80% 50% at 100% 0%, rgba(0, 108, 73, 0.04), transparent 55%),
