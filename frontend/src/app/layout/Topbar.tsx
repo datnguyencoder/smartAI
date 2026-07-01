@@ -30,7 +30,7 @@ export function Topbar({
   onToggleTheme: () => void;
   themeMode: 'light' | 'dark';
 }) {
-  const showQuickCreate = canQuickCreate(authUser.role, page);
+  const showQuickCreate = page !== 'uoms' && canQuickCreate(authUser.role, page);
   return (
     <header className="z-20 shrink-0 border-b border-line/80 bg-white/90 backdrop-blur-md supports-[backdrop-filter]:bg-white/80">
       <div className="mx-auto flex max-w-[1220px] items-center justify-between gap-4 px-4 py-3.5 sm:px-6">

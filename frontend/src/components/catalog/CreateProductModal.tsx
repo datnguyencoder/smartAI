@@ -63,6 +63,14 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
   const [previewName, setPreviewName] = React.useState('');
   const [previewUrl, setPreviewUrl] = React.useState<string | undefined>();
   const filteredUoms = React.useMemo(() => uoms.filter((uom) => uom.active !== false), [uoms]);
+  const retailUoms = React.useMemo(
+    () => filteredUoms.filter((uom) => uom.category === 'Đơn vị lẻ'),
+    [filteredUoms]
+  );
+  const packagingUoms = React.useMemo(
+    () => filteredUoms.filter((uom) => uom.category === 'Đóng gói'),
+    [filteredUoms]
+  );
 
 
 
@@ -84,7 +92,7 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
   }) => {
     if (page === 'products') {
       if (!values.baseUomId) {
-        antdMessage.error('Vui lòng chọn đơn vị cơ sở');
+        antdMessage.error('Vui lòng chọn đơn vị lẻ');
         return;
       }
       setSaving(true);
@@ -183,23 +191,23 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
               </Form.Item>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Form.Item name="baseUomId" label="Đơn vị cơ sở" rules={[{ required: true, message: 'Vui lòng chọn đơn vị cơ sở' }]}>
+              <Form.Item name="baseUomId" label="Đơn vị lẻ" rules={[{ required: true, message: 'Vui lòng chọn đơn vị lẻ' }]}>
                 <Select
-                  placeholder="Chọn đơn vị cơ sở"
-                  options={filteredUoms.map((uom) => ({ value: uom.id, label: uom.uomName }))}
+                  placeholder="Chọn đơn vị lẻ"
+                  options={retailUoms.map((uom) => ({ value: uom.id, label: uom.uomName }))}
                 />
               </Form.Item>
-              <Form.Item name="purchaseUomId" label="Đơn vị nhập">
+              <Form.Item name="purchaseUomId" label="Đơn vị đóng gói">
                 <Select
-                  placeholder="Chọn đơn vị nhập"
-                  options={filteredUoms.map((uom) => ({ value: uom.id, label: uom.uomName }))}
+                  placeholder="Chọn đơn vị đóng gói"
+                  options={packagingUoms.map((uom) => ({ value: uom.id, label: uom.uomName }))}
                   allowClear
                 />
               </Form.Item>
             </div>
             <Form.Item noStyle shouldUpdate={(prev, curr) => prev.purchaseUomId !== curr.purchaseUomId}>
               {({ getFieldValue }) => {
-                const selectedUom = filteredUoms.find((uom) => uom.id === getFieldValue('purchaseUomId'));
+                const selectedUom = packagingUoms.find((uom) => uom.id === getFieldValue('purchaseUomId'));
                 if (!selectedUom) return null;
                 return (
                   <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">

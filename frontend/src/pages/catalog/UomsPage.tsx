@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Button, Form, Input, InputNumber, Modal, Select, Space, Switch, Table, Tag, message } from 'antd';
-import { Plus } from 'lucide-react';
+import { Info, Lightbulb, Package, Plus, RefreshCw } from 'lucide-react';
 import { Card } from '@/components/ui';
 import { activateUom, createUom, deactivateUom, updateUom } from '@/services/wmsApi';
 import type { UomDto } from '@/types/api';
@@ -60,6 +60,79 @@ type UomFormValues = {
   active?: boolean;
 };
 
+function UomHelpPanel() {
+  const helpItems = [
+    {
+      title: 'Đơn vị lẻ',
+      description: 'Là đơn vị nhỏ nhất để bán và tính tồn kho.',
+      example: 'Ví dụ: gói, cái, lon, kg.',
+      icon: <Package size={18} />,
+      cardClass: 'border-emerald-100 bg-emerald-50/70',
+      iconClass: 'bg-emerald-100 text-emerald-700',
+    },
+    {
+      title: 'Đóng gói',
+      description: 'Là đơn vị lớn hơn dùng khi nhập hàng.',
+      example: 'Ví dụ: thùng 24 gói, bao 10kg.',
+      icon: <Package size={18} />,
+      cardClass: 'border-blue-100 bg-blue-50/70',
+      iconClass: 'bg-blue-100 text-blue-700',
+    },
+    {
+      title: 'Tỷ lệ quy đổi',
+      description: 'Là số lượng đơn vị lẻ có trong 1 đơn vị đóng gói.',
+      example: 'Ví dụ: 1 thùng 24 gói = 24 gói.',
+      icon: <RefreshCw size={18} />,
+      cardClass: 'border-violet-100 bg-violet-50/70',
+      iconClass: 'bg-violet-100 text-violet-700',
+    },
+  ];
+
+  return (
+    <aside className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm xl:sticky xl:top-4 xl:self-start">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-slate-900">Hướng dẫn nhanh</p>
+          <p className="text-xs text-muted">Cách cấu hình đơn vị tính khi nhập hàng.</p>
+        </div>
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+          <Info size={16} />
+        </span>
+      </div>
+
+      <div className="space-y-3">
+        {helpItems.map((item) => (
+          <div key={item.title} className={`rounded-xl border p-3 ${item.cardClass}`}>
+            <div className="flex gap-3">
+              <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${item.iconClass}`}>
+                {item.icon}
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-600">{item.description}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">{item.example}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+          <div className="flex gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+              <Lightbulb size={18} />
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-slate-900">Mẹo</p>
+              <p className="mt-1 text-xs leading-5 text-slate-600">
+                Tạo đơn vị lẻ trước, sau đó tạo đơn vị đóng gói để nhập hàng chính xác.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  );
+}
 export default function UomsPage({ uoms, reloadCatalog }: Props) {
   const [modalOpen, setModalOpen] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
@@ -181,7 +254,9 @@ export default function UomsPage({ uoms, reloadCatalog }: Props) {
         </Button>
       </div>
 
-      <div className="flex flex-wrap gap-3 border-b border-slate-100 p-5">
+      <div className="grid gap-5 border-b border-slate-100 p-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="min-w-0">
+          <div className="mb-5 flex flex-wrap gap-3">
         <Input
           className="max-w-xs"
           allowClear
@@ -199,8 +274,7 @@ export default function UomsPage({ uoms, reloadCatalog }: Props) {
         />
       </div>
 
-      <div className="p-5">
-        <Table
+          <Table
           rowKey="id"
           dataSource={filteredUoms}
           pagination={{ pageSize: 10 }}
@@ -252,7 +326,10 @@ export default function UomsPage({ uoms, reloadCatalog }: Props) {
               },
             },
           ]}
-        />
+          />
+        </div>
+
+        <UomHelpPanel />
       </div>
 
       <Modal
