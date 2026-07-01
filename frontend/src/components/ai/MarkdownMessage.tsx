@@ -17,6 +17,15 @@ export function MarkdownMessage({ text }: { text: string }) {
         if (trimmed.startsWith('- ')) {
           return <div key={i} className="flex gap-2 pl-1"><span className="mt-[0.7em] h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" /><span>{formatInline(trimmed.slice(2))}</span></div>;
         }
+        const numbered = trimmed.match(/^(\d+)\.\s+(.+)$/);
+        if (numbered) {
+          return (
+            <div key={i} className="flex gap-2 pl-1">
+              <span className="min-w-5 shrink-0 font-bold text-emerald-700">{numbered[1]}.</span>
+              <span>{formatInline(numbered[2])}</span>
+            </div>
+          );
+        }
         return <p key={i} className="m-0">{formatInline(trimmed)}</p>;
       })}
     </div>
@@ -24,10 +33,13 @@ export function MarkdownMessage({ text }: { text: string }) {
 }
 
 function formatInline(text: string): React.ReactNode {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
   return parts.map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**')) {
       return <strong key={i}>{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith('`') && part.endsWith('`')) {
+      return <code key={i} className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[0.92em] font-semibold text-slate-700">{part.slice(1, -1)}</code>;
     }
     return <span key={i}>{part}</span>;
   });
