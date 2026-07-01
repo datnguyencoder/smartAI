@@ -25,11 +25,14 @@ import { cn } from '@/lib/utils';
 import { aiChat } from '@/services/wmsApi';
 import type { PageKey } from '@/types/pages';
 
+type ChatSuggestion = { label: string; prompt?: string; page?: PageKey };
+
 export type ChatMessage = {
   id: string;
   sender: 'user' | 'ai';
   text: string;
   action?: { label: string; page: PageKey };
+  suggestions?: ChatSuggestion[];
 };
 
 type PromptItem = {
@@ -95,6 +98,128 @@ let chatMsgSeq = 0;
 function nextChatId() {
   chatMsgSeq += 1;
   return `chat-${Date.now()}-${chatMsgSeq}`;
+}
+
+function topicFrom(text: string) {
+  const lower = text.toLowerCase();
+  if (lower.includes('doanh thu') || lower.includes('báo cáo') || lower.includes('lợi nhuận')) return 'sales';
+  if (lower.includes('nhập') || lower.includes('đặt hàng') || lower.includes('reorder')) return 'purchase';
+  if (lower.includes('hạn') || lower.includes('date') || lower.includes('hết hạn')) return 'expiry';
+  if (lower.includes('khuyến mãi') || lower.includes('giảm giá') || lower.includes('tồn cao')) return 'promotion';
+  if (lower.includes('cảnh báo') || lower.includes('rủi ro')) return 'alert';
+  if (lower.includes('tồn') || lower.includes('hết hàng') || lower.includes('sku')) return 'inventory';
+  return 'general';
+}
+
+function buildActionForTopic(topic: string): { label: string; page: PageKey } | undefined {
+  switch (topic) {
+    case 'sales':
+      return { label: 'Mở báo cáo doanh thu', page: 'reports' };
+    case 'purchase':
+    case 'inventory':
+      return { label: 'Mở gợi ý nhập hàng', page: 'purchase-suggestions' };
+    case 'expiry':
+      return { label: 'Mở rủi ro hết hạn', page: 'expiry-risk' };
+    case 'promotion':
+      return { label: 'Mở đề xuất khuyến mãi', page: 'promotions' };
+    case 'alert':
+      return { label: 'Mở cảnh báo tồn kho', page: 'inventory-alerts' };
+    default:
+      return undefined;
+  }
+}
+
+function buildFollowUpSuggestions(topic: string): ChatSuggestion[] {
+  const common = [
+    { label: 'Tóm tắt ngắn hơn', prompt: 'Tóm tắt câu trả lời trên thành 3 ý quan trọng nhất.' },
+    { label: 'Đề xuất hành động', prompt: 'Từ câu trả lời trên, đề xuất 3 việc cần làm ngay hôm nay.' },
+  ];
+
+  switch (topic) {
+    case 'sales':
+      return [
+        { label: 'Phân tích 7 ngày', prompt: 'Phân tích doanh thu 7 ngày gần nhất theo xu hướng, rủi ro và cơ hội.' },
+        { label: 'Xem báo cáo', page: 'reports' },
+        ...common,
+      ];
+    case 'purchase':
+      return [
+        { label: 'SKU cần nhập', prompt: 'Liệt kê SKU cần nhập gấp, số lượng gợi ý và lý do ưu tiên.' },
+        { label: 'Tạo phiếu nhập', page: 'import-create' },
+        ...common,
+      ];
+    case 'inventory':
+      return [
+        { label: 'Hết hàng / sắp hết', prompt: 'Liệt kê các SKU hết hàng hoặc sắp hết hàng, kèm mức độ ưu tiên.' },
+        { label: 'Gợi ý nhập', page: 'purchase-suggestions' },
+        ...common,
+      ];
+    case 'expiry':
+      return [
+        { label: 'Xử lý cận hạn', prompt: 'Đề xuất cách xử lý các lô cận hạn theo ưu tiên bán, giảm giá hoặc hủy.' },
+        { label: 'Xem rủi ro HSD', page: 'expiry-risk' },
+        ...common,
+      ];
+    case 'promotion':
+      return [
+        { label: 'Tạo chương trình', prompt: 'Đề xuất chương trình khuyến mãi cụ thể gồm SKU, mức giảm và thời gian chạy.' },
+        { label: 'Mở khuyến mãi', page: 'promotion-manage' },
+        ...common,
+      ];
+    case 'alert':
+      return [
+        { label: 'Ưu tiên cảnh báo', prompt: 'Sắp xếp các cảnh báo theo mức độ cần xử lý và đề xuất bước tiếp theo.' },
+        { label: 'Mở cảnh báo', page: 'inventory-alerts' },
+        ...common,
+      ];
+    default:
+      return [
+        { label: 'Hỏi về tồn kho', prompt: 'Sản phẩm nào sắp hết hàng hoặc đã hết hàng?' },
+        { label: 'Hỏi về doanh thu', prompt: 'Phân tích doanh thu và xu hướng bán 7 ngày gần nhất.' },
+        { label: 'Hỏi về nhập hàng', prompt: 'Gợi ý SKU cần nhập hàng dựa trên tồn và dự báo.' },
+      ];
+  }
+}
+
+function normalizeAiResponse(rawText: string, userQuestion: string) {
+  const text = rawText.trim();
+  if (!text) {
+    return '## Tóm tắt\nChưa có nội dung phản hồi từ AI.\n\n## Đề xuất tiếp theo\n- Thử hỏi lại ngắn gọn hơn.\n- Kiểm tra kết nối AI hoặc quyền truy cập.';
+  }
+
+  const hasMarkdownStructure = /(^|\n)\s{0,3}(#{1,3}\s|[-*]\s|\d+\.\s)/.test(text);
+  const hasSuggestionSection = /đề xuất|gợi ý|hành động|next/i.test(text);
+  const topic = topicFrom(`${userQuestion}\n${text}`);
+  const suggestionLines = buildFollowUpSuggestions(topic)
+    .slice(0, 3)
+    .map((item) => `- ${item.label}${item.prompt ? `: ${item.prompt}` : ''}`)
+    .join('\n');
+
+  if (hasMarkdownStructure) {
+    return hasSuggestionSection ? text : `${text}\n\n## Đề xuất tiếp theo\n${suggestionLines}`;
+  }
+
+  const sentences = text
+    .replace(/\s+/g, ' ')
+    .split(/(?<=[.!?。])\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (sentences.length <= 2) {
+    return `## Tóm tắt\n${text}\n\n## Đề xuất tiếp theo\n${suggestionLines}`;
+  }
+
+  const [summary, ...details] = sentences;
+  return [
+    '## Tóm tắt',
+    summary,
+    '',
+    '## Chi tiết',
+    ...details.slice(0, 6).map((line) => `- ${line}`),
+    '',
+    '## Đề xuất tiếp theo',
+    suggestionLines,
+  ].join('\n');
 }
 
 function PromptCard({
@@ -183,18 +308,22 @@ export default function AiAssistantPage({
 
       try {
         const aiText = await aiChat(text);
-        const lower = text.toLowerCase();
-        let action: { label: string; page: PageKey } | undefined;
-        if (lower.includes('nhập') || lower.includes('tồn')) {
-          action = { label: 'Tạo phiếu nhập', page: 'import-create' };
-        } else if (lower.includes('báo cáo') || lower.includes('doanh thu')) {
-          action = { label: 'Xem báo cáo', page: 'reports' };
-        }
-        appendMessage({ sender: 'ai', text: aiText, action });
+        const topic = topicFrom(`${text}\n${aiText}`);
+        const action = buildActionForTopic(topic);
+        appendMessage({
+          sender: 'ai',
+          text: normalizeAiResponse(aiText, text),
+          action,
+          suggestions: buildFollowUpSuggestions(topic),
+        });
       } catch {
         appendMessage({
           sender: 'ai',
-          text: 'Không kết nối được trung tâm hỗ trợ vận hành. Vui lòng thử lại hoặc kiểm tra quyền ADMIN/MANAGER.',
+          text: normalizeAiResponse(
+            'Không kết nối được trung tâm hỗ trợ vận hành. Vui lòng thử lại hoặc kiểm tra quyền ADMIN/MANAGER.',
+            text
+          ),
+          suggestions: buildFollowUpSuggestions('general'),
         });
       } finally {
         sendingRef.current = false;
@@ -356,6 +485,34 @@ export default function AiAssistantPage({
                           >
                             {msg.action.label}
                           </Button>
+                        )}
+                        {msg.suggestions && msg.suggestions.length > 0 && (
+                          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
+                            <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+                              <Sparkles size={13} />
+                              Đề xuất tiếp theo
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {msg.suggestions.slice(0, 4).map((suggestion) => (
+                                <button
+                                  key={`${msg.id}-${suggestion.label}`}
+                                  type="button"
+                                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
+                                  onClick={() => {
+                                    if (suggestion.page) {
+                                      setPage(suggestion.page);
+                                      return;
+                                    }
+                                    if (suggestion.prompt) {
+                                      void handleSendMessage(suggestion.prompt);
+                                    }
+                                  }}
+                                >
+                                  {suggestion.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
                         )}
                       </div>
                     ) : (
