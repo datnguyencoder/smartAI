@@ -1,4 +1,3 @@
-import { Image } from 'antd';
 import { Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { resolveMediaUrl } from '@/lib/mediaUrl';
@@ -16,16 +15,24 @@ export function ProductThumbnail({ name, imageUrl, size = 48, className }: Props
 
   if (src) {
     return (
-      <Image
-        src={src}
-        alt={name}
-        width={size}
-        height={size}
-        preview={false}
-        className={cn('rounded-lg object-cover bg-slate-100', className)}
+      <div
+        className={cn('shrink-0 overflow-hidden rounded-lg bg-slate-100', className)}
         style={{ width: size, height: size }}
-        fallback="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Crect fill='%23e2e8f0' width='64' height='64'/%3E%3C/svg%3E"
-      />
+        title={name}
+      >
+        <img
+          src={src}
+          alt={name}
+          loading="lazy"
+          className="h-full w-full object-cover"
+          onError={(event) => {
+            const img = event.currentTarget;
+            img.style.display = 'none';
+            img.parentElement?.classList.add('product-thumb-fallback');
+            img.parentElement?.setAttribute('data-initial', initial);
+          }}
+        />
+      </div>
     );
   }
 

@@ -551,8 +551,8 @@ export default function PosPage({
   };
 
   const pageContent = (
-    <div className="flex min-h-screen flex-col bg-[#f5f7fb]">
-      <header className="sticky top-0 z-30 flex min-h-[62px] items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 shadow-sm">
+    <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-[#f5f7fb]">
+      <header className="z-30 flex min-h-[62px] shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 shadow-sm">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#06335d] text-white shadow-sm">
             <Store size={24} />
@@ -605,8 +605,8 @@ export default function PosPage({
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 xl:grid-cols-[118px_minmax(0,1fr)_430px]">
-        <aside className="border-r border-slate-200 bg-white px-3 py-5">
+      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden xl:grid-cols-[118px_minmax(0,1fr)_430px]">
+        <aside className="min-h-0 overflow-x-auto border-r border-slate-200 bg-white px-3 py-4 xl:overflow-y-auto">
           <div className="flex gap-2 overflow-x-auto xl:flex-col xl:overflow-visible">
             {categoryFilters.map((cat) => {
               const sample = cat.id === 0 ? undefined : categoryVisuals.get(cat.id);
@@ -635,7 +635,7 @@ export default function PosPage({
           </div>
         </aside>
 
-        <section className="min-w-0 px-4 py-5">
+        <section className="min-h-0 min-w-0 overflow-y-auto px-4 py-4 scrollbar-thin">
       {currentShift && (
         <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
           Ca đang mở #{currentShift.id} · Mở lúc {new Date(currentShift.openedAt).toLocaleString('vi-VN')}
@@ -674,7 +674,7 @@ export default function PosPage({
         </div>
         <div className="px-5 pb-5 pt-4">
           <div className={cn(
-            'grid max-h-[calc(100vh-220px)] gap-4 overflow-y-auto pr-1 scrollbar-thin sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4'
+            'grid gap-4 pr-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4'
           )}>
             {filteredProducts.map((product) => {
               const selectedQty = cartQuantityByProductKey.get(product.key) ?? 0;
@@ -716,8 +716,8 @@ export default function PosPage({
       </Card>
         </section>
 
-      <aside ref={cartPanelRef} className="min-h-0 border-l border-slate-200 bg-[#e9eef3] p-5">
-        <Card className="flex h-[calc(100vh-126px)] min-h-[620px] flex-col overflow-hidden rounded-xl">
+      <aside ref={cartPanelRef} className="min-h-0 overflow-hidden border-l border-slate-200 bg-[#e9eef3] p-4">
+        <Card className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl">
           <CardHeader title="Order List" action={<Tag color="blue" className="font-bold">#{posCart.length} item</Tag>} />
           <div className="min-h-[180px] flex-[1.05] space-y-3 overflow-y-auto px-5 pb-4 scrollbar-thin">
             {posCart.map((item) => (
@@ -947,7 +947,7 @@ export default function PosPage({
       </aside>
       </div>
 
-      <div className="sticky bottom-0 z-20 flex flex-wrap items-center justify-center gap-2 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur">
+      <div className="z-20 flex shrink-0 flex-wrap items-center justify-center gap-2 border-t border-slate-200 bg-white/95 px-4 py-2.5 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur">
         <Button
           className="min-w-[104px] border-orange-600 bg-orange-600 text-white hover:!border-orange-700 hover:!text-white"
           icon={<PauseCircle size={16} />}

@@ -43,9 +43,10 @@ import {
   fetchDashboardSummary,
   fetchInventoryAlerts,
   fetchInventorySummary,
+  fetchPurchaseReport,
   fetchSalesReport,
 } from '@/services/wmsApi';
-import type { DashboardSummaryDto, InventoryAlertDto, SalesReportDto, UserDto } from '@/types/api';
+import type { DashboardSummaryDto, InventoryAlertDto, PurchaseReportDto, SalesReportDto, UserDto } from '@/types/api';
 import type { PageKey } from '@/types/pages';
 import { cn } from '@/lib/utils';
 
@@ -270,7 +271,15 @@ function DashboardHeader({
   );
 }
 
-function SalesPurchasePanel({ chartData, salesRows }: { chartData: Array<{ day: string; revenue: number }>; salesRows: SalesReportDto[] }) {
+function SalesPurchasePanel({
+  chartData,
+  salesRows,
+  purchaseRows,
+}: {
+  chartData: Array<{ day: string; revenue: number }>;
+  salesRows: SalesReportDto[];
+  purchaseRows: PurchaseReportDto[];
+}) {
   const [range, setRange] = React.useState('1W');
   const rangeSize: Record<string, number> = { '1D': 1, '1W': 7, '1M': 30, '3M': 90, '6M': 180, '1Y': 365 };
   const size = rangeSize[range] ?? 7;
@@ -288,6 +297,7 @@ function SalesPurchasePanel({ chartData, salesRows }: { chartData: Array<{ day: 
   const totalRevenue = salesRows.reduce((sum, row) => sum + numberFrom(row.totalRevenue), 0);
   const totalProfit = salesRows.reduce((sum, row) => sum + numberFrom(row.grossProfit), 0);
   const totalOrders = salesRows.reduce((sum, row) => sum + numberFrom(row.totalOrders), 0);
+  const totalPurchase = purchaseRows.reduce((sum, row) => sum + numberFrom(row.totalAmount), 0);
   const margin = totalRevenue > 0 ? Math.round((totalProfit / totalRevenue) * 100) : 0;
 
   return (
@@ -344,6 +354,10 @@ function SalesPurchasePanel({ chartData, salesRows }: { chartData: Array<{ day: 
           <div className="rounded-xl bg-slate-50 p-3">
             <div className="text-xs font-bold uppercase text-slate-400">Lợi nhuận</div>
             <div className="mt-1 break-words text-lg font-black text-emerald-700">{money(totalProfit)}</div>
+          </div>
+          <div className="rounded-xl bg-slate-50 p-3">
+            <div className="text-xs font-bold uppercase text-slate-400">Tổng nhập</div>
+            <div className="mt-1 break-words text-lg font-black text-indigo">{money(totalPurchase)}</div>
           </div>
           <div className="rounded-xl bg-slate-50 p-3">
             <div className="flex items-center justify-between gap-2">
@@ -655,6 +669,7 @@ export default function DashboardPage({
   const [forecastSummary, setForecastSummary] = React.useState<{ itemsWithForecast?: number; highRiskCount?: number } | null>(null);
   const [chartData, setChartData] = React.useState<Array<{ day: string; revenue: number }>>([]);
   const [salesRows, setSalesRows] = React.useState<SalesReportDto[]>([]);
+  const [purchaseRows, setPurchaseRows] = React.useState<PurchaseReportDto[]>([]);
   const [bestsellers, setBestsellers] = React.useState<Product[]>([]);
   const [refreshKey, setRefreshKey] = React.useState(0);
 
@@ -674,18 +689,20 @@ export default function DashboardPage({
       fetchDashboardForecastSummary(),
       fetchDashboardRevenue(),
       fetchSalesReport(from, to, 'DAY'),
-    ]).then(([summaryRes, inventoryRes, alertsRes, forecastRes, revenueRes, salesRes]) => {
+      fetchPurchaseReport(from, to),
+    ]).then(([summaryRes, inventoryRes, alertsRes, forecastRes, revenueRes, salesRes, purchaseRes]) => {
       setSummary(summaryRes.status === 'fulfilled' ? summaryRes.value : null);
       setInventorySummary(inventoryRes.status === 'fulfilled' ? inventoryRes.value : null);
       setAlerts(alertsRes.status === 'fulfilled' ? alertsRes.value.filter((a) => !a.resolved) : []);
       setForecastSummary(forecastRes.status === 'fulfilled' ? forecastRes.value : null);
-      setChartData(
-        revenueRes.status === 'fulfilled'
-          ? revenueRes.value.map((row) => ({ day: formatWeekdayLabel(row.day), revenue: Number(row.revenue) }))
-          : []
-      );
       const sales = salesRes.status === 'fulfilled' ? salesRes.value : [];
       setSalesRows(sales);
+      setPurchaseRows(purchaseRes.status === 'fulfilled' ? purchaseRes.value : []);
+      const revenueRows =
+        revenueRes.status === 'fulfilled' && revenueRes.value.length > 0
+          ? revenueRes.value.map((row) => ({ day: formatWeekdayLabel(row.day), revenue: Number(row.revenue) }))
+          : sales.map((row) => ({ day: formatWeekdayLabel(row.period), revenue: Number(row.totalRevenue) }));
+      setChartData(revenueRows);
       const top = sales.flatMap((row) => row.topProducts ?? []);
       const mapped = top.slice(0, 8).map((t) => {
         const existing = productsList.find((p) => String(p.key) === String(t.itemId));
@@ -766,7 +783,7 @@ export default function DashboardPage({
       </section>
 
       <div className="grid gap-3 xl:grid-cols-[1.45fr_0.9fr]">
-        <SalesPurchasePanel chartData={chartData} salesRows={salesRows} />
+        <SalesPurchasePanel chartData={chartData} salesRows={salesRows} purchaseRows={purchaseRows} />
         <div className="grid gap-3">
           <OverallInformationPanel totalProducts={productsList.length} totalOrders={todayOrders} totalAlerts={unresolvedAlerts} suppliers={supplierCount} />
           <CustomersOverviewPanel totalOrders={todayOrders} />
