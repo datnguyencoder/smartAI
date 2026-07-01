@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Send,
   ShoppingCart,
+  Sparkles,
   Tag,
   TrendingUp,
   UserRound,
@@ -113,13 +114,13 @@ function PromptCard({
       type="button"
       disabled={disabled}
       className={cn(
-        'group w-full rounded-xl border border-slate-200 bg-white text-left transition hover:border-slate-300 hover:shadow-sm disabled:opacity-60',
-        compact ? 'px-3 py-3' : 'px-4 py-4'
+        'group w-full rounded-2xl border border-slate-200 bg-white text-left transition hover:border-emerald-200 hover:bg-emerald-50/40 disabled:opacity-60',
+        compact ? 'px-3 py-2.5' : 'px-3.5 py-3'
       )}
       onClick={() => onSelect(item.prompt)}
     >
       <div className="flex items-start gap-3">
-        <span className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-lg ring-1', item.tone)}>
+        <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-xl ring-1', item.tone)}>
           <Icon size={18} strokeWidth={2.2} />
         </span>
         <span className="min-w-0 flex-1">
@@ -128,7 +129,7 @@ function PromptCard({
             <ArrowRight size={14} className="shrink-0 text-slate-300 transition group-hover:text-slate-500" />
           </span>
           <span className="mt-0.5 block text-xs text-slate-500">{item.hint}</span>
-          {!compact && <span className="mt-2 line-clamp-2 text-xs leading-relaxed text-slate-400">{item.prompt}</span>}
+          {!compact && <span className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-slate-400">{item.prompt}</span>}
         </span>
       </div>
     </button>
@@ -153,8 +154,8 @@ export default function AiAssistantPage({
   const ignoreEnterUntilRef = React.useRef(0);
   const sendingRef = React.useRef(false);
 
-  const userMessages = chatHistory.filter((m) => m.sender === 'user').length;
   const showWelcome = chatHistory.length <= 1;
+  const visibleMessages = showWelcome ? chatHistory.filter((m) => m.sender === 'user') : chatHistory;
 
   React.useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -231,151 +232,169 @@ export default function AiAssistantPage({
   };
 
   return (
-    <div className="flex min-h-[calc(100vh-7.5rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06)] lg:min-h-[calc(100vh-8.5rem)]">
-      <section className="shrink-0 border-b border-slate-200 bg-slate-950 text-white">
-        <div className="flex flex-wrap items-start justify-between gap-4 px-5 py-5 lg:px-6">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-bold ring-1 ring-white/15">
-                <Headset size={14} /> Hỗ trợ vận hành
-              </span>
-              <span className="rounded-lg bg-emerald-400/15 px-3 py-1.5 text-xs font-bold text-emerald-100 ring-1 ring-emerald-300/20">
-                Trực tuyến
-              </span>
-            </div>
-            <h1 className="mt-3 text-2xl font-black tracking-tight sm:text-[28px]">Trung tâm hỗ trợ SmartMart</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-              Tra cứu tồn kho, doanh thu, cảnh báo và đề xuất nhập hàng — phản hồi dựa trên dữ liệu thực tế của hệ thống.
-            </p>
+    <div className="grid h-[calc(100vh-7.5rem)] min-h-[680px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06)] lg:grid-cols-[280px_1fr]">
+      <aside className="hidden min-h-0 border-r border-slate-200 bg-slate-50/80 lg:flex lg:flex-col">
+        <div className="border-b border-slate-200 p-3">
+          <Button
+            block
+            icon={<MessageSquare size={16} />}
+            className="h-11 justify-start rounded-xl border-slate-300 bg-white font-semibold text-slate-800 hover:!border-emerald-300 hover:!text-emerald-700"
+            onClick={resetConversation}
+          >
+            Cuộc trò chuyện mới
+          </Button>
+        </div>
+
+        <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto p-3">
+          <div className="mb-2 px-2 text-xs font-bold uppercase tracking-wide text-slate-400">SmartAI gợi ý</div>
+          <div className="space-y-2">
+            {SUGGESTED_PROMPTS.map((item) => (
+              <PromptCard
+                key={item.title}
+                item={item}
+                disabled={sending}
+                compact
+                onSelect={(prompt) => void handleSendMessage(prompt)}
+              />
+            ))}
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold text-slate-200 ring-1 ring-white/10">
-              {userMessages} câu hỏi trong phiên
+        </div>
+
+        <div className="border-t border-slate-200 p-3">
+          <div className="mb-2 px-2 text-xs font-bold uppercase tracking-wide text-slate-400">Đi nhanh</div>
+          <div className="space-y-1.5">
+            {QUICK_LINKS.map((link) => {
+              const Icon = link.icon;
+              return (
+                <button
+                  key={link.page}
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold text-slate-600 transition hover:bg-white hover:text-slate-950"
+                  onClick={() => setPage(link.page)}
+                >
+                  <Icon size={16} />
+                  {link.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </aside>
+
+      <main className="flex min-h-0 min-w-0 flex-col bg-white">
+        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 sm:px-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-600 text-white shadow-sm">
+              <Headset size={19} />
             </span>
-            <Button
-              icon={<RefreshCw size={14} />}
-              className="!border-white/20 !bg-white/10 !text-white hover:!bg-white/20"
-              onClick={resetConversation}
-            >
-              Phiên mới
-            </Button>
+            <div className="min-w-0">
+              <h1 className="truncate text-base font-black text-slate-950 sm:text-lg">Trợ lý AI SmartMart</h1>
+              <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-500">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                Sẵn sàng hỗ trợ vận hành
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="flex flex-wrap gap-2 border-t border-white/10 px-5 py-3 lg:px-6">
-          {QUICK_LINKS.map((link) => {
-            const Icon = link.icon;
-            return (
-              <button
-                key={link.page}
-                type="button"
-                className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold text-slate-100 transition hover:bg-white/15"
-                onClick={() => setPage(link.page)}
-              >
-                <Icon size={14} />
-                {link.label}
-              </button>
-            );
-          })}
-        </div>
-      </section>
+          <Button icon={<RefreshCw size={14} />} onClick={resetConversation}>
+            Phiên mới
+          </Button>
+        </header>
 
-      <div className="flex min-h-0 flex-1 bg-slate-50/60">
-        <main className="flex min-w-0 flex-1 flex-col">
-          <div className="scrollbar-thin flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
-            <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
-              {showWelcome && (
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-                  <div className="flex items-start gap-4">
-                    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-slate-900 text-white">
-                      <MessageSquare size={22} />
-                    </span>
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900 sm:text-xl">Bắt đầu cuộc trao đổi</h2>
-                      <p className="mt-1 text-sm leading-6 text-slate-500">
-                        Chọn chủ đề bên phải hoặc nhập câu hỏi trực tiếp. Hệ thống sẽ tổng hợp từ tồn kho, đơn hàng và cảnh báo hiện có.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:hidden">
-                    {SUGGESTED_PROMPTS.slice(0, 4).map((item) => (
-                      <PromptCard
-                        key={item.title}
-                        item={item}
-                        disabled={sending}
-                        compact
-                        onSelect={(prompt) => void handleSendMessage(prompt)}
-                      />
-                    ))}
-                  </div>
+        <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto bg-white px-4 py-6 sm:px-6">
+          <div className="mx-auto flex w-full max-w-4xl flex-col">
+            {showWelcome && (
+              <section className="mx-auto mb-8 w-full max-w-3xl pt-4 text-center">
+                <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-slate-950 text-white shadow-sm">
+                  <Sparkles size={24} />
                 </div>
-              )}
+                <h2 className="mt-5 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
+                  Hôm nay mình hỗ trợ gì cho cửa hàng?
+                </h2>
+                <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                  Hỏi về tồn kho, doanh thu, cảnh báo, nhập hàng hoặc khuyến mãi. SmartAI sẽ trả lời theo dữ liệu vận hành hiện có.
+                </p>
+                <div className="mt-6 grid gap-2 text-left sm:grid-cols-2 lg:hidden">
+                  {SUGGESTED_PROMPTS.slice(0, 4).map((item) => (
+                    <PromptCard
+                      key={item.title}
+                      item={item}
+                      disabled={sending}
+                      compact
+                      onSelect={(prompt) => void handleSendMessage(prompt)}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
 
-              {chatHistory.map((msg) => (
+            <div className="space-y-5">
+              {visibleMessages.map((msg) => (
                 <div
                   key={msg.id}
-                  className={cn('flex gap-3', msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row')}
+                  className={cn('flex w-full gap-3', msg.sender === 'user' ? 'justify-end' : 'justify-start')}
                 >
-                  <span
-                    className={cn(
-                      'grid h-9 w-9 shrink-0 place-items-center rounded-full ring-2 ring-white',
-                      msg.sender === 'user' ? 'bg-slate-800 text-white' : 'bg-emerald-600 text-white'
-                    )}
-                  >
-                    {msg.sender === 'user' ? <UserRound size={16} /> : <Headset size={16} />}
-                  </span>
+                  {msg.sender === 'ai' && (
+                    <span className="mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-emerald-600 text-white">
+                      <Headset size={15} />
+                    </span>
+                  )}
                   <div
                     className={cn(
-                      'max-w-[min(100%,40rem)] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm sm:px-5 sm:py-4',
+                      'min-w-0 text-sm leading-7',
                       msg.sender === 'user'
-                        ? 'bg-slate-900 text-white'
-                        : 'border border-slate-200 bg-white text-slate-800'
+                        ? 'max-w-[min(82%,44rem)] rounded-3xl bg-slate-100 px-4 py-2.5 text-slate-950'
+                        : 'max-w-[min(100%,50rem)] text-slate-800'
                     )}
                   >
-                    <div className={cn('mb-1 text-[11px] font-bold uppercase tracking-wide', msg.sender === 'user' ? 'text-slate-400' : 'text-slate-400')}>
-                      {msg.sender === 'user' ? 'Bạn' : 'Hỗ trợ vận hành'}
-                    </div>
                     {msg.sender === 'ai' ? (
-                      <MarkdownMessage text={msg.text} />
+                      <div className="rounded-2xl px-1 py-1">
+                        <MarkdownMessage text={msg.text} />
+                        {msg.action && (
+                          <Button
+                            className="mt-3 h-9 rounded-xl border border-emerald-200 bg-emerald-50 text-xs font-semibold text-emerald-700 hover:!border-emerald-300 hover:!text-emerald-800"
+                            onClick={() => setPage(msg.action!.page)}
+                          >
+                            {msg.action.label}
+                          </Button>
+                        )}
+                      </div>
                     ) : (
                       <span className="whitespace-pre-wrap break-words">{msg.text}</span>
                     )}
-                    {msg.action && (
-                      <Button
-                        className="mt-3 h-8 border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-700 hover:text-slate-900"
-                        onClick={() => setPage(msg.action!.page)}
-                      >
-                        {msg.action.label}
-                      </Button>
-                    )}
                   </div>
+                  {msg.sender === 'user' && (
+                    <span className="mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-900 text-white">
+                      <UserRound size={15} />
+                    </span>
+                  )}
                 </div>
               ))}
 
               {sending && (
-                <div className="flex items-center gap-3 px-1">
-                  <span className="grid h-9 w-9 place-items-center rounded-full bg-emerald-600 text-white">
-                    <Headset size={16} />
+                <div className="flex items-start gap-3">
+                  <span className="mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-emerald-600 text-white">
+                    <Headset size={15} />
                   </span>
-                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 shadow-sm">
-                    <span className="inline-flex items-center gap-2">
-                      <Spin size="small" /> Đang tổng hợp dữ liệu…
-                    </span>
+                  <div className="inline-flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-medium text-slate-500">
+                    <Spin size="small" /> Đang phân tích dữ liệu cửa hàng…
                   </div>
                 </div>
               )}
               <div ref={chatEndRef} />
             </div>
           </div>
+        </div>
 
-          <div className="shrink-0 border-t border-slate-200 bg-white px-4 py-4 sm:px-6 lg:px-8">
-            <div className="mx-auto flex w-full max-w-3xl items-end gap-3 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-100">
+        <footer className="shrink-0 bg-white px-4 pb-4 pt-2 sm:px-6">
+          <div className="mx-auto w-full max-w-4xl">
+            <div className="rounded-3xl border border-slate-200 bg-white p-2 shadow-[0_12px_35px_rgba(15,23,42,0.08)] focus-within:border-emerald-300 focus-within:ring-4 focus-within:ring-emerald-50">
               <Input.TextArea
                 autoSize={{ minRows: 1, maxRows: 6 }}
                 variant="borderless"
-                placeholder="Nhập câu hỏi về tồn kho, doanh thu, nhập hàng…"
+                placeholder="Nhắn cho SmartAI..."
                 value={typedMessage}
                 disabled={sending}
-                className="!bg-transparent !px-2 !py-2 text-[15px]"
+                className="!bg-transparent !px-3 !py-2 text-[15px]"
                 onChange={(e) => setTypedMessage(e.target.value)}
                 onCompositionStart={() => {
                   composingRef.current = true;
@@ -386,52 +405,38 @@ export default function AiAssistantPage({
                 }}
                 onKeyDown={trySubmitOnEnter}
               />
-              <Button
-                type="primary"
-                shape="circle"
-                size="large"
-                icon={<Send size={16} />}
-                loading={sending}
-                disabled={sending || !typedMessage.trim()}
-                className="!bg-slate-900 hover:!bg-slate-800"
-                onClick={() => void handleSendMessage()}
-              />
+              <div className="flex items-center justify-between gap-2 px-2 pb-1">
+                <div className="hidden flex-wrap gap-1.5 sm:flex">
+                  {SUGGESTED_PROMPTS.slice(0, 3).map((item) => (
+                    <button
+                      key={item.title}
+                      type="button"
+                      disabled={sending}
+                      onClick={() => void handleSendMessage(item.prompt)}
+                      className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-emerald-50 hover:text-emerald-700 disabled:opacity-60"
+                    >
+                      {item.title}
+                    </button>
+                  ))}
+                </div>
+                <Button
+                  type="primary"
+                  shape="circle"
+                  size="large"
+                  icon={<Send size={16} />}
+                  loading={sending}
+                  disabled={sending || !typedMessage.trim()}
+                  className="ml-auto !bg-slate-900 hover:!bg-slate-800"
+                  onClick={() => void handleSendMessage()}
+                />
+              </div>
             </div>
-            <p className="mx-auto mt-2 max-w-3xl text-center text-xs text-slate-400">
-              Nội dung phản hồi mang tính tham khảo — vui lòng đối chiếu báo cáo trước khi quyết định nhập hàng hoặc giảm giá.
+            <p className="mt-2 text-center text-xs text-slate-400">
+              SmartAI có thể sai. Hãy đối chiếu báo cáo trước khi nhập hàng, xả hàng hoặc giảm giá.
             </p>
           </div>
-        </main>
-
-        <aside className="hidden w-[min(380px,34vw)] shrink-0 flex-col border-l border-slate-200 bg-white lg:flex">
-          <div className="border-b border-slate-100 px-5 py-4">
-            <h3 className="text-sm font-bold text-slate-800">Chủ đề gợi ý</h3>
-            <p className="mt-1 text-xs text-slate-500">Nhấn để gửi câu hỏi mẫu vào khung chat.</p>
-          </div>
-          <div className="scrollbar-thin flex-1 space-y-2 overflow-y-auto p-4">
-            {SUGGESTED_PROMPTS.map((item) => (
-              <PromptCard
-                key={item.title}
-                item={item}
-                disabled={sending}
-                onSelect={(prompt) => void handleSendMessage(prompt)}
-              />
-            ))}
-          </div>
-          <div className="space-y-2 border-t border-slate-100 p-4">
-            <div className="rounded-xl bg-slate-50 p-3">
-              <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Phím tắt</div>
-              <ul className="mt-2 space-y-1 text-xs text-slate-600">
-                <li><strong>Enter</strong> — Gửi tin nhắn</li>
-                <li><strong>Shift + Enter</strong> — Xuống dòng</li>
-              </ul>
-            </div>
-            <Button block className="h-10 font-semibold" onClick={() => setPage('purchase-suggestions')}>
-              Mở gợi ý nhập hàng chi tiết
-            </Button>
-          </div>
-        </aside>
-      </div>
+        </footer>
+      </main>
     </div>
   );
 }
