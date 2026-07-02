@@ -1,15 +1,20 @@
 package com.smartmart.controller;
 
 import com.smartmart.common.response.ApiResponse;
+import com.smartmart.common.response.PageResponse;
 import com.smartmart.dto.request.CloseShiftRequest;
 import com.smartmart.dto.request.OpenShiftRequest;
 import com.smartmart.dto.request.ReviewShiftRequest;
+import com.smartmart.dto.request.PaymentMethodCorrectionRequest;
+import com.smartmart.dto.request.ShiftNoteRequest;
 import com.smartmart.dto.response.ShiftResponse;
 import com.smartmart.dto.response.ShiftSummaryResponse;
+import com.smartmart.dto.response.AuditLogResponse;
 import com.smartmart.entity.Shift;
 import com.smartmart.mapper.WmsResponseMapper;
 import com.smartmart.repository.UserRepository;
 import com.smartmart.service.ShiftService;
+import com.smartmart.service.AuditLogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,14 +34,16 @@ public class ShiftController {
 
     private final ShiftService shiftService;
     private final UserRepository userRepository;
+    private final AuditLogService auditLogService;
 
-    public ShiftController(ShiftService shiftService, UserRepository userRepository) {
+    public ShiftController(ShiftService shiftService, UserRepository userRepository, AuditLogService auditLogService) {
         this.shiftService = shiftService;
         this.userRepository = userRepository;
+        this.auditLogService = auditLogService;
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF')")
     @Operation(summary = "Danh sách ca làm việc")
     public ResponseEntity<ApiResponse<List<ShiftResponse>>> list() {
         return ResponseEntity.ok(ApiResponse.success(
@@ -91,10 +98,79 @@ public class ShiftController {
     @Operation(summary = "Duyệt đối soát ca lệch tiền")
     public ResponseEntity<ApiResponse<ShiftResponse>> review(
             @PathVariable Long id,
-            @RequestBody ReviewShiftRequest request
+            @Valid @RequestBody ReviewShiftRequest request
     ) {
         return ResponseEntity.ok(ApiResponse.success("Duyệt đối soát ca thành công",
                 toResponse(shiftService.reviewShift(id, request))));
+    }
+
+    @GetMapping("/{id}/activity")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF')")
+    @Operation(summary = "Lịch sử và trao đổi chung của ca")
+    public ResponseEntity<ApiResponse<PageResponse<AuditLogResponse>>> activity(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size
+    ) {
+        shiftService.findById(id);
+        return ResponseEntity.ok(ApiResponse.success(
+                auditLogService.listByEntity("SHIFT", id.toString(), page, Math.min(size, 100))));
+    }
+
+    @PostMapping("/{id}/request-staff-update")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @Operation(summary = "Yêu cầu nhân viên bổ sung giải trình")
+    public ResponseEntity<ApiResponse<ShiftResponse>> requestStaffUpdate(
+            @PathVariable Long id, @Valid @RequestBody ShiftNoteRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Đã yêu cầu bổ sung giải trình",
+                toResponse(shiftService.requestStaffUpdate(id, request.getNote()))));
+    }
+
+    @PostMapping("/{id}/staff-explanation")
+    @PreAuthorize("hasAnyRole('STAFF','MANAGER','ADMIN')")
+    @Operation(summary = "Nhân viên bổ sung giải trình")
+    public ResponseEntity<ApiResponse<ShiftResponse>> staffExplanation(
+            @PathVariable Long id, @Valid @RequestBody ShiftNoteRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Đã gửi lại giải trình",
+                toResponse(shiftService.updateStaffExplanation(id, request.getNote()))));
+    }
+
+    @PostMapping("/{id}/manager-review")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @Operation(summary = "Quản lý duyệt và gửi ca cho Admin")
+    public ResponseEntity<ApiResponse<ShiftResponse>> managerReview(
+            @PathVariable Long id, @Valid @RequestBody ShiftNoteRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Đã gửi ca cho Admin",
+                toResponse(shiftService.submitManagerReview(id, request.getNote()))));
+    }
+
+    @PostMapping("/{id}/request-manager-update")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Admin yêu cầu quản lý kiểm tra lại")
+    public ResponseEntity<ApiResponse<ShiftResponse>> requestManagerUpdate(
+            @PathVariable Long id, @Valid @RequestBody ShiftNoteRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Đã trả ca cho quản lý",
+                toResponse(shiftService.requestManagerUpdate(id, request.getNote()))));
+    }
+
+    @PostMapping("/{id}/approve")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Admin phê duyệt ca")
+    public ResponseEntity<ApiResponse<ShiftResponse>> approve(
+            @PathVariable Long id, @Valid @RequestBody ShiftNoteRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Đã phê duyệt ca",
+                toResponse(shiftService.approveShift(id, request.getNote()))));
+    }
+
+    @PostMapping("/{id}/payments/{paymentId}/method")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @Operation(summary = "Sửa phương thức thanh toán với lý do bắt buộc")
+    public ResponseEntity<ApiResponse<ShiftResponse>> correctPaymentMethod(
+            @PathVariable Long id,
+            @PathVariable Long paymentId,
+            @Valid @RequestBody PaymentMethodCorrectionRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Đã sửa phương thức thanh toán",
+                toResponse(shiftService.correctPaymentMethod(id, paymentId, request))));
     }
 
     private ShiftResponse toResponse(Shift shift) {

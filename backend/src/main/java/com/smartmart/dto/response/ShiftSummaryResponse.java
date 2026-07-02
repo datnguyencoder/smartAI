@@ -19,7 +19,17 @@ public class ShiftSummaryResponse {
     private BigDecimal expectedCash;
     private BigDecimal cashVariance;
     private int totalOrders;
+    private int completedOrders;
+    private int cancelledOrders;
+    private int refundedOrders;
+    private BigDecimal grossSales;
+    private BigDecimal refundAmount;
+    private BigDecimal netRevenue;
     private BigDecimal totalRevenue;
     private BigDecimal cashSales;
     private BigDecimal bankSales;
+    private BigDecimal cardSales;
+    private BigDecimal walletSales;
+    private BigDecimal otherSales;
+    private BigDecimal nonCashSales;
 }

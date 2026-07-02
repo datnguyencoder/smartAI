@@ -183,6 +183,7 @@ public class AuditLogServiceImpl implements AuditLogService {
                 .ipAddress(auditLog.getIpAddress())
                 .detail(auditLog.getDetail())
                 .username(user != null ? user.getUsername() : "Hệ thống")
+                .actorRole(user != null && user.getRole() != null ? user.getRole().name() : "SYSTEM")
                 .createdAt(auditLog.getCreatedAt())
                 .build();
     }

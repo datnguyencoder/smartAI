@@ -12,6 +12,7 @@ public class AuditLogResponse {
     private String action;
     private String detail;
     private String username;
+    private String actorRole;
     private LocalDateTime createdAt;
     private String beforeData;
     private String afterData;

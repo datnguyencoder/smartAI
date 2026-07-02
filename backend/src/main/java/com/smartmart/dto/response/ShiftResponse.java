@@ -16,10 +16,15 @@ public class ShiftResponse {
     private LocalDateTime openedAt;
     private LocalDateTime closedAt;
     private BigDecimal openingCash;
+    private Long openingBalanceSourceShiftId;
     private BigDecimal closingCash;
     private BigDecimal expectedCash;
     private BigDecimal cashVariance;
     private String varianceReason;
+    private Boolean staffMismatchReported;
+    private String managerNote;
+    private String adminNote;
+    private String closingNote;
     private Long reviewedBy;
     private LocalDateTime reviewedAt;
     private String reviewNote;
