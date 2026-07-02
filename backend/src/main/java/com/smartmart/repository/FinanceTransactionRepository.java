@@ -3,22 +3,57 @@ package com.smartmart.repository;
 import com.smartmart.entity.FinanceTransaction;
 import com.smartmart.enums.FinanceTransactionType;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.util.List;
 
 public interface FinanceTransactionRepository extends JpaRepository<FinanceTransaction, Long> {
-    @Query("""
-            SELECT ft FROM FinanceTransaction ft
-            WHERE (:type IS NULL OR ft.type = :type)
-              AND (:from IS NULL OR ft.transactionDate >= :from)
-              AND (:to IS NULL OR ft.transactionDate <= :to)
-            ORDER BY ft.transactionDate DESC, ft.id DESC
-            """)
-    List<FinanceTransaction> findFiltered(
-            @Param("type") FinanceTransactionType type,
-            @Param("from") LocalDate from,
-            @Param("to") LocalDate to);
+
+    default List<FinanceTransaction> findFiltered(FinanceTransactionType type, LocalDate from, LocalDate to) {
+        if (type != null && from != null && to != null) {
+            return findByTypeAndTransactionDateBetweenOrderByTransactionDateDescIdDesc(type, from, to);
+        }
+        if (type != null && from != null) {
+            return findByTypeAndTransactionDateGreaterThanEqualOrderByTransactionDateDescIdDesc(type, from);
+        }
+        if (type != null && to != null) {
+            return findByTypeAndTransactionDateLessThanEqualOrderByTransactionDateDescIdDesc(type, to);
+        }
+        if (type != null) {
+            return findByTypeOrderByTransactionDateDescIdDesc(type);
+        }
+        if (from != null && to != null) {
+            return findByTransactionDateBetweenOrderByTransactionDateDescIdDesc(from, to);
+        }
+        if (from != null) {
+            return findByTransactionDateGreaterThanEqualOrderByTransactionDateDescIdDesc(from);
+        }
+        if (to != null) {
+            return findByTransactionDateLessThanEqualOrderByTransactionDateDescIdDesc(to);
+        }
+        return findAllByOrderByTransactionDateDescIdDesc();
+    }
+
+    List<FinanceTransaction> findAllByOrderByTransactionDateDescIdDesc();
+
+    List<FinanceTransaction> findByTypeOrderByTransactionDateDescIdDesc(FinanceTransactionType type);
+
+    List<FinanceTransaction> findByTransactionDateBetweenOrderByTransactionDateDescIdDesc(LocalDate from, LocalDate to);
+
+    List<FinanceTransaction> findByTransactionDateGreaterThanEqualOrderByTransactionDateDescIdDesc(LocalDate from);
+
+    List<FinanceTransaction> findByTransactionDateLessThanEqualOrderByTransactionDateDescIdDesc(LocalDate to);
+
+    List<FinanceTransaction> findByTypeAndTransactionDateBetweenOrderByTransactionDateDescIdDesc(
+            FinanceTransactionType type,
+            LocalDate from,
+            LocalDate to);
+
+    List<FinanceTransaction> findByTypeAndTransactionDateGreaterThanEqualOrderByTransactionDateDescIdDesc(
+            FinanceTransactionType type,
+            LocalDate from);
+
+    List<FinanceTransaction> findByTypeAndTransactionDateLessThanEqualOrderByTransactionDateDescIdDesc(
+            FinanceTransactionType type,
+            LocalDate to);
 }
