@@ -47,6 +47,32 @@ const RETAIL_GROUP = '\u0110\u01a1n v\u1ecb l\u1ebb';
 const PACKAGING_GROUP = '\u0110\u00f3ng g\u00f3i';
 const UOM_GROUP_OPTIONS = [{ value: RETAIL_GROUP }, { value: PACKAGING_GROUP }];
 
+const normalizeUomGroup = (category?: string) => {
+  const value = category?.trim().toUpperCase();
+
+  if (!value) return '';
+  if (['ĐƠN VỊ LẺ', 'BÁN LẺ', 'COUNT', 'WEIGHT', 'VOLUME', 'LENGTH', 'OTHER'].includes(value)) {
+    return RETAIL_GROUP;
+  }
+  if (['ĐÓNG GÓI', 'PACKAGE'].includes(value)) {
+    return PACKAGING_GROUP;
+  }
+
+  return category?.trim() ?? '';
+};
+
+const isPackagingUomGroup = (category?: string) => normalizeUomGroup(category) === PACKAGING_GROUP;
+
+const getDisplayUomGroup = (uom: UomDto) => {
+  const group = normalizeUomGroup(uom.category);
+  const ratio = Number(uom.conversionRatio ?? 1);
+
+  if (group === PACKAGING_GROUP || ratio > 1) return PACKAGING_GROUP;
+  if (group === RETAIL_GROUP || ratio <= 1) return RETAIL_GROUP;
+
+  return group;
+};
+
 type Props = {
   uoms: UomDto[];
   reloadCatalog: () => Promise<void>;
@@ -141,7 +167,7 @@ export default function UomsPage({ uoms, reloadCatalog }: Props) {
   const [categoryFilter, setCategoryFilter] = React.useState<string | undefined>();
   const [form] = Form.useForm<UomFormValues>();
   const selectedCategory = Form.useWatch('category', form);
-  const isPackagingGroup = selectedCategory === PACKAGING_GROUP;
+  const isPackagingGroup = isPackagingUomGroup(selectedCategory);
 
   const activeUomOptions = React.useMemo(
     () =>
@@ -158,7 +184,7 @@ export default function UomsPage({ uoms, reloadCatalog }: Props) {
     const query = searchQuery.trim().toLowerCase();
     return uoms.filter((uom) => {
       const matchQuery = !query || uom.uomName.toLowerCase().includes(query);
-      const matchCategory = !categoryFilter || uom.category === categoryFilter;
+      const matchCategory = !categoryFilter || getDisplayUomGroup(uom) === categoryFilter;
       return matchQuery && matchCategory;
     });
   }, [categoryFilter, searchQuery, uoms]);
@@ -183,7 +209,7 @@ export default function UomsPage({ uoms, reloadCatalog }: Props) {
   };
 
   React.useEffect(() => {
-    if (selectedCategory !== PACKAGING_GROUP) {
+    if (!isPackagingUomGroup(selectedCategory)) {
       form.setFieldsValue({
         conversionUomId: undefined,
         conversionRatio: 1,
@@ -193,10 +219,10 @@ export default function UomsPage({ uoms, reloadCatalog }: Props) {
 
   const handleSave = async () => {
     const values = await form.validateFields();
-    const packaging = values.category.trim() === PACKAGING_GROUP;
+    const packaging = isPackagingUomGroup(values.category);
     const payload = {
       uomName: values.uomName.trim(),
-      category: values.category.trim(),
+      category: normalizeUomGroup(values.category),
       conversionUomId: packaging ? values.conversionUomId : undefined,
       conversionRatio: packaging ? values.conversionRatio ?? 1 : 1,
       active: Boolean(values.active),
@@ -288,7 +314,7 @@ export default function UomsPage({ uoms, reloadCatalog }: Props) {
               title: TEXT.unitGroup,
               dataIndex: 'category',
               key: 'category',
-              render: (value: string) => <Tag color="blue">{value || '-'}</Tag>,
+              render: (_: string, record: UomDto) => <Tag color="blue">{getDisplayUomGroup(record) || '-'}</Tag>,
             },
             {
               title: TEXT.conversionUom,

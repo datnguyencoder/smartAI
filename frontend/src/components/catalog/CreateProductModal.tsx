@@ -48,6 +48,32 @@ const pageTitles: Record<PageKey, { title: string }> = {
 
 };
 
+const normalizeUomGroup = (category?: string) => {
+  const value = category?.trim().toUpperCase();
+
+  if (!value) return '';
+  if (['ĐƠN VỊ LẺ', 'BÁN LẺ', 'COUNT', 'WEIGHT', 'VOLUME', 'LENGTH', 'OTHER'].includes(value)) {
+    return 'Đơn vị lẻ';
+  }
+  if (['ĐÓNG GÓI', 'PACKAGE'].includes(value)) {
+    return 'Đóng gói';
+  }
+
+  return category?.trim() ?? '';
+};
+
+const isRetailUom = (uom: UomDto) => {
+  const group = normalizeUomGroup(uom.category);
+  const ratio = Number(uom.conversionRatio ?? 1);
+  return group === 'Đơn vị lẻ' || (group !== 'Đóng gói' && ratio <= 1);
+};
+
+const isPackagingUom = (uom: UomDto) => {
+  const group = normalizeUomGroup(uom.category);
+  const ratio = Number(uom.conversionRatio ?? 1);
+  return group === 'Đóng gói' || ratio > 1;
+};
+
 type Props = {
   open: boolean;
   onCancel: () => void;
@@ -64,11 +90,11 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
   const [previewUrl, setPreviewUrl] = React.useState<string | undefined>();
   const filteredUoms = React.useMemo(() => uoms.filter((uom) => uom.active !== false), [uoms]);
   const retailUoms = React.useMemo(
-    () => filteredUoms.filter((uom) => uom.category === 'Đơn vị lẻ'),
+    () => filteredUoms.filter(isRetailUom),
     [filteredUoms]
   );
   const packagingUoms = React.useMemo(
-    () => filteredUoms.filter((uom) => uom.category === 'Đóng gói'),
+    () => filteredUoms.filter(isPackagingUom),
     [filteredUoms]
   );
 
