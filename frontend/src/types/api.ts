@@ -367,6 +367,7 @@ export type AuditLogDto = {
   action: string;
   detail?: string;
   username: string;
+  actorRole?: string;
   createdAt: string;
   beforeData?: string | null;
   afterData?: string | null;
@@ -630,16 +631,22 @@ export type ShiftDto = {
   openedAt: string;
   closedAt?: string;
   openingCash: number;
+  openingBalanceSourceShiftId?: number;
   closingCash?: number;
   expectedCash?: number;
   cashVariance?: number;
   varianceReason?: string;
+  staffMismatchReported?: boolean;
+  managerNote?: string;
+  adminNote?: string;
+  closingNote?: string;
   reviewedBy?: number;
   reviewedAt?: string;
   reviewNote?: string;
   totalOrders: number;
   totalRevenue: number;
-  status: 'OPEN' | 'PENDING_REVIEW' | 'CLOSED';
+  status: 'OPEN' | 'PENDING_REVIEW' | 'NEEDS_STAFF_UPDATE' | 'REVIEWED_BY_MANAGER' |
+    'NEEDS_MANAGER_UPDATE' | 'APPROVED' | 'REJECTED' | 'CLOSED';
   note?: string;
 };
 
@@ -698,9 +705,19 @@ export type ShiftSummaryDto = {
   expectedCash?: number;
   cashVariance?: number;
   totalOrders: number;
+  completedOrders: number;
+  cancelledOrders: number;
+  refundedOrders: number;
+  grossSales: number;
+  refundAmount: number;
+  netRevenue: number;
   totalRevenue: number;
   cashSales: number;
   bankSales: number;
+  cardSales: number;
+  walletSales: number;
+  otherSales: number;
+  nonCashSales: number;
 };
 
 export type BestSellerReportDto = {

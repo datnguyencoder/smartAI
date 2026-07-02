@@ -1,12 +1,12 @@
 package com.smartmart.dto.request;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
-import jakarta.validation.constraints.NotBlank;
 
 @Getter
 @Setter
-public class ReviewShiftRequest {
+public class ShiftNoteRequest {
     @NotBlank
-    private String reviewNote;
+    private String note;
 }

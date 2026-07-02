@@ -29,6 +29,9 @@ public class Shift extends LongAuditableEntity {
     @Column(name = "opening_cash", nullable = false)
     private BigDecimal openingCash;
 
+    @Column(name = "opening_balance_source_shift_id")
+    private Long openingBalanceSourceShiftId;
+
     @Column(name = "closing_cash")
     private BigDecimal closingCash;
 
@@ -40,6 +43,19 @@ public class Shift extends LongAuditableEntity {
 
     @Column(name = "variance_reason")
     private String varianceReason;
+
+    @Column(name = "staff_mismatch_reported", nullable = false)
+    @Builder.Default
+    private Boolean staffMismatchReported = false;
+
+    @Column(name = "manager_note", columnDefinition = "TEXT")
+    private String managerNote;
+
+    @Column(name = "admin_note", columnDefinition = "TEXT")
+    private String adminNote;
+
+    @Column(name = "closing_note", columnDefinition = "TEXT")
+    private String closingNote;
 
     @Column(name = "reviewed_by")
     private Long reviewedBy;

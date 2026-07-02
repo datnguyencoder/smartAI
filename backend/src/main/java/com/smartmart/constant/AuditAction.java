@@ -57,6 +57,19 @@ public final class AuditAction {
     public static final String SHIFT_OPEN = "SHIFT_OPEN";
     public static final String SHIFT_CLOSE = "SHIFT_CLOSE";
     public static final String SHIFT_REVIEW = "SHIFT_REVIEW";
+    public static final String SHIFT_STAFF_UPDATE = "SHIFT_STAFF_UPDATE";
+    public static final String SHIFT_MANAGER_REVIEW = "SHIFT_MANAGER_REVIEW";
+    public static final String SHIFT_MANAGER_UPDATE_REQUEST = "SHIFT_MANAGER_UPDATE_REQUEST";
+    public static final String SHIFT_PAYMENT_CORRECTION = "SHIFT_PAYMENT_CORRECTION";
+    public static final String SHIFT_APPROVE = "SHIFT_APPROVE";
+    public static final String SHIFT_REJECT = "SHIFT_REJECT";
+    public static final String SHIFT_OPENED = "SHIFT_OPENED";
+    public static final String SHIFT_CLOSED = "SHIFT_CLOSED";
+    public static final String SHIFT_RETURNED_TO_STAFF = "SHIFT_RETURNED_TO_STAFF";
+    public static final String SHIFT_RETURNED_TO_MANAGER = "SHIFT_RETURNED_TO_MANAGER";
+    public static final String PAYMENT_METHOD_CORRECTED = "PAYMENT_METHOD_CORRECTED";
+    public static final String SHIFT_APPROVED = "SHIFT_APPROVED";
+    public static final String BALANCE_ADJUSTED = "BALANCE_ADJUSTED";
 
     public static final String DEBT_CREATE = "DEBT_CREATE";
     public static final String DEBT_PAYMENT = "DEBT_PAYMENT";
