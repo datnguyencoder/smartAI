@@ -18,3 +18,4 @@ export * from './salesApi';
 export * from './settingsApi';
 export * from './shiftApi';
 export * from './userApi';
+export * from './mediaApi';

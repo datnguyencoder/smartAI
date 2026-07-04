@@ -101,6 +101,10 @@ services:
       - CEREBRAS_MODEL=${CEREBRAS_MODEL:-gpt-oss-120b}
       # Security Configurations
       - JWT_SECRET=${JWT_SECRET:-9a78a63584828f73b889312c1c38d6f5e8e89f81a7b8e910a11c12d13e14f15a}
+      # Cloudinary Configurations
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME:-demo}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY:-demo}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET:-demo}
       # Spring configurations
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - SPRING_CACHE_TYPE=redis

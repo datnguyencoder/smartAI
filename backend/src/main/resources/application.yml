@@ -9,6 +9,13 @@ spring:
   profiles:
     # local = PostgreSQL localhost (Flyway). Docker sets SPRING_PROFILES_ACTIVE=prod.
     active: ${SPRING_PROFILES_ACTIVE:local}
+  config:
+    import: optional:file:.env[.properties], optional:file:backend/.env[.properties], optional:file:docker/.env[.properties]
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
 
   # Redis (override host/port theo profile / env)
   data:
@@ -74,3 +81,8 @@ app:
   report:
     footer:
       text: ${REPORT_FOOTER_TEXT:BÁO CÁO NỘI BỘ - BẢO MẬT}
+
+cloudinary:
+  cloud_name: ${CLOUDINARY_CLOUD_NAME:demo}
+  api_key: ${CLOUDINARY_API_KEY:demo}
+  api_secret: ${CLOUDINARY_API_SECRET:demo}

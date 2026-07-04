@@ -1,11 +1,11 @@
-import { Button, Drawer, Form, Input, InputNumber, Progress, Statistic, Table } from 'antd';
+import { Button, Drawer, Form, Input, InputNumber, Progress, Statistic, Table, Upload } from 'antd';
 import * as React from 'react';
 import { message as antdMessage } from 'antd';
-import { ImagePlus, RotateCcw } from 'lucide-react';
+import { ImagePlus, RotateCcw, UploadCloud } from 'lucide-react';
 import { animateDrawer } from '@/lib/gsapAnimations';
 import { formatMoney, type Product } from '@/lib/itemMapper';
 import { ProductThumbnail } from '@/components/catalog/ProductThumbnail';
-import { aiExplainRisk, downloadBarcodeLabel, fetchInventory, updateItem } from '@/services/wmsApi';
+import { aiExplainRisk, downloadBarcodeLabel, fetchInventory, updateItem, uploadMedia } from '@/services/wmsApi';
 import type { InventoryItemDto } from '@/types/api';
 import { MarkdownMessage } from '@/components/ai/MarkdownMessage';
 
@@ -24,6 +24,23 @@ export function ProductDrawer({ product, onClose, onUpdated }: Props) {
   const [loadingLots, setLoadingLots] = React.useState(false);
   const [riskInsight, setRiskInsight] = React.useState<string | null>(null);
   const [riskLoading, setRiskLoading] = React.useState(false);
+  const [uploading, setUploading] = React.useState(false);
+
+  const handleUpload = async (options: any) => {
+    const { file, onSuccess, onError } = options;
+    setUploading(true);
+    try {
+      const url = await uploadMedia(file as File);
+      setImageUrl(url);
+      onSuccess?.(url);
+      antdMessage.success('Tải ảnh lên thành công!');
+    } catch (err) {
+      onError?.(err as Error);
+      antdMessage.error('Tải ảnh thất bại');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   React.useEffect(() => {
     if (product) {
@@ -94,13 +111,18 @@ export function ProductDrawer({ product, onClose, onUpdated }: Props) {
           <Progress percent={Math.min(100, Math.round((product.stock / 900) * 100))} strokeColor="#006c49" />
           <Form layout="vertical">
             <Form.Item label="Ảnh sản phẩm">
-              <Input
-                allowClear
-                placeholder="Dán link ảnh sản phẩm..."
-                prefix={<ImagePlus size={16} className="text-slate-400" />}
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-              />
+              <div className="flex gap-2">
+                <Input
+                  allowClear
+                  placeholder="Dán link ảnh sản phẩm..."
+                  prefix={<ImagePlus size={16} className="text-slate-400" />}
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                />
+                <Upload customRequest={handleUpload} showUploadList={false} accept="image/*">
+                  <Button icon={<UploadCloud size={16} />} loading={uploading} />
+                </Upload>
+              </div>
               <Button
                 className="mt-2"
                 icon={<RotateCcw size={15} />}
