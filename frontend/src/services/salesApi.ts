@@ -16,6 +16,13 @@ export function createOrder(payload: {
   });
 }
 
+export function createPayment(payload: { orderId: number }) {
+  return apiRequest<{ checkoutUrl: string; qrCode?: string }>('/api/v1/payments/create', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 export function createHeldOrder(payload: {
   customerName?: string;
   customerPhone?: string;
@@ -61,8 +68,9 @@ export function fetchOrdersPaged(page = 0, size = 10, search?: string, status?: 
   return apiRequest<PageResponseDto<OrderDto>>(`/api/v1/orders/paged?${params}`);
 }
 
-export function fetchOrderById(orderId: number) {
-  return apiRequest<OrderDto>(`/api/v1/orders/${orderId}`);
+export function fetchOrderById(orderId: number, noCache = false) {
+  const url = noCache ? `/api/v1/orders/${orderId}?t=${new Date().getTime()}` : `/api/v1/orders/${orderId}`;
+  return apiRequest<OrderDto>(url);
 }
 
 export function fetchOrderPrint(orderId: number) {

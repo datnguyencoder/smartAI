@@ -22,3 +22,9 @@ spring:
   kafka:
     listener:
       enabled: false
+
+# Override PayOS for local dev so it doesn't crash if env vars are missing
+payos:
+  client-id: 604213bd-af2b-43f3-bd3e-9630a0a7ca00
+  api-key: ec2e1ced-05a6-457f-b2fb-f86f699eed31
+  checksum-key: 191527df93fe07b44adc31fbe317cd93a9ddbd8c69571f84b732377ccbfd5af2
