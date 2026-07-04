@@ -8,6 +8,7 @@ import { StatCard } from '../StatCard';
 import PurchaseOrderDetailModal from '@/components/purchase/PurchaseOrderDetailModal';
 import { fetchPurchaseOrdersPaged, receivePurchaseOrder, cancelPurchaseOrder } from '@/services/wmsApi';
 import dayjs from 'dayjs';
+import { fuzzySearch } from '@/lib/fuzzySearch';
 
 type PurchaseReportTabProps = {
   purchaseData: PurchaseReportDto[];
@@ -42,10 +43,7 @@ export function PurchaseReportTab({
   const [cancelLoading, setCancelLoading] = useState(false);
 
   const filteredPurchaseData = useMemo(() => {
-    return purchaseData.filter((r) => {
-      if (!debouncedSearchText) return true;
-      return r.supplierName.toLowerCase().includes(debouncedSearchText.toLowerCase());
-    });
+    return fuzzySearch(purchaseData, ['supplierName'], debouncedSearchText);
   }, [purchaseData, debouncedSearchText]);
 
   const purchaseTotals = useMemo(() => {

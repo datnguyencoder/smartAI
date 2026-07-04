@@ -1,10 +1,12 @@
-import { Form, Input, InputNumber, Modal, Select, Switch, message as antdMessage } from 'antd';
+import { Select } from '@/components/ui';
+import { Form, Input, InputNumber, ModalSwitch, message as antdMessage } from 'antd';
 import * as React from 'react';
 import { createItem, createSupplier } from '@/services/wmsApi';
 import type { CategoryDto, UomDto } from '@/types/api';
 import type { PageKey } from '@/types/pages';
 import { ProductThumbnail } from '@/components/catalog/ProductThumbnail';
 import { resolveMediaUrl } from '@/lib/mediaUrl';
+import { useFormDraft } from '@/hooks/useFormDraft';
 
 const pageTitles: Record<PageKey, { title: string }> = {
   dashboard: { title: 'Bảng điều khiển' },
@@ -85,6 +87,7 @@ type Props = {
 
 export function CreateProductModal({ open, onCancel, page, categories, uoms, onCreated }: Props) {
   const [form] = Form.useForm();
+  const { clearDraft, saveDraft } = useFormDraft(form, `draft_quick_create_${page}`);
   const [saving, setSaving] = React.useState(false);
   const [previewName, setPreviewName] = React.useState('');
   const [previewUrl, setPreviewUrl] = React.useState<string | undefined>();
@@ -98,7 +101,13 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
     [filteredUoms]
   );
 
-
+  const handleCancel = () => {
+    form.resetFields();
+    clearDraft();
+    setPreviewName('');
+    setPreviewUrl(undefined);
+    onCancel();
+  };
 
   const handleFinish = async (values: {
     name: string;
@@ -137,6 +146,7 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
         });
         await onCreated();
         antdMessage.success(`Thêm sản phẩm ${values.name} thành công`);
+        handleCancel();
       } catch (e) {
         antdMessage.error(e instanceof Error ? e.message : 'Tạo sản phẩm thất bại');
       } finally {
@@ -154,9 +164,9 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
         });
         await onCreated();
         antdMessage.success(`Thêm nhà cung cấp "${values.supplierName}" thành công`);
+        handleCancel();
       } catch (e) {
         antdMessage.error(e instanceof Error ? e.message : 'Tạo nhà cung cấp thất bại');
-        return;
       } finally {
         setSaving(false);
       }
@@ -164,16 +174,12 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
       antdMessage.info('Chức năng tạo nhanh cho trang này đang được phát triển');
       return;
     }
-    form.resetFields();
-    setPreviewName('');
-    setPreviewUrl(undefined);
-    onCancel();
   };
 
   return (
     <Modal
       open={open}
-      onCancel={onCancel}
+      onCancel={handleCancel}
       title={
         page === 'products'
           ? 'Thêm mới Sản phẩm vào hệ thống'
@@ -194,7 +200,9 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
         onValuesChange={(_, all) => {
           setPreviewName(all.name ?? '');
           setPreviewUrl(resolveMediaUrl(all.imageUrl));
+          saveDraft();
         }}
+        initialValues={{ hasExpiry: false }}
       >
         {page === 'products' ? (
           <div className="space-y-1">

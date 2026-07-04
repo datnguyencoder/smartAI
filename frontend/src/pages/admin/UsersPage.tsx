@@ -1,8 +1,8 @@
-import { Button, Form, Input, Modal, Select, Table, Tag, message as antdMessage } from 'antd';
+import { Button, Form, Input, ModalTable, Tag, message as antdMessage } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { Plus } from 'lucide-react';
 import * as React from 'react';
-import { Card, CardHeader } from '@/components/ui';
+import { Card, CardHeader , Select } from '@/components/ui';
 import { createUser, fetchUsers, lockUser, softDeleteUser, unlockUser, updateUser } from '@/services/wmsApi';
 import type { Role, UserDto, UserStatus } from '@/types/api';
 

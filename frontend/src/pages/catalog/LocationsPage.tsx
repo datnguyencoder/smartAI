@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Building2, Search as SearchIcon, Plus } from 'lucide-react';
-import { Modal, Form, Input, Select, Button, message } from 'antd';
-import { Card, CardHeader, StatusChip } from '@/components/ui';
+import { Modal, Form, InputButton, message } from 'antd';
+import { Card, CardHeader, StatusChip , Select } from '@/components/ui';
 import type { LocationDto, UserDto } from '@/types/api';
 import type { Product } from '@/lib/itemMapper';
 import type { PageKey } from '@/types/pages';

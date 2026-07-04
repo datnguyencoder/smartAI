@@ -76,3 +76,5 @@ export function PageFooter({ children, className }: { children?: ReactNode; clas
     </div>
   );
 }
+
+export * from './Select';

@@ -1,11 +1,12 @@
-import { Button, Form, Input, InputNumber, Modal, Select, Tag, message as antdMessage } from 'antd';
+import { Button, Form, Input, InputNumber, ModalTag, message as antdMessage } from 'antd';
 import { motion } from 'framer-motion';
 import { Plus, Search, Truck } from 'lucide-react';
 import * as React from 'react';
 import { AiSummary } from '@/components/ai/AiSummary';
-import { Card, StatusChip, UiButton } from '@/components/ui';
+import { Card, StatusChip, UiButton , Select } from '@/components/ui';
 import { formatMoney as money, type Product } from '@/lib/itemMapper';
 import { canQuickCreate, normalizeRole } from '@/lib/permissions';
+import { fuzzySearch } from '@/lib/fuzzySearch';
 import {
   activateSupplierItem,
   createSupplier,
@@ -71,12 +72,9 @@ export default function SuppliersPage({
     return <Tag color="orange">Chưa trả</Tag>;
   };
 
-  const filteredSuppliers = suppliers.filter(s =>
-    !searchQuery ||
-    s.supplierName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (s.contactPerson && s.contactPerson.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (s.phone && s.phone.includes(searchQuery))
-  );
+  const filteredSuppliers = React.useMemo(() => {
+    return fuzzySearch(suppliers, ['supplierName', 'contactPerson', 'phone'], searchQuery);
+  }, [suppliers, searchQuery]);
 
   const loadSupplierItems = async (supplierId: number) => {
     setSupplierItemsLoading(true);

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Tag, Button, Select, Modal, Input, InputNumber, message, Form, Space } from 'antd';
+import { Table, Tag, ButtonModal, Input, InputNumber, message, Form, Space } from 'antd';
 import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import {
   cancelStocktake,
@@ -11,9 +11,10 @@ import {
 } from '@/services/wmsApi';
 import type { InventoryItemDto, LocationDto, StocktakeDto } from '@/types/api';
 import dayjs from 'dayjs';
-import { Card, CardHeader } from '@/components/ui';
+import { Card, CardHeader , Select } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { normalizeRole } from '@/lib/permissions';
+import { useFormDraft } from '@/hooks/useFormDraft';
 
 type DraftLine = { itemId: number; lotId?: number; itemName: string; lotNumber?: string; systemQty: number; actualQty: number };
 
@@ -31,6 +32,13 @@ export default function StocktakePage() {
   const [selectedStocktake, setSelectedStocktake] = useState<StocktakeDto | null>(null);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [form] = Form.useForm();
+  
+  const { clearDraft, saveDraft } = useFormDraft(form, 'draft_stocktake_create', draftLines, setDraftLines);
+
+  // Hook saveDraft when draftLines changes
+  useEffect(() => {
+    saveDraft();
+  }, [draftLines, saveDraft]);
 
   const lineKey = (itemId: number, lotId?: number) => `${itemId}-${lotId ?? 'null'}`;
 
@@ -86,6 +94,7 @@ export default function StocktakePage() {
       setCreateOpen(false);
       form.resetFields();
       setDraftLines([]);
+      clearDraft();
       load();
     } catch (e: unknown) {
       message.error(e instanceof Error ? e.message : 'Tạo phiếu thất bại');
@@ -235,7 +244,7 @@ export default function StocktakePage() {
         )}
       </Modal>
       <Modal title="Tạo phiếu kiểm kê" open={createOpen} onCancel={() => setCreateOpen(false)} footer={null} width={720}>
-        <Form form={form} layout="vertical" onFinish={handleCreate}>
+        <Form form={form} layout="vertical" onFinish={handleCreate} onValuesChange={saveDraft}>
           <Form.Item name="locationId" label="Kho" rules={[{ required: true }]} style={{ marginBottom: 12 }}>
             <select
               className="w-full h-10 px-3 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-emerald-500 bg-white"

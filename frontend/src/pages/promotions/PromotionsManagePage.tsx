@@ -1,7 +1,7 @@
 import React from 'react';
-import { Button, Form, Input, InputNumber, Modal, Select, Switch, Table, Tag, message as antdMessage } from 'antd';
+import { Button, Form, Input, InputNumber, ModalSwitch, Table, Tag, message as antdMessage } from 'antd';
 import { Plus, WandSparkles } from 'lucide-react';
-import { Card, CardHeader } from '@/components/ui';
+import { Card, CardHeader , Select } from '@/components/ui';
 import { createPromotion, deletePromotion, fetchPromotions, updatePromotion } from '@/services/wmsApi';
 import type { PromotionDto } from '@/types/api';
 

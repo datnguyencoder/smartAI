@@ -39,7 +39,7 @@ export function ProductsTable({ title, rows, openProduct }: Props) {
   return (
     <Card className="overflow-hidden">
       <CardHeader title={title} />
-      <Table<Product> columns={columns} dataSource={rows} pagination={{ pageSize: 12 }} size="middle" rowKey="key" />
+      <Table<Product> columns={columns} dataSource={rows} pagination={{ pageSize: 12 }} size="middle" rowKey="key" scroll={{ x: 'max-content', y: 'calc(100vh - 300px)' }} />
     </Card>
   );
 }

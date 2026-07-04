@@ -1,8 +1,9 @@
-import { Button, Input, Select, Table, message, Space, Row, Col, Statistic, Card as AntCard } from 'antd';
+import { Button, InputTable, message, Space, Row, Col, Statistic, Card as AntCard } from 'antd';
 import { AlertTriangle, Download, Search } from 'lucide-react';
 import * as React from 'react';
-import { Card, StatusChip } from '@/components/ui';
+import { Card, StatusChip , Select } from '@/components/ui';
 import { fetchInventoryAlerts, resolveInventoryAlert } from '@/services/wmsApi';
+import { fuzzySearch } from '@/lib/fuzzySearch';
 import type { InventoryAlertDto } from '@/types/api';
 import type { PageKey } from '@/types/pages';
 import * as XLSX from 'xlsx';
@@ -70,12 +71,11 @@ export default function InventoryAlertsPage({ setPage }: { setPage: (page: PageK
   };
 
   const filteredAlerts = React.useMemo(() => {
-    return alerts.filter(alert => {
-      const matchSearch = 
-        alert.itemName.toLowerCase().includes(searchText.toLowerCase()) || 
-        alert.itemCode.toLowerCase().includes(searchText.toLowerCase());
+    let result = fuzzySearch(alerts, ['itemName', 'itemCode'], searchText);
+    
+    return result.filter(alert => {
       const matchType = selectedType === 'ALL' || alert.alertType === selectedType;
-      return matchSearch && matchType;
+      return matchType;
     });
   }, [alerts, searchText, selectedType]);
 

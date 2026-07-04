@@ -137,8 +137,8 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                 }
             }
 
-            String lotNum = String.format("LOT-%d-%d-%s-%d-%d",
-                    location.getId(), item.getId(), dateStr, savedPo.getId(), lineIndex);
+            String lotNum = String.format("LOT-L%03d-%s-%s-P%03d-%03d",
+                    location.getId(), item.getItemCode(), dateStr, savedPo.getId(), lineIndex);
 
             ItemLot lot = inventoryLedgerService.getOrCreateLot(item, lotNum, line.getExpiryDate());
 

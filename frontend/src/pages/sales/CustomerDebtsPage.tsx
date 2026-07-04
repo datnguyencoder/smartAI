@@ -1,7 +1,7 @@
 import * as React from 'react';
-import { Button, InputNumber, Modal, Select, Space, Table, Tag, message } from 'antd';
+import { Button, InputNumber, ModalSpace, Table, Tag, message } from 'antd';
 import { WalletCards } from 'lucide-react';
-import { Card, CardHeader } from '@/components/ui';
+import { Card, CardHeader , Select } from '@/components/ui';
 import { fetchCustomerDebts, recordCustomerDebtPayment } from '@/services/wmsApi';
 import { formatMoney } from '@/lib/itemMapper';
 import { PAYMENT_LABEL } from '@/lib/constants/paymentLabels';

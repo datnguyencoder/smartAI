@@ -5,6 +5,7 @@ import { Card, CardHeader } from '@/components/ui';
 import { formatMoney as money } from '@/lib/itemMapper';
 import type { SalesReportDto } from '@/types/api';
 import { StatCard } from '../StatCard';
+import { fuzzySearch } from '@/lib/fuzzySearch';
 
 type SalesReportTabProps = {
   salesData: SalesReportDto[];
@@ -14,10 +15,7 @@ type SalesReportTabProps = {
 
 export function SalesReportTab({ salesData, loading, debouncedSearchText }: SalesReportTabProps) {
   const filteredSalesData = useMemo(() => {
-    return salesData.filter((r) => {
-      if (!debouncedSearchText) return true;
-      return r.period.toLowerCase().includes(debouncedSearchText.toLowerCase());
-    });
+    return fuzzySearch(salesData, ['period'], debouncedSearchText);
   }, [salesData, debouncedSearchText]);
 
   const salesTotals = useMemo(() => {
