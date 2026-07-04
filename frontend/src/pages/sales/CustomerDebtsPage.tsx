@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Button, InputNumber, ModalSpace, Table, Tag, message } from 'antd';
+import { Button, InputNumber, Modal, Space, Table, Tag, message } from 'antd';
 import { WalletCards } from 'lucide-react';
 import { Card, CardHeader , Select } from '@/components/ui';
 import { fetchCustomerDebts, recordCustomerDebtPayment } from '@/services/wmsApi';

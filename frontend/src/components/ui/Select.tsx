@@ -8,6 +8,7 @@ export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElemen
   value?: any;
   onChange?: (value: any) => void;
   className?: string;
+  [key: string]: any;
 }
 
 export function Select({
@@ -18,6 +19,13 @@ export function Select({
   onChange,
   className = '',
   children,
+  showSearch,
+  optionFilterProp,
+  dropdownRender,
+  getPopupContainer,
+  filterOption,
+  optionRender,
+  mode,
   ...props
 }: SelectProps) {
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {

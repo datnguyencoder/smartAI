@@ -1,5 +1,5 @@
 import { Select } from '@/components/ui';
-import { Form, Input, InputNumber, ModalSwitch, message as antdMessage } from 'antd';
+import { Form, Input, InputNumber, Modal, Switch, message as antdMessage } from 'antd';
 import * as React from 'react';
 import { createItem, createSupplier } from '@/services/wmsApi';
 import type { CategoryDto, UomDto } from '@/types/api';

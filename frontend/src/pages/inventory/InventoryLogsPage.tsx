@@ -1,5 +1,5 @@
 import React from 'react';
-import { TableDatePicker, Tag, message as antdMessage, Input, Modal, Button } from 'antd';
+import { Table, DatePicker, Tag, message as antdMessage, Input, Modal, Button } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { Card, StatusChip , Select } from '@/components/ui';
 import { fetchInventoryLogs, fetchLocations, fetchPurchaseOrderById } from '@/services/wmsApi';

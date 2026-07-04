@@ -1,4 +1,4 @@
-import { Button, Form, Input, ModalTable, Tag, message as antdMessage } from 'antd';
+import { Button, Form, Input, Modal, Table, Tag, message as antdMessage } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { Plus } from 'lucide-react';
 import * as React from 'react';

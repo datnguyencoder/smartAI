@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Button, Checkbox, Drawer, Form, Input, InputNumber, ModalTable, Tag, message } from 'antd';
+import { Button, Checkbox, Drawer, Form, Input, InputNumber, Modal, Table, Tag, message } from 'antd';
 import dayjs from 'dayjs';
 import { Plus, RotateCcw } from 'lucide-react';
 import { Card, CardHeader , Select } from '@/components/ui';

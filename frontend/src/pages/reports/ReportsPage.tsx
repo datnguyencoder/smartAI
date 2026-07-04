@@ -1,6 +1,6 @@
 import { Select } from '@/components/ui';
 import * as React from 'react';
-import { TabsCheckbox, Popover, Button, message as antdMessage, Table } from 'antd';
+import { Tabs, Checkbox, Popover, Button, message as antdMessage, Table } from 'antd';
 import dayjs from 'dayjs';
 
 import type { Product } from '@/lib/itemMapper';

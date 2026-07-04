@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Alert, Button, Input, ProgressSteps, Table, Tag, Typography, message as antdMessage } from 'antd';
+import { Alert, Button, Input, Progress, Steps, Table, Tag, Typography, message as antdMessage } from 'antd';
 import {
   AppstoreOutlined,
   BarChartOutlined,

@@ -1,4 +1,4 @@
-import { Button, InputTable, message, Space, Row, Col, Statistic, Card as AntCard } from 'antd';
+import { Button, Input, Table, message, Space, Row, Col, Statistic, Card as AntCard } from 'antd';
 import { AlertTriangle, Download, Search } from 'lucide-react';
 import * as React from 'react';
 import { Card, StatusChip , Select } from '@/components/ui';
