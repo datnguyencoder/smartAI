@@ -28,6 +28,13 @@ export function receivePurchaseOrder(purchaseId: number) {
   return apiRequest<PurchaseOrderDto>(`/api/v1/purchase-orders/${purchaseId}/receive`, { method: 'POST' });
 }
 
+export function receivePurchaseOrderPartial(purchaseId: number, items: { purchaseOrderItemId: number; quantity: number }[]) {
+  return apiRequest<PurchaseOrderDto>(`/api/v1/purchase-orders/${purchaseId}/receive-partial`, {
+    method: 'POST',
+    body: JSON.stringify({ items }),
+  });
+}
+
 export function cancelPurchaseOrder(purchaseId: number) {
   return apiRequest<PurchaseOrderDto>(`/api/v1/purchase-orders/${purchaseId}/cancel`, { method: 'POST' });
 }

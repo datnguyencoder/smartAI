@@ -4,6 +4,7 @@ import { Search, RotateCcw } from 'lucide-react';
 import { Card } from '@/components/ui';
 import { StatusChip } from '@/components/ui';
 import { receivePurchaseOrder, cancelPurchaseOrder, createPurchaseReturn, fetchPurchaseOrderById, fetchPurchaseOrdersPaged, fetchSuppliers, fetchLocations } from '@/services/wmsApi';
+import { receivePurchaseOrderPartial } from '@/services/purchaseApi';
 import type { SupplierDto, LocationDto } from '@/types/api';
 import { purchaseToSlip, type ImportSlipRow } from '@/lib/purchaseMapper';
 import { formatMoney as money } from '@/lib/itemMapper';
@@ -31,12 +32,10 @@ export default function ImportSlipsPage({
   const [locations, setLocations] = React.useState<LocationDto[]>([]);
   const [loading, setLoading] = React.useState(false);
 
-  const [receiving, setReceiving] = React.useState<ImportSlipRow | null>(null);
   const [receiveLoading, setReceiveLoading] = React.useState(false);
   const [canceling, setCanceling] = React.useState<ImportSlipRow | null>(null);
   const [cancelLoading, setCancelLoading] = React.useState(false);
   const [viewingDetails, setViewingDetails] = React.useState<ImportSlipRow | null>(null);
-  const receiptRef = React.useRef<HTMLDivElement>(null);
   const [returnOpen, setReturnOpen] = React.useState(false);
   const [returnLoading, setReturnLoading] = React.useState(false);
   const [returnForm] = Form.useForm();
@@ -66,19 +65,17 @@ export default function ImportSlipsPage({
     fetchLocations().then(setLocations).catch(console.error);
   }, []);
 
-  // removing animateModalContent for now since it might be in App.tsx
-  // React.useEffect(() => {
-  //   if (receiving) animateModalContent(receiptRef.current);
-  // }, [receiving]);
-
-  const handleReceiveAll = async (slip: ImportSlipRow) => {
+  const handleReceive = async (slip: ImportSlipRow, itemsToReceive: Array<{ purchaseOrderItemId: number; quantity: number }>) => {
+    if (itemsToReceive.length === 0) {
+      antdMessage.warning('Vui lòng nhập số lượng nhận cho ít nhất 1 mặt hàng');
+      return;
+    }
     setReceiveLoading(true);
     try {
-      await receivePurchaseOrder(slip.id);
+      await receivePurchaseOrderPartial(slip.id, itemsToReceive);
       await reloadCatalog();
       await fetchData();
       antdMessage.success('Nhận hàng vào kho thành công');
-      setReceiving(null);
       setViewingDetails(null);
     } catch (e) {
       antdMessage.error(e instanceof Error ? e.message : 'Nhận hàng thất bại');
@@ -171,16 +168,6 @@ export default function ImportSlipsPage({
             <Button size="small" onClick={() => setViewingDetails(row)}>
               Chi tiết
             </Button>
-            {row.canReceive && (
-              <>
-                <Button size="small" type="primary" className="!bg-[#006c49]" onClick={() => setReceiving(row)}>
-                  Nhận hàng
-                </Button>
-                <Button size="small" danger onClick={() => setCanceling(row)}>
-                  Hủy
-                </Button>
-              </>
-            )}
           </div>
         );
       },
@@ -259,39 +246,9 @@ export default function ImportSlipsPage({
         open={Boolean(viewingDetails)}
         order={viewingDetails}
         onClose={() => setViewingDetails(null)}
-        onReceive={(order) => setReceiving(order)}
+        onReceive={handleReceive}
         onCancel={(order) => setCanceling(order)}
       />
-      <Modal
-        open={Boolean(receiving)}
-        onCancel={() => setReceiving(null)}
-        title={`Nhận hàng — ${receiving?.key}`}
-        footer={[
-          <Button key="cancel" onClick={() => setReceiving(null)}>
-            Đóng
-          </Button>,
-          <Button
-            key="ok"
-            type="primary"
-            className="!bg-[#006c49]"
-            loading={receiveLoading}
-            onClick={() => receiving && handleReceiveAll(receiving)}
-          >
-            Nhận
-          </Button>,
-        ]}
-      >
-        <div ref={receiptRef} className="space-y-2 text-sm">
-          {(receiving?.items ?? []).map((i) => (
-            <div key={i.id} className="flex justify-between border-b border-slate-100 py-2">
-              <span>{i.itemName}</span>
-              <span>
-                Đặt {i.orderedQty} {i.uomName || ''} · Đã nhận {i.receivedQty} {i.uomName || ''}
-              </span>
-            </div>
-          ))}
-        </div>
-      </Modal>
       <Modal
         open={Boolean(canceling)}
         onCancel={() => setCanceling(null)}

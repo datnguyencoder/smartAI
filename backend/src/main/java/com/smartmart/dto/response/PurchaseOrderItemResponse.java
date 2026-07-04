@@ -19,6 +19,8 @@ public class PurchaseOrderItemResponse implements Serializable {
     private BigDecimal unitPrice;
     private BigDecimal subtotal;
     private String uomName;
+    private String purchaseUomName;
+    private BigDecimal purchaseRatio;
     private String lotCode;
     private LocalDate expiryDate;
 }
