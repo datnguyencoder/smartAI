@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Tag, ButtonModal, Input, InputNumber, message, Form, Space } from 'antd';
+import { Table, Tag, Button, Modal, Input, InputNumber, message, Form, Space } from 'antd';
 import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import {
   cancelStocktake,

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Button, Form, Input, InputNumber, ModalSpace, Switch, Table, Tag, message } from 'antd';
+import { Button, Form, Input, InputNumber, Modal, Space, Switch, Table, Tag, message } from 'antd';
 import { Info, Lightbulb, Package, Plus, RefreshCw } from 'lucide-react';
 import { Card , Select } from '@/components/ui';
 import { activateUom, createUom, deactivateUom, updateUom } from '@/services/wmsApi';

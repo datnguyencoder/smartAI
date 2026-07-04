@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Building2, Search as SearchIcon, Plus } from 'lucide-react';
-import { Modal, Form, InputButton, message } from 'antd';
+import { Modal, Form, Input, Button, message } from 'antd';
 import { Card, CardHeader, StatusChip , Select } from '@/components/ui';
 import type { LocationDto, UserDto } from '@/types/api';
 import type { Product } from '@/lib/itemMapper';
@@ -197,7 +197,7 @@ export default function LocationsPage({
           <Form form={form} layout="vertical" className="mt-4">
             <Form.Item name="parentId" label="Kho cha (Khu vực lớn)">
               <Select disabled getPopupContainer={(trigger) => trigger.parentNode}>
-                <Select.Option value={selectedLoc.parentId}>{selectedLoc.parentId ? locations.find((l) => l.id === selectedLoc.parentId)?.locationName || selectedLoc.parentId : 'Không có'}</Select.Option>
+                <option value={selectedLoc.parentId}>{selectedLoc.parentId ? locations.find((l) => l.id === selectedLoc.parentId)?.locationName || selectedLoc.parentId : 'Không có'}</option>
               </Select>
             </Form.Item>
             <Form.Item

@@ -1,4 +1,4 @@
-import { Button, InputTable, Tag, message as antdMessage } from 'antd';
+import { Button, Input, Table, Tag, message as antdMessage } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import * as React from 'react';
 import { Card , Select } from '@/components/ui';

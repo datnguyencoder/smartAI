@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, ButtonTable, Tag, message as antdMessage } from 'antd';
+import { Alert, Button, Table, Tag, message as antdMessage } from 'antd';
 import { Sparkles, WandSparkles } from 'lucide-react';
 import { Card, CardHeader , Select } from '@/components/ui';
 import {

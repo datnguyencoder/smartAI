@@ -1,4 +1,4 @@
-import { Button, Form, Input, InputNumber, ModalTag, message as antdMessage } from 'antd';
+import { Button, Form, Input, InputNumber, Modal, Tag, message as antdMessage } from 'antd';
 import { motion } from 'framer-motion';
 import { Plus, Search, Truck } from 'lucide-react';
 import * as React from 'react';

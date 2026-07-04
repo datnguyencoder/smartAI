@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Button, Form, Input, ModalSwitch, message } from 'antd';
+import { Button, Form, Input, Modal, Switch, message } from 'antd';
 import { motion } from 'framer-motion';
 import { Plus, Search, Tags } from 'lucide-react';
 import { AiSummary } from '@/components/ai/AiSummary';
