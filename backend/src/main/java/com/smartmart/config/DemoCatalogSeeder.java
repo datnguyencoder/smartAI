@@ -460,8 +460,7 @@ public class DemoCatalogSeeder implements CommandLineRunner {
         item.setMinimumStock(seed.minStock());
         item.setHasExpiry(seed.hasExpiry());
         item.setActive(true);
-        String realImageUrl = ItemImageUrls.realProductImage(seed.code());
-        item.setImageUrl(realImageUrl != null ? realImageUrl : ItemImageUrls.defaultItemPath(seed.code()));
+        item.setImageUrl(ItemImageUrls.defaultItemPath(seed.code()));
         return itemRepository.save(item);
     }
 

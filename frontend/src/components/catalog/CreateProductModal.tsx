@@ -1,7 +1,8 @@
 import { Select } from '@/components/ui';
-import { Form, Input, InputNumber, Modal, Switch, message as antdMessage } from 'antd';
+import { Form, Input, InputNumber, Modal, Switch, Upload, Button, message as antdMessage } from 'antd';
+import { UploadOutlined } from '@ant-design/icons';
 import * as React from 'react';
-import { createItem, createSupplier } from '@/services/wmsApi';
+import { createItem, createSupplier, uploadMedia } from '@/services/wmsApi';
 import type { CategoryDto, UomDto } from '@/types/api';
 import type { PageKey } from '@/types/pages';
 import { ProductThumbnail } from '@/components/catalog/ProductThumbnail';
@@ -89,6 +90,7 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
   const [form] = Form.useForm();
   const { clearDraft, saveDraft } = useFormDraft(form, `draft_quick_create_${page}`);
   const [saving, setSaving] = React.useState(false);
+  const [uploading, setUploading] = React.useState(false);
   const [previewName, setPreviewName] = React.useState('');
   const [previewUrl, setPreviewUrl] = React.useState<string | undefined>();
   const filteredUoms = React.useMemo(() => uoms.filter((uom) => uom.active !== false), [uoms]);
@@ -106,6 +108,24 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
     setPreviewName('');
     setPreviewUrl(undefined);
     onCancel();
+  };
+
+  const handleUpload = async (options: any) => {
+    const { file, onSuccess, onError } = options;
+    try {
+      setUploading(true);
+      const url = await uploadMedia(file as File);
+      form.setFieldValue('imageUrl', url);
+      setPreviewUrl(url);
+      saveDraft();
+      onSuccess("ok");
+      antdMessage.success('Tải ảnh lên thành công');
+    } catch (err) {
+      onError(err);
+      antdMessage.error('Lỗi khi tải ảnh lên');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleFinish = async (values: {
@@ -252,8 +272,19 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
                 );
               }}
             </Form.Item>
-            <Form.Item name="imageUrl" label="URL ảnh (tùy chọn)">
-              <Input placeholder="/media/items/milk-vnm-1l.svg hoặc https://..." />
+            <Form.Item label="Hình ảnh sản phẩm">
+              <div className="flex gap-2">
+                <Form.Item name="imageUrl" noStyle>
+                  <Input placeholder="Dán link ảnh sản phẩm..." />
+                </Form.Item>
+                <Upload
+                  accept="image/*"
+                  customRequest={handleUpload}
+                  showUploadList={false}
+                >
+                  <Button icon={<UploadOutlined />} loading={uploading} />
+                </Upload>
+              </div>
             </Form.Item>
             <div className="grid grid-cols-2 gap-3">
               <Form.Item name="costPrice" label="Giá vốn (VNĐ)">
