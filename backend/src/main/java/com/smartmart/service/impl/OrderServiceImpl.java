@@ -443,12 +443,12 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public void completeOrderFromWebhook(Long payosOrderCode) {
+    public Long completeOrderFromWebhook(Long payosOrderCode) {
         Order order = orderRepository.findByPayosOrderCode(payosOrderCode)
                 .orElseThrow(() -> new NotFoundException("Order with payosOrderCode not found: " + payosOrderCode));
 
         if (order.getStatus() == OrderStatus.COMPLETED) {
-            return; // Already completed
+            return order.getId(); // Already completed
         }
 
         order.setStatus(OrderStatus.COMPLETED);
@@ -467,6 +467,7 @@ public class OrderServiceImpl implements OrderService {
                 .build());
 
         orderRepository.save(order);
+        return order.getId();
     }
 
     private OrderResponse toResponse(Order order) {

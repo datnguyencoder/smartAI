@@ -12,7 +12,7 @@ import java.util.List;
 public interface OrderService {
 
     OrderResponse create(CreateOrderRequest request);
-    void completeOrderFromWebhook(Long payosOrderCode);
+    Long completeOrderFromWebhook(Long payosOrderCode);
 
     List<OrderResponse> listAll();
 

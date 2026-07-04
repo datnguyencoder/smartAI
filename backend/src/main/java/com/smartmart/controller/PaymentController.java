@@ -49,12 +49,17 @@ public class PaymentController {
     @Operation(summary = "Webhook nhận thông báo thanh toán từ PayOS")
     public ResponseEntity<Object> payosWebhook(@RequestBody Webhook request) {
         try {
+            log.info("Nhận webhook từ PayOS: code={}, success={}", request.getCode(), request.getSuccess());
             WebhookData data = payOS.webhooks().verify(request);
 
             if (data != null && "00".equals(data.getCode())) {
                 Long payosOrderCode = data.getOrderCode();
-                orderService.completeOrderFromWebhook(payosOrderCode);
-                sseNotificationService.sendPaymentSuccess(payosOrderCode);
+                log.info("Webhook xác thực thành công. payosOrderCode={}, amount={}", payosOrderCode, data.getAmount());
+                Long orderId = orderService.completeOrderFromWebhook(payosOrderCode);
+                sseNotificationService.sendPaymentSuccess(orderId);
+                log.info("Đã gửi SSE payment-success cho orderId={}", orderId);
+            } else {
+                log.warn("Webhook data code không phải 00: {}", data != null ? data.getCode() : "null data");
             }
 
             return ResponseEntity.ok(Map.of(
