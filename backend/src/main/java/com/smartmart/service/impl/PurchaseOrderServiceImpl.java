@@ -413,6 +413,8 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                         .itemId(i.getItem().getId())
                         .itemName(i.getItem().getItemName())
                         .uomName(i.getItem().getBaseUom() != null ? i.getItem().getBaseUom().getUomName() : null)
+                        .purchaseUomName(i.getItem().getPurchaseUom() != null ? i.getItem().getPurchaseUom().getUomName() : null)
+                        .purchaseRatio(i.getItem().getPurchaseConversionRatio())
                         .orderedQty(i.getOrderedQty())
                         .receivedQty(i.getReceivedQty())
                         .unitPrice(i.getUnitPrice())

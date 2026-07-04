@@ -4,6 +4,7 @@ const statusLabel: Record<string, string> = {
   PENDING: 'Chờ nhận',
   COMPLETED: 'Đã nhận',
   CANCELLED: 'Đã hủy',
+  PARTIALLY_RECEIVED: 'Nhận thiếu',
 };
 
 export type ImportSlipRow = {

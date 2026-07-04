@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { Modal, Button, Table, Progress } from 'antd';
-import { Check, X } from 'lucide-react';
+import { Modal, Button, Table, Progress, InputNumber, Tooltip, Input } from 'antd';
+import { Check, X, Search, HelpCircle } from 'lucide-react';
 import { StatusChip } from '@/components/ui';
 import { formatMoney as money } from '@/lib/itemMapper';
 
@@ -23,6 +23,8 @@ export type PurchaseOrderDetailModalProps = {
       id: number;
       itemName: string;
       uomName?: string;
+      purchaseUomName?: string;
+      purchaseRatio?: number;
       orderedQty: number;
       receivedQty: number;
       unitPrice: number;
@@ -30,7 +32,7 @@ export type PurchaseOrderDetailModalProps = {
     }>;
   } | null;
   onClose: () => void;
-  onReceive?: (order: any) => void;
+  onReceive?: (order: any, items: Array<{ purchaseOrderItemId: number; quantity: number }>) => void;
   onCancel?: (order: any) => void;
 };
 
@@ -41,6 +43,22 @@ export default function PurchaseOrderDetailModal({
   onReceive,
   onCancel,
 }: PurchaseOrderDetailModalProps) {
+  const [receiveLines, setReceiveLines] = React.useState<Record<number, number>>({});
+  const [searchText, setSearchText] = React.useState('');
+
+  React.useEffect(() => {
+    if (order) {
+      const initial: Record<number, number> = {};
+      (order.items || []).forEach(i => {
+        initial[i.id] = Math.max(0, Number(i.orderedQty) - Number(i.receivedQty));
+      });
+      setReceiveLines(initial);
+    } else {
+      setReceiveLines({});
+      setSearchText('');
+    }
+  }, [order]);
+
   if (!order) return null;
 
   // Map raw status enum to Vietnamese labels
@@ -48,7 +66,7 @@ export default function PurchaseOrderDetailModal({
     'PENDING': 'Chờ nhận',
     'COMPLETED': 'Đã nhận',
     'CANCELLED': 'Đã hủy',
-    'PARTIALLY_RECEIVED': 'Nhận một phần',
+    'PARTIALLY_RECEIVED': 'Nhận thiếu',
   };
 
   // Resolve compatibility fields between PurchaseOrderDto and ImportSlipRow
@@ -69,12 +87,23 @@ export default function PurchaseOrderDetailModal({
   // Calculate totals
   let totalOrdered = 0;
   let totalReceived = 0;
+  let totalMissing = 0;
+  let totalAmountOrdered = 0;
   let totalAmountActual = 0;
+  let totalAmountMissing = 0;
 
   (order.items || []).forEach((item) => {
-    totalOrdered += Number(item.orderedQty || 0);
-    totalReceived += Number(item.receivedQty || 0);
-    totalAmountActual += Number(item.receivedQty || 0) * Number(item.unitPrice || 0);
+    const oQty = Number(item.orderedQty || 0);
+    const rQty = Number(item.receivedQty || 0);
+    const price = Number(item.unitPrice || 0);
+    const mQty = Math.max(0, oQty - rQty);
+
+    totalOrdered += oQty;
+    totalReceived += rQty;
+    totalMissing += mQty;
+    totalAmountOrdered += oQty * price;
+    totalAmountActual += rQty * price;
+    totalAmountMissing += mQty * price;
   });
 
   const completionRate = totalOrdered === 0 
@@ -84,6 +113,11 @@ export default function PurchaseOrderDetailModal({
   const formattedCompletedAt = order.completedAt
     ? new Date(order.completedAt).toLocaleString('vi-VN')
     : '—';
+
+  const filteredItems = (order.items || []).filter(i => 
+    !searchText || 
+    i.itemName?.toLowerCase().includes(searchText.toLowerCase())
+  );
 
   return (
     <Modal
@@ -114,7 +148,15 @@ export default function PurchaseOrderDetailModal({
                   size="small" 
                   type="primary" 
                   className="!bg-[#006c49] hover:!bg-[#005237] border-none flex items-center gap-1.5 font-medium"
-                  onClick={() => onReceive(order)}
+                  onClick={() => {
+                    if (onReceive) {
+                      const payload = Object.entries(receiveLines).map(([id, qty]) => ({
+                        purchaseOrderItemId: Number(id),
+                        quantity: qty,
+                      })).filter(l => l.quantity > 0);
+                      onReceive(order, payload);
+                    }
+                  }}
                 >
                   <Check size={14} /> Nhận hàng
                 </Button>
@@ -193,16 +235,29 @@ export default function PurchaseOrderDetailModal({
 
         {/* Thống kê nhanh phía trên bảng */}
         <div className="flex justify-between items-center bg-white px-4 py-2.5 rounded-lg border border-slate-100 text-xs text-slate-500 font-medium">
-          <div>Danh mục: <strong className="text-slate-800">{(order.items || []).length} mặt hàng</strong></div>
-          <div>Tổng đặt: <strong className="text-slate-800">{totalOrdered.toLocaleString('vi-VN')} SP</strong></div>
-          <div>Tổng nhận: <strong className="text-slate-800">{totalReceived.toLocaleString('vi-VN')} SP</strong></div>
-          <div>Hiệu suất: <strong className="text-slate-800">{completionRate}% hoàn thành</strong></div>
+          <div className="flex gap-4 flex-wrap">
+            <div>Danh mục: <strong className="text-slate-800">{(order.items || []).length} mặt hàng</strong></div>
+            <div>Tổng đặt: <strong className="text-slate-800">{totalOrdered.toLocaleString('vi-VN')} SP</strong></div>
+            <div>Tổng nhận: <strong className="text-slate-800">{totalReceived.toLocaleString('vi-VN')} SP</strong></div>
+            <div>Hiệu suất: <strong className="text-slate-800">{completionRate}% hoàn thành</strong></div>
+          </div>
+          <div>
+            <Input 
+              placeholder="Tìm kiếm sản phẩm..." 
+              prefix={<Search size={14} className="text-slate-400" />} 
+              value={searchText}
+              onChange={e => setSearchText(e.target.value)}
+              className="w-56"
+              size="small"
+              allowClear
+            />
+          </div>
         </div>
 
         {/* Khu vực 3: Bảng chi tiết hàng hóa */}
         <div className="space-y-3">
           <Table
-            dataSource={order.items || []}
+            dataSource={filteredItems}
             pagination={false}
             size="small"
             rowKey="id"
@@ -221,50 +276,136 @@ export default function PurchaseOrderDetailModal({
               { 
                 title: 'ĐVT', 
                 dataIndex: 'uomName', 
-                width: 80,
-                render: (v) => v || '—' 
+                width: 100,
+                render: (v, record) => {
+                  const ratio = Number(record.purchaseRatio) || 1;
+                  const hasPurchaseUom = ratio > 1 && record.purchaseUomName && record.purchaseUomName !== record.uomName;
+                  const preferPurchase = hasPurchaseUom && (Number(record.orderedQty) % ratio === 0);
+                  
+                  if (!hasPurchaseUom) {
+                     return v || '—';
+                  }
+                  
+                  return (
+                    <div className="flex items-center gap-1.5">
+                      <span>{preferPurchase ? record.purchaseUomName : v}</span>
+                      <Tooltip 
+                        title={`1 ${record.purchaseUomName} = ${ratio} ${record.uomName}`}
+                        getPopupContainer={(triggerNode) => triggerNode.parentNode as HTMLElement}
+                      >
+                        <span className="inline-flex items-center ml-1 cursor-pointer">
+                          <HelpCircle size={14} className="text-slate-400 hover:text-indigo-500 transition-colors" />
+                        </span>
+                      </Tooltip>
+                    </div>
+                  );
+                }
               },
               { 
                 title: 'SL Đặt', 
                 dataIndex: 'orderedQty', 
-                width: 95,
-                align: 'right',
-                render: (v) => Math.round(Number(v)).toLocaleString('vi-VN')
-              },
-              { 
-                title: 'SL Nhận', 
-                dataIndex: 'receivedQty', 
                 width: 100,
                 align: 'right',
-                render: (v) => Math.round(Number(v)).toLocaleString('vi-VN')
+                render: (v, record) => {
+                  const ratio = Number(record.purchaseRatio) || 1;
+                  const hasPurchaseUom = ratio > 1 && record.purchaseUomName && record.purchaseUomName !== record.uomName;
+                  const preferPurchase = hasPurchaseUom && (Number(v) % ratio === 0);
+                  const displayRatio = preferPurchase ? ratio : 1;
+                  return Math.round(Number(v) / displayRatio).toLocaleString('vi-VN');
+                }
               },
               { 
-                title: 'Chênh lệch', 
-                width: 110,
+                title: 'Số lượng thực nhận', 
+                dataIndex: 'receivedQty', 
+                width: 160,
+                align: 'right',
+                render: (v, record) => {
+                  const ratio = Number(record.purchaseRatio) || 1;
+                  const hasPurchaseUom = ratio > 1 && record.purchaseUomName && record.purchaseUomName !== record.uomName;
+                  const preferPurchase = hasPurchaseUom && (Number(record.orderedQty) % ratio === 0);
+                  const displayRatio = preferPurchase ? ratio : 1;
+
+                  if (canReceive && onReceive) {
+                    const maxAllowed = Number(record.orderedQty) - Number(v);
+                    const displayMax = Math.round(maxAllowed / displayRatio);
+                    const displayCurrent = (receiveLines[record.id] || 0) / displayRatio;
+                    return (
+                      <div className="flex flex-col items-end gap-1">
+                        <InputNumber
+                          size="small"
+                          min={0}
+                          max={displayMax}
+                          value={displayCurrent}
+                          onChange={(val) => {
+                            const newBaseVal = (Number(val) || 0) * displayRatio;
+                            setReceiveLines(prev => ({ ...prev, [record.id]: newBaseVal }));
+                          }}
+                        />
+                        {Number(v) > 0 && <span className="text-[10px] text-slate-400">Đã nhận: {Math.round(Number(v) / displayRatio).toLocaleString('vi-VN')}</span>}
+                      </div>
+                    );
+                  }
+                  return Math.round(Number(v) / displayRatio).toLocaleString('vi-VN');
+                }
+              },
+              { 
+                title: 'SL Thiếu', 
+                width: 90,
                 align: 'right',
                 render: (_, record) => {
-                  const diff = Number(record.receivedQty || 0) - Number(record.orderedQty || 0);
-                  if (diff === 0) return <span className="text-slate-400">0</span>;
-                  const isNeg = diff < 0;
-                  return (
-                    <span className={isNeg ? 'text-red-500 font-bold bg-red-50/50 px-1.5 py-0.5 rounded' : 'text-emerald-600 font-bold bg-emerald-50/50 px-1.5 py-0.5 rounded'}>
-                      {isNeg ? '' : '+'}{diff.toLocaleString('vi-VN')}
-                    </span>
-                  );
+                  const ratio = Number(record.purchaseRatio) || 1;
+                  const hasPurchaseUom = ratio > 1 && record.purchaseUomName && record.purchaseUomName !== record.uomName;
+                  const preferPurchase = hasPurchaseUom && (Number(record.orderedQty) % ratio === 0);
+                  const displayRatio = preferPurchase ? ratio : 1;
+
+                  const missingBase = Math.max(0, Number(record.orderedQty) - Number(record.receivedQty));
+                  if (missingBase === 0) return <span className="text-slate-400">—</span>;
+                  return <span className="text-red-500 font-medium">{Math.round(missingBase / displayRatio).toLocaleString('vi-VN')}</span>;
                 }
               },
               { 
                 title: 'Đơn giá', 
                 dataIndex: 'unitPrice', 
-                width: 120,
+                width: 130,
                 align: 'right',
-                render: (v) => money(Number(v)) 
+                render: (v, record) => {
+                  const basePrice = Number(v);
+                  const ratio = Number(record.purchaseRatio) || 1;
+                  const hasPurchaseUom = ratio > 1 && record.purchaseUomName && record.purchaseUomName !== record.uomName;
+                  const preferPurchase = hasPurchaseUom && (Number(record.orderedQty) % ratio === 0);
+                  
+                  if (preferPurchase) {
+                    return (
+                      <div className="flex flex-col items-end">
+                        <span className="font-medium">{money(basePrice * ratio)}</span>
+                        <span className="text-[10px] text-slate-400 mt-0.5">(Giá lẻ: {money(basePrice)}/{record.uomName})</span>
+                      </div>
+                    );
+                  }
+                  return money(basePrice);
+                }
               },
               { 
-                title: 'Thành tiền', 
+                title: 'Tổng tiền đặt', 
+                width: 130,
+                align: 'right',
+                render: (_, record) => money(Number(record.orderedQty || 0) * Number(record.unitPrice || 0)) 
+              },
+              { 
+                title: 'Tiền thực trả', 
                 width: 130,
                 align: 'right',
                 render: (_, record) => money(Number(record.receivedQty || 0) * Number(record.unitPrice || 0)) 
+              },
+              { 
+                title: 'Tiền thiếu', 
+                width: 130,
+                align: 'right',
+                render: (_, record) => {
+                  const missingBase = Math.max(0, Number(record.orderedQty) - Number(record.receivedQty));
+                  if (missingBase === 0) return <span className="text-slate-400">—</span>;
+                  return <span className="text-red-500 font-medium">{money(missingBase * Number(record.unitPrice || 0))}</span>;
+                }
               },
             ]}
             summary={() => {
@@ -278,10 +419,18 @@ export default function PurchaseOrderDetailModal({
                     <Table.Summary.Cell index={2} className="text-right">
                       {totalReceived.toLocaleString('vi-VN')}
                     </Table.Summary.Cell>
-                    <Table.Summary.Cell index={3} />
+                    <Table.Summary.Cell index={3} className="text-right text-red-500">
+                      {totalMissing > 0 ? totalMissing.toLocaleString('vi-VN') : '—'}
+                    </Table.Summary.Cell>
                     <Table.Summary.Cell index={4} />
-                    <Table.Summary.Cell index={5} className="text-right text-indigo-600 text-sm">
+                    <Table.Summary.Cell index={5} className="text-right">
+                      {money(totalAmountOrdered)}
+                    </Table.Summary.Cell>
+                    <Table.Summary.Cell index={6} className="text-right text-emerald-600">
                       {money(totalAmountActual)}
+                    </Table.Summary.Cell>
+                    <Table.Summary.Cell index={7} className="text-right text-red-500">
+                      {totalAmountMissing > 0 ? money(totalAmountMissing) : '—'}
                     </Table.Summary.Cell>
                   </Table.Summary.Row>
                 </Table.Summary>
