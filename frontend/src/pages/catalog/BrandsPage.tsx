@@ -28,6 +28,19 @@ export default function BrandsPage() {
   const openCreate = () => {
     setEditing(null);
     form.resetFields();
+    
+    try {
+      const saved = localStorage.getItem('draft_brand_create');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Date.now() - parsed.timestamp < 300000 && parsed.values) {
+          form.setFieldsValue(parsed.values);
+          setModalOpen(true);
+          return;
+        }
+      }
+    } catch(e) {}
+    
     form.setFieldsValue({ active: true });
     setModalOpen(true);
   };
@@ -47,6 +60,7 @@ export default function BrandsPage() {
       } else {
         await createBrand(values);
         message.success('Tạo thương hiệu thành công');
+        localStorage.removeItem('draft_brand_create');
       }
       setModalOpen(false);
       load();
@@ -74,8 +88,19 @@ export default function BrandsPage() {
         ]}
       />
       <Modal open={modalOpen} title={editing ? 'Sửa thương hiệu' : 'Thêm thương hiệu'} onCancel={() => setModalOpen(false)} onOk={handleSave}>
-        <Form form={form} layout="vertical">
-          <Form.Item name="brandName" label="Tên thương hiệu" rules={[{ required: true }]}><Input /></Form.Item>
+        <Form 
+          form={form} 
+          layout="vertical"
+          onValuesChange={(_, allValues) => {
+            if (!editing) {
+              localStorage.setItem('draft_brand_create', JSON.stringify({
+                timestamp: Date.now(),
+                values: allValues
+              }));
+            }
+          }}
+        >
+          <Form.Item name="brandName" label="Tên thương hiệu" rules={[{ required: true, message: 'Nhập tên thương hiệu' }]}><Input /></Form.Item>
           <Form.Item name="description" label="Mô tả"><Input.TextArea rows={3} /></Form.Item>
           {editing && <Form.Item name="active" label="Hoạt động" valuePropName="checked"><Switch /></Form.Item>}
         </Form>

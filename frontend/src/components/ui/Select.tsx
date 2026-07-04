@@ -48,11 +48,16 @@ export function Select({
     if (onChange) onChange(finalVal);
   };
 
+  const isError = props['aria-invalid'] === true || props['aria-invalid'] === 'true' || props['status'] === 'error';
+  const borderClass = isError 
+    ? 'border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-100 text-red-700' 
+    : 'border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-100';
+
   return (
     <select
       value={value ?? ''}
       onChange={handleChange}
-      className={`h-[34px] px-3 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-emerald-500 bg-white ${className}`}
+      className={`h-[34px] px-3 text-sm border rounded-md focus:outline-none bg-white transition-all ${borderClass} ${className}`}
       {...props}
     >
       {placeholder && (

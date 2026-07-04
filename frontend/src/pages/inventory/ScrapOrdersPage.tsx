@@ -41,6 +41,32 @@ export default function ScrapOrdersPage({ setPage }: { setPage: (page: PageKey) 
   const [locationId, setLocationId] = useState<number | undefined>();
   const [lines, setLines] = useState<LineForm[]>([]);
 
+  // Auto-save logic
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('draft_scrap_create');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Date.now() - parsed.timestamp < 300000) { // 5 minutes
+          if (parsed.locationId) setLocationId(parsed.locationId);
+          if (parsed.lines && parsed.lines.length > 0) setLines(parsed.lines);
+        }
+      }
+    } catch (e) {}
+  }, []);
+
+  useEffect(() => {
+    if (locationId || lines.length > 0) {
+      try {
+        localStorage.setItem('draft_scrap_create', JSON.stringify({
+          timestamp: Date.now(),
+          locationId,
+          lines
+        }));
+      } catch (e) {}
+    }
+  }, [locationId, lines]);
+
   // Drawer state
   const [selectedOrder, setSelectedOrder] = useState<ScrapOrderDto | null>(null);
   const [drawerVisible, setDrawerVisible] = useState(false);
@@ -104,6 +130,7 @@ export default function ScrapOrdersPage({ setPage }: { setPage: (page: PageKey) 
       setCreateOpen(false);
       setLines([]);
       setLocationId(undefined);
+      localStorage.removeItem('draft_scrap_create');
       loadData();
       loadBaseData(); // Refresh inventory
     } catch (err: any) {

@@ -164,6 +164,7 @@ export default function SuppliersPage({
         address: values.address?.trim() || undefined,
       });
       antdMessage.success('Tạo nhà cung cấp thành công');
+      localStorage.removeItem('draft_supplier_create');
       createForm.resetFields();
       setCreateOpen(false);
       if (reloadCatalog) await reloadCatalog();
@@ -345,7 +346,21 @@ export default function SuppliersPage({
           <div className="flex items-center gap-2">
             <Input className="w-64" prefix={<Search size={16} />} placeholder="Tìm theo tên, SĐT..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} allowClear />
             {canCreate && (
-              <UiButton variant="primary" onClick={() => setCreateOpen(true)}>
+              <UiButton variant="primary" onClick={() => {
+                createForm.resetFields();
+                try {
+                  const saved = localStorage.getItem('draft_supplier_create');
+                  if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (Date.now() - parsed.timestamp < 300000 && parsed.values) {
+                      createForm.setFieldsValue(parsed.values);
+                      setCreateOpen(true);
+                      return;
+                    }
+                  }
+                } catch(e) {}
+                setCreateOpen(true);
+              }}>
                 <Plus size={16} className="mr-1 inline" /> Thêm NCC
               </UiButton>
             )}
@@ -474,14 +489,24 @@ export default function SuppliersPage({
       <Modal
         title="Thêm nhà cung cấp mới"
         open={createOpen}
-        onCancel={() => { setCreateOpen(false); createForm.resetFields(); }}
+        onCancel={() => { setCreateOpen(false); }}
         onOk={handleCreate}
         okText="Tạo"
         cancelText="Hủy"
         confirmLoading={loading}
         forceRender
       >
-        <Form form={createForm} layout="vertical" className="mt-2">
+        <Form 
+          form={createForm} 
+          layout="vertical" 
+          className="mt-2"
+          onValuesChange={(_, allValues) => {
+            localStorage.setItem('draft_supplier_create', JSON.stringify({
+              timestamp: Date.now(),
+              values: allValues
+            }));
+          }}
+        >
           <Form.Item name="supplierName" label="Tên nhà cung cấp" rules={[{ required: true, message: 'Vui lòng nhập tên' }]}>
             <Input placeholder="Công ty TNHH ABC" />
           </Form.Item>

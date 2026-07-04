@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Button, Form, Input, Modal, Switch, message } from 'antd';
+import { Button, Form, Input, Modal, Switch, message, Checkbox } from 'antd';
 import { motion } from 'framer-motion';
 import { Plus, Search, Tags } from 'lucide-react';
 import { AiSummary } from '@/components/ai/AiSummary';
@@ -71,6 +71,20 @@ export default function CategoriesPage({ productsList, setPage, openProduct, rel
   const openCreate = () => {
     setEditing(null);
     form.resetFields();
+    
+    // Check draft
+    try {
+      const saved = localStorage.getItem('draft_category_create');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Date.now() - parsed.timestamp < 300000 && parsed.values) {
+          form.setFieldsValue(parsed.values);
+          setModalOpen(true);
+          return;
+        }
+      }
+    } catch(e) {}
+
     form.setFieldsValue({ active: true, uomCategories: ['COUNT', 'PACKAGE'] });
     setModalOpen(true);
   };
@@ -105,6 +119,7 @@ export default function CategoriesPage({ productsList, setPage, openProduct, rel
           uomCategories: payload.uomCategories,
         });
         message.success('Tạo danh mục thành công');
+        localStorage.removeItem('draft_category_create');
       }
       setModalOpen(false);
       await load();
@@ -209,8 +224,20 @@ export default function CategoriesPage({ productsList, setPage, openProduct, rel
         onOk={handleSave}
         okText="Lưu"
       >
-        <Form form={form} layout="vertical" className="mt-4">
-          <Form.Item name="categoryName" label="Tên danh mục" rules={[{ required: true }]}>
+        <Form 
+          form={form} 
+          layout="vertical" 
+          className="mt-4"
+          onValuesChange={(_, allValues) => {
+            if (!editing) {
+              localStorage.setItem('draft_category_create', JSON.stringify({
+                timestamp: Date.now(),
+                values: allValues
+              }));
+            }
+          }}
+        >
+          <Form.Item name="categoryName" label="Tên danh mục" rules={[{ required: true, message: 'Nhập tên danh mục' }]}>
             <Input />
           </Form.Item>
           <Form.Item
@@ -218,7 +245,7 @@ export default function CategoriesPage({ productsList, setPage, openProduct, rel
             label="Nhóm đơn vị được dùng"
             rules={[{ required: true, message: 'Vui lòng chọn ít nhất một nhóm đơn vị' }]}
           >
-            <Select mode="multiple" options={UOM_CATEGORY_OPTIONS} placeholder="Chọn nhóm đơn vị" />
+            <Checkbox.Group options={UOM_CATEGORY_OPTIONS} className="grid grid-cols-2 gap-2 mt-2" />
           </Form.Item>
           {editing && (
             <Form.Item name="active" label="Đang kinh doanh" valuePropName="checked">
