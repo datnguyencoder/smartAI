@@ -56,7 +56,7 @@ export default function ItemLotsPage() {
           onChange={(e) => setLotSearch(e.target.value)}
           value={lotSearch}
         />
-        <Table rowKey="id" loading={loading} dataSource={lots} columns={columns} />
+        <Table rowKey="id" loading={loading} dataSource={lots} columns={columns} scroll={{ x: 'max-content', y: 'calc(100vh - 250px)' }} />
       </div>
     </Card>
   );

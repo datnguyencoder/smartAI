@@ -72,6 +72,7 @@ export default function BarcodePrintPage({ productsList }: Props) {
         rowKey="key"
         dataSource={productsList}
         pagination={{ pageSize: 20 }}
+        scroll={{ x: 'max-content', y: 'calc(100vh - 250px)' }}
         columns={[
           {
             title: (
