@@ -124,6 +124,16 @@ export default function ImportCreatePage({
     }
   }, [clearPrefillItems, form, prefillItems, productsList]);
 
+  React.useEffect(() => {
+    if (selectedSupplierId && supplierItems.length === 0 && !loadingSupplierItems) {
+      setLoadingSupplierItems(true);
+      fetchItemsBySupplier(selectedSupplierId)
+        .then(setSupplierItems)
+        .catch((e) => antdMessage.error(e instanceof Error ? e.message : 'Không tải được sản phẩm của nhà cung cấp'))
+        .finally(() => setLoadingSupplierItems(false));
+    }
+  }, [selectedSupplierId, supplierItems.length, loadingSupplierItems]);
+
   const handleSupplierChange = async (supplierId: number) => {
     form.setFieldsValue({
       supplierId,

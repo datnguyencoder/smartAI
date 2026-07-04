@@ -222,7 +222,7 @@ export default function InventoryLogsPage() {
       render: (v: number) => {
         const isPositive = v > 0;
         const isNegative = v < 0;
-        const colorClass = isPositive ? 'text-emerald-600' : isNegative ? 'text-red-500' : 'text-slate-600';
+        const colorClass = isPositive ? 'text-green-600' : isNegative ? 'text-red-500' : 'text-slate-600';
         return (
           <span className={`${colorClass} font-semibold`}>
             {isPositive ? '+' : ''}{v?.toLocaleString('vi-VN') ?? '—'}

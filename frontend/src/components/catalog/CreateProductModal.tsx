@@ -103,7 +103,6 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
 
   const handleCancel = () => {
     form.resetFields();
-    clearDraft();
     setPreviewName('');
     setPreviewUrl(undefined);
     onCancel();
@@ -146,6 +145,7 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
         });
         await onCreated();
         antdMessage.success(`Thêm sản phẩm ${values.name} thành công`);
+        clearDraft();
         handleCancel();
       } catch (e) {
         antdMessage.error(e instanceof Error ? e.message : 'Tạo sản phẩm thất bại');
@@ -163,7 +163,8 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
           address: values.address?.trim() || undefined,
         });
         await onCreated();
-        antdMessage.success(`Thêm nhà cung cấp "${values.supplierName}" thành công`);
+        antdMessage.success(`Đã thêm nhà cung cấp ${values.supplierName}`);
+        clearDraft();
         handleCancel();
       } catch (e) {
         antdMessage.error(e instanceof Error ? e.message : 'Tạo nhà cung cấp thất bại');
