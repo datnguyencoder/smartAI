@@ -3,6 +3,7 @@ package com.smartmart.service.impl;
 import com.smartmart.constant.AuditAction;
 import com.smartmart.dto.request.CreateOrderRequest;
 import com.smartmart.dto.request.OrderLineRequest;
+import com.smartmart.dto.request.OrderPaymentRequest;
 import com.smartmart.dto.response.OrderItemResponse;
 import com.smartmart.dto.response.OrderPrintResponse;
 import com.smartmart.dto.response.OrderResponse;
@@ -18,10 +19,10 @@ import com.smartmart.exception.ForbiddenException;
 import com.smartmart.exception.NotFoundException;
 import com.smartmart.repository.*;
 import com.smartmart.security.SecurityUtils;
-import org.springframework.context.ApplicationEventPublisher;
 import com.smartmart.entity.Customer;
 import com.smartmart.entity.Promotion;
 import com.smartmart.service.AuditLogService;
+import com.smartmart.service.OrderService;
 import com.smartmart.service.CustomerService;
 import com.smartmart.service.CustomerDebtService;
 import com.smartmart.service.InventoryAlertService;
@@ -42,7 +43,7 @@ import java.util.List;
 
 @Service
 @Transactional
-public class OrderServiceImpl implements com.smartmart.service.OrderService {
+public class OrderServiceImpl implements OrderService {
 
     private static final String DEFAULT_LOCATION = "Kho bán";
 
@@ -77,8 +78,7 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
             CustomerDebtService customerDebtService,
             PromotionService promotionService,
             ShiftService shiftService,
-            SettingService settingService
-    ) {
+            SettingService settingService) {
         this.orderRepository = orderRepository;
         this.itemService = itemService;
         this.locationRepository = locationRepository;
@@ -98,11 +98,12 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
 
     // POS: tạo hóa đơn, FEFO trừ tồn, publish event cảnh báo tồn
     @Override
-    @CacheEvict(value = {"items", "itemsPage", "dashboardSummary", "dashboardRevenue"}, allEntries = true)
+    @CacheEvict(value = { "items", "itemsPage", "dashboardSummary", "dashboardRevenue" }, allEntries = true)
     public OrderResponse create(CreateOrderRequest request) {
         Location location = locationRepository.findByLocationName(DEFAULT_LOCATION)
                 .orElseGet(() -> locationRepository.findAll().stream().findFirst()
-                .orElseThrow(() -> new BadRequestException("Hệ thống chưa có bất kỳ kho nào. Vui lòng tạo kho trước khi bán hàng.")));
+                        .orElseThrow(() -> new BadRequestException(
+                                "Hệ thống chưa có bất kỳ kho nào. Vui lòng tạo kho trước khi bán hàng.")));
 
         Long userId = SecurityUtils.getCurrentUserId().orElse(null);
         String orderCode = "HD-" + System.currentTimeMillis();
@@ -123,9 +124,11 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
                 .customer(customer)
                 .customerPhone(request.getCustomerPhone())
                 .orderDate(LocalDateTime.now())
-                .status(OrderStatus.COMPLETED)
+                .status(request.getPaymentMethod() == PaymentMethod.BANK_TRANSFER ? OrderStatus.PENDING
+                        : OrderStatus.COMPLETED)
                 .paymentMethod(request.getPaymentMethod())
-                .loyaltyPointsRedeemed(request.getLoyaltyPointsRedeemed() != null ? request.getLoyaltyPointsRedeemed() : 0)
+                .loyaltyPointsRedeemed(
+                        request.getLoyaltyPointsRedeemed() != null ? request.getLoyaltyPointsRedeemed() : 0)
                 .note(request.getNote())
                 .discountAmount(BigDecimal.ZERO)
                 .totalAmount(BigDecimal.ZERO)
@@ -142,8 +145,8 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
                 throw new BadRequestException("Sản phẩm không hoạt động: " + item.getItemName());
             }
 
-            List<InventoryLedgerService.LotAllocation> allocations =
-                    inventoryLedgerService.allocateFefo(item, location, line.getQuantity());
+            List<InventoryLedgerService.LotAllocation> allocations = inventoryLedgerService.allocateFefo(item, location,
+                    line.getQuantity());
 
             for (InventoryLedgerService.LotAllocation alloc : allocations) {
                 inventoryLedgerService.applyMovement(
@@ -153,8 +156,7 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
                         ReferenceType.ORDER,
                         null,
                         userId,
-                        "POS bán hàng"
-                );
+                        "POS bán hàng");
 
                 BigDecimal subtotal = item.getSellingPrice().multiply(alloc.quantity());
                 OrderItem oi = OrderItem.builder()
@@ -179,7 +181,8 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
         }
 
         int loyaltyRedeemed = request.getLoyaltyPointsRedeemed() != null ? request.getLoyaltyPointsRedeemed() : 0;
-        if (loyaltyRedeemed > 0 && (customer == null || request.getCustomerPhone() == null || request.getCustomerPhone().isBlank())) {
+        if (loyaltyRedeemed > 0
+                && (customer == null || request.getCustomerPhone() == null || request.getCustomerPhone().isBlank())) {
             throw new BadRequestException("Cần SĐT khách hàng hợp lệ để đổi điểm tích lũy");
         }
         if (loyaltyRedeemed > 0 && customer != null) {
@@ -193,7 +196,8 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
         order.getItems().addAll(orderItems);
 
         if (request.getPaymentMethod() == PaymentMethod.PAY_LATER) {
-            // Công nợ khách được tạo sau khi order lưu thành công, không ghi nhận payment thu tiền ngay.
+            // Công nợ khách được tạo sau khi order lưu thành công, không ghi nhận payment
+            // thu tiền ngay.
         } else if (request.getPayments() != null && !request.getPayments().isEmpty()) {
             BigDecimal paymentSum = request.getPayments().stream()
                     .map(p -> p.getAmount())
@@ -203,7 +207,7 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
                         "Số tiền thanh toán (" + paymentSum + ") không đủ so với tổng đơn: " + order.getTotalAmount()
                                 + ". Với tiền mặt, khách được thối lại phần dư.");
             }
-            for (com.smartmart.dto.request.OrderPaymentRequest pay : request.getPayments()) {
+            for (OrderPaymentRequest pay : request.getPayments()) {
                 order.getPayments().add(OrderPayment.builder()
                         .order(order)
                         .paymentMethod(pay.getPaymentMethod())
@@ -212,12 +216,14 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
                         .build());
             }
         } else if (request.getPaymentMethod() != null) {
-            order.getPayments().add(OrderPayment.builder()
-                    .order(order)
-                    .paymentMethod(request.getPaymentMethod())
-                    .amount(order.getTotalAmount())
-                    .createdAt(LocalDateTime.now())
-                    .build());
+            if (request.getPaymentMethod() != PaymentMethod.BANK_TRANSFER) {
+                order.getPayments().add(OrderPayment.builder()
+                        .order(order)
+                        .paymentMethod(request.getPaymentMethod())
+                        .amount(order.getTotalAmount())
+                        .createdAt(LocalDateTime.now())
+                        .build());
+            }
         }
 
         LocalDateTime movementStart = LocalDateTime.now().minusSeconds(5);
@@ -227,9 +233,10 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
             customerDebtService.createFromOrder(saved, customer);
         }
 
-        int loyaltyPointsEarned = customer != null
-                ? customerService.awardPoints(customer.getId(), saved.getTotalAmount())
-                : 0;
+        int loyaltyPointsEarned = 0;
+        if (saved.getStatus() == OrderStatus.COMPLETED && customer != null) {
+            loyaltyPointsEarned = customerService.awardPoints(customer.getId(), saved.getTotalAmount());
+        }
 
         // Backfill referenceId on inventory logs created during this transaction
         List<Long> itemIds = saved.getItems().stream().map(oi -> oi.getItem().getId()).distinct().toList();
@@ -251,9 +258,7 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
                         "paymentMethod", saved.getPaymentMethod(),
                         "discountAmount", saved.getDiscountAmount(),
                         "totalAmount", saved.getTotalAmount(),
-                        "status", saved.getStatus()
-                )
-        );
+                        "status", saved.getStatus()));
 
         return toResponse(saved, loyaltyPointsEarned);
     }
@@ -273,15 +278,16 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
 
     @Override
     @Transactional(readOnly = true)
-    public org.springframework.data.domain.Page<OrderResponse> listPaged(int page, int size, String search, OrderStatus status, java.time.LocalDateTime fromDate, java.time.LocalDateTime toDate) {
-        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id"));
+    public org.springframework.data.domain.Page<OrderResponse> listPaged(int page, int size, String search,
+            OrderStatus status, java.time.LocalDateTime fromDate, java.time.LocalDateTime toDate) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size,
+                org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id"));
         org.springframework.data.domain.Page<Order> orderPage = orderRepository.searchOrders(
                 (search != null && !search.trim().isEmpty()) ? search.trim() : null,
                 status,
                 fromDate,
                 toDate,
-                pageable
-        );
+                pageable);
         return orderPage.map(this::toResponse);
     }
 
@@ -331,35 +337,40 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
                         .build())
                 .toList();
 
-        List<OrderPrintResponse.PaymentLine> paymentLines = order.getPayments() != null && !order.getPayments().isEmpty()
-                ? order.getPayments().stream()
-                        .map(p -> OrderPrintResponse.PaymentLine.builder()
-                                .paymentMethod(p.getPaymentMethod() != null ? p.getPaymentMethod().name() : "CASH")
-                                .amount(p.getAmount())
-                                .build())
-                        .toList()
-                : List.of(OrderPrintResponse.PaymentLine.builder()
-                        .paymentMethod(order.getPaymentMethod() != null ? order.getPaymentMethod().name() : "CASH")
-                        .amount(order.getTotalAmount())
-                        .build());
+        List<OrderPrintResponse.PaymentLine> paymentLines = order.getPayments() != null
+                && !order.getPayments().isEmpty()
+                        ? order.getPayments().stream()
+                                .map(p -> OrderPrintResponse.PaymentLine.builder()
+                                        .paymentMethod(
+                                                p.getPaymentMethod() != null ? p.getPaymentMethod().name() : "CASH")
+                                        .amount(p.getAmount())
+                                        .build())
+                                .toList()
+                        : List.of(OrderPrintResponse.PaymentLine.builder()
+                                .paymentMethod(
+                                        order.getPaymentMethod() != null ? order.getPaymentMethod().name() : "CASH")
+                                .amount(order.getTotalAmount())
+                                .build());
 
-        java.math.BigDecimal subtotal = order.getItems().stream()
-                .map(i -> i.getSubtotal() != null ? i.getSubtotal() : java.math.BigDecimal.ZERO)
-                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
-        java.math.BigDecimal discount = order.getDiscountAmount() != null ? order.getDiscountAmount() : java.math.BigDecimal.ZERO;
+        BigDecimal subtotal = order.getItems().stream()
+                .map(i -> i.getSubtotal() != null ? i.getSubtotal() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal discount = order.getDiscountAmount() != null ? order.getDiscountAmount()
+                : BigDecimal.ZERO;
 
-        // VAT-inclusive: vatAmount = total × vatRate / (1 + vatRate). Default 0 (no VAT shown).
-        java.math.BigDecimal vatRateVal;
+        // VAT-inclusive: vatAmount = total × vatRate / (1 + vatRate). Default 0 (no VAT
+        // shown).
+        BigDecimal vatRateVal;
         try {
-            vatRateVal = new java.math.BigDecimal(settingService.getValue("vat_rate", "0"));
+            vatRateVal = new BigDecimal(settingService.getValue("vat_rate", "0"));
         } catch (NumberFormatException e) {
-            vatRateVal = java.math.BigDecimal.ZERO;
+            vatRateVal = BigDecimal.ZERO;
         }
-        java.math.BigDecimal vatAmount = vatRateVal.compareTo(java.math.BigDecimal.ZERO) > 0
+        BigDecimal vatAmount = vatRateVal.compareTo(BigDecimal.ZERO) > 0
                 ? order.getTotalAmount()
                         .multiply(vatRateVal)
-                        .divide(java.math.BigDecimal.ONE.add(vatRateVal), 0, java.math.RoundingMode.HALF_UP)
-                : java.math.BigDecimal.ZERO;
+                        .divide(BigDecimal.ONE.add(vatRateVal), 0, java.math.RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
 
         return OrderPrintResponse.builder()
                 .id(order.getId())
@@ -388,7 +399,7 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
     }
 
     @Override
-    @CacheEvict(value = {"items", "itemsPage", "dashboardSummary", "dashboardRevenue"}, allEntries = true)
+    @CacheEvict(value = { "items", "itemsPage", "dashboardSummary", "dashboardRevenue" }, allEntries = true)
     public OrderResponse cancel(Long id) {
         Order order = orderRepository.findByIdWithItems(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy hóa đơn"));
@@ -402,7 +413,7 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
         }
         Location fallbackLocation = locationRepository.findByLocationName(DEFAULT_LOCATION)
                 .orElseGet(() -> locationRepository.findAll().stream().findFirst()
-                .orElseThrow(() -> new BadRequestException("Hệ thống chưa có bất kỳ kho nào.")));
+                        .orElseThrow(() -> new BadRequestException("Hệ thống chưa có bất kỳ kho nào.")));
         Long userId = SecurityUtils.getCurrentUserId().orElse(null);
 
         for (OrderItem line : order.getItems()) {
@@ -414,8 +425,7 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
                     ReferenceType.ORDER,
                     order.getId(),
                     userId,
-                    "Hủy hóa đơn"
-            );
+                    "Hủy hóa đơn");
         }
         order.setStatus(OrderStatus.CANCELLED);
         Order saved = orderRepository.save(order);
@@ -426,10 +436,37 @@ public class OrderServiceImpl implements com.smartmart.service.OrderService {
                 saved.getId().toString(),
                 "Hủy hóa đơn: " + saved.getOrderCode(),
                 beforeData,
-                AuditData.of("status", saved.getStatus())
-        );
+                AuditData.of("status", saved.getStatus()));
 
         return toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public void completeOrderFromWebhook(Long payosOrderCode) {
+        Order order = orderRepository.findByPayosOrderCode(payosOrderCode)
+                .orElseThrow(() -> new NotFoundException("Order with payosOrderCode not found: " + payosOrderCode));
+
+        if (order.getStatus() == OrderStatus.COMPLETED) {
+            return; // Already completed
+        }
+
+        order.setStatus(OrderStatus.COMPLETED);
+
+        // Award points
+        if (order.getCustomer() != null) {
+            customerService.awardPoints(order.getCustomer().getId(), order.getTotalAmount());
+        }
+
+        // Add payment record
+        order.getPayments().add(OrderPayment.builder()
+                .order(order)
+                .paymentMethod(PaymentMethod.BANK_TRANSFER)
+                .amount(order.getTotalAmount())
+                .createdAt(LocalDateTime.now())
+                .build());
+
+        orderRepository.save(order);
     }
 
     private OrderResponse toResponse(Order order) {

@@ -46,6 +46,12 @@ management:
         include: health,info
 
 # Custom Application Configs
+
+payos:
+  client-id: ${PAYOS_CLIENT_ID}
+  api-key: ${PAYOS_API_KEY}
+  checksum-key: ${PAYOS_CHECKSUM_KEY}
+
 app:
   jwt:
     secret: ${JWT_SECRET:smartmart-super-secret-key-32-bytes-long-for-jwt-signing}

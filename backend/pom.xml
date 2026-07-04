@@ -62,6 +62,13 @@
 			<artifactId>spring-kafka</artifactId>
 		</dependency>
 
+		<!-- PayOS -->
+		<dependency>
+			<groupId>vn.payos</groupId>
+			<artifactId>payos-java</artifactId>
+			<version>2.0.1</version>
+		</dependency>
+
 		<!-- Databases -->
 		<dependency>
 			<groupId>org.postgresql</groupId>
@@ -155,11 +162,10 @@
 
 	<build>
 		<plugins>
-			<!-- đang sửa -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>3.13.0</version>
+				<version>3.11.0</version>
 				<configuration>
 					<source>21</source>
 					<target>21</target>
@@ -172,7 +178,6 @@
 					</annotationProcessorPaths>
 				</configuration>
 			</plugin>
-			<!-- đang sửa -->
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
