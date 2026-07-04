@@ -63,7 +63,6 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         LEFT JOIN FETCH oi.item
         LEFT JOIN FETCH oi.lot
         LEFT JOIN FETCH oi.location
-        LEFT JOIN FETCH o.payments
         WHERE o.id = :id
         """)
     Optional<Order> findByIdWithItems(Long id);

@@ -47,6 +47,7 @@ import {
 import type { CustomerDto, HeldOrderDto, ShiftDto } from '@/types/api';
 import type { PageKey } from '@/types/pages';
 import { animateCartBump, animateModalContent } from '@/lib/gsapAnimations';
+import { API_BASE_URL } from '@/lib/env';
 
 const tierColors: Record<string, string> = {
   REGULAR: 'default',
@@ -465,11 +466,15 @@ export default function PosPage({
     if (!payosModalOpen || !pendingOrderId) return;
 
     const token = sessionStorage.getItem('smartmart_token') || '';
-    const eventSource = new EventSource(`/api/v1/notifications/stream?token=${token}`);
+    const sseUrl = `${API_BASE_URL}/api/v1/notifications/stream?token=${token}`;
+    console.log('[SSE] Connecting to:', sseUrl);
+    const eventSource = new EventSource(sseUrl);
 
-    eventSource.addEventListener('payment-success', async () => {
+    eventSource.addEventListener('payment-success', async (e) => {
+      console.log('[SSE] Received payment-success event:', e);
       try {
         const checkOrder = await fetchOrderById(pendingOrderId, true);
+        console.log('[SSE] Checked order status:', checkOrder.status);
         if (checkOrder.status === 'COMPLETED') {
           setPayosModalOpen(false);
           setPendingOrderId(null);
