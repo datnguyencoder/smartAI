@@ -225,6 +225,7 @@ export default function InventoryAlertsPage({ setPage }: { setPage: (page: PageK
           columns={columns}
           rowKey="id"
           loading={loading}
+          scroll={{ x: 'max-content', y: 'calc(100vh - 350px)' }}
           pagination={{ pageSize: 10 }}
           locale={{ emptyText: 'Không có cảnh báo chưa xử lý.' }}
         />

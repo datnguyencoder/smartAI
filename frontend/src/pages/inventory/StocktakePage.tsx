@@ -194,7 +194,7 @@ export default function StocktakePage() {
           <option value="DRAFT">Nháp</option>
           <option value="CONFIRMED">Đã xác nhận</option>
         </select>
-        <Table rowKey="id" loading={loading} dataSource={stocktakes} columns={columns} />
+        <Table rowKey="id" loading={loading} dataSource={stocktakes} columns={columns} scroll={{ x: 'max-content', y: 'calc(100vh - 300px)' }} pagination={{ pageSize: 10 }} />
       </div>
 
       {/* Chi tiết Modal */}

@@ -270,6 +270,7 @@ export default function ScrapOrdersPage({ setPage }: { setPage: (page: PageKey) 
           columns={columns}
           rowKey="id"
           loading={loading}
+          scroll={{ x: 'max-content', y: 'calc(100vh - 300px)' }}
           pagination={{ pageSize: 10 }}
         />
       </div>

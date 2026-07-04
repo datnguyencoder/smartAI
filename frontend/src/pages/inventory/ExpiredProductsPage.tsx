@@ -58,6 +58,7 @@ export default function ExpiredProductsPage({ setPage }: Props) {
         rowKey={(r) => `${r.itemId}-${r.lotId ?? 0}-${r.locationName}`}
         loading={loading}
         dataSource={rows}
+        scroll={{ x: 'max-content', y: 'calc(100vh - 250px)' }}
         pagination={{ pageSize: 20 }}
         columns={[
           { title: 'Mã SP', dataIndex: 'itemCode', width: 120 },
