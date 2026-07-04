@@ -1,8 +1,8 @@
 import * as React from 'react';
-import { Button, DatePicker, Form, Input, InputNumber, Modal, Select, Switch, Table, Tag, message } from 'antd';
+import { Button, DatePicker, Form, Input, InputNumber, ModalSwitch, Table, Tag, message } from 'antd';
 import dayjs from 'dayjs';
 import { Plus } from 'lucide-react';
-import { Card, CardHeader } from '@/components/ui';
+import { Card, CardHeader , Select } from '@/components/ui';
 import { createDiscountPlan, fetchCategories, fetchDiscountPlans, updateDiscountPlan } from '@/services/wmsApi';
 import type { DiscountPlanDto, CategoryDto } from '@/types/api';
 import type { Product } from '@/lib/itemMapper';

@@ -289,14 +289,6 @@ export default function PurchaseOrderDetailModal({
                   return (
                     <div className="flex items-center gap-1.5">
                       <span>{preferPurchase ? record.purchaseUomName : v}</span>
-                      <Tooltip 
-                        title={`1 ${record.purchaseUomName} = ${ratio} ${record.uomName}`}
-                        getPopupContainer={(triggerNode) => triggerNode.parentNode as HTMLElement}
-                      >
-                        <span className="inline-flex items-center ml-1 cursor-pointer">
-                          <HelpCircle size={14} className="text-slate-400 hover:text-indigo-500 transition-colors" />
-                        </span>
-                      </Tooltip>
                     </div>
                   );
                 }

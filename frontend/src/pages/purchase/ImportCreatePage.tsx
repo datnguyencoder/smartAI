@@ -9,6 +9,7 @@ import type { SupplierDto, LocationDto, ItemDto } from '@/types/api';
 import type { PageKey, PurchaseSuggestionPrefillItem } from '@/types/pages';
 import { AiSummary } from '@/components/ai/AiSummary';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFormDraft } from '@/hooks/useFormDraft';
 
 type FormValues = {
   supplierId?: number;
@@ -95,6 +96,7 @@ export default function ImportCreatePage({
   clearPrefillItems?: () => void;
 }) {
   const [form] = Form.useForm<FormValues>();
+  const { clearDraft, saveDraft } = useFormDraft(form, 'draft_import_create');
   const { authUser } = useAuth();
   const canEditPrice = authUser?.role === 'ROLE_MANAGER' || authUser?.role === 'ROLE_ADMIN';
   const [submitting, setSubmitting] = React.useState(false);
@@ -171,6 +173,7 @@ export default function ImportCreatePage({
       });
       await reloadCatalog();
       antdMessage.success(`Tạo phiếu nhập PN-${po.id} thành công!`);
+      clearDraft();
       form.resetFields();
       setPage('import-slips');
     } catch (e) {
@@ -237,6 +240,7 @@ export default function ImportCreatePage({
           layout="vertical"
           form={form}
           onFinish={handleCreateSlip}
+          onValuesChange={saveDraft}
           className="px-6 pt-6 pb-6"
           initialValues={{ supplierId: "", locationId: "", items: [{ itemId: '', inputMode: 'purchase', quantity: 50, price: 0 }] }}
         >

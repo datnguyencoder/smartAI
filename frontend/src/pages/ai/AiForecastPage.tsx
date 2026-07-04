@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Alert, Button, Input, Progress, Select, Steps, Table, Tag, Typography, message as antdMessage } from 'antd';
+import { Alert, Button, Input, ProgressSteps, Table, Tag, Typography, message as antdMessage } from 'antd';
 import {
   AppstoreOutlined,
   BarChartOutlined,
@@ -41,7 +41,7 @@ import {
 import { AiSummary } from '@/components/ai/AiSummary';
 import { ForecastExplanation } from '@/components/ai/ForecastExplanation';
 import SmartTooltip from '@/components/ai/SmartTooltip';
-import { Card, CardHeader } from '@/components/ui';
+import { Card, CardHeader , Select } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { normalizeRole } from '@/lib/permissions';
 import {

@@ -6,6 +6,7 @@ import { formatMoney as money } from '@/lib/itemMapper';
 import type { InventoryReportDto, InventoryItemDto } from '@/types/api';
 import type { Product } from '@/lib/itemMapper';
 import { StatCard } from '../StatCard';
+import { fuzzySearch } from '@/lib/fuzzySearch';
 
 type InventoryReportTabProps = {
   inventoryData: InventoryReportDto[];
@@ -29,10 +30,9 @@ export function InventoryReportTab({
   visibleColumns,
 }: InventoryReportTabProps) {
   const filteredInventoryData = useMemo(() => {
-    return inventoryData.filter((r) => {
-      const matchText = !debouncedSearchText ||
-        r.itemName.toLowerCase().includes(debouncedSearchText.toLowerCase()) ||
-        r.itemCode.toLowerCase().includes(debouncedSearchText.toLowerCase());
+    let result = fuzzySearch(inventoryData, ['itemName', 'itemCode'], debouncedSearchText);
+    
+    return result.filter((r) => {
       const matchCat = selectedCategory === 'all' || r.categoryName === selectedCategory;
       
       let matchExpiry = true;
@@ -42,7 +42,7 @@ export function InventoryReportTab({
         matchExpiry = r.daysUntilExpiry == null || r.daysUntilExpiry > 30;
       }
 
-      return matchText && matchCat && matchExpiry;
+      return matchCat && matchExpiry;
     });
   }, [inventoryData, debouncedSearchText, selectedCategory, selectedExpiryStatus]);
 

@@ -1,7 +1,7 @@
 import * as React from 'react';
-import { Button, Form, Input, InputNumber, Modal, Select, Switch, Table, Tag, message } from 'antd';
+import { Button, Form, Input, InputNumber, ModalSwitch, Table, Tag, message } from 'antd';
 import { Plus } from 'lucide-react';
-import { Card, CardHeader } from '@/components/ui';
+import { Card, CardHeader , Select } from '@/components/ui';
 import { createBrand, fetchBrands, updateBrand } from '@/services/wmsApi';
 import type { BrandDto } from '@/types/api';
 

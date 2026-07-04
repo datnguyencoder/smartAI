@@ -1,10 +1,10 @@
 import * as React from 'react';
-import { Button, Form, Input, Modal, Select, Switch, message } from 'antd';
+import { Button, Form, Input, ModalSwitch, message } from 'antd';
 import { motion } from 'framer-motion';
 import { Plus, Search, Tags } from 'lucide-react';
 import { AiSummary } from '@/components/ai/AiSummary';
 import { ProductsTable } from '@/components/catalog/ProductsTable';
-import { Card, StatusChip } from '@/components/ui';
+import { Card, StatusChip , Select } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { normalizeRole } from '@/lib/permissions';
 import type { Product } from '@/lib/itemMapper';

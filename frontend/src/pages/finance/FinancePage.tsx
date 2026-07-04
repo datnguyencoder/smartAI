@@ -1,8 +1,8 @@
 import * as React from 'react';
-import { Button, DatePicker, Form, Input, InputNumber, Modal, Select, Table, Tabs, Tag, message } from 'antd';
+import { Button, DatePicker, Form, Input, InputNumber, ModalTable, Tabs, Tag, message } from 'antd';
 import dayjs from 'dayjs';
 import { PlusCircle } from 'lucide-react';
-import { Card, CardHeader } from '@/components/ui';
+import { Card, CardHeader , Select } from '@/components/ui';
 import {
   createCashAccount,
   createFinanceTransaction,

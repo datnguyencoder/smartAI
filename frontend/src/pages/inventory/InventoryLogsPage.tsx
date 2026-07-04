@@ -1,7 +1,7 @@
 import React from 'react';
-import { Table, Select, DatePicker, Tag, message as antdMessage, Input, Modal, Button } from 'antd';
+import { TableDatePicker, Tag, message as antdMessage, Input, Modal, Button } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { Card, StatusChip } from '@/components/ui';
+import { Card, StatusChip , Select } from '@/components/ui';
 import { fetchInventoryLogs, fetchLocations, fetchPurchaseOrderById } from '@/services/wmsApi';
 import { formatMoney } from '@/lib/itemMapper';
 import type { InventoryLogDto, LocationDto, ScrapOrderDto } from '@/types/api';
@@ -221,8 +221,10 @@ export default function InventoryLogsPage() {
       align: 'right',
       render: (v: number) => {
         const isPositive = v > 0;
+        const isNegative = v < 0;
+        const colorClass = isPositive ? 'text-emerald-600' : isNegative ? 'text-red-500' : 'text-slate-600';
         return (
-          <span className={isPositive ? 'text-emerald-600 font-semibold' : 'text-red-500 font-semibold'}>
+          <span className={`${colorClass} font-semibold`}>
             {isPositive ? '+' : ''}{v?.toLocaleString('vi-VN') ?? '—'}
           </span>
         );
@@ -321,7 +323,7 @@ export default function InventoryLogsPage() {
             },
           }}
           rowKey="id"
-          scroll={{ x: 1100 }}
+          scroll={{ x: 1100, y: 'calc(100vh - 300px)' }}
           size="middle"
         />
       </Card>

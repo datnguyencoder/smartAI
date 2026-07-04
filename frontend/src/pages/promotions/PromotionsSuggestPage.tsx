@@ -1,7 +1,7 @@
 import React from 'react';
-import { Alert, Button, Select, Table, Tag, message as antdMessage } from 'antd';
+import { Alert, ButtonTable, Tag, message as antdMessage } from 'antd';
 import { Sparkles, WandSparkles } from 'lucide-react';
-import { Card, CardHeader } from '@/components/ui';
+import { Card, CardHeader , Select } from '@/components/ui';
 import {
   aiSuggestPromotion,
   approvePromotionRecommendation,

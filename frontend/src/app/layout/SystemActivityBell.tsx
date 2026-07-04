@@ -1,4 +1,3 @@
-import { Badge, Button, Popover } from 'antd';
 import { Bell } from 'lucide-react';
 import * as React from 'react';
 import { API_BASE_URL } from '@/lib/env';
@@ -74,9 +73,13 @@ export function SystemActivityBell({
           <strong className="text-sm text-ink">Hoạt động hệ thống</strong>
           <p className="text-xs text-muted">Tự động cập nhật mỗi 15 giây</p>
         </div>
-        <Button type="link" size="small" onClick={() => setPage('inventory-alerts')}>
+        <button 
+          type="button"
+          onClick={() => setPage('inventory-alerts')}
+          className="text-indigo-600 hover:text-indigo-700 font-medium"
+        >
           Cảnh báo kho
-        </Button>
+        </button>
       </div>
       <div className="max-h-[420px] overflow-y-auto py-2">
         {loading ? (
@@ -110,16 +113,32 @@ export function SystemActivityBell({
   );
 
   return (
-    <Popover
-      content={content}
-      open={open}
-      onOpenChange={handleOpenChange}
-      placement="bottomRight"
-      trigger="click"
-    >
-      <Badge count={unreadCount} size="small" overflowCount={9}>
-        <Button icon={<Bell size={16} />} aria-label="Xem hoạt động hệ thống" />
-      </Badge>
-    </Popover>
+    <div className="relative">
+      <button
+        onClick={() => handleOpenChange(!open)}
+        className="relative flex items-center justify-center w-8 h-8 rounded-full hover:bg-slate-100 transition-colors focus:outline-none"
+        aria-label="Xem hoạt động hệ thống"
+      >
+        <Bell size={20} className="text-slate-600" />
+        {unreadCount > 0 && (
+          <span className="absolute top-0 right-0 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-red-500 rounded-full translate-x-1 -translate-y-1">
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <>
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={() => handleOpenChange(false)} 
+            aria-hidden="true" 
+          />
+          <div className="absolute right-0 top-full mt-2 z-50 bg-white rounded-lg shadow-xl border border-slate-200 overflow-hidden">
+            {content}
+          </div>
+        </>
+      )}
+    </div>
   );
 }
