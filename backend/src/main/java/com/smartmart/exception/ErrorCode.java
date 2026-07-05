@@ -38,7 +38,18 @@ public enum ErrorCode {
 
 
     // External AI service
-    AI_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "Dịch vụ AI tạm thời không khả dụng");
+    AI_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "Dịch vụ AI tạm thời không khả dụng"),
+
+    // Chat domain
+    CHAT_SELF_CHAT(HttpStatus.BAD_REQUEST, "Không thể tạo cuộc trò chuyện với chính mình"),
+    CHAT_USER_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy người dùng"),
+    CHAT_INVALID_GROUP_NAME(HttpStatus.BAD_REQUEST, "Tên nhóm không hợp lệ"),
+    CHAT_CONVERSATION_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy cuộc trò chuyện"),
+    CHAT_NOT_PARTICIPANT(HttpStatus.FORBIDDEN, "Bạn không phải thành viên cuộc trò chuyện này"),
+    CHAT_NOT_OWNER(HttpStatus.FORBIDDEN, "Chỉ chủ nhóm mới được thực hiện thao tác này"),
+    CHAT_GROUP_DELETED(HttpStatus.BAD_REQUEST, "Nhóm chat đã bị giải tán"),
+    CHAT_USER_ALREADY_IN_GROUP(HttpStatus.CONFLICT, "Người dùng đã là thành viên nhóm"),
+    CHAT_USER_INACTIVE(HttpStatus.BAD_REQUEST, "Tài khoản người dùng không hoạt động");
 
     private final HttpStatus status;
     private final String message;
