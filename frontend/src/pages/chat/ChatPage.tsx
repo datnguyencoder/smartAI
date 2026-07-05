@@ -6,6 +6,8 @@ import { ChatHeader } from '@/components/chat/ChatHeader';
 import { MessageList } from '@/components/chat/MessageList';
 import { MessageInput } from '@/components/chat/MessageInput';
 import { EmptyChatState } from '@/components/chat/EmptyChatState';
+import { CreateGroupModal } from '@/components/chat/CreateGroupModal';
+import { GroupSettingsModal } from '@/components/chat/GroupSettingsModal';
 import { chatApi } from '@/services/chatApi';
 import type { Message } from '@/types/chat';
 import { useAuth } from '@/contexts/AuthContext';
@@ -31,6 +33,8 @@ function ChatContent() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [users, setUsers] = useState<UserDto[]>([]);
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+  const [isGroupSettingsOpen, setIsGroupSettingsOpen] = useState(false);
 
   useEffect(() => {
     fetchUsers().then(setUsers).catch(console.error);
@@ -43,6 +47,22 @@ function ChatContent() {
       fetchConversations();
     } catch (e) {
       console.error('Failed to create chat', e);
+    }
+  };
+
+  const handleCreateGroup = async (name: string, memberIds: number[]) => {
+    if (!authUser) return;
+    try {
+      const res = await chatApi.createGroupConversation({
+        name,
+        memberIds: [...memberIds, authUser.id]
+      });
+      setSelectedConversation(res);
+      setIsCreatingGroup(false);
+      fetchConversations();
+    } catch (e: any) {
+      console.error('Failed to create group', e);
+      alert('Lỗi khi tạo nhóm: ' + (e.message || ''));
     }
   };
 
@@ -85,14 +105,27 @@ function ChatContent() {
     if (selectedConversation) {
       setMessages([]);
       fetchMessages(selectedConversation.id);
+      
+      chatApi.markConversationAsRead(selectedConversation.id).then(() => {
+        fetchConversations();
+      }).catch(console.error);
     }
   }, [selectedConversation, setMessages, setHasMoreMessages]);
 
-  const handleMessageReceived = (message: Message) => {
+  const handleMessageReceived = async (message: Message) => {
     setMessages(prev => {
       if (prev.some(m => m.id === message.id)) return prev;
       return [...prev, message];
     });
+    
+    if (selectedConversation && message.conversationId === selectedConversation.id) {
+      try {
+        await chatApi.markConversationAsRead(selectedConversation.id);
+        fetchConversations();
+      } catch (e) {
+        console.error(e);
+      }
+    }
   };
 
   const [isConnected, setIsConnected] = useState(false);
@@ -156,6 +189,24 @@ function ChatContent() {
     };
   }, [isConnected, selectedConversation]);
 
+  // Global notification subscription to update conversation list (e.g., when a message arrives in a background chat)
+  useEffect(() => {
+    if (!isConnected || !stompClientRef.current || !authUser) return;
+
+    const client = stompClientRef.current;
+    const sub = client.subscribe(`/topic/notifications/${authUser.id}`, (message) => {
+      console.log('=== Received background notification ===', message.body);
+      const event = JSON.parse(message.body);
+      if (event.type === 'NEW_MESSAGE') {
+        fetchConversations(); // Refresh list to update unread counts and last message snippet
+      }
+    });
+
+    return () => {
+      sub.unsubscribe();
+    };
+  }, [isConnected, authUser]);
+
   const fetchMoreMessages = async () => {
     if (!selectedConversation || !hasMoreMessages) return;
     try {
@@ -210,7 +261,24 @@ function ChatContent() {
       <div className="w-[320px] shrink-0 border-r border-slate-200 bg-slate-50 flex flex-col min-h-0">
         <div className="h-16 border-b border-slate-200 p-4 flex items-center justify-between shrink-0">
           <h2 className="text-xl font-semibold text-slate-800">Đoạn chat</h2>
+          <button 
+            onClick={() => setIsCreatingGroup(!isCreatingGroup)}
+            className="p-2 rounded-full hover:bg-slate-200 text-slate-600 transition-colors"
+            title={isCreatingGroup ? "Đóng" : "Tạo nhóm mới"}
+          >
+            {isCreatingGroup ? (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z" />
+              </svg>
+            )}
+          </button>
         </div>
+
+
         <div className="p-3 border-b border-slate-100">
           <input 
             type="text" 
@@ -220,39 +288,25 @@ function ChatContent() {
             className="w-full rounded-full bg-slate-100 border-transparent px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:bg-white transition-colors"
           />
         </div>
-        
+
         <div className="flex-1 overflow-y-auto">
-          <ConversationList searchQuery={searchQuery} />
-          
-          {unifiedUsers.map(u => (
-            <div 
-              key={u.id} 
-              onClick={() => handleStartChat(u)}
-              className="p-3 border-b border-slate-50 hover:bg-slate-100 cursor-pointer flex items-center gap-3 transition-colors"
-            >
-              <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold shrink-0">
-                {u.fullName?.charAt(0)?.toUpperCase() || u.username?.charAt(0)?.toUpperCase()}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="font-medium text-slate-800 truncate">{u.fullName || u.username}</div>
-                <div className="text-xs text-slate-500 truncate">Chưa có tin nhắn</div>
-              </div>
-            </div>
-          ))}
-          
-          {searchQuery && unifiedUsers.length === 0 && conversations.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
-            <div className="p-4 text-center text-sm text-slate-500">
-              Không tìm thấy kết quả nào.
-            </div>
-          )}
+          <ConversationList
+            searchQuery={searchQuery}
+          />
         </div>
       </div>
 
-      {/* Right Column: Active Chat Window */}
-      <div className="flex-1 flex flex-col bg-white min-w-0 min-h-0 overflow-hidden">
+      {/* Right Panel: Chat Area */}
+      <div className="flex-1 flex flex-col min-w-0 bg-white">
         {selectedConversation ? (
           <>
-            <ChatHeader />
+            <ChatHeader 
+              onOpenSettings={() => {
+                if (selectedConversation.type === 'GROUP') {
+                  setIsGroupSettingsOpen(true);
+                }
+              }} 
+            />
             <MessageList onLoadMore={fetchMoreMessages} />
             <MessageInput onSend={handleSendMessage} onSendImage={handleSendImage} isUploading={isUploading} />
           </>
@@ -260,6 +314,31 @@ function ChatContent() {
           <EmptyChatState />
         )}
       </div>
+
+      <CreateGroupModal 
+        isOpen={isCreatingGroup}
+        onClose={() => setIsCreatingGroup(false)}
+        onCreate={handleCreateGroup}
+      />
+
+      {selectedConversation && selectedConversation.type === 'GROUP' && (
+        <GroupSettingsModal 
+          isOpen={isGroupSettingsOpen}
+          onClose={() => setIsGroupSettingsOpen(false)}
+          conversationId={selectedConversation.id}
+          onGroupUpdated={async () => {
+            fetchConversations();
+            try {
+              const updated = await chatApi.getConversationDetail(selectedConversation.id);
+              setSelectedConversation(updated);
+            } catch(e) {}
+          }}
+          onGroupLeft={() => {
+            setSelectedConversation(null);
+            fetchConversations();
+          }}
+        />
+      )}
     </Card>
   );
 }
