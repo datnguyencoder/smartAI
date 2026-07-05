@@ -40,6 +40,7 @@ public class ConversationServiceImpl implements ConversationService {
     private final ConversationParticipantRepository participantRepository;
     private final UserRepository userRepository;
     private final MessageRepository messageRepository;
+    private final com.smartmart.repository.chat.NotificationRepository notificationRepository;
 
     @Override
     @Transactional
@@ -257,6 +258,17 @@ public class ConversationServiceImpl implements ConversationService {
         conversationRepository.save(conv);
     }
 
+    @Override
+    @Transactional
+    public void markConversationAsRead(Long conversationId, Long currentUserId) {
+        List<com.smartmart.entity.Chat.Notification> unreadNotifs = notificationRepository
+                .findByUserIdAndConversationIdAndIsReadFalse(currentUserId, conversationId);
+        if (!unreadNotifs.isEmpty()) {
+            unreadNotifs.forEach(n -> n.setIsRead(true));
+            notificationRepository.saveAll(unreadNotifs);
+        }
+    }
+
     private ConversationResponse mapToConversationResponse(Conversation conv, Long currentUserId) {
         com.smartmart.dto.response.LastMessageResponse lastMessageObj = null;
         Page<Message> lastMessagePage = messageRepository.findByConversationIdOrderByCreatedAtDesc(conv.getId(),
@@ -271,9 +283,12 @@ public class ConversationServiceImpl implements ConversationService {
             } else {
                 content = msg.getContent();
             }
+            
+            String senderName = msg.getSender() != null ? msg.getSender().getFullName() : "Hệ thống";
+            
             lastMessageObj = com.smartmart.dto.response.LastMessageResponse.builder()
                     .content(content)
-                    .senderName(msg.getSender().getFullName())
+                    .senderName(senderName)
                     .createdAt(msg.getCreatedAt())
                     .build();
         }
@@ -290,6 +305,8 @@ public class ConversationServiceImpl implements ConversationService {
             }
         }
 
+        long unreadCount = notificationRepository.countByUserIdAndConversationIdAndIsReadFalse(currentUserId, conv.getId());
+
         return ConversationResponse.builder()
                 .id(conv.getId())
                 .name(displayName)
@@ -298,7 +315,7 @@ public class ConversationServiceImpl implements ConversationService {
                 .lastMessageAt(conv.getLastMessageAt() != null ? conv.getLastMessageAt() : conv.getCreatedAt())
                 .createdAt(conv.getCreatedAt())
                 .lastMessage(lastMessageObj)
-                .unreadCount(0L)
+                .unreadCount(unreadCount)
                 .build();
     }
 }

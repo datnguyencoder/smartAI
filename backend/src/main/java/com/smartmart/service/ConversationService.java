@@ -13,4 +13,5 @@ public interface ConversationService {
     ConversationDetailResponse getConversationDetail(Long conversationId, Long currentUserId);
     void renameGroup(Long conversationId, Long currentUserId, String newName);
     void deleteGroup(Long conversationId, Long currentUserId);
+    void markConversationAsRead(Long conversationId, Long currentUserId);
 }

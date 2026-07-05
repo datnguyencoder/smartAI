@@ -83,4 +83,12 @@ public class ConversationController {
         conversationService.deleteGroup(conversationId, getCurrentUserId());
         return ResponseEntity.ok(ApiResponse.success(null));
     }
+
+    @PutMapping("/{conversationId}/read")
+    @Operation(summary = "Đánh dấu tất cả tin nhắn trong hội thoại là đã đọc")
+    public ResponseEntity<ApiResponse<Void>> markConversationAsRead(
+            @PathVariable Long conversationId) {
+        conversationService.markConversationAsRead(conversationId, getCurrentUserId());
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
 }

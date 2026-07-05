@@ -1,3 +1,11 @@
+export interface MemberResponse {
+  userId: number;
+  username: string;
+  fullName: string;
+  role: 'OWNER' | 'MEMBER';
+  joinedAt: string;
+}
+
 export interface Conversation {
   id: number;
   name: string;
@@ -12,6 +20,9 @@ export interface Conversation {
   };
   lastMessageAt?: string;
   createdAt: string;
+  // Included from ConversationDetailResponse
+  members?: MemberResponse[];
+  totalMessages?: number;
 }
 
 export interface Attachment {

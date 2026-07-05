@@ -50,4 +50,22 @@ export const chatApi = {
 
   replyMessage: (payload: { conversationId: number; content: string; replyToMessageId: number }) =>
     apiRequest<Message>('/api/v1/chat/messages/reply', { method: 'POST', body: JSON.stringify(payload) }),
+
+  addMember: (conversationId: number, userId: number) =>
+    apiRequest<void>(`/api/v1/chat/conversations/${conversationId}/members`, { method: 'POST', body: JSON.stringify({ userId }) }),
+
+  removeMember: (conversationId: number, userId: number) =>
+    apiRequest<void>(`/api/v1/chat/conversations/${conversationId}/members/${userId}`, { method: 'DELETE' }),
+
+  leaveGroup: (conversationId: number) =>
+    apiRequest<void>(`/api/v1/chat/conversations/${conversationId}/leave`, { method: 'POST' }),
+
+  renameGroup: (conversationId: number, name: string) =>
+    apiRequest<void>(`/api/v1/chat/conversations/${conversationId}/rename`, { method: 'PUT', body: JSON.stringify({ name }) }),
+
+  deleteGroup: (conversationId: number) =>
+    apiRequest<void>(`/api/v1/chat/conversations/${conversationId}`, { method: 'DELETE' }),
+
+  markConversationAsRead: (conversationId: number) =>
+    apiRequest<void>(`/api/v1/chat/conversations/${conversationId}/read`, { method: 'PUT' }),
 };

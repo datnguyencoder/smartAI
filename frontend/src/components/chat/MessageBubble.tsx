@@ -84,11 +84,46 @@ export function MessageBubble({ message, isMine, onEdit, onRecall }: MessageBubb
           )}
         </div>
 
-        {/* Action Menu (Hover) */}
+        {/* Action Menu */}
         {!message.recalled && isMine && (
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute top-0 -left-12 flex items-center gap-1 bg-white shadow-sm border border-slate-200 rounded-lg p-1">
-            <button onClick={onEdit} className="p-1 hover:bg-slate-100 text-slate-500 rounded" title="Sửa">✏️</button>
-            <button onClick={onRecall} className="p-1 hover:bg-slate-100 text-red-500 rounded" title="Thu hồi">🗑️</button>
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute top-1/2 -translate-y-1/2 -left-8">
+            <div className="relative">
+              <button 
+                onClick={(e) => {
+                  const menu = e.currentTarget.nextElementSibling;
+                  if (menu) menu.classList.toggle('hidden');
+                }}
+                onBlur={(e) => {
+                  // Small delay to allow click events on menu items to fire before hiding
+                  const menu = e.currentTarget.nextElementSibling;
+                  setTimeout(() => {
+                    if (menu) menu.classList.add('hidden');
+                  }, 200);
+                }}
+                className="h-7 w-7 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-500 transition-colors"
+                title="Tùy chọn"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                </svg>
+              </button>
+              
+              {/* Dropdown Menu */}
+              <div className="hidden absolute right-full mr-2 top-0 w-32 bg-white rounded-lg shadow-[0_2px_12px_rgb(0,0,0,0.1)] border border-slate-100 py-1 z-10">
+                <button 
+                  onClick={onEdit} 
+                  className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-2"
+                >
+                  Sửa tin nhắn
+                </button>
+                <button 
+                  onClick={onRecall} 
+                  className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2 font-medium"
+                >
+                  Thu hồi
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
