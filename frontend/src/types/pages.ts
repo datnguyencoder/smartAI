@@ -36,7 +36,8 @@ export type PageKey =
   | 'stocktake'
   | 'shifts'
   | 'item-lots'
-  | 'audit-logs';
+  | 'audit-logs'
+  | 'chat';
 
 export type PurchaseSuggestionPrefillItem = {
   itemId: number;

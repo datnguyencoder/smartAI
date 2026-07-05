@@ -20,7 +20,6 @@ import java.util.List;
 @RequestMapping("/api/v1/users")
 @Tag(name = "Users", description = "Quản lý người dùng")
 @SecurityRequirement(name = "bearerAuth")
-@PreAuthorize("hasAnyRole('ADMIN')")
 public class UserController {
 
     private final UserService userService;
@@ -43,6 +42,7 @@ public class UserController {
 
     @PostMapping
     @Operation(summary = "Tạo người dùng")
+    @PreAuthorize("hasAnyRole('ADMIN')")
     public ResponseEntity<ApiResponse<UserResponse>> create(@Valid @RequestBody CreateUserRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Tạo người dùng thành công", userService.create(request)));
@@ -50,6 +50,7 @@ public class UserController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Cập nhật người dùng")
+    @PreAuthorize("hasAnyRole('ADMIN')")
     public ResponseEntity<ApiResponse<UserResponse>> update(
             @PathVariable Long id,
             @Valid @RequestBody UpdateUserRequest request
@@ -59,6 +60,7 @@ public class UserController {
 
     @PostMapping("/{id}/lock")
     @Operation(summary = "Khóa tài khoản")
+    @PreAuthorize("hasAnyRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> lock(@PathVariable Long id) {
         userService.lock(id);
         return ResponseEntity.ok(ApiResponse.success("Khóa tài khoản thành công", null));
@@ -66,6 +68,7 @@ public class UserController {
 
     @PostMapping("/{id}/unlock")
     @Operation(summary = "Mở khóa tài khoản")
+    @PreAuthorize("hasAnyRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> unlock(@PathVariable Long id) {
         userService.unlock(id);
         return ResponseEntity.ok(ApiResponse.success("Mở khóa tài khoản thành công", null));
@@ -73,6 +76,7 @@ public class UserController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Xóa mềm tài khoản nhân viên")
+    @PreAuthorize("hasAnyRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> softDelete(@PathVariable Long id) {
         userService.softDelete(id);
         return ResponseEntity.ok(ApiResponse.success("Xóa mềm tài khoản thành công", null));

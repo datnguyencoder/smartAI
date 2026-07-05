@@ -252,7 +252,7 @@ export default function SuppliersPage({
                 showSearch
                 placeholder="Tìm theo tên, SKU hoặc danh mục"
                 options={productOptions}
-                optionRender={(option) => (
+                optionRender={(option: any) => (
                   <div>
                     <div className="font-medium">{option.data.label}</div>
                     <div className="text-xs text-slate-500">
@@ -260,7 +260,7 @@ export default function SuppliersPage({
                     </div>
                   </div>
                 )}
-                filterOption={(input, option) =>
+                filterOption={(input: string, option: any) =>
                   String((option as { searchText?: string })?.searchText ?? '').includes(input.toLowerCase())
                 }
                 onChange={(sku) => {

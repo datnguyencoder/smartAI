@@ -40,6 +40,7 @@ import ReturnOrdersPage from '@/pages/sales/ReturnOrdersPage';
 import QuotationsPage from '@/pages/sales/QuotationsPage';
 import OnlineOrdersPage from '@/pages/sales/OnlineOrdersPage';
 import PosPage from '@/pages/sales/PosPage';
+import ChatPage from '@/pages/chat/ChatPage';
 import type { CategoryDto, LocationDto, SupplierDto, UomDto, UserDto } from '@/types/api';
 import type { PageKey, PurchaseSuggestionPrefillItem } from '@/types/pages';
 
@@ -252,6 +253,9 @@ export function PageRenderer({
   }
   if (page === 'audit-logs') {
     return <AuditLogsPage />;
+  }
+  if (page === 'chat') {
+    return <ChatPage />;
   }
   return <SettingsPage />;
 }

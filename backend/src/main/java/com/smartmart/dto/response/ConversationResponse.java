@@ -16,6 +16,6 @@ public class ConversationResponse {
     private ConversationStatus status;
     private LocalDateTime lastMessageAt;
     private LocalDateTime createdAt;
-    private String lastMessage;
+    private LastMessageResponse lastMessage;
     private Long unreadCount;
 }

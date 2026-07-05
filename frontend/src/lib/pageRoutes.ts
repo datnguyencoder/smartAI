@@ -39,6 +39,7 @@ export const PAGE_PATHS: Record<PageKey, string> = {
   shifts: '/shifts',
   'item-lots': '/item-lots',
   'audit-logs': '/audit-logs',
+  chat: '/chat',
 };
 
 const PATH_TO_PAGE = Object.fromEntries(
