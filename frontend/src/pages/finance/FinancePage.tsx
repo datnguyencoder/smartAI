@@ -198,7 +198,7 @@ export default function FinancePage() {
               placeholder="Chọn danh mục"
               options={categoryOptions}
               notFoundContent="Chưa có danh mục — nhập tên mới"
-              dropdownRender={(menu) => (
+              dropdownRender={(menu: any) => (
                 <>
                   {menu}
                   <div className="p-2 border-t text-xs text-slate-500">Hoặc nhập tên danh mục tùy chỉnh</div>

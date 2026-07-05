@@ -1,7 +1,5 @@
 package com.smartmart.service.impl;
 
-import com.smartmart.service.ParticipantService;
-
 import com.smartmart.dto.response.MemberResponse;
 import com.smartmart.entity.Chat.Conversation;
 import com.smartmart.entity.Chat.ConversationParticipant;
@@ -14,6 +12,7 @@ import com.smartmart.exception.ErrorCode;
 import com.smartmart.exception.ForbiddenException;
 import com.smartmart.exception.NotFoundException;
 import com.smartmart.repository.UserRepository;
+import com.smartmart.service.ParticipantService;
 import com.smartmart.repository.chat.ConversationParticipantRepository;
 import com.smartmart.repository.chat.ConversationRepository;
 import com.smartmart.repository.chat.MessageRepository;
@@ -45,10 +44,12 @@ public class ParticipantServiceImpl implements ParticipantService {
             throw new BadRequestException(ErrorCode.BAD_REQUEST, "Chỉ có thể thêm thành viên vào GROUP");
         }
 
-        ConversationParticipant currentParticipant = participantRepository.findByConversationIdAndUserId(conversationId, currentUserId)
+        ConversationParticipant currentParticipant = participantRepository
+                .findByConversationIdAndUserId(conversationId, currentUserId)
                 .orElseThrow(() -> new ForbiddenException(ErrorCode.CHAT_NOT_PARTICIPANT));
 
-        if (currentParticipant.getStatus() != ParticipantStatus.ACTIVE || currentParticipant.getRole() != ParticipantRole.OWNER) {
+        if (currentParticipant.getStatus() != ParticipantStatus.ACTIVE
+                || currentParticipant.getRole() != ParticipantRole.OWNER) {
             throw new ForbiddenException(ErrorCode.CHAT_NOT_OWNER);
         }
 
@@ -59,18 +60,20 @@ public class ParticipantServiceImpl implements ParticipantService {
             throw new BadRequestException(ErrorCode.CHAT_USER_INACTIVE);
         }
 
-        boolean alreadyActive = participantRepository.existsByConversationIdAndUserIdAndStatus(conversationId, targetUserId, ParticipantStatus.ACTIVE);
+        boolean alreadyActive = participantRepository.existsByConversationIdAndUserIdAndStatus(conversationId,
+                targetUserId, ParticipantStatus.ACTIVE);
         if (alreadyActive) {
             throw new ConflictException(ErrorCode.CHAT_USER_ALREADY_IN_GROUP);
         }
 
-        ConversationParticipant targetParticipant = participantRepository.findByConversationIdAndUserId(conversationId, targetUserId)
+        ConversationParticipant targetParticipant = participantRepository
+                .findByConversationIdAndUserId(conversationId, targetUserId)
                 .orElse(ConversationParticipant.builder()
                         .conversation(conv)
                         .user(targetUser)
                         .role(ParticipantRole.MEMBER)
                         .build());
-        
+
         targetParticipant.setStatus(ParticipantStatus.ACTIVE);
         targetParticipant.setJoinedAt(LocalDateTime.now());
         participantRepository.save(targetParticipant);
@@ -93,17 +96,21 @@ public class ParticipantServiceImpl implements ParticipantService {
         Conversation conv = conversationRepository.findByIdAndStatus(conversationId, ConversationStatus.ACTIVE)
                 .orElseThrow(() -> new BadRequestException(ErrorCode.CHAT_GROUP_DELETED));
 
-        ConversationParticipant currentParticipant = participantRepository.findByConversationIdAndUserId(conversationId, currentUserId)
+        ConversationParticipant currentParticipant = participantRepository
+                .findByConversationIdAndUserId(conversationId, currentUserId)
                 .orElseThrow(() -> new ForbiddenException(ErrorCode.CHAT_NOT_PARTICIPANT));
 
-        if (currentParticipant.getStatus() != ParticipantStatus.ACTIVE || currentParticipant.getRole() != ParticipantRole.OWNER) {
+        if (currentParticipant.getStatus() != ParticipantStatus.ACTIVE
+                || currentParticipant.getRole() != ParticipantRole.OWNER) {
             throw new ForbiddenException(ErrorCode.CHAT_NOT_OWNER);
         }
 
-        ConversationParticipant targetParticipant = participantRepository.findByConversationIdAndUserId(conversationId, targetUserId)
+        ConversationParticipant targetParticipant = participantRepository
+                .findByConversationIdAndUserId(conversationId, targetUserId)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.NOT_FOUND, "Thành viên không tồn tại trong nhóm"));
 
-        if (targetParticipant.getStatus() == ParticipantStatus.LEFT || targetParticipant.getStatus() == ParticipantStatus.REMOVED) {
+        if (targetParticipant.getStatus() == ParticipantStatus.LEFT
+                || targetParticipant.getStatus() == ParticipantStatus.REMOVED) {
             throw new BadRequestException(ErrorCode.BAD_REQUEST, "Thành viên đã rời nhóm hoặc bị xóa");
         }
 
@@ -129,7 +136,8 @@ public class ParticipantServiceImpl implements ParticipantService {
         Conversation conv = conversationRepository.findByIdAndStatus(conversationId, ConversationStatus.ACTIVE)
                 .orElseThrow(() -> new BadRequestException(ErrorCode.CHAT_GROUP_DELETED));
 
-        ConversationParticipant participant = participantRepository.findByConversationIdAndUserId(conversationId, currentUserId)
+        ConversationParticipant participant = participantRepository
+                .findByConversationIdAndUserId(conversationId, currentUserId)
                 .orElseThrow(() -> new ForbiddenException(ErrorCode.CHAT_NOT_PARTICIPANT));
 
         if (participant.getStatus() != ParticipantStatus.ACTIVE) {
@@ -141,8 +149,9 @@ public class ParticipantServiceImpl implements ParticipantService {
         participantRepository.save(participant);
 
         if (participant.getRole() == ParticipantRole.OWNER) {
-            List<ConversationParticipant> activeMembers = participantRepository.findByConversationIdAndStatus(conversationId, ParticipantStatus.ACTIVE);
-            
+            List<ConversationParticipant> activeMembers = participantRepository
+                    .findByConversationIdAndStatus(conversationId, ParticipantStatus.ACTIVE);
+
             if (activeMembers.isEmpty()) {
                 conv.setStatus(ConversationStatus.DELETED);
                 conversationRepository.save(conv);
@@ -166,7 +175,8 @@ public class ParticipantServiceImpl implements ParticipantService {
     @Override
     @Transactional(readOnly = true)
     public List<MemberResponse> getMembers(Long conversationId, Long currentUserId) {
-        boolean isParticipant = participantRepository.existsByConversationIdAndUserIdAndStatus(conversationId, currentUserId, ParticipantStatus.ACTIVE);
+        boolean isParticipant = participantRepository.existsByConversationIdAndUserIdAndStatus(conversationId,
+                currentUserId, ParticipantStatus.ACTIVE);
         if (!isParticipant) {
             throw new ForbiddenException(ErrorCode.CHAT_NOT_PARTICIPANT);
         }

@@ -65,8 +65,10 @@ public class ConversationServiceImpl implements ConversationService {
         }
 
         Conversation newConv = Conversation.builder()
+                .name("PRIVATE")
                 .type(ConversationType.PRIVATE)
                 .status(ConversationStatus.ACTIVE)
+                .createdBy(currentUser)
                 .build();
         newConv = conversationRepository.save(newConv);
 
@@ -103,6 +105,10 @@ public class ConversationServiceImpl implements ConversationService {
             throw new BadRequestException(ErrorCode.BAD_REQUEST, "Danh sách thành viên không được rỗng");
         }
 
+        if (!distinctMemberIds.contains(currentUserId)) {
+            throw new BadRequestException(ErrorCode.BAD_REQUEST, "Danh sách thành viên phải bao gồm id của bản thân");
+        }
+
         List<Long> targetMemberIds = distinctMemberIds.stream()
                 .filter(id -> !id.equals(currentUserId))
                 .collect(Collectors.toList());
@@ -114,6 +120,7 @@ public class ConversationServiceImpl implements ConversationService {
                 .name(request.getName().trim())
                 .type(ConversationType.GROUP)
                 .status(ConversationStatus.ACTIVE)
+                .createdBy(currentUser)
                 .build();
         newConv = conversationRepository.save(newConv);
 
@@ -251,18 +258,24 @@ public class ConversationServiceImpl implements ConversationService {
     }
 
     private ConversationResponse mapToConversationResponse(Conversation conv, Long currentUserId) {
-        String lastMessageStr = null;
+        com.smartmart.dto.response.LastMessageResponse lastMessageObj = null;
         Page<Message> lastMessagePage = messageRepository.findByConversationIdOrderByCreatedAtDesc(conv.getId(),
                 PageRequest.of(0, 1));
         if (lastMessagePage.hasContent()) {
             Message msg = lastMessagePage.getContent().get(0);
+            String content;
             if (msg.getRecalled()) {
-                lastMessageStr = "Tin nhắn đã bị thu hồi";
+                content = "Tin nhắn đã bị thu hồi";
             } else if (msg.getMessageType() == MessageType.IMAGE) {
-                lastMessageStr = "[Hình ảnh]";
+                content = "[Hình ảnh]";
             } else {
-                lastMessageStr = msg.getContent();
+                content = msg.getContent();
             }
+            lastMessageObj = com.smartmart.dto.response.LastMessageResponse.builder()
+                    .content(content)
+                    .senderName(msg.getSender().getFullName())
+                    .createdAt(msg.getCreatedAt())
+                    .build();
         }
 
         String displayName = conv.getName();
@@ -284,7 +297,7 @@ public class ConversationServiceImpl implements ConversationService {
                 .status(conv.getStatus())
                 .lastMessageAt(conv.getLastMessageAt() != null ? conv.getLastMessageAt() : conv.getCreatedAt())
                 .createdAt(conv.getCreatedAt())
-                .lastMessage(lastMessageStr)
+                .lastMessage(lastMessageObj)
                 .unreadCount(0L)
                 .build();
     }

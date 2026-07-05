@@ -6,6 +6,11 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
+import org.springframework.data.redis.listener.ChannelTopic;
+import org.springframework.data.redis.listener.adapter.MessageListenerAdapter;
+import com.smartmart.config.ChatSubscriber;
+import com.smartmart.constant.RedisChannels;
 
 @Configuration
 public class RedisConfig {
@@ -26,5 +31,16 @@ public class RedisConfig {
 
         template.afterPropertiesSet();
         return template;
+    }
+
+    @Bean
+    public RedisMessageListenerContainer redisMessageListenerContainer(
+            RedisConnectionFactory connectionFactory,
+            ChatSubscriber chatSubscriber) {
+        RedisMessageListenerContainer container = new RedisMessageListenerContainer();
+        container.setConnectionFactory(connectionFactory);
+        // Using MessageListenerAdapter is not necessary if ChatSubscriber implements MessageListener directly.
+        container.addMessageListener(chatSubscriber, new ChannelTopic(RedisChannels.CHAT_EVENTS));
+        return container;
     }
 }

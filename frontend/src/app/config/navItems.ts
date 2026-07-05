@@ -31,6 +31,7 @@ import {
   Tag,
   Globe,
   CreditCard,
+  MessageSquare,
 } from 'lucide-react';
 import {
   CommentOutlined,
@@ -70,6 +71,12 @@ export const navGroups: NavGroup[] = [
     label: 'Tổng quan',
     flat: true,
     items: [{ key: 'dashboard', label: 'Bảng điều khiển', icon: LayoutDashboard }],
+  },
+  {
+    id: 'apps',
+    label: 'Ứng dụng',
+    flat: true,
+    items: [{ key: 'chat', label: 'Tin nhắn', icon: MessageSquare }],
   },
   {
     id: 'sales',

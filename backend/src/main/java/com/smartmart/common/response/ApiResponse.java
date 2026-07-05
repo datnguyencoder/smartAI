@@ -7,7 +7,6 @@ import lombok.*;
 import java.time.LocalDateTime;
 import java.util.Map;
 
-// Envelope REST chuẩn: success + data, hoặc errorCode (+ errors khi validation)
 @Getter
 @Setter
 @Builder

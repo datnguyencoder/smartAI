@@ -24,20 +24,25 @@ import com.smartmart.repository.chat.AttachmentRepository;
 import com.smartmart.repository.chat.ConversationParticipantRepository;
 import com.smartmart.repository.chat.ConversationRepository;
 import com.smartmart.repository.chat.MessageRepository;
+import com.smartmart.config.ChatEvent;
+import com.smartmart.enums.ChatEventType;
+import com.smartmart.config.ChatPublisher;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MessageServiceImpl implements MessageService {
 
     private final MessageRepository messageRepository;
@@ -45,12 +50,16 @@ public class MessageServiceImpl implements MessageService {
     private final ConversationParticipantRepository participantRepository;
     private final AttachmentRepository attachmentRepository;
     private final UserRepository userRepository;
+    private final com.smartmart.service.NotificationService notificationService;
+    private final ChatPublisher chatPublisher;
+    private final SimpMessagingTemplate messagingTemplate;
 
     private Conversation validateAndGetActiveConversation(Long conversationId, Long userId) {
         Conversation conv = conversationRepository.findByIdAndStatus(conversationId, ConversationStatus.ACTIVE)
                 .orElseThrow(() -> new BadRequestException(ErrorCode.CHAT_GROUP_DELETED));
 
-        boolean isParticipant = participantRepository.existsByConversationIdAndUserIdAndStatus(conversationId, userId, ParticipantStatus.ACTIVE);
+        boolean isParticipant = participantRepository.existsByConversationIdAndUserIdAndStatus(conversationId, userId,
+                ParticipantStatus.ACTIVE);
         if (!isParticipant) {
             throw new ForbiddenException(ErrorCode.CHAT_NOT_PARTICIPANT);
         }
@@ -75,7 +84,12 @@ public class MessageServiceImpl implements MessageService {
         conv.setLastMessageAt(LocalDateTime.now());
         conversationRepository.save(conv);
 
-        return mapToMessageResponse(msg);
+        sendNotificationToParticipants(msg);
+
+        MessageResponse response = mapToMessageResponse(msg);
+        broadcastEvent(ChatEventType.NEW_MESSAGE, conv.getId(), response);
+
+        return response;
     }
 
     @Override
@@ -105,20 +119,24 @@ public class MessageServiceImpl implements MessageService {
         conv.setLastMessageAt(LocalDateTime.now());
         conversationRepository.save(conv);
 
-        return mapToMessageResponse(msg);
+        sendNotificationToParticipants(msg);
+
+        MessageResponse response = mapToMessageResponse(msg);
+        broadcastEvent(ChatEventType.NEW_MESSAGE, conv.getId(), response);
+
+        return response;
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<MessageResponse> getMessages(Long conversationId, Long currentUserId, Pageable pageable) {
         validateAndGetActiveConversation(conversationId, currentUserId);
-        
+
         Page<Message> msgPage = messageRepository.findByConversationIdOrderByCreatedAtDesc(conversationId, pageable);
         List<MessageResponse> dtos = msgPage.getContent().stream()
                 .map(this::mapToMessageResponse)
                 .collect(Collectors.toList());
-        
-        Collections.reverse(dtos); // reverse to return oldest first
+
         return new PageImpl<>(dtos, pageable, msgPage.getTotalElements());
     }
 
@@ -136,8 +154,9 @@ public class MessageServiceImpl implements MessageService {
 
         msg.setRecalled(true);
         msg.setContent("Tin nhắn đã bị thu hồi");
-        // DO NOT set deletedAt
         messageRepository.save(msg);
+
+        broadcastEvent(ChatEventType.MESSAGE_RECALLED, msg.getConversation().getId(), mapToMessageResponse(msg));
     }
 
     @Override
@@ -163,6 +182,8 @@ public class MessageServiceImpl implements MessageService {
         msg.setContent(request.getContent().trim());
         // AuditableEntity will automatically update 'updatedAt'
         messageRepository.save(msg);
+
+        broadcastEvent(ChatEventType.MESSAGE_EDITED, msg.getConversation().getId(), mapToMessageResponse(msg));
     }
 
     @Override
@@ -191,7 +212,62 @@ public class MessageServiceImpl implements MessageService {
         conv.setLastMessageAt(LocalDateTime.now());
         conversationRepository.save(conv);
 
-        return mapToMessageResponse(msg);
+        sendNotificationToParticipants(msg);
+
+        MessageResponse response = mapToMessageResponse(msg);
+        broadcastEvent(ChatEventType.NEW_MESSAGE, conv.getId(), response);
+
+        return response;
+    }
+
+    private void broadcastEvent(ChatEventType type, Long conversationId, MessageResponse data) {
+        ChatEvent<MessageResponse> event = ChatEvent.<MessageResponse>builder()
+                .type(type)
+                .conversationId(conversationId)
+                .data(data)
+                .build();
+
+        // Direct WebSocket send (always works for single-instance)
+        String destination = "/topic/chat/" + conversationId;
+        log.info("Broadcasting {} to {}", type, destination);
+        messagingTemplate.convertAndSend(destination, event);
+
+        // Also publish to Redis for multi-instance (best-effort)
+        try {
+            chatPublisher.publish(event);
+        } catch (Exception e) {
+            log.warn("Redis publish failed (non-fatal for single instance): {}", e.getMessage());
+        }
+    }
+
+    private void sendNotificationToParticipants(Message msg) {
+        List<com.smartmart.entity.Chat.ConversationParticipant> participants = participantRepository
+                .findByConversationIdAndStatus(msg.getConversation().getId(), ParticipantStatus.ACTIVE);
+        for (com.smartmart.entity.Chat.ConversationParticipant p : participants) {
+            if (!p.getUser().getId().equals(msg.getSender().getId())) {
+                String title = msg.getConversation().getType() == com.smartmart.enums.ConversationType.GROUP
+                        ? msg.getConversation().getName()
+                        : msg.getSender().getFullName();
+
+                String content = msg.getMessageType() == MessageType.IMAGE ? "[Hình ảnh]" : msg.getContent();
+                notificationService.createNotification(
+                        p.getUser().getId(),
+                        title,
+                        content,
+                        msg.getConversation().getId(),
+                        com.smartmart.enums.NotificationType.MESSAGE,
+                        msg.getSender().getId());
+            }
+
+            // Realtime update for conversation list (notify all participants including sender across tabs)
+            String destination = "/topic/notifications/" + p.getUser().getId();
+            ChatEvent<MessageResponse> event = ChatEvent.<MessageResponse>builder()
+                    .type(ChatEventType.NEW_MESSAGE)
+                    .conversationId(msg.getConversation().getId())
+                    .data(mapToMessageResponse(msg))
+                    .build();
+            messagingTemplate.convertAndSend(destination, event);
+        }
     }
 
     private MessageResponse mapToMessageResponse(Message msg) {

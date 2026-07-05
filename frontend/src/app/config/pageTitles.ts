@@ -42,4 +42,5 @@ export const pageTitles: Record<PageKey, { title: string; description: string }>
     title: 'Nhật ký hệ thống',
     description: 'Theo dõi lịch sử thao tác, thay đổi dữ liệu và hoạt động người dùng.',
   },
+  chat: { title: 'Tin nhắn', description: 'Trò chuyện nội bộ.' },
 };

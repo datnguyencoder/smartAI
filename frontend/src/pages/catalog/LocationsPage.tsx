@@ -196,7 +196,7 @@ export default function LocationsPage({
         {selectedLoc && isEditing && (
           <Form form={form} layout="vertical" className="mt-4">
             <Form.Item name="parentId" label="Kho cha (Khu vực lớn)">
-              <Select disabled getPopupContainer={(trigger) => trigger.parentNode}>
+              <Select disabled getPopupContainer={(trigger: HTMLElement) => trigger.parentNode}>
                 <option value={selectedLoc.parentId}>{selectedLoc.parentId ? locations.find((l) => l.id === selectedLoc.parentId)?.locationName || selectedLoc.parentId : 'Không có'}</option>
               </Select>
             </Form.Item>

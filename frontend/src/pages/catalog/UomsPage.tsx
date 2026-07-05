@@ -45,7 +45,10 @@ const TEXT = {
 
 const RETAIL_GROUP = '\u0110\u01a1n v\u1ecb l\u1ebb';
 const PACKAGING_GROUP = '\u0110\u00f3ng g\u00f3i';
-const UOM_GROUP_OPTIONS = [{ value: RETAIL_GROUP }, { value: PACKAGING_GROUP }];
+const UOM_GROUP_OPTIONS = [
+  { label: RETAIL_GROUP, value: RETAIL_GROUP },
+  { label: PACKAGING_GROUP, value: PACKAGING_GROUP },
+];
 
 const normalizeUomGroup = (category?: string) => {
   const value = category?.trim().toUpperCase();

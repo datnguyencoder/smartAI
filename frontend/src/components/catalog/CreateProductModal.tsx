@@ -48,7 +48,7 @@ const pageTitles: Record<PageKey, { title: string }> = {
   settings: { title: 'Cài đặt hệ thống' },
   'scrap-orders': { title: 'Quản lý Yêu cầu loại bỏ hàng hóa' },
   'audit-logs': { title: 'Nhật ký hoạt động' },
-
+  chat: { title: 'Tin nhắn' },
 };
 
 const normalizeUomGroup = (category?: string) => {
