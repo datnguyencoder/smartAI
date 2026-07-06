@@ -2,16 +2,32 @@ package com.smartmart.repository;
 
 import com.smartmart.entity.ReturnOrder;
 import com.smartmart.enums.ReturnOrderStatus;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface ReturnOrderRepository extends JpaRepository<ReturnOrder, Long> {
+
+    @EntityGraph(attributePaths = {"originalOrder", "items", "items.item", "items.lot"})
+    @Query("SELECT ro FROM ReturnOrder ro WHERE ro.id = :id")
+    Optional<ReturnOrder> findWithDetailsById(@Param("id") Long id);
+
+    @EntityGraph(attributePaths = {"originalOrder", "items", "items.item", "items.lot"})
+    @Query("SELECT DISTINCT ro FROM ReturnOrder ro ORDER BY ro.id DESC")
+    List<ReturnOrder> findAllWithDetailsOrderByIdDesc();
+
+    @EntityGraph(attributePaths = {"originalOrder", "items", "items.item", "items.lot"})
+    @Query("SELECT DISTINCT ro FROM ReturnOrder ro WHERE ro.originalOrder.id = :originalOrderId ORDER BY ro.id DESC")
+    List<ReturnOrder> findByOriginalOrderIdWithDetailsOrderByIdDesc(@Param("originalOrderId") Long originalOrderId);
+
     List<ReturnOrder> findAllByOrderByIdDesc();
     List<ReturnOrder> findByOriginalOrderIdOrderByIdDesc(Long originalOrderId);
     boolean existsByOriginalOrderId(Long originalOrderId);
+
 
     @Query("""
         SELECT r FROM ReturnOrder r

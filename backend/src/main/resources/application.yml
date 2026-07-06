@@ -81,6 +81,8 @@ app:
   report:
     footer:
       text: ${REPORT_FOOTER_TEXT:BÁO CÁO NỘI BỘ - BẢO MẬT}
+  return-policy:
+    allowed-days: ${RETURN_ALLOWED_DAYS:7}
 
 cloudinary:
   cloud_name: ${CLOUDINARY_CLOUD_NAME:demo}

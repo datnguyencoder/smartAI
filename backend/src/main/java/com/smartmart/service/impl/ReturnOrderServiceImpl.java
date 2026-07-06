@@ -3,11 +3,9 @@ package com.smartmart.service.impl;
 import com.smartmart.constant.AuditAction;
 import com.smartmart.dto.request.CreateReturnOrderRequest;
 import com.smartmart.dto.request.ReturnLineRequest;
+import com.smartmart.dto.response.ReturnableOrderItemResponse;
 import com.smartmart.entity.*;
-import com.smartmart.enums.InventoryActionType;
-import com.smartmart.enums.OrderStatus;
-import com.smartmart.enums.ReferenceType;
-import com.smartmart.enums.ReturnOrderStatus;
+import com.smartmart.enums.*;
 import com.smartmart.exception.BadRequestException;
 import com.smartmart.exception.NotFoundException;
 import com.smartmart.repository.ItemLotRepository;
@@ -23,6 +21,7 @@ import com.smartmart.service.ReturnOrderService;
 import com.smartmart.util.AuditData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +38,8 @@ public class ReturnOrderServiceImpl implements ReturnOrderService {
 
     private static final Logger log = LoggerFactory.getLogger(ReturnOrderServiceImpl.class);
     private static final String DEFAULT_LOCATION = "Kho bán";
+    @Value("${app.return-policy.allowed-days:7}")
+    private int returnAllowedDays;
 
     private final ReturnOrderRepository returnOrderRepository;
     private final ReturnOrderItemRepository returnOrderItemRepository;
@@ -73,12 +74,8 @@ public class ReturnOrderServiceImpl implements ReturnOrderService {
     public ReturnOrder create(CreateReturnOrderRequest request) {
         Order original = orderRepository.findByIdWithItems(request.getOriginalOrderId())
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy hóa đơn gốc"));
-        if (original.getStatus() == OrderStatus.CANCELLED) {
-            throw new BadRequestException("Không thể trả hàng từ hóa đơn đã hủy");
-        }
-        if (original.getStatus() != OrderStatus.COMPLETED) {
-            throw new BadRequestException("Chỉ có thể trả hàng từ hóa đơn đã hoàn thành");
-        }
+
+        validateOriginalOrderReturnable(original);
 
         Location defaultLocation = locationRepository.findByLocationName(DEFAULT_LOCATION)
                 .orElseGet(() -> locationRepository.findAll().stream().findFirst()
@@ -103,24 +100,14 @@ public class ReturnOrderServiceImpl implements ReturnOrderService {
                 .build();
 
         BigDecimal refundTotal = BigDecimal.ZERO;
-        BigDecimal originalSubtotal = original.getItems().stream()
-                .map(OrderItem::getSubtotal)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal discountRatio = BigDecimal.ZERO;
-        if (originalSubtotal.compareTo(BigDecimal.ZERO) > 0 && original.getDiscountAmount() != null) {
-            discountRatio = original.getDiscountAmount()
-                    .divide(originalSubtotal, 8, RoundingMode.HALF_UP)
-                    .min(BigDecimal.ONE)
-                    .max(BigDecimal.ZERO);
-        }
-        if (discountRatio.compareTo(new BigDecimal("0.5")) > 0) {
-            log.warn("Return order for order#{} has unusually high discountRatio={} — " +
-                    "discount may include loyalty-point deduction which is not split on entity level. " +
-                    "Refund calculation may be imprecise.", original.getId(), discountRatio);
-        }
+        BigDecimal discountRatio = calculateDiscountRatio(original);
         Long userId = SecurityUtils.getCurrentUserId().orElse(null);
 
         for (ReturnLineRequest line : request.getItems()) {
+            if (line.getQuantity().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new BadRequestException("Số lượng trả phải lớn hơn 0");
+            }
+
             Item item = itemService.findItem(line.getItemId());
             ItemLot lot = resolveReturnLot(line, item, soldQty, soldItems);
             String key = item.getId() + "-" + (lot != null ? lot.getId() : "null");
@@ -132,12 +119,22 @@ public class ReturnOrderServiceImpl implements ReturnOrderService {
             OrderItem soldItem = soldItems.get(key);
             BigDecimal maxReturn = soldQty.get(key);
             BigDecimal alreadyReturned = returnOrderItemRepository.sumReturnedQty(
-                    original.getId(), item.getId(), lot != null ? lot.getId() : null);
+                    original.getId(),
+                    item.getId(),
+                    lot != null ? lot.getId() : null
+            );
+
             BigDecimal remaining = maxReturn.subtract(alreadyReturned);
+            if (remaining.compareTo(BigDecimal.ZERO) < 0) {
+                remaining = BigDecimal.ZERO;
+            }
+
             if (line.getQuantity().compareTo(remaining) > 0) {
                 throw new BadRequestException(
-                        "Số lượng trả vượt quá số còn lại có thể trả: " + item.getItemName()
-                                + " (còn " + remaining + ")");
+                        "Số lượng trả vượt quá số còn lại có thể trả: "
+                                + item.getItemName()
+                                + " (còn " + remaining + ")"
+                );
             }
 
             BigDecimal unitPrice = soldItem.getUnitPrice();
@@ -146,6 +143,7 @@ public class ReturnOrderServiceImpl implements ReturnOrderService {
                     .subtract(grossSubtotal.multiply(discountRatio))
                     .max(BigDecimal.ZERO)
                     .setScale(2, RoundingMode.HALF_UP);
+
             refundTotal = refundTotal.add(subtotal);
 
             returnOrder.getItems().add(ReturnOrderItem.builder()
@@ -155,21 +153,46 @@ public class ReturnOrderServiceImpl implements ReturnOrderService {
                     .quantity(line.getQuantity())
                     .unitPrice(unitPrice)
                     .subtotal(subtotal)
+                    .handlingAction(line.getHandlingAction())
                     .build());
-
-            Location restoreLocation = soldItem.getLocation() != null ? soldItem.getLocation() : defaultLocation;
-            inventoryLedgerService.applyMovement(
-                    item, restoreLocation, lot, line.getQuantity(),
-                    InventoryActionType.SALE_RETURN,
-                    ReferenceType.RETURN_ORDER,
-                    null,
-                    userId,
-                    "Trả hàng từ " + original.getOrderCode()
-            );
         }
 
         returnOrder.setRefundAmount(refundTotal);
         ReturnOrder saved = returnOrderRepository.save(returnOrder);
+
+        for (ReturnOrderItem returnedItem : saved.getItems()) {
+            if (returnedItem.getHandlingAction() != ReturnHandlingAction.RESTOCK) {
+                continue;
+            }
+
+            String key = returnedItem.getItem().getId() + "-"
+                    + (returnedItem.getLot() != null ? returnedItem.getLot().getId() : "null");
+
+            OrderItem soldItem = soldItems.get(key);
+            Location restoreLocation = soldItem != null && soldItem.getLocation() != null
+                    ? soldItem.getLocation()
+                    : defaultLocation;
+
+            inventoryLedgerService.applyMovement(
+                    returnedItem.getItem(),
+                    restoreLocation,
+                    returnedItem.getLot(),
+                    returnedItem.getQuantity(),
+                    InventoryActionType.SALE_RETURN,
+                    ReferenceType.RETURN_ORDER,
+                    saved.getId(),
+                    userId,
+                    "Trả hàng nhập lại kho từ " + original.getOrderCode()
+            );
+        }
+
+        long restockLines = saved.getItems().stream()
+                .filter(i -> i.getHandlingAction() == ReturnHandlingAction.RESTOCK)
+                .count();
+
+        long discardLines = saved.getItems().stream()
+                .filter(i -> i.getHandlingAction() == ReturnHandlingAction.DISCARD)
+                .count();
 
         auditLogService.log(
                 AuditAction.RETURN_CREATE,
@@ -177,9 +200,17 @@ public class ReturnOrderServiceImpl implements ReturnOrderService {
                 saved.getId().toString(),
                 "Tạo phiếu trả hàng #" + saved.getId() + " cho " + original.getOrderCode(),
                 null,
-                AuditData.of("refundAmount", saved.getRefundAmount(), "originalOrderId", original.getId())
+                AuditData.of(
+                        "refundAmount", saved.getRefundAmount(),
+                        "originalOrderId", original.getId(),
+                        "itemCount", saved.getItems().size(),
+                        "restockLines", restockLines,
+                        "discardLines", discardLines
+                )
         );
-        return saved;
+
+        return returnOrderRepository.findWithDetailsById(saved.getId())
+                .orElse(saved);
     }
 
     @Override
@@ -192,13 +223,61 @@ public class ReturnOrderServiceImpl implements ReturnOrderService {
     @Override
     @Transactional(readOnly = true)
     public List<ReturnOrder> listAll() {
-        return returnOrderRepository.findAllByOrderByIdDesc();
+        return returnOrderRepository.findAllWithDetailsOrderByIdDesc();
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<ReturnOrder> listByOriginalOrder(Long originalOrderId) {
-        return returnOrderRepository.findByOriginalOrderIdOrderByIdDesc(originalOrderId);
+        return returnOrderRepository.findByOriginalOrderIdWithDetailsOrderByIdDesc(originalOrderId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ReturnableOrderItemResponse> listReturnableItems(Long orderId) {
+        Order original = orderRepository.findByIdWithItems(orderId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy hóa đơn gốc"));
+
+        validateOriginalOrderReturnable(original);
+
+        BigDecimal discountRatio = calculateDiscountRatio(original);
+
+        return original.getItems().stream()
+                .map(orderItem -> {
+                    Item item = orderItem.getItem();
+                    ItemLot lot = orderItem.getLot();
+
+                    BigDecimal soldQuantity = orderItem.getQuantity();
+                    BigDecimal returnedQuantity = returnOrderItemRepository.sumReturnedQty(
+                            original.getId(),
+                            item.getId(),
+                            lot != null ? lot.getId() : null
+                    );
+
+                    BigDecimal remainingQuantity = soldQuantity.subtract(returnedQuantity);
+                    if (remainingQuantity.compareTo(BigDecimal.ZERO) < 0) {
+                        remainingQuantity = BigDecimal.ZERO;
+                    }
+
+                    BigDecimal grossRefund = orderItem.getUnitPrice().multiply(remainingQuantity);
+                    BigDecimal estimatedRefund = grossRefund
+                            .subtract(grossRefund.multiply(discountRatio))
+                            .max(BigDecimal.ZERO)
+                            .setScale(2, RoundingMode.HALF_UP);
+
+                    return ReturnableOrderItemResponse.builder()
+                            .itemId(item.getId())
+                            .itemName(item.getItemName())
+                            .lotId(lot != null ? lot.getId() : null)
+                            .lotNumber(lot != null ? lot.getLotNumber() : null)
+                            .soldQuantity(soldQuantity)
+                            .returnedQuantity(returnedQuantity)
+                            .remainingQuantity(remainingQuantity)
+                            .unitPrice(orderItem.getUnitPrice())
+                            .estimatedRefund(estimatedRefund)
+                            .build();
+                })
+                .toList();
     }
 
     /**
@@ -228,4 +307,40 @@ public class ReturnOrderServiceImpl implements ReturnOrderService {
         throw new BadRequestException(
                 "Sản phẩm " + item.getItemName() + " có nhiều lô trên hóa đơn — vui lòng chọn lô khi trả hàng");
     }
+    private void validateOriginalOrderReturnable(Order original) {
+        if (original.getStatus() == OrderStatus.CANCELLED) {
+            throw new BadRequestException("Không thể trả hàng từ hóa đơn đã hủy");
+        }
+
+        if (original.getStatus() != OrderStatus.COMPLETED) {
+            throw new BadRequestException("Chỉ có thể trả hàng từ hóa đơn đã hoàn thành");
+        }
+
+        LocalDateTime deadline = original.getOrderDate().plusDays(returnAllowedDays);
+        if (LocalDateTime.now().isAfter(deadline)) {
+            throw new BadRequestException("Đã quá thời hạn " + returnAllowedDays + " ngày để trả hàng");
+        }
+    }
+
+    private BigDecimal calculateDiscountRatio(Order original) {
+        BigDecimal originalSubtotal = original.getItems().stream()
+                .map(OrderItem::getSubtotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (originalSubtotal.compareTo(BigDecimal.ZERO) <= 0 || original.getDiscountAmount() == null) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal discountRatio = original.getDiscountAmount()
+                .divide(originalSubtotal, 8, RoundingMode.HALF_UP)
+                .min(BigDecimal.ONE)
+                .max(BigDecimal.ZERO);
+
+        if (discountRatio.compareTo(new BigDecimal("0.5")) > 0) {
+            log.warn("Return order for order#{} has unusually high discountRatio={}", original.getId(), discountRatio);
+        }
+
+        return discountRatio;
+    }
+
 }

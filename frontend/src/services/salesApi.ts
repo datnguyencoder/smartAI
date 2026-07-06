@@ -121,3 +121,4 @@ export function recordCustomerDebtPayment(id: number, payload: { amount: number;
     body: JSON.stringify(payload),
   });
 }
+

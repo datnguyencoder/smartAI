@@ -5,11 +5,16 @@ import { Plus, RotateCcw } from 'lucide-react';
 import { Card, CardHeader , Select } from '@/components/ui';
 import {
   createReturnOrder,
-  fetchOrderById,
   fetchOrdersPaged,
+  fetchReturnableOrderItems,
   fetchReturnOrders,
 } from '@/services/wmsApi';
-import type { OrderDto, OrderItemDto, ReturnOrderDto } from '@/types/api';
+import type {
+  OrderDto,
+  ReturnHandlingAction,
+  ReturnableOrderItemDto,
+  ReturnOrderDto,
+} from '@/types/api';
 
 const statusColor: Record<string, string> = {
   COMPLETED: 'green',
@@ -17,7 +22,36 @@ const statusColor: Record<string, string> = {
   CANCELLED: 'red',
 };
 
-type ReturnLine = { itemId: number; itemName: string; lotId?: number; maxQty: number; checked: boolean; qty: number };
+const handlingLabel: Record<ReturnHandlingAction, string> = {
+  RESTOCK: 'Nhập lại kho',
+  DISCARD: 'Hủy hàng',
+};
+
+type ReturnLine = {
+  itemId: number;
+  itemName: string;
+  lotId?: number;
+  lotNumber?: string;
+  soldQuantity: number;
+  returnedQuantity: number;
+  remainingQuantity: number;
+  unitPrice: number;
+  estimatedRefund: number;
+  checked: boolean;
+  qty: number;
+  handlingAction: ReturnHandlingAction;
+};
+
+function money(value?: number) {
+  return `${Number(value ?? 0).toLocaleString('vi-VN')} đ`;
+}
+
+function estimatedLineRefund(row: ReturnLine) {
+  const perUnitRefund = row.remainingQuantity > 0
+    ? row.estimatedRefund / row.remainingQuantity
+    : row.unitPrice;
+  return perUnitRefund * row.qty;
+}
 
 export default function ReturnOrdersPage() {
   const [orders, setOrders] = React.useState<ReturnOrderDto[]>([]);
@@ -28,6 +62,7 @@ export default function ReturnOrdersPage() {
   const [sourceOrderId, setSourceOrderId] = React.useState<number | null>(null);
   const [returnLines, setReturnLines] = React.useState<ReturnLine[]>([]);
   const [reason, setReason] = React.useState('');
+  const [note, setNote] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
   const [form] = Form.useForm();
 
@@ -52,6 +87,7 @@ export default function ReturnOrdersPage() {
     setSourceOrderId(null);
     setReturnLines([]);
     setReason('');
+    setNote('');
     form.resetFields();
     try {
       const res = await fetchOrdersPaged(0, 50, undefined, 'COMPLETED');
@@ -63,19 +99,31 @@ export default function ReturnOrdersPage() {
 
   const selectSourceOrder = async (orderId: number) => {
     setSourceOrderId(orderId);
+    setReturnLines([]);
     try {
-      const order = await fetchOrderById(orderId);
-      const lines: ReturnLine[] = (order.items ?? []).map((it: OrderItemDto) => ({
-        itemId: it.itemId ?? 0,
-        itemName: it.itemName,
-        lotId: it.lotId,
-        maxQty: it.quantity,
-        checked: false,
-        qty: it.quantity,
-      })).filter((l) => l.itemId > 0);
+      const items = await fetchReturnableOrderItems(orderId);
+      const lines: ReturnLine[] = (items ?? [])
+        .filter((it: ReturnableOrderItemDto) => Number(it.remainingQuantity) > 0)
+        .map((it: ReturnableOrderItemDto) => ({
+          itemId: it.itemId,
+          itemName: it.itemName,
+          lotId: it.lotId,
+          lotNumber: it.lotNumber,
+          soldQuantity: Number(it.soldQuantity),
+          returnedQuantity: Number(it.returnedQuantity),
+          remainingQuantity: Number(it.remainingQuantity),
+          unitPrice: Number(it.unitPrice),
+          estimatedRefund: Number(it.estimatedRefund),
+          checked: false,
+          qty: Number(it.remainingQuantity),
+          handlingAction: 'RESTOCK',
+        }));
       setReturnLines(lines);
+      if (lines.length === 0) {
+        message.info('Hóa đơn này không còn sản phẩm có thể trả');
+      }
     } catch (e) {
-      message.error(e instanceof Error ? e.message : 'Không tải chi tiết hóa đơn');
+      message.error(e instanceof Error ? e.message : 'Không tải được sản phẩm có thể trả');
     }
   };
 
@@ -86,14 +134,19 @@ export default function ReturnOrdersPage() {
     }
     const items = returnLines
       .filter((l) => l.checked && l.qty > 0)
-      .map((l) => ({ itemId: l.itemId, lotId: l.lotId, quantity: l.qty }));
+      .map((l) => ({
+        itemId: l.itemId,
+        lotId: l.lotId,
+        quantity: l.qty,
+        handlingAction: l.handlingAction,
+      }));
     if (items.length === 0) {
       message.warning('Chọn ít nhất 1 sản phẩm để trả');
       return;
     }
     setSubmitting(true);
     try {
-      await createReturnOrder({ originalOrderId: sourceOrderId, reason, items });
+      await createReturnOrder({ originalOrderId: sourceOrderId, reason, note, items });
       message.success('Tạo phiếu trả hàng thành công');
       setCreateOpen(false);
       load();
@@ -117,7 +170,7 @@ export default function ReturnOrdersPage() {
       title: 'Hoàn tiền',
       dataIndex: 'refundAmount',
       key: 'refundAmount',
-      render: (v: number) => `${Number(v).toLocaleString('vi-VN')} đ`,
+      render: (v: number) => money(v),
     },
     {
       title: 'Trạng thái',
@@ -152,36 +205,35 @@ export default function ReturnOrdersPage() {
           </div>
         }
       />
-      <Table
-        rowKey="id"
-        loading={loading}
-        dataSource={orders}
-        columns={columns}
-        pagination={{ pageSize: 15 }}
-      />
-      <Drawer
-        title={`Phiếu trả #${selected?.id}`}
-        open={!!selected}
-        onClose={() => setSelected(null)}
-        width={560}
-      >
+      <Table rowKey="id" loading={loading} dataSource={orders} columns={columns} pagination={{ pageSize: 15 }} />
+
+      <Drawer title={`Phiếu trả #${selected?.id}`} open={!!selected} onClose={() => setSelected(null)} width={640}>
         {selected && (
           <div className="space-y-4 text-sm">
             <p><strong>Hóa đơn gốc:</strong> {selected.originalOrderCode}</p>
-            <p><strong>Lý do:</strong> {selected.reason || '—'}</p>
-            <p><strong>Hoàn tiền:</strong> {Number(selected.refundAmount).toLocaleString('vi-VN')} đ</p>
+            <p><strong>Lý do:</strong> {selected.reason || '-'}</p>
+            <p><strong>Ghi chú:</strong> {selected.note || '-'}</p>
+            <p><strong>Hoàn tiền:</strong> {money(selected.refundAmount)}</p>
             <Table
               size="small"
               pagination={false}
-              rowKey="itemId"
+              rowKey={(row) => `${row.itemId}-${row.lotId ?? 0}`}
               dataSource={selected.items}
               columns={[
                 { title: 'Sản phẩm', dataIndex: 'itemName' },
-                { title: 'SL', dataIndex: 'quantity', width: 60 },
+                { title: 'Lô', dataIndex: 'lotNumber', width: 120, render: (v?: string) => v || '-' },
+                { title: 'SL', dataIndex: 'quantity', width: 70 },
+                {
+                  title: 'Xử lý',
+                  dataIndex: 'handlingAction',
+                  width: 120,
+                  render: (v?: ReturnHandlingAction) => v ? handlingLabel[v] : '-',
+                },
                 {
                   title: 'Thành tiền',
                   dataIndex: 'subtotal',
-                  render: (v: number) => `${Number(v).toLocaleString('vi-VN')} đ`,
+                  width: 120,
+                  render: (v: number) => money(v),
                 },
               ]}
             />
@@ -195,7 +247,7 @@ export default function ReturnOrdersPage() {
         onCancel={() => setCreateOpen(false)}
         onOk={handleCreate}
         confirmLoading={submitting}
-        width={720}
+        width={980}
       >
         <Form form={form} layout="vertical">
           <Form.Item label="Hóa đơn gốc" required>
@@ -206,7 +258,7 @@ export default function ReturnOrdersPage() {
               onChange={selectSourceOrder}
               options={sourceOrders.map((o) => ({
                 value: o.id,
-                label: `${o.orderCode} · ${o.customerName} · ${Number(o.totalAmount).toLocaleString('vi-VN')}đ`,
+                label: `${o.orderCode} - ${o.customerName} - ${money(o.totalAmount)}`,
               }))}
               optionFilterProp="label"
             />
@@ -214,7 +266,11 @@ export default function ReturnOrdersPage() {
           <Form.Item label="Lý do trả hàng">
             <Input.TextArea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
           </Form.Item>
+          <Form.Item label="Ghi chú">
+            <Input.TextArea rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
+          </Form.Item>
         </Form>
+
         {returnLines.length > 0 && (
           <Table
             size="small"
@@ -236,25 +292,62 @@ export default function ReturnOrdersPage() {
                   />
                 ),
               },
-              { title: 'Sản phẩm', dataIndex: 'itemName' },
+              {
+                title: 'Sản phẩm',
+                dataIndex: 'itemName',
+                render: (_: unknown, row: ReturnLine) => (
+                  <div>
+                    <div className="font-medium">{row.itemName}</div>
+                    <div className="text-xs text-slate-500">Lô: {row.lotNumber || '-'}</div>
+                  </div>
+                ),
+              },
+              { title: 'Đã mua', dataIndex: 'soldQuantity', width: 90 },
+              { title: 'Đã trả', dataIndex: 'returnedQuantity', width: 90 },
+              { title: 'Còn trả', dataIndex: 'remainingQuantity', width: 90 },
               {
                 title: 'SL trả',
-                width: 100,
+                width: 110,
                 render: (_: unknown, row: ReturnLine, idx: number) => (
                   <InputNumber
                     min={1}
-                    max={row.maxQty}
+                    max={row.remainingQuantity}
                     value={row.qty}
                     disabled={!row.checked}
                     onChange={(v) => {
+                      const qty = Math.min(Number(v) || 1, row.remainingQuantity);
                       const next = [...returnLines];
-                      next[idx] = { ...row, qty: Number(v) || 1 };
+                      next[idx] = { ...row, qty };
                       setReturnLines(next);
                     }}
                   />
                 ),
               },
-              { title: 'Tối đa', dataIndex: 'maxQty', width: 70 },
+              {
+                title: 'Xử lý',
+                width: 150,
+                render: (_: unknown, row: ReturnLine, idx: number) => (
+                  <Select
+                    value={row.handlingAction}
+                    disabled={!row.checked}
+                    style={{ width: 130 }}
+                    options={[
+                      { value: 'RESTOCK', label: 'Nhập lại kho' },
+                      { value: 'DISCARD', label: 'Hủy hàng' },
+                    ]}
+                    onChange={(value: ReturnHandlingAction) => {
+                      const next = [...returnLines];
+                      next[idx] = { ...row, handlingAction: value };
+                      setReturnLines(next);
+                    }}
+                  />
+                ),
+              },
+              {
+                title: 'Hoàn dự kiến',
+                width: 130,
+                render: (_: unknown, row: ReturnLine) => money(estimatedLineRefund(row)),
+              },
             ]}
           />
         )}

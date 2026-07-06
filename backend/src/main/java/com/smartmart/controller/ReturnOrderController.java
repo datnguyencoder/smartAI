@@ -3,6 +3,7 @@ package com.smartmart.controller;
 import com.smartmart.common.response.ApiResponse;
 import com.smartmart.dto.request.CreateReturnOrderRequest;
 import com.smartmart.dto.response.ReturnOrderResponse;
+import com.smartmart.dto.response.ReturnableOrderItemResponse;
 import com.smartmart.mapper.WmsResponseMapper;
 import com.smartmart.service.ReturnOrderService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -59,5 +60,12 @@ public class ReturnOrderController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Tạo phiếu trả hàng thành công",
                         WmsResponseMapper.toReturnOrderResponse(returnOrderService.create(request))));
+    }
+
+    @GetMapping("/returnable-items/{orderId}")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF')")
+    @Operation(summary = "Danh sách sản phẩm còn được trả theo hóa đơn")
+    public ResponseEntity<ApiResponse<List<ReturnableOrderItemResponse>>> listReturnableItems(@PathVariable Long orderId) {
+        return ResponseEntity.ok(ApiResponse.success(returnOrderService.listReturnableItems(orderId)));
     }
 }
