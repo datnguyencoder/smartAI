@@ -19,3 +19,5 @@ app:
     base-url: http://localhost:8000
   gemini:
     api-key: ""
+  return-policy:
+    allowed-days: ${RETURN_ALLOWED_DAYS:7}

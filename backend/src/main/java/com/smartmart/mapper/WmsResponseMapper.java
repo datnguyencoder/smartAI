@@ -156,6 +156,7 @@ public final class WmsResponseMapper {
                                                 .lotNumber(i.getLot() != null ? i.getLot().getLotNumber() : null)
                                                 .quantity(i.getQuantity())
                                                 .unitPrice(i.getUnitPrice())
+                                                .handlingAction(i.getHandlingAction())
                                                 .subtotal(i.getSubtotal())
                                                 .build())
                                 .toList();

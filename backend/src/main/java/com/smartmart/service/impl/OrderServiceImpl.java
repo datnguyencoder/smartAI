@@ -45,7 +45,7 @@ import java.util.List;
 @Transactional
 public class OrderServiceImpl implements OrderService {
 
-    private static final String DEFAULT_LOCATION = "Kho bán";
+    private static final String DEFAULT_LOCATION = "Kho bÃ¡n";
 
     private final OrderRepository orderRepository;
     private final ItemService itemService;
@@ -96,25 +96,25 @@ public class OrderServiceImpl implements OrderService {
         this.settingService = settingService;
     }
 
-    // POS: tạo hóa đơn, FEFO trừ tồn, publish event cảnh báo tồn
+    // POS: táº¡o hÃ³a Ä‘Æ¡n, FEFO trá»« tá»“n, publish event cáº£nh bÃ¡o tá»“n
     @Override
     @CacheEvict(value = { "items", "itemsPage", "dashboardSummary", "dashboardRevenue" }, allEntries = true)
     public OrderResponse create(CreateOrderRequest request) {
         Location location = locationRepository.findByLocationName(DEFAULT_LOCATION)
                 .orElseGet(() -> locationRepository.findAll().stream().findFirst()
                         .orElseThrow(() -> new BadRequestException(
-                                "Hệ thống chưa có bất kỳ kho nào. Vui lòng tạo kho trước khi bán hàng.")));
+                                "Há»‡ thá»‘ng chÆ°a cÃ³ báº¥t ká»³ kho nÃ o. Vui lÃ²ng táº¡o kho trÆ°á»›c khi bÃ¡n hÃ ng.")));
 
         Long userId = SecurityUtils.getCurrentUserId().orElse(null);
         String orderCode = "HD-" + System.currentTimeMillis();
 
-        String customerName = request.getCustomerName() != null ? request.getCustomerName() : "Khách lẻ";
+        String customerName = request.getCustomerName() != null ? request.getCustomerName() : "KhÃ¡ch láº»";
         Customer customer = customerService.findOrCreateByPhone(request.getCustomerPhone(), customerName);
         if (customer != null) {
             customerName = customer.getFullName();
         }
         if (request.getPaymentMethod() == PaymentMethod.PAY_LATER && customer == null) {
-            throw new BadRequestException("Cần SĐT khách hàng hợp lệ để bán ghi nợ");
+            throw new BadRequestException("Cáº§n SÄT khÃ¡ch hÃ ng há»£p lá»‡ Ä‘á»ƒ bÃ¡n ghi ná»£");
         }
 
         Order order = Order.builder()
@@ -142,7 +142,7 @@ public class OrderServiceImpl implements OrderService {
         for (OrderLineRequest line : request.getItems()) {
             Item item = itemService.findItem(line.getItemId());
             if (!item.isActive()) {
-                throw new BadRequestException("Sản phẩm không hoạt động: " + item.getItemName());
+                throw new BadRequestException("Sáº£n pháº©m khÃ´ng hoáº¡t Ä‘á»™ng: " + item.getItemName());
             }
 
             List<InventoryLedgerService.LotAllocation> allocations = inventoryLedgerService.allocateFefo(item, location,
@@ -156,7 +156,7 @@ public class OrderServiceImpl implements OrderService {
                         ReferenceType.ORDER,
                         null,
                         userId,
-                        "POS bán hàng");
+                        "POS bÃ¡n hÃ ng");
 
                 BigDecimal subtotal = item.getSellingPrice().multiply(alloc.quantity());
                 OrderItem oi = OrderItem.builder()
@@ -183,7 +183,7 @@ public class OrderServiceImpl implements OrderService {
         int loyaltyRedeemed = request.getLoyaltyPointsRedeemed() != null ? request.getLoyaltyPointsRedeemed() : 0;
         if (loyaltyRedeemed > 0
                 && (customer == null || request.getCustomerPhone() == null || request.getCustomerPhone().isBlank())) {
-            throw new BadRequestException("Cần SĐT khách hàng hợp lệ để đổi điểm tích lũy");
+            throw new BadRequestException("Cáº§n SÄT khÃ¡ch hÃ ng há»£p lá»‡ Ä‘á»ƒ Ä‘á»•i Ä‘iá»ƒm tÃ­ch lÅ©y");
         }
         if (loyaltyRedeemed > 0 && customer != null) {
             BigDecimal loyaltyDiscount = customerService.redeemPoints(customer.getId(), loyaltyRedeemed);
@@ -196,16 +196,16 @@ public class OrderServiceImpl implements OrderService {
         order.getItems().addAll(orderItems);
 
         if (request.getPaymentMethod() == PaymentMethod.PAY_LATER) {
-            // Công nợ khách được tạo sau khi order lưu thành công, không ghi nhận payment
-            // thu tiền ngay.
+            // CÃ´ng ná»£ khÃ¡ch Ä‘Æ°á»£c táº¡o sau khi order lÆ°u thÃ nh cÃ´ng, khÃ´ng ghi nháº­n payment
+            // thu tiá»n ngay.
         } else if (request.getPayments() != null && !request.getPayments().isEmpty()) {
             BigDecimal paymentSum = request.getPayments().stream()
                     .map(p -> p.getAmount())
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             if (paymentSum.compareTo(order.getTotalAmount()) < 0) {
                 throw new BadRequestException(
-                        "Số tiền thanh toán (" + paymentSum + ") không đủ so với tổng đơn: " + order.getTotalAmount()
-                                + ". Với tiền mặt, khách được thối lại phần dư.");
+                        "Sá»‘ tiá»n thanh toÃ¡n (" + paymentSum + ") khÃ´ng Ä‘á»§ so vá»›i tá»•ng Ä‘Æ¡n: " + order.getTotalAmount()
+                                + ". Vá»›i tiá»n máº·t, khÃ¡ch Ä‘Æ°á»£c thá»‘i láº¡i pháº§n dÆ°.");
             }
             for (OrderPaymentRequest pay : request.getPayments()) {
                 order.getPayments().add(OrderPayment.builder()
@@ -250,7 +250,7 @@ public class OrderServiceImpl implements OrderService {
                 AuditAction.ORDER_CREATE,
                 "ORDER",
                 saved.getId().toString(),
-                "Tạo hóa đơn: " + saved.getOrderCode(),
+                "Táº¡o hÃ³a Ä‘Æ¡n: " + saved.getOrderCode(),
                 null,
                 AuditData.of(
                         "orderCode", saved.getOrderCode(),
@@ -270,7 +270,7 @@ public class OrderServiceImpl implements OrderService {
                 && !SecurityUtils.hasAnyRole("ADMIN", "MANAGER");
         if (staffOnly) {
             Long userId = SecurityUtils.getCurrentUserId()
-                    .orElseThrow(() -> new ForbiddenException("Không xác định được người dùng"));
+                    .orElseThrow(() -> new ForbiddenException("KhÃ´ng xÃ¡c Ä‘á»‹nh Ä‘Æ°á»£c ngÆ°á»i dÃ¹ng"));
             return orderRepository.findByCreatedByWithItems(userId).stream().map(this::toResponse).toList();
         }
         return orderRepository.findAllWithItems().stream().map(this::toResponse).toList();
@@ -282,12 +282,32 @@ public class OrderServiceImpl implements OrderService {
             OrderStatus status, java.time.LocalDateTime fromDate, java.time.LocalDateTime toDate) {
         org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size,
                 org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id"));
-        org.springframework.data.domain.Page<Order> orderPage = orderRepository.searchOrders(
-                (search != null && !search.trim().isEmpty()) ? search.trim() : null,
-                status,
-                fromDate,
-                toDate,
-                pageable);
+        String keyword = (search != null && !search.trim().isEmpty()) ? search.trim().toLowerCase() : null;
+
+        org.springframework.data.jpa.domain.Specification<Order> spec = (root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+
+            if (status != null) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+            if (keyword != null) {
+                String pattern = "%" + keyword + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("orderCode")), pattern),
+                        cb.like(cb.lower(root.get("customerName")), pattern)
+                ));
+            }
+            if (fromDate != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("orderDate"), fromDate));
+            }
+            if (toDate != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("orderDate"), toDate));
+            }
+
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+
+        org.springframework.data.domain.Page<Order> orderPage = orderRepository.findAll(spec, pageable);
         return orderPage.map(this::toResponse);
     }
 
@@ -295,7 +315,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(readOnly = true)
     public OrderResponse getById(Long id) {
         Order order = orderRepository.findByIdWithItems(id)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy hóa đơn"));
+                .orElseThrow(() -> new NotFoundException("KhÃ´ng tÃ¬m tháº¥y hÃ³a Ä‘Æ¡n"));
         assertStaffCanAccessOrder(order);
         return toResponse(order);
     }
@@ -307,9 +327,9 @@ public class OrderServiceImpl implements OrderService {
             return;
         }
         Long userId = SecurityUtils.getCurrentUserId()
-                .orElseThrow(() -> new ForbiddenException("Không xác định được người dùng"));
+                .orElseThrow(() -> new ForbiddenException("KhÃ´ng xÃ¡c Ä‘á»‹nh Ä‘Æ°á»£c ngÆ°á»i dÃ¹ng"));
         if (order.getCreatedBy() == null || !order.getCreatedBy().equals(userId)) {
-            throw new ForbiddenException("Bạn không có quyền xem hóa đơn này");
+            throw new ForbiddenException("Báº¡n khÃ´ng cÃ³ quyá»n xem hÃ³a Ä‘Æ¡n nÃ y");
         }
     }
 
@@ -317,10 +337,10 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(readOnly = true)
     public OrderPrintResponse getPrint(Long id) {
         Order order = orderRepository.findByIdWithItems(id)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy hóa đơn"));
+                .orElseThrow(() -> new NotFoundException("KhÃ´ng tÃ¬m tháº¥y hÃ³a Ä‘Æ¡n"));
         assertStaffCanAccessOrder(order);
 
-        String staffName = "Nhân viên";
+        String staffName = "NhÃ¢n viÃªn";
         if (order.getCreatedBy() != null) {
             staffName = userRepository.findById(order.getCreatedBy())
                     .map(u -> u.getFullName() != null ? u.getFullName() : u.getUsername())
@@ -358,7 +378,7 @@ public class OrderServiceImpl implements OrderService {
         BigDecimal discount = order.getDiscountAmount() != null ? order.getDiscountAmount()
                 : BigDecimal.ZERO;
 
-        // VAT-inclusive: vatAmount = total × vatRate / (1 + vatRate). Default 0 (no VAT
+        // VAT-inclusive: vatAmount = total Ã— vatRate / (1 + vatRate). Default 0 (no VAT
         // shown).
         BigDecimal vatRateVal;
         try {
@@ -389,9 +409,9 @@ public class OrderServiceImpl implements OrderService {
                 .loyaltyPointsRedeemed(order.getLoyaltyPointsRedeemed())
                 .shiftId(order.getShift() != null ? order.getShift().getId() : null)
                 .storeName(settingService.getValue("store_name", "SMARTMART AI"))
-                .storeAddress(settingService.getValue("store_address", "TP. Hồ Chí Minh"))
+                .storeAddress(settingService.getValue("store_address", "TP. Há»“ ChÃ­ Minh"))
                 .storePhone(settingService.getValue("store_phone", ""))
-                .receiptFooter(settingService.getValue("receipt_footer", "Cảm ơn quý khách và hẹn gặp lại"))
+                .receiptFooter(settingService.getValue("receipt_footer", "Cáº£m Æ¡n quÃ½ khÃ¡ch vÃ  háº¹n gáº·p láº¡i"))
                 .paperWidth(settingService.getValue("receipt_paper_width", "80mm"))
                 .payments(paymentLines)
                 .items(lines)
@@ -402,18 +422,18 @@ public class OrderServiceImpl implements OrderService {
     @CacheEvict(value = { "items", "itemsPage", "dashboardSummary", "dashboardRevenue" }, allEntries = true)
     public OrderResponse cancel(Long id) {
         Order order = orderRepository.findByIdWithItems(id)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy hóa đơn"));
+                .orElseThrow(() -> new NotFoundException("KhÃ´ng tÃ¬m tháº¥y hÃ³a Ä‘Æ¡n"));
         String beforeData = AuditData.of(
                 "status", order.getStatus());
         if (order.getStatus() == OrderStatus.CANCELLED) {
-            throw new BadRequestException("Hóa đơn đã hủy");
+            throw new BadRequestException("HÃ³a Ä‘Æ¡n Ä‘Ã£ há»§y");
         }
         if (returnOrderRepository.existsByOriginalOrderId(order.getId())) {
-            throw new BadRequestException("Hóa đơn đã phát sinh trả hàng, không thể hủy trực tiếp");
+            throw new BadRequestException("HÃ³a Ä‘Æ¡n Ä‘Ã£ phÃ¡t sinh tráº£ hÃ ng, khÃ´ng thá»ƒ há»§y trá»±c tiáº¿p");
         }
         Location fallbackLocation = locationRepository.findByLocationName(DEFAULT_LOCATION)
                 .orElseGet(() -> locationRepository.findAll().stream().findFirst()
-                        .orElseThrow(() -> new BadRequestException("Hệ thống chưa có bất kỳ kho nào.")));
+                        .orElseThrow(() -> new BadRequestException("Há»‡ thá»‘ng chÆ°a cÃ³ báº¥t ká»³ kho nÃ o.")));
         Long userId = SecurityUtils.getCurrentUserId().orElse(null);
 
         for (OrderItem line : order.getItems()) {
@@ -425,7 +445,7 @@ public class OrderServiceImpl implements OrderService {
                     ReferenceType.ORDER,
                     order.getId(),
                     userId,
-                    "Hủy hóa đơn");
+                    "Há»§y hÃ³a Ä‘Æ¡n");
         }
         order.setStatus(OrderStatus.CANCELLED);
         Order saved = orderRepository.save(order);
@@ -434,7 +454,7 @@ public class OrderServiceImpl implements OrderService {
                 AuditAction.ORDER_CANCEL,
                 "ORDER",
                 saved.getId().toString(),
-                "Hủy hóa đơn: " + saved.getOrderCode(),
+                "Há»§y hÃ³a Ä‘Æ¡n: " + saved.getOrderCode(),
                 beforeData,
                 AuditData.of("status", saved.getStatus()));
 
@@ -486,11 +506,11 @@ public class OrderServiceImpl implements OrderService {
                         .subtotal(i.getSubtotal())
                         .build())
                 .toList();
-        String cashierName = "Hệ thống";
+        String cashierName = "Há»‡ thá»‘ng";
         if (order.getCreatedBy() != null) {
             cashierName = userRepository.findById(order.getCreatedBy())
                     .map(u -> u.getFullName() != null ? u.getFullName() : u.getUsername())
-                    .orElse("Hệ thống");
+                    .orElse("Há»‡ thá»‘ng");
         }
 
         BigDecimal subtotalBeforeDiscount = order.getItems().stream()

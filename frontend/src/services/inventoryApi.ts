@@ -4,7 +4,9 @@ import type {
   InventoryItemDto,
   InventoryLogDto,
   PageResponseDto,
+  ReturnHandlingAction,
   ReturnOrderDto,
+  ReturnableOrderItemDto,
   ScrapOrderDto,
   StocktakeDto,
 } from '@/types/api';
@@ -119,11 +121,15 @@ export function fetchReturnOrders() {
   return apiRequest<ReturnOrderDto[]>('/api/v1/return-orders');
 }
 
+export function fetchReturnableOrderItems(orderId: number) {
+  return apiRequest<ReturnableOrderItemDto[]>(`/api/v1/return-orders/returnable-items/${orderId}`);
+}
+
 export function createReturnOrder(payload: {
   originalOrderId: number;
   reason?: string;
   note?: string;
-  items: { itemId: number; lotId?: number; quantity: number }[];
+  items: { itemId: number; lotId?: number; quantity: number; handlingAction?: ReturnHandlingAction }[];
 }) {
   return apiRequest<ReturnOrderDto>('/api/v1/return-orders', { method: 'POST', body: JSON.stringify(payload) });
 }

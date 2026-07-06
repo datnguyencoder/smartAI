@@ -1,5 +1,6 @@
 package com.smartmart.dto.request;
 
+import com.smartmart.enums.ReturnHandlingAction;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.Getter;
@@ -16,4 +17,6 @@ public class ReturnLineRequest {
     @NotNull
     @Positive
     private BigDecimal quantity;
+    @NotNull
+    private ReturnHandlingAction handlingAction;
 }

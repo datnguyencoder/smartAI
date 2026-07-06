@@ -601,6 +601,20 @@ export type StocktakeDto = {
   items: StocktakeItemDto[];
 };
 
+export type ReturnHandlingAction = 'RESTOCK' | 'DISCARD';
+
+export type ReturnableOrderItemDto = {
+  itemId: number;
+  itemName: string;
+  lotId?: number;
+  lotNumber?: string;
+  soldQuantity: number;
+  returnedQuantity: number;
+  remainingQuantity: number;
+  unitPrice: number;
+  estimatedRefund: number;
+};
+
 export type ReturnOrderItemDto = {
   itemId: number;
   itemName: string;
@@ -609,6 +623,7 @@ export type ReturnOrderItemDto = {
   quantity: number;
   unitPrice: number;
   subtotal: number;
+  handlingAction?: ReturnHandlingAction;
 };
 
 export type ReturnOrderDto = {

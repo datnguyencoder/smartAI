@@ -1,5 +1,6 @@
 package com.smartmart.entity;
 
+import com.smartmart.enums.ReturnHandlingAction;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -38,4 +39,8 @@ public class ReturnOrderItem {
 
     @Column(nullable = false)
     private BigDecimal subtotal;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "handling_action", nullable = false)
+    private ReturnHandlingAction handlingAction;
 }
