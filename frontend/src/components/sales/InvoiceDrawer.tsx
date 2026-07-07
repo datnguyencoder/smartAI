@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Modal, Button, message as antdMessage, InputNumber, Input, Checkbox, Tag, Divider, Table } from 'antd';
+import { Modal, Button, message as antdMessage, InputNumber, Input, Checkbox, Tag, Divider, Table, Select } from 'antd';
 import {
   PrinterOutlined,
   RollbackOutlined,
@@ -13,7 +13,7 @@ import { normalizeRole } from '@/lib/permissions';
 import { buildPrintHtml } from '@/lib/printReceipt';
 import { cancelOrder, createReturnOrder, fetchOrderById, fetchOrderPrint } from '@/services/wmsApi';
 import { StatusChip } from '@/components/ui';
-import type { UserDto } from '@/types/api';
+import type { ReturnHandlingAction, UserDto } from '@/types/api';
 
 export type InvoiceView = {
   key: string;
@@ -56,7 +56,7 @@ export function InvoiceDrawer({ invoice, authUser, onClose, onCancelled }: Props
   const canReturn = role === 'ROLE_ADMIN' || role === 'ROLE_MANAGER' || role === 'ROLE_STAFF';
   const [returnOpen, setReturnOpen] = useState(false);
   const [returnReason, setReturnReason] = useState('');
-  const [returnLines, setReturnLines] = useState<Record<number, { checked: boolean; qty: number }>>({});
+  const [returnLines, setReturnLines] = useState<Record<number, { checked: boolean; qty: number; handlingAction: ReturnHandlingAction }>>({});
   const [detailItems, setDetailItems] = useState<InvoiceView['items']>([]);
 
   React.useEffect(() => {
@@ -87,9 +87,9 @@ export function InvoiceDrawer({ invoice, authUser, onClose, onCancelled }: Props
 
   React.useEffect(() => {
     if (!lineItems?.length) return;
-    const init: Record<number, { checked: boolean; qty: number }> = {};
+    const init: Record<number, { checked: boolean; qty: number; handlingAction: ReturnHandlingAction }> = {};
     lineItems.forEach((it, idx) => {
-      init[idx] = { checked: false, qty: it.qty };
+      init[idx] = { checked: false, qty: it.qty, handlingAction: 'DISCARD' };
     });
     setReturnLines(init);
   }, [invoice?.orderId, detailItems]);
@@ -126,6 +126,10 @@ export function InvoiceDrawer({ invoice, authUser, onClose, onCancelled }: Props
 
   const handleReturn = async () => {
     if (!invoice?.orderId || !lineItems) return;
+    if (!returnReason.trim()) {
+      antdMessage.warning('Vui lòng nhập lý do trả hàng');
+      return;
+    }
     const items = lineItems
       .map((it, idx) => ({ it, idx }))
       .filter(({ idx }) => returnLines[idx]?.checked)
@@ -133,6 +137,7 @@ export function InvoiceDrawer({ invoice, authUser, onClose, onCancelled }: Props
         itemId: it.itemId ?? 0,
         lotId: it.lotId,
         quantity: returnLines[idx]?.qty || it.qty,
+        handlingAction: returnLines[idx]?.handlingAction || 'DISCARD',
       }))
       .filter((l) => l.itemId > 0 && l.quantity > 0);
 
@@ -141,7 +146,7 @@ export function InvoiceDrawer({ invoice, authUser, onClose, onCancelled }: Props
       return;
     }
     try {
-      await createReturnOrder({ originalOrderId: invoice.orderId, reason: returnReason, items });
+      await createReturnOrder({ originalOrderId: invoice.orderId, reason: returnReason.trim(), items });
       antdMessage.success('Tạo phiếu trả hàng thành công');
       setReturnOpen(false);
       onCancelled?.();
@@ -351,7 +356,11 @@ export function InvoiceDrawer({ invoice, authUser, onClose, onCancelled }: Props
                 onChange={(e) =>
                   setReturnLines({
                     ...returnLines,
-                    [idx]: { checked: e.target.checked, qty: returnLines[idx]?.qty || it.qty },
+                    [idx]: {
+                      checked: e.target.checked,
+                      qty: returnLines[idx]?.qty || it.qty,
+                      handlingAction: returnLines[idx]?.handlingAction || 'DISCARD',
+                    },
                   })
                 }
               />
@@ -366,10 +375,34 @@ export function InvoiceDrawer({ invoice, authUser, onClose, onCancelled }: Props
                 onChange={(v) =>
                   setReturnLines({
                     ...returnLines,
-                    [idx]: { checked: returnLines[idx]?.checked ?? false, qty: Number(v) || 1 },
+                    [idx]: {
+                      checked: returnLines[idx]?.checked ?? false,
+                      qty: Number(v) || 1,
+                      handlingAction: returnLines[idx]?.handlingAction || 'DISCARD',
+                    },
                   })
                 }
                 style={{ width: 70 }}
+              />
+              <Select
+                size="small"
+                value={returnLines[idx]?.handlingAction || 'DISCARD'}
+                disabled={!returnLines[idx]?.checked}
+                style={{ width: 120 }}
+                options={[
+                  { value: 'DISCARD', label: 'Hủy hàng' },
+                  { value: 'RESTOCK', label: 'Nhập lại kho' },
+                ]}
+                onChange={(value: ReturnHandlingAction) =>
+                  setReturnLines({
+                    ...returnLines,
+                    [idx]: {
+                      checked: returnLines[idx]?.checked ?? false,
+                      qty: returnLines[idx]?.qty || it.qty,
+                      handlingAction: value,
+                    },
+                  })
+                }
               />
             </div>
           ))}
