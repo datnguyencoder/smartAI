@@ -83,6 +83,8 @@ function applySellableStock(product: Product, stock?: number) {
   return next;
 }
 
+const QUICK_CASH_AMOUNTS = [10000, 20000, 50000, 100000, 200000, 500000];
+
 const paymentOptions = [
   { value: 'CASH', label: 'Tiền mặt', hotkey: 'F9', icon: Banknote },
   { value: 'BANK_TRANSFER', label: 'Chuyển khoản', hotkey: 'F10', icon: CreditCard },
@@ -299,6 +301,7 @@ export default function PosPage({
   }, [promotionCode, subtotal]);
 
   const total = Math.max(0, subtotal - promoDiscount - loyaltyRedeem);
+  const cashChange = Math.max(0, cashReceived - total);
   const expectedLoyaltyEarn = customerPhone.trim() ? Math.floor(total / 1000) : 0;
   const maxLoyaltyRedeem = loyaltyCustomer
     ? Math.min(loyaltyCustomer.loyaltyPoints, Math.max(0, subtotal - promoDiscount))
@@ -952,20 +955,52 @@ export default function PosPage({
             )}
 
             {!splitPayment && paymentMethod === 'CASH' && (
-              <div className="grid grid-cols-2 gap-2 rounded-lg border border-slate-200 bg-white p-3">
-                <div>
-                  <label className="text-xs text-slate-500">Khách đưa</label>
-                  <InputNumber
-                    className="w-full"
-                    min={0}
-                    value={cashReceived}
-                    onChange={(v) => setCashReceived(Number(v) || 0)}
-                  />
+              <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs text-slate-500">Khách đưa</label>
+                    <InputNumber
+                      className="w-full"
+                      min={0}
+                      value={cashReceived}
+                      onChange={(v) => setCashReceived(Number(v) || 0)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500">Tiền thừa</label>
+                    <div className="mt-1 flex h-8 items-center rounded-md bg-emerald-50 px-3 text-sm font-bold text-emerald-700">
+                      {money(cashChange)}
+                    </div>
+                  </div>
                 </div>
+
                 <div>
-                  <label className="text-xs text-slate-500">Tiền thối</label>
-                  <div className="mt-1 flex h-8 items-center rounded-md bg-slate-50 px-3 text-sm font-bold text-emerald-700">
-                    {money(Math.max(0, cashReceived - total))}
+                  <div className="mb-2 flex items-center justify-between text-xs text-slate-500">
+                    <span>Chọn nhanh tiền khách đưa</span>
+                    <button
+                      type="button"
+                      onClick={() => setCashReceived(total)}
+                      className="font-semibold text-primary hover:text-primary/80"
+                    >
+                      Vừa đủ
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {QUICK_CASH_AMOUNTS.map((amount) => (
+                      <button
+                        key={amount}
+                        type="button"
+                        onClick={() => setCashReceived(amount)}
+                        className={cn(
+                          'rounded-md border px-2 py-1.5 text-xs font-semibold transition',
+                          cashReceived === amount
+                            ? 'border-primary bg-primary text-white shadow-sm'
+                            : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-primary hover:text-primary'
+                        )}
+                      >
+                        {amount / 1000}k
+                      </button>
+                    ))}
                   </div>
                 </div>
               </div>

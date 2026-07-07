@@ -18,7 +18,6 @@ import type {
 
 const statusColor: Record<string, string> = {
   COMPLETED: 'green',
-  PENDING: 'gold',
   CANCELLED: 'red',
 };
 
@@ -132,6 +131,10 @@ export default function ReturnOrdersPage() {
       message.warning('Chọn hóa đơn gốc');
       return;
     }
+    if (!reason.trim()) {
+      message.warning('Vui lòng nhập lý do trả hàng');
+      return;
+    }
     const items = returnLines
       .filter((l) => l.checked && l.qty > 0)
       .map((l) => ({
@@ -146,7 +149,7 @@ export default function ReturnOrdersPage() {
     }
     setSubmitting(true);
     try {
-      await createReturnOrder({ originalOrderId: sourceOrderId, reason, note, items });
+      await createReturnOrder({ originalOrderId: sourceOrderId, reason: reason.trim(), note, items });
       message.success('Tạo phiếu trả hàng thành công');
       setCreateOpen(false);
       load();
@@ -263,8 +266,13 @@ export default function ReturnOrdersPage() {
               optionFilterProp="label"
             />
           </Form.Item>
-          <Form.Item label="Lý do trả hàng">
-            <Input.TextArea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
+          <Form.Item label="Lý do trả hàng" required>
+            <Input.TextArea
+              rows={2}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Nhập lý do trả hàng"
+            />
           </Form.Item>
           <Form.Item label="Ghi chú">
             <Input.TextArea rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
