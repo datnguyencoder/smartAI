@@ -51,32 +51,6 @@ const pageTitles: Record<PageKey, { title: string }> = {
   chat: { title: 'Tin nhắn' },
 };
 
-const normalizeUomGroup = (category?: string) => {
-  const value = category?.trim().toUpperCase();
-
-  if (!value) return '';
-  if (['ĐƠN VỊ LẺ', 'BÁN LẺ', 'COUNT', 'WEIGHT', 'VOLUME', 'LENGTH', 'OTHER'].includes(value)) {
-    return 'Đơn vị lẻ';
-  }
-  if (['ĐÓNG GÓI', 'PACKAGE'].includes(value)) {
-    return 'Đóng gói';
-  }
-
-  return category?.trim() ?? '';
-};
-
-const isRetailUom = (uom: UomDto) => {
-  const group = normalizeUomGroup(uom.category);
-  const ratio = Number(uom.conversionRatio ?? 1);
-  return group === 'Đơn vị lẻ' || (group !== 'Đóng gói' && ratio <= 1);
-};
-
-const isPackagingUom = (uom: UomDto) => {
-  const group = normalizeUomGroup(uom.category);
-  const ratio = Number(uom.conversionRatio ?? 1);
-  return group === 'Đóng gói' || ratio > 1;
-};
-
 type Props = {
   open: boolean;
   onCancel: () => void;
@@ -95,11 +69,11 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
   const [previewUrl, setPreviewUrl] = React.useState<string | undefined>();
   const filteredUoms = React.useMemo(() => uoms.filter((uom) => uom.active !== false), [uoms]);
   const retailUoms = React.useMemo(
-    () => filteredUoms.filter(isRetailUom),
+    () => filteredUoms.filter((uom) => uom.category === 'Đơn vị lẻ'),
     [filteredUoms]
   );
   const packagingUoms = React.useMemo(
-    () => filteredUoms.filter(isPackagingUom),
+    () => filteredUoms.filter((uom) => uom.category === 'Đóng gói'),
     [filteredUoms]
   );
 
@@ -154,9 +128,9 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
         await createItem({
           itemCode: values.sku || `SKU-${Date.now()}`,
           itemName: values.name,
-          categoryId: values.categoryId,
-          baseUomId: values.baseUomId,
-          purchaseUomId: values.purchaseUomId,
+          categoryId: values.categoryId ? Number(values.categoryId) : undefined,
+          baseUomId: Number(values.baseUomId),
+          purchaseUomId: values.purchaseUomId ? Number(values.purchaseUomId) : undefined,
           costPrice: values.costPrice ?? values.price * 0.8,
           sellingPrice: values.price,
           minimumStock: 10,
@@ -238,32 +212,36 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
                 <Input placeholder="Ví dụ: MILK-BOT-500" />
               </Form.Item>
               <Form.Item name="categoryId" label="Danh mục">
-                <Select
-                  placeholder="Chọn danh mục"
-                  options={categories.map((c) => ({ value: c.id, label: c.categoryName }))}
-                  allowClear
-                />
+                <select className="h-8 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                  <option value="">Chọn danh mục</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>{c.categoryName}</option>
+                  ))}
+                </select>
               </Form.Item>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Form.Item name="baseUomId" label="Đơn vị lẻ" rules={[{ required: true, message: 'Vui lòng chọn đơn vị lẻ' }]}>
-                <Select
-                  placeholder="Chọn đơn vị lẻ"
-                  options={retailUoms.map((uom) => ({ value: uom.id, label: uom.uomName }))}
-                />
+                <select className="h-8 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                  <option value="">Chọn đơn vị lẻ</option>
+                  {retailUoms.map((uom) => (
+                    <option key={uom.id} value={uom.id}>{uom.uomName}</option>
+                  ))}
+                </select>
               </Form.Item>
               <Form.Item name="purchaseUomId" label="Đơn vị đóng gói">
-                <Select
-                  placeholder="Chọn đơn vị đóng gói"
-                  options={packagingUoms.map((uom) => ({ value: uom.id, label: uom.uomName }))}
-                  allowClear
-                />
+                <select className="h-8 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                  <option value="">Chọn đơn vị đóng gói</option>
+                  {packagingUoms.map((uom) => (
+                    <option key={uom.id} value={uom.id}>{uom.uomName}</option>
+                  ))}
+                </select>
               </Form.Item>
             </div>
             <Form.Item noStyle shouldUpdate={(prev, curr) => prev.purchaseUomId !== curr.purchaseUomId}>
               {({ getFieldValue }) => {
-                const selectedUom = packagingUoms.find((uom) => uom.id === getFieldValue('purchaseUomId'));
-                if (!selectedUom) return null;
+                const pUomId = getFieldValue('purchaseUomId');
+                const selectedUom = packagingUoms.find((uom) => uom.id === (pUomId ? Number(pUomId) : undefined)); if (!selectedUom) return null;
                 return (
                   <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
                     {'Quy \u0111\u1ed5i: 1 '}{selectedUom.uomName} = {selectedUom.conversionRatio ?? 1}{' '}

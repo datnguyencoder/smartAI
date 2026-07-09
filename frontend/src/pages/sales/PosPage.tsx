@@ -1126,14 +1126,19 @@ export default function PosPage({
             icon={<Printer size={16} />}
             onClick={async () => {
               if (!lastInvoice?.orderId) return;
+              const w = window.open('', '_blank', 'width=380,height=720');
+              if (!w) {
+                antdMessage.error('Trình duyệt đã chặn popup. Vui lòng cho phép popup để in.');
+                return;
+              }
+              w.document.write('Đang tải hóa đơn...');
               try {
                 const data = await fetchOrderPrint(lastInvoice.orderId);
-                const w = window.open('', '_blank', 'width=380,height=720');
-                if (w) {
-                  w.document.write(buildPrintHtml(data));
-                  w.document.close();
-                }
+                w.document.open();
+                w.document.write(buildPrintHtml(data));
+                w.document.close();
               } catch (e) {
+                w.close();
                 antdMessage.error(e instanceof Error ? e.message : 'In thất bại');
               }
             }}

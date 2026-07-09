@@ -1,6 +1,15 @@
 import type { fetchOrderPrint } from '@/services/wmsApi';
 import { PAYMENT_LABEL } from '@/lib/constants/paymentLabels';
 
+function stripAccents(str: string): string {
+  if (!str) return '';
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D');
+}
+
 export function buildPrintHtml(data: Awaited<ReturnType<typeof fetchOrderPrint>>) {
   const escapeHtml = (value: unknown) =>
     String(value ?? '')
@@ -9,8 +18,14 @@ export function buildPrintHtml(data: Awaited<ReturnType<typeof fetchOrderPrint>>
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
+
+  const clean = (value: unknown) => {
+    return escapeHtml(stripAccents(String(value ?? '')));
+  };
+
   const fmt = (n: number) =>
-    Number(n || 0).toLocaleString('vi-VN') + 'đ';
+    Number(n || 0).toLocaleString('vi-VN') + 'd';
+
   const date = new Date(data.orderDate).toLocaleString('vi-VN', {
     day: '2-digit',
     month: '2-digit',
@@ -32,7 +47,7 @@ export function buildPrintHtml(data: Awaited<ReturnType<typeof fetchOrderPrint>>
   const paymentSection = paymentLines
     .map((p) => {
       const label = PAYMENT_LABEL[p.paymentMethod] ?? p.paymentMethod;
-      return `<div class="summary-row payment-line"><span>${escapeHtml(label)}</span><span>${fmt(p.amount)}</span></div>`;
+      return `<div class="summary-row payment-line"><span>${clean(label)}</span><span>${fmt(p.amount)}</span></div>`;
     })
     .join('');
 
@@ -45,9 +60,9 @@ export function buildPrintHtml(data: Awaited<ReturnType<typeof fetchOrderPrint>>
     .map(
       (it) => `
       <div class="item">
-        <div class="item-name">${escapeHtml(it.itemName)}</div>
+        <div class="item-name">${clean(it.itemName)}</div>
         <div class="item-meta">
-          <span>${escapeHtml(it.itemCode)} | ${it.quantity} x ${fmt(it.unitPrice)}</span>
+          <span>${clean(it.itemCode)} | ${it.quantity} x ${fmt(it.unitPrice)}</span>
           <strong>${fmt(it.lineTotal)}</strong>
         </div>
       </div>`,
@@ -56,13 +71,13 @@ export function buildPrintHtml(data: Awaited<ReturnType<typeof fetchOrderPrint>>
 
   const loyaltySection =
     (data.loyaltyPointsRedeemed ?? 0) > 0
-      ? `<div class="summary-row"><span>Điểm đã đổi</span><span>-${data.loyaltyPointsRedeemed} điểm</span></div>`
+      ? `<div class="summary-row"><span>Diem da doi</span><span>-${data.loyaltyPointsRedeemed} diem</span></div>`
       : '';
 
   const promotionSection = data.promotionCode
-    ? `<div class="summary-row"><span>Giảm giá (${escapeHtml(data.promotionCode)})</span><span>-${fmt(discount)}</span></div>`
+    ? `<div class="summary-row"><span>Giam gia (${clean(data.promotionCode)})</span><span>-${fmt(discount)}</span></div>`
     : discount > 0
-    ? `<div class="summary-row"><span>Giảm giá</span><span>-${fmt(discount)}</span></div>`
+    ? `<div class="summary-row"><span>Giam gia</span><span>-${fmt(discount)}</span></div>`
     : '';
   const vatSection = vat > 0 ? `<div class="summary-row"><span>VAT</span><span>${fmt(vat)}</span></div>` : '';
   const shiftSection = data.shiftId
@@ -73,7 +88,7 @@ export function buildPrintHtml(data: Awaited<ReturnType<typeof fetchOrderPrint>>
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
-  <title>Hoa don ${escapeHtml(data.orderCode)}</title>
+  <title>Hoa don ${clean(data.orderCode)}</title>
   <style>
     @page { size: ${paperWidth} auto; margin: 0; }
     * { box-sizing: border-box; }
@@ -143,33 +158,33 @@ export function buildPrintHtml(data: Awaited<ReturnType<typeof fetchOrderPrint>>
       background: repeating-linear-gradient(90deg, #111 0 1px, #fff 1px 3px, #111 3px 5px, #fff 5px 7px);
     }
     @media print {
-      html, body { width: ${paperWidth}; background: #fff; }
-      .receipt { width: ${paperWidth}; min-height: 0; margin: 0; padding: 4mm 3mm 6mm; }
+      html, body { width: ${paperWidth}; background: #fff; margin: 0; padding: 0; }
+      .receipt { width: ${paperWidth}; min-height: 0; margin: 0; padding: 4mm; }
     }
   </style>
 </head>
 <body>
   <div class="receipt">
     <div class="center">
-      <div class="store-name">${escapeHtml(storeName)}</div>
-      ${storeAddress ? `<div class="store-meta">${escapeHtml(storeAddress)}</div>` : ''}
-      ${storePhone ? `<div class="store-meta">Hotline: ${escapeHtml(storePhone)}</div>` : ''}
+      <div class="store-name">${clean(storeName)}</div>
+      ${storeAddress ? `<div class="store-meta">${clean(storeAddress)}</div>` : ''}
+      ${storePhone ? `<div class="store-meta">Hotline: ${clean(storePhone)}</div>` : ''}
       <div class="title">HOA DON BAN HANG</div>
     </div>
     <div class="line"></div>
-    <div class="row"><span>So HD</span><span>${escapeHtml(data.orderCode)}</span></div>
-    <div class="row"><span>Ngay</span><span>${escapeHtml(date)}</span></div>
-    <div class="row"><span>Thu ngan</span><span>${escapeHtml(data.staffName || '-')}</span></div>
+    <div class="row"><span>So HD</span><span>${clean(data.orderCode)}</span></div>
+    <div class="row"><span>Ngay</span><span>${clean(date)}</span></div>
+    <div class="row"><span>Thu ngan</span><span>${clean(data.staffName || '-')}</span></div>
     ${shiftSection}
-    <div class="row"><span>Khach hang</span><span>${escapeHtml(data.customerName || 'Khach le')}</span></div>
-    ${data.customerPhone ? `<div class="row"><span>Dien thoai</span><span>${escapeHtml(data.customerPhone)}</span></div>` : ''}
+    <div class="row"><span>Khach hang</span><span>${clean(data.customerName || 'Khach le')}</span></div>
+    ${data.customerPhone ? `<div class="row"><span>Dien thoai</span><span>${clean(data.customerPhone)}</span></div>` : ''}
     <div class="line"></div>
     <div class="section-label"><span>SAN PHAM</span><span>THANH TIEN</span></div>
     ${rows}
     <div class="line"></div>
     <div class="summary">
       <div class="summary-row"><span>So luong</span><span>${itemCount}</span></div>
-      <div class="summary-row"><span>Tạm tính</span><span>${fmt(subtotal)}</span></div>
+      <div class="summary-row"><span>Tam tinh</span><span>${fmt(subtotal)}</span></div>
       ${promotionSection}
       ${loyaltySection}
       ${vatSection}
@@ -180,14 +195,21 @@ export function buildPrintHtml(data: Awaited<ReturnType<typeof fetchOrderPrint>>
       ${paymentSection}
     </div>
     <div class="footer">
-      ${escapeHtml(receiptFooter).replace(/\n/g, '<br />')}<br />
+      ${clean(receiptFooter).replace(/\n/g, '<br />')}<br />
       Vui long kiem tra hang truoc khi roi quay
       <div class="barcode"></div>
-      ${escapeHtml(data.orderCode)}
+      ${clean(data.orderCode)}
     </div>
   </div>
   <script>
     window.addEventListener('load', () => {
+      const receipt = document.querySelector('.receipt');
+      if (receipt) {
+        const height = receipt.offsetHeight;
+        const style = document.createElement('style');
+        style.innerHTML = '@page { size: ${paperWidth} ' + height + 'px; margin: 0; }';
+        document.head.appendChild(style);
+      }
       setTimeout(() => {
         window.focus();
         window.print();

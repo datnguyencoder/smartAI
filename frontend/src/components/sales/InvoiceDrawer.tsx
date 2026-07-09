@@ -99,15 +99,20 @@ export function InvoiceDrawer({ invoice, authUser, onClose, onCancelled }: Props
       antdMessage.warning('Không có mã đơn để in');
       return;
     }
+    const w = window.open('', '_blank', 'width=460,height=700');
+    if (!w) {
+      antdMessage.error('Trình duyệt đã chặn popup. Vui lòng cho phép popup để in.');
+      return;
+    }
+    w.document.write('Đang tải hóa đơn...');
     try {
       const data = await fetchOrderPrint(invoice.orderId);
       const html = buildPrintHtml(data);
-      const w = window.open('', '_blank', 'width=460,height=700');
-      if (w) {
-        w.document.write(html);
-        w.document.close();
-      }
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
     } catch (e) {
+      w.close();
       antdMessage.error(e instanceof Error ? e.message : 'In hóa đơn thất bại');
     }
   };
