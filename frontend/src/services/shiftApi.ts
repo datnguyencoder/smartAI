@@ -20,10 +20,10 @@ export function openShift(note: string) {
   });
 }
 
-export function closeShift(id: number, matchesSystemData: boolean, note: string, varianceReason?: string) {
+export function closeShift(id: number, closingCash: number, note: string, varianceReason?: string) {
   return apiRequest<ShiftDto>(`/api/v1/shifts/${id}/close`, {
     method: 'POST',
-    body: JSON.stringify({ matchesSystemData, note, varianceReason }),
+    body: JSON.stringify({ closingCash, note, varianceReason }),
   });
 }
 

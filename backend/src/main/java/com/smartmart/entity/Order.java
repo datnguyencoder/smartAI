@@ -23,9 +23,6 @@ public class Order extends LongAuditableEntity {
     @Column(name = "order_code", nullable = false, unique = true)
     private String orderCode;
 
-    @Column(name = "payos_order_code", unique = true)
-    private Long payosOrderCode;
-
     @Column(name = "created_by")
     private Long createdBy;
 

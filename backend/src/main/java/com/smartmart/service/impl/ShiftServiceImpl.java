@@ -96,20 +96,25 @@ public class ShiftServiceImpl implements ShiftService {
         requireOwnerOrManagement(shift);
         requireStatus(shift, ShiftStatus.OPEN, "Ca làm việc đã được đóng");
 
-        boolean matches = request.getMatchesSystemData() == null
-                ? request.getVarianceReason() == null || request.getVarianceReason().isBlank()
-                : request.getMatchesSystemData();
-        if (!matches && (request.getVarianceReason() == null || request.getVarianceReason().isBlank())) {
-            throw new BadRequestException("Khi báo lệch ca, bạn phải nhập giải trình");
+        BigDecimal countedCash = request.getClosingCash();
+        if (countedCash == null) {
+            throw new BadRequestException("Vui lòng nhập số tiền mặt thực tế kiểm đếm cuối ca");
         }
 
         ShiftSummaryResponse summary = calculateSummary(shift);
         BigDecimal cashRefunds = cashRefundTotal(shift.getId());
-        BigDecimal closingBalance = shift.getOpeningCash().add(summary.getCashSales()).subtract(cashRefunds);
+        BigDecimal expectedCash = shift.getOpeningCash().add(summary.getCashSales()).subtract(cashRefunds);
+        BigDecimal variance = countedCash.subtract(expectedCash);
+        // SHIFT-03: lệch từ 0.01 VND trở lên bắt buộc phải giải trình
+        boolean matches = variance.abs().compareTo(new BigDecimal("0.01")) < 0;
+        if (!matches && (request.getVarianceReason() == null || request.getVarianceReason().isBlank())) {
+            throw new BadRequestException("Ca lệch tiền, bạn phải nhập giải trình");
+        }
+
         shift.setClosedAt(LocalDateTime.now());
-        shift.setExpectedCash(closingBalance);
-        shift.setClosingCash(closingBalance);
-        shift.setCashVariance(null);
+        shift.setExpectedCash(expectedCash);
+        shift.setClosingCash(countedCash);
+        shift.setCashVariance(variance);
         shift.setStaffMismatchReported(!matches);
         shift.setVarianceReason(matches ? null : request.getVarianceReason().trim());
         shift.setClosingNote(request.getNote().trim());
@@ -121,7 +126,8 @@ public class ShiftServiceImpl implements ShiftService {
                 AuditData.of("status", saved.getStatus(), "grossSales", summary.getGrossSales(),
                         "refundAmount", summary.getRefundAmount(), "netRevenue", summary.getNetRevenue(),
                         "cashSales", summary.getCashSales(), "cashRefunds", cashRefunds,
-                        "openingBalance", shift.getOpeningCash(), "closingBalance", closingBalance,
+                        "openingBalance", shift.getOpeningCash(), "expectedCash", expectedCash,
+                        "closingCash", countedCash, "cashVariance", variance,
                         "closingNote", saved.getClosingNote(),
                         "staffMismatchReported", saved.getStaffMismatchReported(),
                         "staffExplanation", saved.getVarianceReason()));

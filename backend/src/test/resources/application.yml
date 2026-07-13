@@ -9,6 +9,9 @@ spring:
       enabled: false
     consumer:
       group-id: smartmart-test
+  redis:
+    listener:
+      enabled: false
 
 app:
   jwt:
@@ -21,3 +24,8 @@ app:
     api-key: ""
   return-policy:
     allowed-days: ${RETURN_ALLOWED_DAYS:7}
+
+cloudinary:
+  cloud_name: demo
+  api_key: demo
+  api_secret: demo

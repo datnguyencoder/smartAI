@@ -52,6 +52,10 @@
 			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
 		<dependency>
+			<groupId>io.micrometer</groupId>
+			<artifactId>micrometer-registry-prometheus</artifactId>
+		</dependency>
+		<dependency>
 			<groupId>org.flywaydb</groupId>
 			<artifactId>flyway-core</artifactId>
 		</dependency>
@@ -66,12 +70,6 @@
 			<artifactId>spring-kafka</artifactId>
 		</dependency>
 
-		<!-- PayOS -->
-		<dependency>
-			<groupId>vn.payos</groupId>
-			<artifactId>payos-java</artifactId>
-			<version>2.0.1</version>
-		</dependency>
 
 		<!-- Databases -->
 		<dependency>

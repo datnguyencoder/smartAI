@@ -13,6 +13,7 @@ import com.smartmart.exception.BadRequestException;
 import com.smartmart.exception.NotFoundException;
 import com.smartmart.repository.CurrentInventoryRepository;
 import com.smartmart.repository.ItemLotRepository;
+import com.smartmart.repository.ItemRepository;
 import com.smartmart.repository.LocationRepository;
 import com.smartmart.repository.StocktakeRepository;
 import com.smartmart.repository.UserRepository;
@@ -27,6 +28,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -44,6 +47,7 @@ public class StocktakeServiceImpl implements StocktakeService {
     private final InventoryLedgerService inventoryLedgerService;
     private final AuditLogService auditLogService;
     private final UserRepository userRepository;
+    private final ItemRepository itemRepository;
 
     public StocktakeServiceImpl(
             StocktakeRepository stocktakeRepository,
@@ -53,7 +57,8 @@ public class StocktakeServiceImpl implements StocktakeService {
             CurrentInventoryRepository currentInventoryRepository,
             InventoryLedgerService inventoryLedgerService,
             AuditLogService auditLogService,
-            UserRepository userRepository
+            UserRepository userRepository,
+            ItemRepository itemRepository
     ) {
         this.stocktakeRepository = stocktakeRepository;
         this.locationRepository = locationRepository;
@@ -63,6 +68,7 @@ public class StocktakeServiceImpl implements StocktakeService {
         this.inventoryLedgerService = inventoryLedgerService;
         this.auditLogService = auditLogService;
         this.userRepository = userRepository;
+        this.itemRepository = itemRepository;
     }
 
     @Override
@@ -163,7 +169,15 @@ public class StocktakeServiceImpl implements StocktakeService {
         }
 
         Long userId = SecurityUtils.getCurrentUserId().orElse(null);
-        for (StocktakeItem line : stocktake.getItems()) {
+
+        // Lock items theo thứ tự ID để giảm deadlock khi nhiều giao dịch chạm cùng SKU
+        List<StocktakeItem> sortedItems = new ArrayList<>(stocktake.getItems());
+        sortedItems.sort(Comparator.comparing(line -> line.getItem().getId()));
+        for (StocktakeItem line : sortedItems) {
+            itemRepository.findByIdWithPessimisticLock(line.getItem().getId());
+        }
+
+        for (StocktakeItem line : sortedItems) {
             BigDecimal freshSystemQty = getExactSystemQuantity(
                     line.getItem().getId(),
                     stocktake.getLocation().getId(),

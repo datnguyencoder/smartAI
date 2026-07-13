@@ -44,19 +44,6 @@ public class SseNotificationServiceImpl implements SseNotificationService {
         return emitter;
     }
 
-    @Override
-    public void sendPaymentSuccess(Long orderId) {
-        for (SseEmitter emitter : emitters) {
-            try {
-                emitter.send(SseEmitter.event()
-                        .name("payment-success")
-                        .data(Map.of("orderId", orderId, "status", "COMPLETED")));
-            } catch (Exception e) {
-                emitters.remove(emitter);
-            }
-        }
-    }
-
     @Scheduled(fixedRate = 30000)
     public void sendInventoryAlerts() {
         if (emitters.isEmpty()) {

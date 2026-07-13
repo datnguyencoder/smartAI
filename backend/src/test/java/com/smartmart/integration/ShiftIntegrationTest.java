@@ -37,9 +37,9 @@ class ShiftIntegrationTest {
 
         postJson("/api/v1/shifts/open", staff, "{\"note\":\"Không được mở trùng\"}", 400);
         postJson("/api/v1/shifts/" + shiftId + "/close", staff,
-                "{\"matchesSystemData\":false,\"note\":\"Đã kiểm tra đơn trong ca\"}", 400);
+                "{\"closingCash\":1000,\"matchesSystemData\":false,\"note\":\"Đã kiểm tra đơn trong ca\"}", 400);
         postJson("/api/v1/shifts/" + shiftId + "/close", staff,
-                "{\"matchesSystemData\":false,\"note\":\"Đã kiểm tra đơn trong ca\",\"varianceReason\":\"Giao dịch chuyển khoản ghi nhầm tiền mặt\"}", 200)
+                "{\"closingCash\":1000,\"matchesSystemData\":false,\"note\":\"Đã kiểm tra đơn trong ca\",\"varianceReason\":\"Giao dịch chuyển khoản ghi nhầm tiền mặt\"}", 200)
                 .andExpect(jsonPath("$.data.status").value("PENDING_REVIEW"))
                 .andExpect(jsonPath("$.data.staffMismatchReported").value(true));
 
@@ -67,7 +67,7 @@ class ShiftIntegrationTest {
                 .andExpect(jsonPath("$.data.content[0].actorRole").exists());
 
         postJson("/api/v1/shifts/open", staff, "{\"note\":\"Mở ca kế tiếp\"}", 201)
-                .andExpect(jsonPath("$.data.openingCash").value(0))
+                .andExpect(jsonPath("$.data.openingCash").value(1000))
                 .andExpect(jsonPath("$.data.openingBalanceSourceShiftId").value(shiftId));
     }
 

@@ -45,18 +45,4 @@ public interface InventoryLedgerService {
     void validateLotNotExpired(ItemLot lot);
 
     ItemLot getOrCreateLot(Item item, String lotNumber, LocalDate expiryDate);
-
-    void applyMovementAndUpdateLog(
-            Item item,
-            Location location,
-            ItemLot lot,
-            BigDecimal quantityChange,
-            InventoryActionType actionType,
-            ReferenceType referenceType,
-            Long referenceId,
-            Long userId,
-            String note
-    );
-
-    void deleteLogsByReference(ReferenceType refType, Long refId);
 }

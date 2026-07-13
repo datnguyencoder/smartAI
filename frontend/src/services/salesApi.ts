@@ -16,13 +16,6 @@ export function createOrder(payload: {
   });
 }
 
-export function createPayment(payload: { orderId: number }) {
-  return apiRequest<{ checkoutUrl: string; qrCode?: string }>('/api/v1/payments/create', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
-}
-
 export function createHeldOrder(payload: {
   customerName?: string;
   customerPhone?: string;

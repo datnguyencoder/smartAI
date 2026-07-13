@@ -38,7 +38,6 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
     List<String> suggestCustomerNames(@Param("keyword") String keyword);
 
     Optional<Order> findByOrderCode(String orderCode);
-    Optional<Order> findByPayosOrderCode(Long payosOrderCode);
 
     boolean existsByOrderCodeStartingWith(String prefix);
 

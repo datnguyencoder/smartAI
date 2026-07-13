@@ -7,6 +7,9 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
+
 import java.util.Map;
 
 @Component
@@ -19,13 +22,16 @@ public class OrderEventPublisher {
         this.kafkaTemplate = kafkaTemplate;
     }
 
+    // SALE-04: chỉ publish sau khi transaction tạo đơn hàng commit thành công,
+    // tránh gửi sự kiện cho đơn hàng đã bị rollback.
     @Async
-    public void publishOrderCreated(Long orderId, String orderCode) {
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onOrderCreated(OrderCreatedEvent event) {
         try {
-            kafkaTemplate.send(KafkaTopicConstant.SALES_ORDERS, orderCode,
-                    Map.of("orderId", orderId, "orderCode", orderCode, "event", "ORDER_CREATED"));
+            kafkaTemplate.send(KafkaTopicConstant.SALES_ORDERS, event.getOrderCode(),
+                    Map.of("orderId", event.getOrderId(), "orderCode", event.getOrderCode(), "event", "ORDER_CREATED"));
         } catch (Exception ex) {
-            log.warn("Kafka publish failed for order {}: {}", orderCode, ex.getMessage());
+            log.warn("Kafka publish failed for order {}: {}", event.getOrderCode(), ex.getMessage());
         }
     }
 }

@@ -1,0 +1,157 @@
+package com.smartmart.service.ai.impl;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.smartmart.service.AuditLogService;
+import com.smartmart.service.ai.AiTextSanitizer;
+import com.smartmart.service.ai.AiToolExecutor;
+import com.smartmart.service.ai.GeminiAgentService;
+import com.smartmart.service.ai.GeminiApiDelegate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+
+import java.util.Iterator;
+
+/**
+ * Agent chat có function-calling thật (không phải prompt-in/text-out thuần):
+ * Gemini có thể tự quyết định gọi 1 hoặc nhiều tool trong {@link AiToolExecutor} để lấy
+ * dữ liệu tồn kho/forecast/chính sách hiện hành trước khi trả lời, thay vì chỉ suy diễn
+ * từ prompt tĩnh. Vòng lặp tool-call bị giới hạn số bước để tránh runaway cost/loop.
+ */
+@Service
+public class GeminiAgentServiceImpl implements GeminiAgentService {
+
+    private static final Logger log = LoggerFactory.getLogger(GeminiAgentServiceImpl.class);
+    private static final int MAX_TOOL_ROUNDS = 4;
+
+    private static final String SYSTEM_INSTRUCTION = """
+            Bạn là trợ lý AI vận hành của siêu thị mini SmartMart. Khi cần số liệu tồn kho,
+            dự báo nhu cầu, cảnh báo kho, hoặc chính sách cửa hàng, LUÔN gọi tool tương ứng
+            để lấy dữ liệu thật thay vì tự suy đoán. Chỉ trả lời dựa trên dữ liệu tool trả về
+            hoặc kiến thức chung an toàn. Không tự bịa số liệu.
+            """ + AiTextSanitizer.STYLE_RULES;
+
+    private final GeminiApiDelegate apiDelegate;
+    private final AiToolExecutor toolExecutor;
+    private final ObjectMapper objectMapper;
+    private final AuditLogService auditLogService;
+    private final String apiKey;
+    private final String model;
+
+    public GeminiAgentServiceImpl(
+            GeminiApiDelegate apiDelegate,
+            AiToolExecutor toolExecutor,
+            ObjectMapper objectMapper,
+            AuditLogService auditLogService,
+            @Value("${app.gemini.api-key:}") String apiKey,
+            @Value("${app.gemini.model:gemini-2.5-flash}") String model) {
+        this.apiDelegate = apiDelegate;
+        this.toolExecutor = toolExecutor;
+        this.objectMapper = objectMapper;
+        this.auditLogService = auditLogService;
+        this.apiKey = apiKey;
+        this.model = model;
+    }
+
+    @Override
+    public boolean isAvailable() {
+        return apiKey != null && !apiKey.isBlank();
+    }
+
+    @Override
+    public String chat(String message) {
+        if (!isAvailable()) {
+            return null;
+        }
+
+        ArrayNode contents = objectMapper.createArrayNode();
+        contents.addObject().put("role", "user").putArray("parts").addObject().put("text", message);
+
+        ArrayNode tools = toolExecutor.buildToolDeclarations();
+        StringBuilder toolsUsed = new StringBuilder();
+
+        try {
+            for (int round = 0; round < MAX_TOOL_ROUNDS; round++) {
+                ObjectNode body = objectMapper.createObjectNode();
+                body.set("contents", contents);
+                body.set("tools", tools);
+                ObjectNode systemInstruction = body.putObject("systemInstruction");
+                systemInstruction.putArray("parts").addObject().put("text", SYSTEM_INSTRUCTION);
+
+                JsonNode response = apiDelegate.call(model, apiKey, body);
+                if (response == null) {
+                    return null;
+                }
+
+                JsonNode candidateContent = response.path("candidates").get(0).path("content");
+                JsonNode parts = candidateContent.path("parts");
+
+                JsonNode functionCallPart = findFunctionCall(parts);
+                if (functionCallPart == null) {
+                    String text = extractText(parts);
+                    if (toolsUsed.length() > 0) {
+                        auditLogService.log("AI_AGENT_CHAT", "AI_INSIGHT", "chat",
+                                "AI agent trả lời sau khi dùng tool: " + toolsUsed, null, null);
+                    }
+                    return AiTextSanitizer.sanitize(text);
+                }
+
+                String toolName = functionCallPart.path("functionCall").path("name").asText();
+                JsonNode args = functionCallPart.path("functionCall").path("args");
+                Object result = toolExecutor.dispatch(toolName, args);
+                toolsUsed.append(toolName).append(' ');
+
+                // Lưu lại lượt "model" đã yêu cầu gọi tool, rồi thêm lượt "function" trả kết quả
+                contents.addObject().put("role", "model").set("parts", singlePartArray(functionCallPart));
+
+                ObjectNode functionResponsePart = objectMapper.createObjectNode();
+                ObjectNode functionResponse = functionResponsePart.putObject("functionResponse");
+                functionResponse.put("name", toolName);
+                functionResponse.set("response", objectMapper.valueToTree(result));
+                contents.addObject().put("role", "function").set("parts", singlePartArray(functionResponsePart));
+            }
+            log.warn("AI agent vượt quá {} vòng gọi tool, dừng lại", MAX_TOOL_ROUNDS);
+            return "Xin lỗi, câu hỏi này cần tra cứu quá nhiều bước. Bạn có thể hỏi cụ thể hơn không?";
+        } catch (WebClientResponseException ex) {
+            log.warn("Gemini agent chat lỗi HTTP {}: {}", ex.getStatusCode(), ex.getMessage());
+            return null;
+        } catch (Exception ex) {
+            log.warn("Gemini agent chat lỗi: {}", ex.getMessage());
+            return null;
+        }
+    }
+
+    private JsonNode findFunctionCall(JsonNode parts) {
+        if (!parts.isArray()) return null;
+        Iterator<JsonNode> it = parts.elements();
+        while (it.hasNext()) {
+            JsonNode part = it.next();
+            if (part.has("functionCall")) {
+                return part;
+            }
+        }
+        return null;
+    }
+
+    private String extractText(JsonNode parts) {
+        if (!parts.isArray()) return "";
+        StringBuilder sb = new StringBuilder();
+        for (JsonNode part : parts) {
+            if (part.has("text")) {
+                sb.append(part.path("text").asText());
+            }
+        }
+        return sb.toString();
+    }
+
+    private ArrayNode singlePartArray(JsonNode part) {
+        ArrayNode arr = objectMapper.createArrayNode();
+        arr.add(part);
+        return arr;
+    }
+}

@@ -19,7 +19,6 @@ import {
 } from 'lucide-react';
 import CreatableSelect from 'react-select/creatable';
 import { useHotkeys } from 'react-hotkeys-hook';
-import { QRCodeCanvas } from 'qrcode.react';
 import { Card, CardHeader, UiButton } from '@/components/ui';
 import { ProductThumbnail } from '@/components/catalog/ProductThumbnail';
 import { BarcodeScanner } from '@/components/sales/BarcodeScanner';
@@ -37,17 +36,14 @@ import {
   fetchItemByBarcode,
   fetchItems,
   fetchOrderPrint,
-  fetchOrderById,
   restoreHeldOrder,
   suggestCustomers,
   validatePromotion,
   cancelHeldOrder,
-  createPayment,
 } from '@/services/wmsApi';
 import type { CustomerDto, HeldOrderDto, ShiftDto } from '@/types/api';
 import type { PageKey } from '@/types/pages';
 import { animateCartBump, animateModalContent } from '@/lib/gsapAnimations';
-import { API_BASE_URL } from '@/lib/env';
 
 const tierColors: Record<string, string> = {
   REGULAR: 'default',
@@ -461,53 +457,6 @@ export default function PosPage({
   };
 
   const [checkoutLoading, setCheckoutLoading] = React.useState(false);
-  const [payosQrCode, setPayosQrCode] = React.useState<string | null>(null);
-  const [payosModalOpen, setPayosModalOpen] = React.useState(false);
-  const [pendingOrderId, setPendingOrderId] = React.useState<number | null>(null);
-
-  React.useEffect(() => {
-    if (!payosModalOpen || !pendingOrderId) return;
-
-    const token = sessionStorage.getItem('smartmart_token') || '';
-    const sseUrl = `${API_BASE_URL}/api/v1/notifications/stream?token=${token}`;
-    console.log('[SSE] Connecting to:', sseUrl);
-    const eventSource = new EventSource(sseUrl);
-
-    eventSource.addEventListener('payment-success', async (e) => {
-      console.log('[SSE] Received payment-success event:', e);
-      try {
-        const checkOrder = await fetchOrderById(pendingOrderId, true);
-        console.log('[SSE] Checked order status:', checkOrder.status);
-        if (checkOrder.status === 'COMPLETED') {
-          setPayosModalOpen(false);
-          setPendingOrderId(null);
-          
-          const successModal = Modal.success({
-            title: 'Thanh toán thành công!',
-            content: 'Giao dịch qua PayOS đã được ghi nhận. Đơn hàng đã hoàn tất.',
-            footer: null,
-            maskClosable: false,
-            centered: true,
-          });
-          
-          setTimeout(() => {
-            successModal.destroy();
-            resetTransaction();
-          }, 3000);
-        }
-      } catch (error) {
-        console.error("Error processing SSE message", error);
-      }
-    });
-
-    eventSource.onerror = (error) => {
-      console.error("SSE Error:", error);
-    };
-
-    return () => {
-      eventSource.close();
-    };
-  }, [payosModalOpen, pendingOrderId]);
 
   const handleCheckout = async () => {
     if (posCart.length === 0) {
@@ -590,23 +539,6 @@ export default function PosPage({
           tier: order.customerTier || loyaltyCustomer.tier,
         });
       }
-      if (!splitPayment && paymentMethod === 'BANK_TRANSFER') {
-        try {
-          const payRes = await createPayment({ orderId: order.id });
-          if (payRes.qrCode) {
-            setPayosQrCode(payRes.qrCode);
-            setPendingOrderId(order.id);
-            setPayosModalOpen(true);
-            return; // Dừng tại đây, không hiện bill, chờ polling
-          } else {
-             antdMessage.warning('Không lấy được mã QR từ PayOS, vui lòng thanh toán thủ công');
-          }
-        } catch (err) {
-          console.error('PayOS error:', err);
-          antdMessage.error('Lỗi khi tạo mã QR PayOS');
-        }
-      }
-
       setReceiptOpen(true);
       resetTransaction();
       antdMessage.success(
@@ -1091,29 +1023,6 @@ export default function PosPage({
           {checkoutLoading ? 'Processing' : 'Payment'}
         </Button>
       </div>
-
-      <Modal
-        open={payosModalOpen}
-        onCancel={() => {
-           setPayosModalOpen(false);
-           setPendingOrderId(null);
-           antdMessage.info('Đã đóng QR thanh toán. Nếu khách đã chuyển khoản, đơn sẽ tự động hoàn thành trên hệ thống.');
-        }}
-        footer={null}
-        width={400}
-        title="Quét mã QR thanh toán PayOS"
-        centered
-      >
-        <div className="flex flex-col items-center justify-center p-6 space-y-4">
-          <p className="text-slate-600 text-center text-sm">Khách hàng vui lòng dùng ứng dụng ngân hàng quét mã dưới đây để thanh toán.</p>
-          {payosQrCode && (
-            <div className="p-4 border-2 border-indigo-100 rounded-xl bg-white shadow-sm">
-              <QRCodeCanvas value={payosQrCode} size={250} level="H" />
-            </div>
-          )}
-          <p className="text-xs text-slate-400 mt-4 text-center">Giao dịch sẽ được xác nhận tự động sau vài giây.</p>
-        </div>
-      </Modal>
 
       <Modal
         open={receiptOpen}

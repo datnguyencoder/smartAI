@@ -10,6 +10,7 @@ import com.smartmart.enums.ScrapStatus;
 import com.smartmart.exception.BadRequestException;
 import com.smartmart.exception.NotFoundException;
 import com.smartmart.repository.ItemLotRepository;
+import com.smartmart.repository.ItemRepository;
 import com.smartmart.repository.LocationRepository;
 import com.smartmart.repository.ScrapOrderRepository;
 import com.smartmart.security.SecurityUtils;
@@ -26,6 +27,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -46,6 +49,7 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
     private final InventoryQueryService inventoryQueryService;
     private final ApplicationEventPublisher eventPublisher;
     private final UserRepository userRepository;
+    private final ItemRepository itemRepository;
 
     public ScrapOrderServiceImpl(
             ScrapOrderRepository scrapOrderRepository,
@@ -56,7 +60,8 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
             InventoryQueryService inventoryQueryService,
             ApplicationEventPublisher eventPublisher,
             AuditLogService auditLogService,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            ItemRepository itemRepository) {
         this.scrapOrderRepository = scrapOrderRepository;
         this.locationRepository = locationRepository;
         this.itemLotRepository = itemLotRepository;
@@ -66,6 +71,7 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
         this.eventPublisher = eventPublisher;
         this.auditLogService = auditLogService;
         this.userRepository = userRepository;
+        this.itemRepository = itemRepository;
     }
 
     @Override
@@ -163,8 +169,18 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
         }
         String beforeData = AuditData.of("status", scrap.getStatus());
         Long userId = SecurityUtils.getCurrentUserId().orElse(null);
-        for (ScrapOrderItem line : scrap.getItems()) {
-            inventoryLedgerService.applyMovementAndUpdateLog(
+
+        // Lock items theo thứ tự ID để giảm deadlock khi nhiều giao dịch chạm cùng SKU
+        List<ScrapOrderItem> sortedItems = new ArrayList<>(scrap.getItems());
+        sortedItems.sort(Comparator.comparing(line -> line.getItem().getId()));
+        for (ScrapOrderItem line : sortedItems) {
+            itemRepository.findByIdWithPessimisticLock(line.getItem().getId());
+        }
+
+        for (ScrapOrderItem line : sortedItems) {
+            // STK-01: log tồn kho là append-only, không update log SCRAP_PENDING đã ghi lúc tạo —
+            // ghi thêm bản ghi SCRAP_COMPLETED mới để giữ nguyên lịch sử.
+            inventoryLedgerService.applyMovement(
                     line.getItem(),
                     scrap.getLocation(),
                     line.getLot(),
@@ -207,7 +223,19 @@ public class ScrapOrderServiceImpl implements com.smartmart.service.ScrapOrderSe
         scrap.setNote(oldNote + " | TỪ CHỐI: " + reason);
         scrap.setStatus(ScrapStatus.CANCELLED);
 
-        inventoryLedgerService.deleteLogsByReference(ReferenceType.SCRAP_ORDER, scrap.getId());
+        // STK-01: không xóa log SCRAP_PENDING gốc — ghi thêm log SCRAP_CANCELLED để bù trừ, giữ lịch sử bất biến.
+        Long userId = SecurityUtils.getCurrentUserId().orElse(null);
+        for (ScrapOrderItem line : scrap.getItems()) {
+            inventoryLedgerService.logActionOnly(
+                    line.getItem(),
+                    scrap.getLocation(),
+                    line.getLot(),
+                    InventoryActionType.SCRAP_CANCELLED,
+                    ReferenceType.SCRAP_ORDER,
+                    scrap.getId(),
+                    userId,
+                    "Từ chối: " + reason);
+        }
 
         ScrapOrder saved = scrapOrderRepository.save(scrap);
         auditLogService.log(

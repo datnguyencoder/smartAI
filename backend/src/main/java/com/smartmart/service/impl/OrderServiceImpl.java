@@ -13,7 +13,7 @@ import com.smartmart.enums.InventoryActionType;
 import com.smartmart.enums.OrderStatus;
 import com.smartmart.enums.PaymentMethod;
 import com.smartmart.enums.ReferenceType;
-import com.smartmart.event.OrderEventPublisher;
+import com.smartmart.event.OrderCreatedEvent;
 import com.smartmart.exception.BadRequestException;
 import com.smartmart.exception.ForbiddenException;
 import com.smartmart.exception.NotFoundException;
@@ -33,6 +33,7 @@ import com.smartmart.service.SettingService;
 import com.smartmart.service.ShiftService;
 import com.smartmart.util.AuditData;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,7 +53,7 @@ public class OrderServiceImpl implements OrderService {
     private final LocationRepository locationRepository;
     private final InventoryLedgerService inventoryLedgerService;
     private final InventoryLogRepository inventoryLogRepository;
-    private final OrderEventPublisher orderEventPublisher;
+    private final ApplicationEventPublisher eventPublisher;
     private final InventoryAlertService inventoryAlertService;
     private final AuditLogService auditLogService;
     private final UserRepository userRepository;
@@ -69,7 +70,7 @@ public class OrderServiceImpl implements OrderService {
             LocationRepository locationRepository,
             InventoryLedgerService inventoryLedgerService,
             InventoryLogRepository inventoryLogRepository,
-            OrderEventPublisher orderEventPublisher,
+            ApplicationEventPublisher eventPublisher,
             InventoryAlertService inventoryAlertService,
             AuditLogService auditLogService,
             UserRepository userRepository,
@@ -84,7 +85,7 @@ public class OrderServiceImpl implements OrderService {
         this.locationRepository = locationRepository;
         this.inventoryLedgerService = inventoryLedgerService;
         this.inventoryLogRepository = inventoryLogRepository;
-        this.orderEventPublisher = orderEventPublisher;
+        this.eventPublisher = eventPublisher;
         this.inventoryAlertService = inventoryAlertService;
         this.auditLogService = auditLogService;
         this.userRepository = userRepository;
@@ -123,8 +124,7 @@ public class OrderServiceImpl implements OrderService {
                 .customer(customer)
                 .customerPhone(request.getCustomerPhone())
                 .orderDate(LocalDateTime.now())
-                .status(request.getPaymentMethod() == PaymentMethod.BANK_TRANSFER ? OrderStatus.PENDING
-                        : OrderStatus.COMPLETED)
+                .status(OrderStatus.COMPLETED)
                 .paymentMethod(request.getPaymentMethod())
                 .loyaltyPointsRedeemed(
                         request.getLoyaltyPointsRedeemed() != null ? request.getLoyaltyPointsRedeemed() : 0)
@@ -215,14 +215,12 @@ public class OrderServiceImpl implements OrderService {
                         .build());
             }
         } else if (request.getPaymentMethod() != null) {
-            if (request.getPaymentMethod() != PaymentMethod.BANK_TRANSFER) {
-                order.getPayments().add(OrderPayment.builder()
-                        .order(order)
-                        .paymentMethod(request.getPaymentMethod())
-                        .amount(order.getTotalAmount())
-                        .createdAt(LocalDateTime.now())
-                        .build());
-            }
+            order.getPayments().add(OrderPayment.builder()
+                    .order(order)
+                    .paymentMethod(request.getPaymentMethod())
+                    .amount(order.getTotalAmount())
+                    .createdAt(LocalDateTime.now())
+                    .build());
         }
 
         LocalDateTime movementStart = LocalDateTime.now().minusSeconds(5);
@@ -243,7 +241,8 @@ public class OrderServiceImpl implements OrderService {
             inventoryLogRepository.backfillSaleReferenceId(saved.getId(), itemIds, userId, movementStart);
         }
 
-        orderEventPublisher.publishOrderCreated(saved.getId(), saved.getOrderCode());
+        // SALE-04: chỉ gửi Kafka sau khi transaction commit — xem OrderEventPublisher.onOrderCreated
+        eventPublisher.publishEvent(new OrderCreatedEvent(this, saved.getId(), saved.getOrderCode()));
         saved.getItems().forEach(oi -> inventoryAlertService.evaluateStockAfterSale(oi.getItem().getId()));
         auditLogService.log(
                 AuditAction.ORDER_CREATE,
@@ -424,8 +423,8 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy hóa đơn"));
         String beforeData = AuditData.of(
                 "status", order.getStatus());
-        if (order.getStatus() == OrderStatus.CANCELLED) {
-            throw new BadRequestException("Hóa đơn đã hủy");
+        if (order.getStatus() != OrderStatus.PENDING && order.getStatus() != OrderStatus.COMPLETED) {
+            throw new BadRequestException("Hóa đơn ở trạng thái này không thể hủy");
         }
         if (returnOrderRepository.existsByOriginalOrderId(order.getId())) {
             throw new BadRequestException("Hóa đơn đã phát sinh trả hàng, không thể hủy trực tiếp");
@@ -458,35 +457,6 @@ public class OrderServiceImpl implements OrderService {
                 AuditData.of("status", saved.getStatus()));
 
         return toResponse(saved);
-    }
-
-    @Override
-    @Transactional
-    public Long completeOrderFromWebhook(Long payosOrderCode) {
-        Order order = orderRepository.findByPayosOrderCode(payosOrderCode)
-                .orElseThrow(() -> new NotFoundException("Order with payosOrderCode not found: " + payosOrderCode));
-
-        if (order.getStatus() == OrderStatus.COMPLETED) {
-            return order.getId(); // Already completed
-        }
-
-        order.setStatus(OrderStatus.COMPLETED);
-
-        // Award points
-        if (order.getCustomer() != null) {
-            customerService.awardPoints(order.getCustomer().getId(), order.getTotalAmount());
-        }
-
-        // Add payment record
-        order.getPayments().add(OrderPayment.builder()
-                .order(order)
-                .paymentMethod(PaymentMethod.BANK_TRANSFER)
-                .amount(order.getTotalAmount())
-                .createdAt(LocalDateTime.now())
-                .build());
-
-        orderRepository.save(order);
-        return order.getId();
     }
 
     private OrderResponse toResponse(Order order) {

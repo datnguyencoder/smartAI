@@ -3,7 +3,9 @@ services:
   # 1. DATABASE: POSTGRESQL 16
   # ==========================================
   postgres:
-    image: postgres:16-alpine
+    # pgvector/pgvector:pg16 = ảnh postgres:16 chính thức + extension "vector" cài sẵn,
+    # dùng cho RAG (knowledge_chunks.embedding) mà không cần build ảnh riêng.
+    image: pgvector/pgvector:pg16
     container_name: smartmart_postgres
     restart: always
     environment:
@@ -181,6 +183,46 @@ services:
     networks:
       - smartmart_network
 
+  # ==========================================
+  # 7. OBSERVABILITY: PROMETHEUS (METRICS SCRAPER)
+  # ==========================================
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: smartmart_prometheus
+    restart: always
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - smartmart_network
+
+  # ==========================================
+  # 8. OBSERVABILITY: GRAFANA (DASHBOARD)
+  # ==========================================
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: smartmart_grafana
+    restart: always
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - smartmart_network
+
 # ==========================================
 # VOLUMES DECLARATION (PERSISTENT STORAGE)
 # ==========================================
@@ -190,6 +232,10 @@ volumes:
   redis_data:
     driver: local
   ai_models_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
     driver: local
 
 # ==========================================
