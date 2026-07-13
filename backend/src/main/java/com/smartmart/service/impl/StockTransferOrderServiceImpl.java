@@ -12,6 +12,7 @@ import com.smartmart.enums.StockTransferOrderStatus;
 import com.smartmart.exception.BadRequestException;
 import com.smartmart.exception.NotFoundException;
 import com.smartmart.repository.ItemLotRepository;
+import com.smartmart.repository.ItemRepository;
 import com.smartmart.repository.LocationRepository;
 import com.smartmart.repository.StockTransferOrderRepository;
 import com.smartmart.security.SecurityUtils;
@@ -25,6 +26,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -35,6 +38,7 @@ public class StockTransferOrderServiceImpl implements StockTransferOrderService 
     private final LocationRepository locationRepository;
     private final ItemService itemService;
     private final ItemLotRepository itemLotRepository;
+    private final ItemRepository itemRepository;
     private final InventoryLedgerService inventoryLedgerService;
     private final AuditLogService auditLogService;
 
@@ -43,12 +47,14 @@ public class StockTransferOrderServiceImpl implements StockTransferOrderService 
             LocationRepository locationRepository,
             ItemService itemService,
             ItemLotRepository itemLotRepository,
+            ItemRepository itemRepository,
             InventoryLedgerService inventoryLedgerService,
             AuditLogService auditLogService) {
         this.stockTransferOrderRepository = stockTransferOrderRepository;
         this.locationRepository = locationRepository;
         this.itemService = itemService;
         this.itemLotRepository = itemLotRepository;
+        this.itemRepository = itemRepository;
         this.inventoryLedgerService = inventoryLedgerService;
         this.auditLogService = auditLogService;
     }
@@ -100,7 +106,14 @@ public class StockTransferOrderServiceImpl implements StockTransferOrderService 
         Long userId = SecurityUtils.getCurrentUserId().orElse(null);
         String note = order.getNote() != null ? order.getNote() : "Điều chuyển kho";
 
-        for (StockTransferOrderItem line : order.getItems()) {
+        // Lock items theo thứ tự ID để giảm deadlock khi nhiều giao dịch chạm cùng SKU
+        List<StockTransferOrderItem> sortedItems = new ArrayList<>(order.getItems());
+        sortedItems.sort(Comparator.comparing(line -> line.getItem().getId()));
+        for (StockTransferOrderItem line : sortedItems) {
+            itemRepository.findByIdWithPessimisticLock(line.getItem().getId());
+        }
+
+        for (StockTransferOrderItem line : sortedItems) {
             inventoryLedgerService.applyMovement(
                     line.getItem(), order.getFromLocation(), line.getLot(),
                     line.getQuantity().negate(),

@@ -12,7 +12,6 @@ import java.util.List;
 public interface OrderService {
 
     OrderResponse create(CreateOrderRequest request);
-    Long completeOrderFromWebhook(Long payosOrderCode);
 
     List<OrderResponse> listAll();
 

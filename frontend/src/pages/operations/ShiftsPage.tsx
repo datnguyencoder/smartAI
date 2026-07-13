@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Col, Descriptions, Input, message, Modal, Radio, Row, Space, Statistic, Table, Tag } from 'antd';
+import { Button, Col, Descriptions, Input, InputNumber, message, Modal, Row, Space, Statistic, Table, Tag } from 'antd';
 import dayjs from 'dayjs';
 import { Card, CardHeader } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,7 +23,8 @@ export default function ShiftsPage() {
   const [loading, setLoading] = useState(false);
   const [openModal, setOpenModal] = useState(false);
   const [closeModal, setCloseModal] = useState(false);
-  const [matches, setMatches] = useState(true);
+  const [closingCashInput, setClosingCashInput] = useState<number | null>(null);
+  const [closePreview, setClosePreview] = useState<ShiftSummaryDto | null>(null);
   const [openingNote, setOpeningNote] = useState('');
   const [closingNote, setClosingNote] = useState('');
   const [explanation, setExplanation] = useState('');
@@ -62,18 +63,32 @@ export default function ShiftsPage() {
     }
   };
 
+  const openCloseModal = async () => {
+    if (!current) return;
+    setClosingCashInput(null);
+    setExplanation('');
+    setClosingNote('');
+    setClosePreview(null);
+    setCloseModal(true);
+    try {
+      setClosePreview(await fetchShiftSummary(current.id));
+    } catch {
+      // preview is optional guidance; ignore failures here
+    }
+  };
+
   const handleClose = async () => {
     if (!current) return;
-    if (!matches && !explanation.trim()) {
-      message.warning('Vui lòng nhập giải trình khi kết quả không khớp');
+    if (closingCashInput == null) {
+      message.warning('Vui lòng nhập số tiền mặt thực tế kiểm đếm cuối ca');
+      return;
+    }
+    if (!closingNote.trim()) {
+      message.warning('Vui lòng nhập ghi chú đóng ca');
       return;
     }
     try {
-      if (!closingNote.trim()) {
-        message.warning('Vui lòng nhập ghi chú đóng ca');
-        return;
-      }
-      await closeShift(current.id, matches, closingNote.trim(), explanation || undefined);
+      await closeShift(current.id, closingCashInput, closingNote.trim(), explanation || undefined);
       setCloseModal(false);
       message.success('Đã đóng và gửi ca cho quản lý');
       await load();
@@ -157,7 +172,7 @@ export default function ShiftsPage() {
   return <Card>
     <CardHeader title="Quản lý ca làm việc" description="Tổng hợp giao dịch tự động và đối soát nhiều cấp" action={
       current
-        ? <Button danger type="primary" onClick={() => { setMatches(true); setExplanation(''); setClosingNote(''); setCloseModal(true); }}>Đóng ca</Button>
+        ? <Button danger type="primary" onClick={() => { void openCloseModal(); }}>Đóng ca</Button>
         : <Button type="primary" onClick={() => { setOpeningNote(''); setOpenModal(true); }}>Mở ca</Button>
     } />
     {current && <div className="px-5 pb-4"><Row gutter={16}>
@@ -176,14 +191,19 @@ export default function ShiftsPage() {
         placeholder="Ghi chú mở ca (bắt buộc)" />
     </Modal>
     <Modal title="Đóng ca làm việc" open={closeModal} onCancel={() => setCloseModal(false)} onOk={handleClose}>
-      <p className="mb-2">Kết quả thực tế có khớp dữ liệu hệ thống?</p>
-      <Radio.Group value={matches} onChange={(event) => setMatches(event.target.value)}>
-        <Space direction="vertical"><Radio value>Khớp</Radio><Radio value={false}>Không khớp</Radio></Space>
-      </Radio.Group>
+      <p className="mb-2">
+        Tiền mặt kỳ vọng theo hệ thống: {closePreview?.expectedCash != null
+          ? formatMoney(closePreview.expectedCash)
+          : 'đang tính...'}
+      </p>
+      <p className="mb-2">Đếm tiền mặt thực tế trong ngăn kéo và nhập số liệu bên dưới:</p>
+      <InputNumber className="w-full" min={0} value={closingCashInput ?? undefined}
+        onChange={(value) => setClosingCashInput(value)} placeholder="Số tiền mặt thực tế đếm được" />
       <Input.TextArea className="mt-4" rows={3} value={closingNote}
         onChange={(event) => setClosingNote(event.target.value)} placeholder="Ghi chú đóng ca (bắt buộc)" />
-      {!matches && <Input.TextArea className="mt-4" rows={4} value={explanation}
-        onChange={(event) => setExplanation(event.target.value)} placeholder="Giải trình bắt buộc" />}
+      <Input.TextArea className="mt-4" rows={4} value={explanation}
+        onChange={(event) => setExplanation(event.target.value)}
+        placeholder="Giải trình (bắt buộc nếu tiền mặt đếm được lệch từ 0.01đ trở lên so với kỳ vọng)" />
     </Modal>
     <Modal title="Ghi chú/lý do xử lý" open={!!action} onCancel={() => setAction(null)} onOk={runAction}
       okButtonProps={{ disabled: !actionNote.trim() }}>

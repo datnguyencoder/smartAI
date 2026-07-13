@@ -30,12 +30,14 @@ public class UserController {
 
     @GetMapping
     @Operation(summary = "Danh sách người dùng")
+    @PreAuthorize("hasAnyRole('ADMIN')")
     public ResponseEntity<ApiResponse<List<UserResponse>>> list() {
         return ResponseEntity.ok(ApiResponse.success(userService.listAll()));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Chi tiết người dùng")
+    @PreAuthorize("hasAnyRole('ADMIN')")
     public ResponseEntity<ApiResponse<UserResponse>> get(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(userService.getById(id)));
     }

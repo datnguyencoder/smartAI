@@ -87,7 +87,14 @@ public class PromotionServiceImpl implements PromotionService {
         Promotion promotion = findPromotion(id);
         String beforeData = promotionData(promotion);
         if (request.getName() != null) promotion.setName(request.getName().trim());
-        if (request.getCode() != null) promotion.setCode(request.getCode().trim().toUpperCase());
+        if (request.getCode() != null) {
+            String newCode = request.getCode().trim().toUpperCase();
+            if (!newCode.equals(promotion.getCode())
+                    && promotionRepository.findByCodeIgnoreCase(newCode).isPresent()) {
+                throw new BadRequestException("Mã khuyến mãi đã tồn tại");
+            }
+            promotion.setCode(newCode);
+        }
         if (request.getType() != null) promotion.setType(request.getType().toUpperCase());
         if (request.getValue() != null) promotion.setValue(request.getValue());
         if (request.getMinOrder() != null) promotion.setMinOrder(request.getMinOrder());
