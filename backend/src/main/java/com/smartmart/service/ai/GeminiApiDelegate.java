@@ -44,7 +44,7 @@ public class GeminiApiDelegate {
                 .bodyValue(requestBody)
                 .retrieve()
                 .bodyToMono(JsonNode.class)
-                .block(Duration.ofSeconds(45));
+                .block(Duration.ofSeconds(90));
     }
 
     @Recover

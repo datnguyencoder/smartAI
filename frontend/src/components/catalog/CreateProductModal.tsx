@@ -22,8 +22,6 @@ const pageTitles: Record<PageKey, { title: string }> = {
   'customer-debts': { title: 'Công nợ khách' },
   invoices: { title: 'Hóa đơn bán hàng' },
   'return-orders': { title: 'Phiếu trả hàng' },
-  quotations: { title: 'Báo giá' },
-  'online-orders': { title: 'Đơn hàng online' },
   'import-create': { title: 'Tạo phiếu nhập' },
   'import-slips': { title: 'Phiếu nhập hàng' },
   inventory: { title: 'Tồn kho' },
@@ -40,7 +38,6 @@ const pageTitles: Record<PageKey, { title: string }> = {
   promotions: { title: 'Đề xuất KM (AI)' },
   'promotion-manage': { title: 'Quản lý mã KM' },
   'discount-plans': { title: 'Kế hoạch giảm giá' },
-  'gift-cards': { title: 'Thẻ quà tặng' },
   'ai-assistant': { title: 'Trợ lý AI' },
   reports: { title: 'Báo cáo hệ thống' },
   finance: { title: 'Thu chi' },
@@ -48,7 +45,6 @@ const pageTitles: Record<PageKey, { title: string }> = {
   settings: { title: 'Cài đặt hệ thống' },
   'scrap-orders': { title: 'Quản lý Yêu cầu loại bỏ hàng hóa' },
   'audit-logs': { title: 'Nhật ký hoạt động' },
-  chat: { title: 'Tin nhắn' },
 };
 
 type Props = {

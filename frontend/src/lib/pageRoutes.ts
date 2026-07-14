@@ -13,8 +13,6 @@ export const PAGE_PATHS: Record<PageKey, string> = {
   'customer-debts': '/customer-debts',
   invoices: '/invoices',
   'return-orders': '/return-orders',
-  quotations: '/quotations',
-  'online-orders': '/online-orders',
   'import-create': '/import/create',
   'import-slips': '/import/slips',
   inventory: '/inventory',
@@ -28,7 +26,6 @@ export const PAGE_PATHS: Record<PageKey, string> = {
   promotions: '/promotions',
   'promotion-manage': '/promotions/manage',
   'discount-plans': '/promotions/discount-plans',
-  'gift-cards': '/promotions/gift-cards',
   'ai-assistant': '/ai/assistant',
   reports: '/reports',
   finance: '/finance',
@@ -39,7 +36,6 @@ export const PAGE_PATHS: Record<PageKey, string> = {
   shifts: '/shifts',
   'item-lots': '/item-lots',
   'audit-logs': '/audit-logs',
-  chat: '/chat',
 };
 
 const PATH_TO_PAGE = Object.fromEntries(

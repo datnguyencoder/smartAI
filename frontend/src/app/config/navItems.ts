@@ -9,7 +9,6 @@ import {
   Clock,
   FileClock,
   FileInput,
-  FileText,
   FolderClosed,
   LayoutDashboard,
   MonitorPlay,
@@ -29,9 +28,6 @@ import {
   Printer,
   CalendarX,
   Tag,
-  Globe,
-  CreditCard,
-  MessageSquare,
 } from 'lucide-react';
 import {
   CommentOutlined,
@@ -73,12 +69,6 @@ export const navGroups: NavGroup[] = [
     items: [{ key: 'dashboard', label: 'Bảng điều khiển', icon: LayoutDashboard }],
   },
   {
-    id: 'apps',
-    label: 'Ứng dụng',
-    flat: true,
-    items: [{ key: 'chat', label: 'Tin nhắn', icon: MessageSquare }],
-  },
-  {
     id: 'sales',
     label: 'Bán hàng',
     items: [
@@ -87,8 +77,6 @@ export const navGroups: NavGroup[] = [
       { key: 'customer-debts', label: 'Công nợ khách', icon: FileClock },
       { key: 'invoices', label: 'Hóa đơn', icon: FileInput },
       { key: 'return-orders', label: 'Trả hàng', icon: RotateCcw },
-      { key: 'quotations', label: 'Báo giá', icon: FileText },
-      { key: 'online-orders', label: 'Đơn online', icon: Globe },
       { key: 'shifts', label: 'Ca làm việc', icon: Clock },
     ],
   },
@@ -130,7 +118,6 @@ export const navGroups: NavGroup[] = [
       { key: 'promotions', label: 'Đề xuất KM', icon: antdNavIcon(GiftOutlined) },
       { key: 'promotion-manage', label: 'Mã KM', icon: BadgePercent },
       { key: 'discount-plans', label: 'Kế hoạch giảm giá', icon: BadgePercent },
-      { key: 'gift-cards', label: 'Thẻ quà tặng', icon: CreditCard },
       { key: 'ai-assistant', label: 'Trợ lý AI', icon: antdNavIcon(CommentOutlined) },
       { key: 'reports', label: 'Báo cáo', icon: BarChart3, section: 'Báo cáo' },
       { key: 'finance', label: 'Thu chi', icon: WalletCards },

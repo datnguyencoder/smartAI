@@ -30,7 +30,7 @@ public class GeminiEmbeddingService {
             GeminiEmbeddingApiDelegate apiDelegate,
             ObjectMapper objectMapper,
             @Value("${app.gemini.api-key:}") String apiKey,
-            @Value("${app.gemini.embedding-model:text-embedding-004}") String embeddingModel) {
+            @Value("${app.gemini.embedding-model:gemini-embedding-001}") String embeddingModel) {
         this.apiDelegate = apiDelegate;
         this.objectMapper = objectMapper;
         this.apiKey = apiKey;
@@ -55,6 +55,9 @@ public class GeminiEmbeddingService {
             ObjectNode content = body.putObject("content");
             ArrayNode parts = content.putArray("parts");
             parts.addObject().put("text", text);
+            // Model gốc trả 3072 chiều — ép về EMBEDDING_DIMENSION để khớp cột pgvector(768).
+            // Cosine distance (<=>) không phụ thuộc độ dài vector nên không cần tự chuẩn hóa lại.
+            body.put("outputDimensionality", EMBEDDING_DIMENSION);
 
             JsonNode response = apiDelegate.embed(embeddingModel, apiKey, body);
             if (response == null) {
