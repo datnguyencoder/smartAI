@@ -1,13 +1,27 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
+    inputs:
+      backend:
+        description: Run backend Maven verify
+        type: boolean
+        default: true
+      frontend:
+        description: Run frontend build
+        type: boolean
+        default: true
+      ai_service:
+        description: Run AI service tests
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
 
 jobs:
   backend:
+    if: github.actor == 'datnguyencoder' && inputs.backend
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -22,6 +36,7 @@ jobs:
       - run: ./mvnw -B verify
 
   frontend:
+    if: github.actor == 'datnguyencoder' && inputs.frontend
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -37,6 +52,7 @@ jobs:
       - run: npm run build
 
   ai-service:
+    if: github.actor == 'datnguyencoder' && inputs.ai_service
     runs-on: ubuntu-latest
     defaults:
       run:
