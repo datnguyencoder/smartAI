@@ -101,15 +101,19 @@ services:
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash}
+      - GEMINI_EMBEDDING_MODEL=${GEMINI_EMBEDDING_MODEL:-gemini-embedding-001}
       - CEREBRAS_API_KEY=${CEREBRAS_API_KEY:-}
+      - CEREBRAS_BASE_URL=${CEREBRAS_BASE_URL:-https://api.cerebras.ai/v1}
       - CEREBRAS_MODEL=${CEREBRAS_MODEL:-gpt-oss-120b}
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - JWT_EXPIRATION_MS=${JWT_EXPIRATION_MS:-900000}
+      - JWT_REFRESH_EXPIRATION_MS=${JWT_REFRESH_EXPIRATION_MS:-604800000}
       - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME:-demo}
       - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY:-demo}
       - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET:-demo}
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-prod}
       - SPRING_CACHE_TYPE=redis
-      - AI_SERVICE_URL=http://ai-service:8000
+      - AI_SERVICE_URL=${AI_SERVICE_URL:-http://ai-service:8000}
     depends_on:
       postgres:
         condition: service_healthy
