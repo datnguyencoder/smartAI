@@ -20,6 +20,8 @@ public class CorsConfig {
                                 "http://localhost:5174",
                                 "http://127.0.0.1:5173",
                                 "http://127.0.0.1:5174",
+                                "https://smartai.datnguyencoder.asia",
+                                "https://*.vercel.app",
                                 "https://*.ngrok-free.app",
                                 "https://*.ngrok.app",
                                 "https://*.ngrok.dev"
