@@ -13,8 +13,6 @@ export const pageTitles: Record<PageKey, { title: string; description: string }>
   'customer-debts': { title: 'Công nợ khách hàng', description: 'Theo dõi đơn ghi nợ và thu tiền từng phần.' },
   invoices: { title: 'Hóa đơn bán hàng', description: 'Tra cứu hóa đơn, trạng thái thanh toán và giao dịch hoàn tiền.' },
   'return-orders': { title: 'Phiếu trả hàng', description: 'Danh sách phiếu trả hàng từ quầy POS và hóa đơn gốc.' },
-  quotations: { title: 'Báo giá', description: 'Tạo báo giá và chuyển đổi thành đơn bán hàng.' },
-  'online-orders': { title: 'Đơn hàng online', description: 'Yêu cầu đặt hàng online từ khách.' },
   'import-create': { title: 'Tạo phiếu nhập hàng', description: 'Nhập hàng từ nhà cung cấp với kiểm tra tồn kho tức thời.' },
   'import-slips': { title: 'Phiếu nhập hàng', description: 'Quản lý phiếu nhập, trạng thái duyệt và lịch nhận hàng.' },
   inventory: { title: 'Quản lý tồn kho', description: 'Kiểm soát tồn theo kho, ngưỡng cảnh báo và vòng quay hàng.' },
@@ -32,7 +30,6 @@ export const pageTitles: Record<PageKey, { title: string; description: string }>
   promotions: { title: 'Đề xuất KM (AI)', description: 'Gemini đề xuất giảm giá — Manager duyệt → mã KM dùng tại POS.' },
   'promotion-manage': { title: 'Quản lý mã KM', description: 'Tạo mã giảm giá, thời hạn áp dụng và dùng ngay tại POS.' },
   'discount-plans': { title: 'Kế hoạch giảm giá', description: 'Quy tắc giảm giá theo danh mục, sản phẩm hoặc toàn cửa hàng.' },
-  'gift-cards': { title: 'Thẻ quà tặng', description: 'Phát hành và sử dụng thẻ quà tặng.' },
   'ai-assistant': { title: 'Trợ lý AI', description: 'Hỏi đáp nghiệp vụ, phân tích bán hàng và tạo tác vụ nhanh.' },
   reports: { title: 'Báo cáo hệ thống', description: 'Báo cáo doanh thu, tồn kho, nhân sự và hiệu quả AI.' },
   finance: { title: 'Thu chi', description: 'Ghi nhận khoản thu, khoản chi và theo dõi dòng tiền cửa hàng.' },
@@ -42,5 +39,4 @@ export const pageTitles: Record<PageKey, { title: string; description: string }>
     title: 'Nhật ký hệ thống',
     description: 'Theo dõi lịch sử thao tác, thay đổi dữ liệu và hoạt động người dùng.',
   },
-  chat: { title: 'Tin nhắn', description: 'Trò chuyện nội bộ.' },
 };

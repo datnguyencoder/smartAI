@@ -15,8 +15,6 @@ const ALL_PAGES: PageKey[] = [
   'customer-debts',
   'invoices',
   'return-orders',
-  'quotations',
-  'online-orders',
   'import-create',
   'import-slips',
   'inventory',
@@ -30,7 +28,6 @@ const ALL_PAGES: PageKey[] = [
   'promotions',
   'promotion-manage',
   'discount-plans',
-  'gift-cards',
   'ai-assistant',
   'reports',
   'finance',
@@ -41,7 +38,6 @@ const ALL_PAGES: PageKey[] = [
   'shifts',
   'item-lots',
   'audit-logs',
-  'chat',
 ];
 
 // Ma trận trang theo role (docs/02-business-rule)
@@ -50,7 +46,7 @@ const ROLE_PAGES: Record<string, PageKey[]> = {
   ROLE_MANAGER: ALL_PAGES.filter((p) => p !== 'users' && p !== 'settings' && p !== 'audit-logs'),
   ROLE_STAFF: [
     'dashboard', 'products', 'pos', 'customers', 'customer-debts', 'invoices',
-    'return-orders', 'quotations', 'online-orders', 'inventory-alerts', 'shifts', 'gift-cards', 'chat',
+    'return-orders', 'inventory-alerts', 'shifts',
   ],
   ROLE_WAREHOUSE: [
     'products',
@@ -70,9 +66,8 @@ const ROLE_PAGES: Record<string, PageKey[]> = {
     'scrap-orders',
     'stocktake',
     'item-lots',
-    'chat',
   ],
-  ROLE_ANALYST: ['dashboard', 'reports', 'ai-forecast', 'expiry-risk', 'ai-assistant', 'chat'],
+  ROLE_ANALYST: ['dashboard', 'reports', 'ai-forecast', 'expiry-risk', 'ai-assistant'],
 };
 
 const QUICK_CREATE_PAGES: Partial<Record<PageKey, string[]>> = {

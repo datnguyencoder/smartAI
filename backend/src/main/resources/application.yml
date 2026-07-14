@@ -71,7 +71,7 @@ app:
   gemini:
     api-key: ${GEMINI_API_KEY:}
     model: ${GEMINI_MODEL:gemini-2.5-flash}
-    embedding-model: ${GEMINI_EMBEDDING_MODEL:text-embedding-004}
+    embedding-model: ${GEMINI_EMBEDDING_MODEL:gemini-embedding-001}
   cerebras:
     api-key: ${CEREBRAS_API_KEY:}
     base-url: ${CEREBRAS_BASE_URL:https://api.cerebras.ai/v1}

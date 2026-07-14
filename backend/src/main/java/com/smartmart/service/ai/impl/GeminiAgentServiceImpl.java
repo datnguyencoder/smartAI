@@ -28,6 +28,8 @@ public class GeminiAgentServiceImpl implements GeminiAgentService {
 
     private static final Logger log = LoggerFactory.getLogger(GeminiAgentServiceImpl.class);
     private static final int MAX_TOOL_ROUNDS = 4;
+    // gemini-2.5-flash bật thinking mặc định; giới hạn budget để agent loop không bị timeout.
+    private static final int THINKING_BUDGET = 1024;
 
     private static final String SYSTEM_INSTRUCTION = """
             Bạn là trợ lý AI vận hành của siêu thị mini SmartMart. Khi cần số liệu tồn kho,
@@ -82,6 +84,9 @@ public class GeminiAgentServiceImpl implements GeminiAgentService {
                 body.set("tools", tools);
                 ObjectNode systemInstruction = body.putObject("systemInstruction");
                 systemInstruction.putArray("parts").addObject().put("text", SYSTEM_INSTRUCTION);
+                body.putObject("generationConfig")
+                        .putObject("thinkingConfig")
+                        .put("thinkingBudget", THINKING_BUDGET);
 
                 JsonNode response = apiDelegate.call(model, apiKey, body);
                 if (response == null) {
@@ -112,8 +117,17 @@ public class GeminiAgentServiceImpl implements GeminiAgentService {
                 ObjectNode functionResponsePart = objectMapper.createObjectNode();
                 ObjectNode functionResponse = functionResponsePart.putObject("functionResponse");
                 functionResponse.put("name", toolName);
-                functionResponse.set("response", objectMapper.valueToTree(result));
-                contents.addObject().put("role", "function").set("parts", singlePartArray(functionResponsePart));
+                // Gemini yêu cầu "response" luôn là object (Struct) — bọc lại nếu tool trả về mảng/list,
+                // nếu không API trả 400 "Proto field is not repeating, cannot start list".
+                JsonNode resultNode = objectMapper.valueToTree(result);
+                if (!resultNode.isObject()) {
+                    ObjectNode wrapper = objectMapper.createObjectNode();
+                    wrapper.set("result", resultNode);
+                    resultNode = wrapper;
+                }
+                functionResponse.set("response", resultNode);
+                // Gemini v1beta yêu cầu functionResponse nằm trong role "user", không phải "function".
+                contents.addObject().put("role", "user").set("parts", singlePartArray(functionResponsePart));
             }
             log.warn("AI agent vượt quá {} vòng gọi tool, dừng lại", MAX_TOOL_ROUNDS);
             return "Xin lỗi, câu hỏi này cần tra cứu quá nhiều bước. Bạn có thể hỏi cụ thể hơn không?";

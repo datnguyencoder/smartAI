@@ -28,7 +28,6 @@ import FinancePage from '@/pages/finance/FinancePage';
 import ShiftsPage from '@/pages/operations/ShiftsPage';
 import PromotionsManagePage from '@/pages/promotions/PromotionsManagePage';
 import DiscountPlansPage from '@/pages/promotions/DiscountPlansPage';
-import GiftCardsPage from '@/pages/promotions/GiftCardsPage';
 import PromotionsSuggestPage from '@/pages/promotions/PromotionsSuggestPage';
 import ImportCreatePage from '@/pages/purchase/ImportCreatePage';
 import ImportSlipsPage from '@/pages/purchase/ImportSlipsPage';
@@ -37,10 +36,7 @@ import CustomersPage from '@/pages/sales/CustomersPage';
 import CustomerDebtsPage from '@/pages/sales/CustomerDebtsPage';
 import InvoicesPage from '@/pages/sales/InvoicesPage';
 import ReturnOrdersPage from '@/pages/sales/ReturnOrdersPage';
-import QuotationsPage from '@/pages/sales/QuotationsPage';
-import OnlineOrdersPage from '@/pages/sales/OnlineOrdersPage';
 import PosPage from '@/pages/sales/PosPage';
-import ChatPage from '@/pages/chat/ChatPage';
 import type { CategoryDto, LocationDto, SupplierDto, UomDto, UserDto } from '@/types/api';
 import type { PageKey, PurchaseSuggestionPrefillItem } from '@/types/pages';
 
@@ -149,12 +145,6 @@ export function PageRenderer({
   if (page === 'return-orders') {
     return <ReturnOrdersPage />;
   }
-  if (page === 'quotations') {
-    return <QuotationsPage productsList={productsList} />;
-  }
-  if (page === 'online-orders') {
-    return <OnlineOrdersPage />;
-  }
   if (page === 'import-create') {
     return (
       <ImportCreatePage
@@ -229,9 +219,6 @@ export function PageRenderer({
   if (page === 'discount-plans') {
     return <DiscountPlansPage productsList={productsList} />;
   }
-  if (page === 'gift-cards') {
-    return <GiftCardsPage />;
-  }
   if (page === 'ai-assistant') {
     return (
       <AiAssistantPage
@@ -253,9 +240,6 @@ export function PageRenderer({
   }
   if (page === 'audit-logs') {
     return <AuditLogsPage />;
-  }
-  if (page === 'chat') {
-    return <ChatPage />;
   }
   return <SettingsPage />;
 }

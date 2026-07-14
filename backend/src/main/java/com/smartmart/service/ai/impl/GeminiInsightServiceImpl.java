@@ -28,6 +28,7 @@ public class GeminiInsightServiceImpl implements GeminiInsightService {
 
     private static final Logger log = LoggerFactory.getLogger(GeminiInsightServiceImpl.class);
     private static final Duration CACHE_TTL = Duration.ofMinutes(10);
+    private static final int THINKING_BUDGET = 2048;
 
     private final GeminiApiDelegate apiDelegate;
     private final ObjectMapper objectMapper;
@@ -106,10 +107,16 @@ public class GeminiInsightServiceImpl implements GeminiInsightService {
 
         try {
             ObjectNode body = objectMapper.createObjectNode();
+            body.putObject("systemInstruction")
+                    .putArray("parts").addObject().put("text", AiTextSanitizer.STYLE_RULES);
             ArrayNode contents = body.putArray("contents");
             ObjectNode content = contents.addObject();
+            content.put("role", "user");
             ArrayNode parts = content.putArray("parts");
             parts.addObject().put("text", prompt);
+            body.putObject("generationConfig")
+                    .putObject("thinkingConfig")
+                    .put("thinkingBudget", THINKING_BUDGET);
 
             JsonNode response = apiDelegate.call(model, apiKey, body);
 

@@ -9,8 +9,6 @@ export type PageKey =
   | 'pos'
   | 'invoices'
   | 'return-orders'
-  | 'quotations'
-  | 'online-orders'
   | 'import-create'
   | 'import-slips'
   | 'inventory'
@@ -24,7 +22,6 @@ export type PageKey =
   | 'promotions'
   | 'promotion-manage'
   | 'discount-plans'
-  | 'gift-cards'
   | 'customers'
   | 'customer-debts'
   | 'ai-assistant'
@@ -36,8 +33,7 @@ export type PageKey =
   | 'stocktake'
   | 'shifts'
   | 'item-lots'
-  | 'audit-logs'
-  | 'chat';
+  | 'audit-logs';
 
 export type PurchaseSuggestionPrefillItem = {
   itemId: number;

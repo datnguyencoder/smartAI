@@ -24,6 +24,7 @@ import { ProductThumbnail } from '@/components/catalog/ProductThumbnail';
 import { BarcodeScanner } from '@/components/sales/BarcodeScanner';
 import { cn } from '@/lib/utils';
 import { itemToProduct, formatMoney as money, type Product } from '@/lib/itemMapper';
+import { moneyInputFormatter, moneyInputParser, resolvePosProductImage } from '@/lib/posDisplay';
 import { buildPrintHtml } from '@/lib/printReceipt';
 import {
   createOrder,
@@ -627,7 +628,7 @@ export default function PosPage({
                   )}
                 >
                   {sample ? (
-                    <ProductThumbnail name={sample.name} imageUrl={sample.imageUrl} size={28} />
+                    <ProductThumbnail name={sample.name} imageUrl={resolvePosProductImage(sample)} size={28} />
                   ) : (
                     <LayoutGrid size={28} className={active ? 'text-orange-500' : 'text-slate-400'} />
                   )}
@@ -697,7 +698,7 @@ export default function PosPage({
                   </span>
                 )}
                 <div className="flex h-[150px] items-center justify-center rounded-xl bg-slate-50">
-                  <ProductThumbnail name={product.name} imageUrl={product.imageUrl} size={118} />
+                  <ProductThumbnail name={product.name} imageUrl={resolvePosProductImage(product)} size={118} />
                 </div>
                 <div className="mt-3 flex flex-1 flex-col justify-between">
                   <div>
@@ -725,7 +726,7 @@ export default function PosPage({
           <div className="min-h-[180px] flex-[1.05] space-y-3 overflow-y-auto px-5 pb-4 scrollbar-thin">
             {posCart.map((item) => (
               <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3" key={item.product.key}>
-                <ProductThumbnail name={item.product.name} imageUrl={item.product.imageUrl} size={36} className="mr-2 shrink-0" />
+                <ProductThumbnail name={item.product.name} imageUrl={resolvePosProductImage(item.product)} size={36} className="mr-2 shrink-0" />
                 <div className="min-w-0">
                   <strong className="text-sm font-semibold text-ink line-clamp-1">{item.product.name}</strong>
                   <p className="text-xs text-slate-400 mt-0.5">{money(item.product.price)}</p>
@@ -769,7 +770,13 @@ export default function PosPage({
                   </div>
                   <div>
                     <label className="text-xs font-semibold text-slate-500">Đổi điểm (1 điểm = 1 VND)</label>
-                    <InputNumber className="w-full mt-1" min={0} max={maxLoyaltyRedeem} value={loyaltyRedeem}
+                    <InputNumber
+                      className="w-full mt-1"
+                      min={0}
+                      max={maxLoyaltyRedeem}
+                      value={loyaltyRedeem}
+                      formatter={moneyInputFormatter}
+                      parser={moneyInputParser}
                       onChange={(v) => setLoyaltyRedeem(Math.min(Number(v) || 0, maxLoyaltyRedeem))} />
                   </div>
                   <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
@@ -849,14 +856,14 @@ export default function PosPage({
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-xs text-slate-500">Tiền mặt</label>
-                  <InputNumber className="w-full" min={0} value={cashAmount} onChange={(v) => {
+                  <InputNumber className="w-full" min={0} value={cashAmount} formatter={moneyInputFormatter} parser={moneyInputParser} onChange={(v) => {
                     splitAmountsTouchedRef.current = true;
                     setCashAmount(Number(v) || 0);
                   }} />
                 </div>
                 <div>
                   <label className="text-xs text-slate-500">Ngân hàng</label>
-                  <InputNumber className="w-full" min={0} value={bankAmount} onChange={(v) => {
+                  <InputNumber className="w-full" min={0} value={bankAmount} formatter={moneyInputFormatter} parser={moneyInputParser} onChange={(v) => {
                     splitAmountsTouchedRef.current = true;
                     setBankAmount(Number(v) || 0);
                   }} />
@@ -895,6 +902,8 @@ export default function PosPage({
                       className="w-full"
                       min={0}
                       value={cashReceived}
+                      formatter={moneyInputFormatter}
+                      parser={moneyInputParser}
                       onChange={(v) => setCashReceived(Number(v) || 0)}
                     />
                   </div>
@@ -930,7 +939,7 @@ export default function PosPage({
                             : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-primary hover:text-primary'
                         )}
                       >
-                        {amount / 1000}k
+                        {moneyInputFormatter(amount)}
                       </button>
                     ))}
                   </div>
