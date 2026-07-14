@@ -10,6 +10,13 @@ function normalizeBaseUrl(url: string): string {
 }
 
 function resolveApiBaseUrl(): string {
+  if (
+    typeof window !== 'undefined' &&
+    window.location.hostname === 'smartai.datnguyencoder.asia'
+  ) {
+    return '';
+  }
+
   const fromEnv =
     import.meta.env.VITE_API_BASE_URL ??
     import.meta.env.VITE_API_URL; // legacy alias
