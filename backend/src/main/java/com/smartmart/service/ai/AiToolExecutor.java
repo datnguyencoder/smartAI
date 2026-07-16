@@ -5,30 +5,25 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.smartmart.dto.response.InventoryAlertResponse;
-import com.smartmart.entity.ForecastResult;
-import com.smartmart.entity.Item;
-import com.smartmart.entity.ReorderRecommendation;
-import com.smartmart.repository.ForecastResultRepository;
-import com.smartmart.repository.ItemRepository;
-import com.smartmart.repository.ReorderRecommendationRepository;
+import com.smartmart.entity.*;
+import com.smartmart.repository.*;
 import com.smartmart.service.DashboardService;
+import com.smartmart.service.DiscountPlanService;
 import com.smartmart.service.InventoryAlertService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
  * Định nghĩa "tools" (function declarations) mà Gemini agent có thể gọi, và dispatch
- * lời gọi đó vào service/repository thật của hệ thống — biến AI chat từ chatbot chỉ
- * đọc prompt tĩnh thành agent có thể tự truy vấn dữ liệu vận hành real-time.
- *
- * Mỗi tool chỉ đọc dữ liệu (read-only) — agent không được phép ghi/thay đổi dữ liệu
- * nghiệp vụ (đúng nguyên tắc "LLM chỉ đề xuất, không tự quyết định giao dịch" ở
- * docs/13-business-flow-blueprint.md mục 13).
+ * lời gọi đó vào service/repository thật của hệ thống. Tất cả tool chỉ đọc (read-only).
  */
 @Component
 public class AiToolExecutor {
@@ -41,6 +36,12 @@ public class AiToolExecutor {
     private final ReorderRecommendationRepository reorderRecommendationRepository;
     private final DashboardService dashboardService;
     private final VectorSearchService vectorSearchService;
+    private final GeminiContextBuilder contextBuilder;
+    private final CurrentInventoryRepository currentInventoryRepository;
+    private final OrderRepository orderRepository;
+    private final CustomerRepository customerRepository;
+    private final PromotionRepository promotionRepository;
+    private final DiscountPlanService discountPlanService;
     private final ObjectMapper objectMapper;
 
     public AiToolExecutor(
@@ -50,6 +51,12 @@ public class AiToolExecutor {
             ReorderRecommendationRepository reorderRecommendationRepository,
             DashboardService dashboardService,
             VectorSearchService vectorSearchService,
+            GeminiContextBuilder contextBuilder,
+            CurrentInventoryRepository currentInventoryRepository,
+            OrderRepository orderRepository,
+            CustomerRepository customerRepository,
+            PromotionRepository promotionRepository,
+            DiscountPlanService discountPlanService,
             ObjectMapper objectMapper) {
         this.itemRepository = itemRepository;
         this.forecastResultRepository = forecastResultRepository;
@@ -57,27 +64,68 @@ public class AiToolExecutor {
         this.reorderRecommendationRepository = reorderRecommendationRepository;
         this.dashboardService = dashboardService;
         this.vectorSearchService = vectorSearchService;
+        this.contextBuilder = contextBuilder;
+        this.currentInventoryRepository = currentInventoryRepository;
+        this.orderRepository = orderRepository;
+        this.customerRepository = customerRepository;
+        this.promotionRepository = promotionRepository;
+        this.discountPlanService = discountPlanService;
         this.objectMapper = objectMapper;
     }
 
-    /** Danh sách "functionDeclarations" gửi kèm request Gemini (Gemini v1beta tools schema). */
     public ArrayNode buildToolDeclarations() {
         ArrayNode functions = objectMapper.createArrayNode();
+
+        // ── Tồn kho & sản phẩm ──────────────────────────────────────────────
         functions.add(declaration("search_item",
-                "Tìm sản phẩm theo tên hoặc mã SKU đang kinh doanh trong cửa hàng.",
+                "Tìm sản phẩm theo tên hoặc mã SKU. Trả về itemId, tên, giá bán, trạng thái.",
                 Map.of("query", "Từ khóa tên hoặc mã sản phẩm cần tìm")));
-        functions.add(declaration("get_item_forecast",
-                "Lấy dự báo nhu cầu 7/14/30 ngày và tồn kho hiện tại của một sản phẩm theo itemId.",
+
+        functions.add(declaration("get_item_detail",
+                "Lấy chi tiết đầy đủ của một sản phẩm: tồn kho hiện tại, giá nhập/bán, " +
+                "ngưỡng tối thiểu, dự báo 7/14/30 ngày, lô hàng gần hết hạn. " +
+                "Dùng sau search_item để phân tích sâu.",
                 Map.of("itemId", "ID số của sản phẩm (lấy từ search_item)")));
+
         functions.add(declarationNoParams("get_low_stock_alerts",
-                "Lấy danh sách cảnh báo tồn kho đang mở (hết hàng, tồn thấp, cận date, rủi ro thiếu hàng)."));
-        functions.add(declarationNoParams("get_reorder_recommendations",
-                "Lấy danh sách gợi ý đặt hàng nhập kho đang chờ xử lý (từ AI forecast), sắp theo số lượng đề xuất."));
+                "Lấy danh sách cảnh báo tồn kho đang mở: hết hàng, tồn thấp, cận hạn, rủi ro thiếu hàng."));
+
+        functions.add(declaration("get_expiring_lots",
+                "Liệt kê các lô hàng sắp hết hạn trong N ngày tới, kèm tồn và thông tin sản phẩm.",
+                Map.of("days", "Số ngày tới cần kiểm tra hạn sử dụng (ví dụ: 30)")));
+
+        // ── Bán hàng & doanh thu ─────────────────────────────────────────────
         functions.add(declarationNoParams("get_dashboard_summary",
-                "Lấy số liệu tổng quan cửa hàng hôm nay: doanh thu, số đơn, tồn kho, cảnh báo."));
+                "Lấy số liệu tổng quan cửa hàng HÔM NAY: doanh thu, số đơn, lợi nhuận gộp, " +
+                "số SKU tồn thấp, số lô cận hạn."));
+
+        functions.add(declarationNoParams("get_revenue_trend",
+                "Lấy doanh thu từng ngày trong 7 ngày gần nhất. Dùng để phân tích xu hướng " +
+                "tăng/giảm, so sánh ngày tốt/xấu trong tuần."));
+
+        functions.add(declaration("get_top_selling_items",
+                "Lấy top sản phẩm bán chạy nhất theo số lượng và doanh thu trong N ngày gần nhất.",
+                Map.of("days", "Khoảng thời gian N ngày (ví dụ: 7, 30)")));
+
+        // ── Nhập hàng & gợi ý ───────────────────────────────────────────────
+        functions.add(declarationNoParams("get_reorder_recommendations",
+                "Lấy danh sách gợi ý đặt hàng nhập kho từ AI forecast đang chờ xử lý, " +
+                "sắp theo số lượng đề xuất giảm dần."));
+
+        // ── Khuyến mãi ──────────────────────────────────────────────────────
+        functions.add(declarationNoParams("get_active_promotions",
+                "Lấy danh sách mã khuyến mãi và kế hoạch giảm giá đang hoạt động hôm nay " +
+                "(discount plans theo SKU/danh mục và promotion codes đang chạy)."));
+
+        // ── Khách hàng ──────────────────────────────────────────────────────
+        functions.add(declaration("search_customers",
+                "Tìm kiếm khách hàng theo tên hoặc số điện thoại. Trả về điểm tích lũy, hạng thẻ.",
+                Map.of("query", "Tên hoặc số điện thoại khách hàng")));
+
+        // ── Chính sách & nghiệp vụ ───────────────────────────────────────────
         functions.add(declaration("search_store_policy",
-                "Tìm kiếm ngữ nghĩa (RAG) trong tài liệu quy tắc nghiệp vụ và chính sách cửa hàng "
-                        + "(đổi trả, bảo mật, phân quyền...) để trả lời câu hỏi về chính sách.",
+                "Tìm kiếm ngữ nghĩa (RAG) trong tài liệu quy tắc nghiệp vụ và chính sách cửa hàng " +
+                "(đổi trả, bảo mật, phân quyền, quy trình vận hành) để trả lời câu hỏi về chính sách.",
                 Map.of("query", "Câu hỏi hoặc chủ đề chính sách cần tra cứu")));
 
         ArrayNode tools = objectMapper.createArrayNode();
@@ -95,7 +143,8 @@ public class AiToolExecutor {
         ArrayNode required = parameters.putArray("required");
         params.forEach((key, desc) -> {
             ObjectNode prop = properties.putObject(key);
-            prop.put("type", key.toLowerCase().contains("id") ? "INTEGER" : "STRING");
+            prop.put("type", key.toLowerCase().contains("id") ? "INTEGER" :
+                    key.equals("days") ? "INTEGER" : "STRING");
             prop.put("description", desc);
             required.add(key);
         });
@@ -112,89 +161,157 @@ public class AiToolExecutor {
         return fn;
     }
 
-    /** Thực thi tool theo tên + tham số JSON mà Gemini trả về, trả kết quả dạng Map để nhét vào functionResponse. */
     public Object dispatch(String toolName, JsonNode args) {
         try {
             return switch (toolName) {
-                case "search_item" -> searchItem(args.path("query").asText(""));
-                case "get_item_forecast" -> getItemForecast(args.path("itemId").asLong(-1));
-                case "get_low_stock_alerts" -> getLowStockAlerts();
+                case "search_item"              -> searchItem(args.path("query").asText(""));
+                case "get_item_detail"          -> getItemDetail(args.path("itemId").asLong(-1));
+                case "get_low_stock_alerts"     -> getLowStockAlerts();
+                case "get_expiring_lots"        -> getExpiringLots(args.path("days").asInt(30));
+                case "get_dashboard_summary"    -> dashboardService.summary();
+                case "get_revenue_trend"        -> dashboardService.revenue7d();
+                case "get_top_selling_items"    -> getTopSellingItems(args.path("days").asInt(7));
                 case "get_reorder_recommendations" -> getReorderRecommendations();
-                case "get_dashboard_summary" -> dashboardService.summary();
-                case "search_store_policy" -> searchStorePolicy(args.path("query").asText(""));
+                case "get_active_promotions"    -> getActivePromotions();
+                case "search_customers"         -> searchCustomers(args.path("query").asText(""));
+                case "search_store_policy"      -> searchStorePolicy(args.path("query").asText(""));
                 default -> Map.of("error", "Không hỗ trợ tool: " + toolName);
             };
         } catch (Exception ex) {
             log.warn("AI tool '{}' lỗi: {}", toolName, ex.getMessage());
-            return Map.of("error", "Không thể lấy dữ liệu cho tool " + toolName);
+            return Map.of("error", "Không thể lấy dữ liệu cho tool " + toolName + ": " + ex.getMessage());
         }
     }
+
+    // ── Implementations ───────────────────────────────────────────────────────
 
     private List<Map<String, Object>> searchItem(String query) {
         return itemRepository.searchActive(query).stream()
                 .limit(5)
-                .map(this::itemSummary)
-                .toList();
+                .map(item -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("itemId", item.getId());
+                    m.put("itemCode", item.getItemCode());
+                    m.put("itemName", item.getItemName());
+                    m.put("sellingPrice", item.getSellingPrice());
+                    m.put("category", item.getCategory() != null ? item.getCategory().getCategoryName() : null);
+                    m.put("active", item.isActive());
+                    return m;
+                }).toList();
     }
 
-    private Map<String, Object> itemSummary(Item item) {
-        Map<String, Object> map = new LinkedHashMap<>();
-        map.put("itemId", item.getId());
-        map.put("itemCode", item.getItemCode());
-        map.put("itemName", item.getItemName());
-        map.put("sellingPrice", item.getSellingPrice());
-        map.put("active", item.isActive());
-        return map;
-    }
-
-    private Map<String, Object> getItemForecast(long itemId) {
+    private Map<String, Object> getItemDetail(long itemId) {
         if (itemId <= 0) {
-            return Map.of("error", "Thiếu itemId hợp lệ, hãy gọi search_item trước để lấy itemId.");
+            return Map.of("error", "Thiếu itemId hợp lệ. Hãy gọi search_item trước để lấy itemId.");
         }
-        Item item = itemRepository.findById(itemId).orElse(null);
-        if (item == null) {
+        try {
+            return contextBuilder.buildItemContext(itemId);
+        } catch (Exception ex) {
             return Map.of("error", "Không tìm thấy sản phẩm id=" + itemId);
         }
-        ForecastResult forecast = forecastResultRepository
-                .findFirstByItemIdOrderByForecastDateDesc(itemId).orElse(null);
-        Map<String, Object> map = new LinkedHashMap<>();
-        map.put("itemName", item.getItemName());
-        if (forecast == null) {
-            map.put("forecast", "Chưa có dữ liệu dự báo cho sản phẩm này.");
-            return map;
-        }
-        map.put("predictedQty7d", forecast.getPredictedQty7d());
-        map.put("predictedQty14d", forecast.getPredictedQty14d());
-        map.put("predictedQty30d", forecast.getPredictedQty30d());
-        map.put("modelType", forecast.getModelType());
-        map.put("forecastDate", forecast.getForecastDate());
-        return map;
     }
 
     private List<Map<String, Object>> getLowStockAlerts() {
-        List<InventoryAlertResponse> alerts = inventoryAlertService.listUnresolved();
-        return alerts.stream().limit(10).map(a -> {
-            Map<String, Object> map = new LinkedHashMap<>();
-            map.put("itemName", a.getItemName());
-            map.put("alertType", a.getAlertType());
-            map.put("severity", a.getSeverity());
-            map.put("currentStock", a.getCurrentStock());
-            map.put("message", a.getMessage());
-            return map;
+        return inventoryAlertService.listUnresolved().stream().limit(15).map(a -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("itemName", a.getItemName());
+            m.put("alertType", a.getAlertType());
+            m.put("severity", a.getSeverity());
+            m.put("currentStock", a.getCurrentStock());
+            m.put("message", a.getMessage());
+            return m;
+        }).toList();
+    }
+
+    private List<Map<String, Object>> getExpiringLots(int days) {
+        LocalDate deadline = LocalDate.now().plusDays(Math.max(1, Math.min(days, 365)));
+        return currentInventoryRepository.findNearExpiry(deadline).stream()
+                .limit(20)
+                .map(ci -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("itemName", ci.getItem().getItemName());
+                    m.put("itemCode", ci.getItem().getItemCode());
+                    m.put("lotNumber", ci.getLot() != null ? ci.getLot().getLotNumber() : null);
+                    m.put("expiryDate", ci.getLot() != null ? ci.getLot().getExpiryDate() : null);
+                    m.put("availableQty", ci.getQuantity().subtract(
+                            ci.getReservedQuantity() != null ? ci.getReservedQuantity() : BigDecimal.ZERO));
+                    m.put("location", ci.getLocation() != null ? ci.getLocation().getLocationName() : null);
+                    return m;
+                }).toList();
+    }
+
+    private List<Map<String, Object>> getTopSellingItems(int days) {
+        LocalDateTime from = LocalDateTime.now().minusDays(Math.max(1, Math.min(days, 365)));
+        LocalDateTime to = LocalDateTime.now();
+        List<Object[]> rows = orderRepository.reportBestSellers(from, to, 10);
+        return rows.stream().map(r -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("itemCode", r[1]);
+            m.put("itemName", r[2]);
+            m.put("quantitySold", r[3]);
+            m.put("revenue", r[4]);
+            return m;
         }).toList();
     }
 
     private List<Map<String, Object>> getReorderRecommendations() {
-        List<ReorderRecommendation> recs = reorderRecommendationRepository
-                .findByStatusOrderBySuggestedQtyDesc("ACTIVE");
-        return recs.stream().limit(10).map(r -> {
-            Map<String, Object> map = new LinkedHashMap<>();
-            map.put("itemName", r.getItem().getItemName());
-            map.put("suggestedQty", r.getSuggestedQty());
-            map.put("riskLevel", r.getRiskLevel());
-            map.put("reason", r.getReason());
-            return map;
+        return reorderRecommendationRepository.findByStatusOrderBySuggestedQtyDesc("ACTIVE")
+                .stream().limit(10).map(r -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("itemName", r.getItem().getItemName());
+                    m.put("suggestedQty", r.getSuggestedQty());
+                    m.put("riskLevel", r.getRiskLevel());
+                    m.put("reason", r.getReason());
+                    return m;
+                }).toList();
+    }
+
+    private Map<String, Object> getActivePromotions() {
+        LocalDate today = LocalDate.now();
+
+        List<Map<String, Object>> codes = promotionRepository
+                .findByActiveTrueAndStartDateLessThanEqualAndEndDateGreaterThanEqual(today, today)
+                .stream().map(p -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("name", p.getName());
+                    m.put("code", p.getCode());
+                    m.put("type", p.getType());
+                    m.put("value", p.getValue());
+                    m.put("minOrder", p.getMinOrder());
+                    m.put("endDate", p.getEndDate());
+                    return m;
+                }).toList();
+
+        List<Map<String, Object>> plans = discountPlanService.listAll().stream().map(dp -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("planName", dp.getPlanName());
+            m.put("planType", dp.getPlanType());
+            m.put("target", dp.getItemName() != null ? dp.getItemName() : dp.getCategoryName());
+            m.put("discountPercent", dp.getDiscountPercent());
+            m.put("endDate", dp.getEndDate());
+            return m;
         }).toList();
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("promotionCodes", codes);
+        result.put("discountPlans", plans);
+        result.put("totalActive", codes.size() + plans.size());
+        return result;
+    }
+
+    private List<Map<String, Object>> searchCustomers(String query) {
+        if (query.isBlank()) {
+            return List.of(Map.of("error", "Cần nhập tên hoặc số điện thoại khách hàng."));
+        }
+        return customerRepository.findByFullNameContainingIgnoreCaseOrPhoneContaining(query, query)
+                .stream().limit(5).map(c -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("fullName", c.getFullName());
+                    m.put("phone", c.getPhone());
+                    m.put("loyaltyPoints", c.getLoyaltyPoints());
+                    m.put("tier", c.getTier());
+                    return m;
+                }).toList();
     }
 
     private Object searchStorePolicy(String query) {

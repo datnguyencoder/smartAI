@@ -45,46 +45,60 @@ type PromptItem = {
 
 const SUGGESTED_PROMPTS: PromptItem[] = [
   {
+    title: 'Hôm nay',
+    hint: 'Tổng quan cửa hàng',
+    prompt: 'Tổng quan cửa hàng hôm nay: doanh thu, số đơn, lợi nhuận gộp và các cảnh báo cần xử lý.',
+    icon: BarChart3,
+    tone: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
+  },
+  {
     title: 'Tồn kho',
     hint: 'SKU thấp / hết hàng',
-    prompt: 'Sản phẩm nào sắp hết hàng hoặc đã hết hàng?',
+    prompt: 'Liệt kê các sản phẩm đang có cảnh báo tồn kho. Phân loại theo mức độ: hết hàng, tồn thấp, rủi ro thiếu hàng.',
     icon: Package,
     tone: 'bg-blue-50 text-blue-700 ring-blue-100',
   },
   {
     title: 'Doanh thu',
     hint: 'Xu hướng 7 ngày',
-    prompt: 'Phân tích doanh thu và xu hướng bán 7 ngày gần nhất.',
+    prompt: 'Phân tích doanh thu 7 ngày gần nhất: ngày tốt nhất, ngày yếu nhất và xu hướng tổng thể.',
     icon: TrendingUp,
-    tone: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
-  },
-  {
-    title: 'Nhập hàng',
-    hint: 'Đề xuất đặt hàng',
-    prompt: 'Gợi ý SKU cần nhập hàng dựa trên tồn và dự báo.',
-    icon: ShoppingCart,
     tone: 'bg-indigo-50 text-indigo-700 ring-indigo-100',
   },
   {
+    title: 'Bán chạy',
+    hint: 'Top SKU tuần này',
+    prompt: 'Liệt kê top 10 sản phẩm bán chạy nhất trong 7 ngày gần nhất theo số lượng và doanh thu.',
+    icon: ShoppingCart,
+    tone: 'bg-cyan-50 text-cyan-700 ring-cyan-100',
+  },
+  {
     title: 'Cận hạn',
-    hint: 'Lô sắp HSD',
-    prompt: 'Liệt kê lô hàng sắp hết hạn và đề xuất xử lý.',
+    hint: 'Lô sắp hết HSD 30 ngày',
+    prompt: 'Liệt kê các lô hàng sắp hết hạn trong 30 ngày tới. Đề xuất cách xử lý từng lô (bán gấp, giảm giá, hủy).',
     icon: CalendarClock,
     tone: 'bg-amber-50 text-amber-700 ring-amber-100',
   },
   {
-    title: 'Cảnh báo',
-    hint: 'Chưa xử lý',
-    prompt: 'Tóm tắt các cảnh báo tồn kho chưa xử lý hôm nay.',
-    icon: AlertTriangle,
-    tone: 'bg-red-50 text-red-700 ring-red-100',
+    title: 'Nhập hàng',
+    hint: 'Gợi ý đặt hàng AI',
+    prompt: 'Xem gợi ý nhập hàng từ AI dựa trên dự báo nhu cầu. Ưu tiên SKU nào cần nhập gấp nhất?',
+    icon: FileInput,
+    tone: 'bg-violet-50 text-violet-700 ring-violet-100',
   },
   {
     title: 'Khuyến mãi',
-    hint: 'SKU tồn cao',
-    prompt: 'Đề xuất chương trình khuyến mãi cho SKU tồn cao.',
+    hint: 'KM đang chạy',
+    prompt: 'Liệt kê tất cả mã khuyến mãi và kế hoạch giảm giá đang hoạt động hôm nay.',
     icon: Tag,
     tone: 'bg-purple-50 text-purple-700 ring-purple-100',
+  },
+  {
+    title: 'Cảnh báo',
+    hint: 'Chưa xử lý',
+    prompt: 'Tóm tắt tất cả cảnh báo tồn kho chưa xử lý. Sắp theo mức độ ưu tiên và đề xuất bước tiếp theo.',
+    icon: AlertTriangle,
+    tone: 'bg-red-50 text-red-700 ring-red-100',
   },
 ];
 
@@ -102,12 +116,15 @@ function nextChatId() {
 
 function topicFrom(text: string) {
   const lower = text.toLowerCase();
-  if (lower.includes('doanh thu') || lower.includes('báo cáo') || lower.includes('lợi nhuận')) return 'sales';
+  if (lower.includes('bán chạy') || lower.includes('top sku') || lower.includes('sản phẩm hot')) return 'topselling';
+  if (lower.includes('doanh thu') || lower.includes('xu hướng') || lower.includes('lợi nhuận') || lower.includes('báo cáo')) return 'sales';
   if (lower.includes('nhập') || lower.includes('đặt hàng') || lower.includes('reorder')) return 'purchase';
-  if (lower.includes('hạn') || lower.includes('date') || lower.includes('hết hạn')) return 'expiry';
-  if (lower.includes('khuyến mãi') || lower.includes('giảm giá') || lower.includes('tồn cao')) return 'promotion';
+  if (lower.includes('hạn') || lower.includes('hsd') || lower.includes('hết hạn') || lower.includes('cận hạn')) return 'expiry';
+  if (lower.includes('khuyến mãi') || lower.includes('giảm giá') || lower.includes('mã km') || lower.includes('tồn cao')) return 'promotion';
   if (lower.includes('cảnh báo') || lower.includes('rủi ro')) return 'alert';
+  if (lower.includes('khách hàng') || lower.includes('tích lũy') || lower.includes('hạng thẻ')) return 'customer';
   if (lower.includes('tồn') || lower.includes('hết hàng') || lower.includes('sku')) return 'inventory';
+  if (lower.includes('hôm nay') || lower.includes('tổng quan') || lower.includes('dashboard')) return 'today';
   return 'general';
 }
 
@@ -172,11 +189,29 @@ function buildFollowUpSuggestions(topic: string): ChatSuggestion[] {
         { label: 'Mở cảnh báo', page: 'inventory-alerts' },
         ...common,
       ];
+    case 'topselling':
+      return [
+        { label: 'So sánh 30 ngày', prompt: 'Top sản phẩm bán chạy nhất trong 30 ngày gần nhất.' },
+        { label: 'Xem báo cáo', page: 'reports' },
+        ...common,
+      ];
+    case 'today':
+      return [
+        { label: 'Doanh thu 7 ngày', prompt: 'Phân tích doanh thu 7 ngày gần nhất theo xu hướng.' },
+        { label: 'Top bán chạy', prompt: 'Sản phẩm bán chạy nhất hôm nay là gì?' },
+        { label: 'Xem báo cáo', page: 'reports' },
+      ];
+    case 'customer':
+      return [
+        { label: 'Tìm khách', prompt: 'Tra cứu thông tin và điểm tích lũy khách hàng.' },
+        { label: 'Xem khách hàng', page: 'customers' },
+        ...common,
+      ];
     default:
       return [
-        { label: 'Hỏi về tồn kho', prompt: 'Sản phẩm nào sắp hết hàng hoặc đã hết hàng?' },
-        { label: 'Hỏi về doanh thu', prompt: 'Phân tích doanh thu và xu hướng bán 7 ngày gần nhất.' },
-        { label: 'Hỏi về nhập hàng', prompt: 'Gợi ý SKU cần nhập hàng dựa trên tồn và dự báo.' },
+        { label: 'Tổng quan hôm nay', prompt: 'Tổng quan cửa hàng hôm nay: doanh thu, số đơn và cảnh báo.' },
+        { label: 'Tồn kho', prompt: 'Liệt kê sản phẩm đang có cảnh báo tồn kho theo mức độ ưu tiên.' },
+        { label: 'Doanh thu 7 ngày', prompt: 'Phân tích doanh thu 7 ngày gần nhất.' },
       ];
   }
 }
