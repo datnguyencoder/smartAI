@@ -28,6 +28,7 @@ import com.smartmart.service.CustomerDebtService;
 import com.smartmart.service.InventoryAlertService;
 import com.smartmart.service.InventoryLedgerService;
 import com.smartmart.service.ItemService;
+import com.smartmart.service.DiscountPlanService;
 import com.smartmart.service.PromotionService;
 import com.smartmart.service.SettingService;
 import com.smartmart.service.ShiftService;
@@ -61,6 +62,7 @@ public class OrderServiceImpl implements OrderService {
     private final CustomerService customerService;
     private final CustomerDebtService customerDebtService;
     private final PromotionService promotionService;
+    private final DiscountPlanService discountPlanService;
     private final ShiftService shiftService;
     private final SettingService settingService;
 
@@ -78,6 +80,7 @@ public class OrderServiceImpl implements OrderService {
             CustomerService customerService,
             CustomerDebtService customerDebtService,
             PromotionService promotionService,
+            DiscountPlanService discountPlanService,
             ShiftService shiftService,
             SettingService settingService) {
         this.orderRepository = orderRepository;
@@ -93,6 +96,7 @@ public class OrderServiceImpl implements OrderService {
         this.customerService = customerService;
         this.customerDebtService = customerDebtService;
         this.promotionService = promotionService;
+        this.discountPlanService = discountPlanService;
         this.shiftService = shiftService;
         this.settingService = settingService;
     }
@@ -172,11 +176,22 @@ public class OrderServiceImpl implements OrderService {
             }
         }
 
-        BigDecimal discountAmount = BigDecimal.ZERO;
+        BigDecimal planDiscountAmount = BigDecimal.ZERO;
+        for (OrderLineRequest line : request.getItems()) {
+            var apply = discountPlanService.applyForItem(line.getItemId());
+            if (apply.getDiscountPercent() != null && apply.getDiscountPercent().compareTo(BigDecimal.ZERO) > 0) {
+                Item lineItem = itemService.findItem(line.getItemId());
+                BigDecimal lineSubtotal = lineItem.getSellingPrice().multiply(line.getQuantity());
+                planDiscountAmount = planDiscountAmount.add(
+                        lineSubtotal.multiply(apply.getDiscountPercent()).divide(BigDecimal.valueOf(100)));
+            }
+        }
+
+        BigDecimal discountAmount = planDiscountAmount;
         Promotion promotion = null;
         if (request.getPromotionCode() != null && !request.getPromotionCode().isBlank()) {
             promotion = promotionService.applyCode(request.getPromotionCode(), total);
-            discountAmount = promotionService.calculateDiscount(promotion, total);
+            discountAmount = discountAmount.add(promotionService.calculateDiscount(promotion, total));
         }
 
         int loyaltyRedeemed = request.getLoyaltyPointsRedeemed() != null ? request.getLoyaltyPointsRedeemed() : 0;

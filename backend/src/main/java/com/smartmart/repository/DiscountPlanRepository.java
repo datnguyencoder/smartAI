@@ -15,6 +15,15 @@ public interface DiscountPlanRepository extends JpaRepository<DiscountPlan, Long
     @Query("""
         SELECT dp FROM DiscountPlan dp
         WHERE dp.active = true
+          AND (dp.startDate IS NULL OR dp.startDate <= :today)
+          AND (dp.endDate IS NULL OR dp.endDate >= :today)
+        ORDER BY dp.planName ASC
+        """)
+    List<DiscountPlan> findAllActiveToday(@Param("today") LocalDate today);
+
+    @Query("""
+        SELECT dp FROM DiscountPlan dp
+        WHERE dp.active = true
           AND dp.planType = :planType
           AND (dp.startDate IS NULL OR dp.startDate <= :today)
           AND (dp.endDate IS NULL OR dp.endDate >= :today)

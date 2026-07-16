@@ -176,7 +176,7 @@ public class PromotionRecommendationServiceImpl implements PromotionRecommendati
     }
 
     private PromotionRecommendationResponse toResponse(PromotionRecommendation rec) {
-        return toResponse(rec, rec.getPromotionCode() != null ? rec.getPromotionCode() : extractCodeFromReason(rec.getReason()));
+        return toResponse(rec, rec.getPromotionCode());
     }
 
     private PromotionRecommendationResponse toResponse(PromotionRecommendation rec, String promotionCode) {
