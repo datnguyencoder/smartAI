@@ -118,7 +118,7 @@ public class ShiftServiceImpl implements ShiftService {
         shift.setStaffMismatchReported(!matches);
         shift.setVarianceReason(matches ? null : request.getVarianceReason().trim());
         shift.setClosingNote(request.getNote().trim());
-        shift.setTotalOrders(summary.getCompletedOrders());
+        shift.setTotalOrders(summary.getTotalOrders());
         shift.setTotalRevenue(summary.getNetRevenue());
         shift.setStatus(ShiftStatus.PENDING_REVIEW);
         Shift saved = shiftRepository.save(shift);
