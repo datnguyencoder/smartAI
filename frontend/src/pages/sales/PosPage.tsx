@@ -126,7 +126,7 @@ export default function PosPage({
   const [receiptOpen, setReceiptOpen] = React.useState(false);
   const [lastInvoice, setLastInvoice] = React.useState<any | null>(null);
   const receiptRef = React.useRef<HTMLDivElement>(null);
-  const splitAmountsTouchedRef = React.useRef(false);
+  const cashReceivedTouchedRef = React.useRef(false);
   const searchInputRef = React.useRef<InputRef>(null);
 
   React.useEffect(() => {
@@ -310,22 +310,29 @@ export default function PosPage({
     }
   }, [maxLoyaltyRedeem, loyaltyRedeem]);
 
+  // Khi bật split payment lần đầu → chia 50/50
   React.useEffect(() => {
     if (splitPayment) {
-      if (!splitAmountsTouchedRef.current) {
-        setCashAmount(Math.round(total / 2));
-        setBankAmount(total - Math.round(total / 2));
-      }
-    } else {
-      splitAmountsTouchedRef.current = false;
+      setCashAmount(Math.round(total / 2));
+      setBankAmount(total - Math.round(total / 2));
     }
-  }, [total, splitPayment]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [splitPayment]);
 
+  // Khi đổi phương thức sang CASH hoặc tắt split → reset cashReceived về total (nếu chưa chỉnh)
   React.useEffect(() => {
     if (paymentMethod === 'CASH' && !splitPayment) {
+      cashReceivedTouchedRef.current = false;
       setCashReceived(total);
     }
-  }, [paymentMethod, splitPayment, total]);
+  }, [paymentMethod, splitPayment]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Khi total thay đổi (thêm/bớt hàng) → chỉ tự cập nhật nếu thu ngân chưa chỉnh tay
+  React.useEffect(() => {
+    if (paymentMethod === 'CASH' && !splitPayment && !cashReceivedTouchedRef.current) {
+      setCashReceived(total);
+    }
+  }, [total]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const resetTransaction = () => {
     setPosCart([]);
@@ -455,6 +462,13 @@ export default function PosPage({
       }
       setPosCart(posCart.map((item) => (item.product.key === productKey ? { ...item, quantity: newQty } : item)));
     }
+  };
+
+  const setQuantityDirect = (productKey: string, qty: number) => {
+    const existing = posCart.find((item) => item.product.key === productKey);
+    if (!existing) return;
+    const clamped = Math.max(1, Math.min(Math.round(qty), existing.product.stock));
+    setPosCart(posCart.map((item) => (item.product.key === productKey ? { ...item, quantity: clamped } : item)));
   };
 
   const [checkoutLoading, setCheckoutLoading] = React.useState(false);
@@ -733,8 +747,16 @@ export default function PosPage({
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <div className="flex items-center gap-1">
-                    <Button size="small" shape="circle" onClick={() => updateQuantity(item.product.key, -1)}>-</Button>
-                    <span className="w-6 text-center text-sm font-bold">{item.quantity}</span>
+                    <Button size="small" shape="circle" onClick={() => updateQuantity(item.product.key, -1)}>−</Button>
+                    <InputNumber
+                      size="small"
+                      min={1}
+                      max={item.product.stock}
+                      value={item.quantity}
+                      controls={false}
+                      style={{ width: 52 }}
+                      onChange={(v) => setQuantityDirect(item.product.key, Number(v) || 1)}
+                    />
                     <Button size="small" shape="circle" onClick={() => updateQuantity(item.product.key, 1)}>+</Button>
                   </div>
                   <span className="min-w-[80px] text-right text-sm font-bold text-slate-700">{money(item.product.price * item.quantity)}</span>
@@ -846,7 +868,6 @@ export default function PosPage({
             <div className="flex items-center gap-2 text-xs">
               <label className="flex items-center gap-1 cursor-pointer">
                 <input type="checkbox" checked={splitPayment} onChange={(e) => {
-                  splitAmountsTouchedRef.current = false;
                   setSplitPayment(e.target.checked);
                 }} />
                 Thanh toán chia (tiền mặt + CK)
@@ -857,15 +878,17 @@ export default function PosPage({
                 <div>
                   <label className="text-xs text-slate-500">Tiền mặt</label>
                   <InputNumber className="w-full" min={0} value={cashAmount} formatter={moneyInputFormatter} parser={moneyInputParser} onChange={(v) => {
-                    splitAmountsTouchedRef.current = true;
-                    setCashAmount(Number(v) || 0);
+                    const cash = Math.max(0, Number(v) || 0);
+                    setCashAmount(cash);
+                    setBankAmount(Math.max(0, total - cash));
                   }} />
                 </div>
                 <div>
                   <label className="text-xs text-slate-500">Ngân hàng</label>
                   <InputNumber className="w-full" min={0} value={bankAmount} formatter={moneyInputFormatter} parser={moneyInputParser} onChange={(v) => {
-                    splitAmountsTouchedRef.current = true;
-                    setBankAmount(Number(v) || 0);
+                    const bank = Math.max(0, Number(v) || 0);
+                    setBankAmount(bank);
+                    setCashAmount(Math.max(0, total - bank));
                   }} />
                 </div>
               </div>
@@ -904,7 +927,7 @@ export default function PosPage({
                       value={cashReceived}
                       formatter={moneyInputFormatter}
                       parser={moneyInputParser}
-                      onChange={(v) => setCashReceived(Number(v) || 0)}
+                      onChange={(v) => { cashReceivedTouchedRef.current = true; setCashReceived(Number(v) || 0); }}
                     />
                   </div>
                   <div>
@@ -920,7 +943,7 @@ export default function PosPage({
                     <span>Chọn nhanh tiền khách đưa</span>
                     <button
                       type="button"
-                      onClick={() => setCashReceived(total)}
+                      onClick={() => { cashReceivedTouchedRef.current = false; setCashReceived(total); }}
                       className="font-semibold text-primary hover:text-primary/80"
                     >
                       Vừa đủ
@@ -931,7 +954,7 @@ export default function PosPage({
                       <button
                         key={amount}
                         type="button"
-                        onClick={() => setCashReceived(amount)}
+                        onClick={() => { cashReceivedTouchedRef.current = true; setCashReceived(amount); }}
                         className={cn(
                           'rounded-md border px-2 py-1.5 text-xs font-semibold transition',
                           cashReceived === amount

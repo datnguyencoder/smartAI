@@ -182,6 +182,21 @@ export default function ShiftsPage() {
     </Row></div>}
     <div className="px-5 pb-5">
       {!management && <p className="mb-3 text-xs text-slate-500">Bạn chỉ xem được lịch sử ca của chính mình.</p>}
+      {shifts.length > 0 && (() => {
+        const totalRev = shifts.reduce((s, x) => s + (Number(x.totalRevenue) || 0), 0);
+        const totalOrd = shifts.reduce((s, x) => s + (Number(x.totalOrders) || 0), 0);
+        const doneCount = shifts.filter((x) => ['APPROVED', 'CLOSED', 'PENDING_REVIEW', 'REVIEWED_BY_MANAGER', 'NEEDS_STAFF_UPDATE', 'NEEDS_MANAGER_UPDATE'].includes(x.status)).length;
+        return (
+          <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+            <Row gutter={24}>
+              <Col span={6}><Statistic title="Tổng doanh thu (các ca)" value={formatMoney(totalRev)} /></Col>
+              <Col span={6}><Statistic title="Tổng số đơn" value={totalOrd} /></Col>
+              <Col span={6}><Statistic title="Số ca hiển thị" value={shifts.length} /></Col>
+              <Col span={6}><Statistic title="Ca đã đóng / duyệt" value={doneCount} /></Col>
+            </Row>
+          </div>
+        );
+      })()}
       <Table rowKey="id" loading={loading} dataSource={shifts} columns={columns} scroll={{ x: 1100 }} />
     </div>
 
@@ -191,12 +206,29 @@ export default function ShiftsPage() {
         placeholder="Ghi chú mở ca (bắt buộc)" />
     </Modal>
     <Modal title="Đóng ca làm việc" open={closeModal} onCancel={() => setCloseModal(false)} onOk={handleClose}>
-      <p className="mb-2">
-        Tiền mặt kỳ vọng theo hệ thống: {closePreview?.expectedCash != null
-          ? formatMoney(closePreview.expectedCash)
-          : 'đang tính...'}
-      </p>
-      <p className="mb-2">Đếm tiền mặt thực tế trong ngăn kéo và nhập số liệu bên dưới:</p>
+      {closePreview ? (
+        <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm space-y-1">
+          <div className="flex justify-between">
+            <span className="text-slate-500">Số dư đầu ca</span>
+            <span className="font-medium">{formatMoney(closePreview.openingCash)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-slate-500">+ Tiền mặt thu được</span>
+            <span className="font-medium text-emerald-700">+{formatMoney(closePreview.cashSales)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-slate-500">− Tiền mặt đã hoàn trả</span>
+            <span className="font-medium text-red-600">−{formatMoney(closePreview.refundAmount)}</span>
+          </div>
+          <div className="flex justify-between border-t border-slate-300 pt-1 font-bold">
+            <span>= Kỳ vọng trong ngăn kéo</span>
+            <span className="text-blue-700">{formatMoney(closePreview.expectedCash ?? 0)}</span>
+          </div>
+        </div>
+      ) : (
+        <p className="mb-2 text-slate-500 text-sm">Đang tính tiền kỳ vọng...</p>
+      )}
+      <p className="mb-2 text-sm">Đếm tiền mặt thực tế trong ngăn kéo và nhập số liệu bên dưới:</p>
       <InputNumber className="w-full" min={0} value={closingCashInput ?? undefined}
         onChange={(value) => setClosingCashInput(value)} placeholder="Số tiền mặt thực tế đếm được" />
       <Input.TextArea className="mt-4" rows={3} value={closingNote}
