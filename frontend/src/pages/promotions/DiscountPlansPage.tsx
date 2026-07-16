@@ -36,7 +36,7 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
   const openCreate = () => {
     setEditing(null);
     form.resetFields();
-    form.setFieldsValue({ planType: 'GLOBAL', discountPercent: 5 });
+    form.setFieldsValue({ planType: 'CATEGORY', discountPercent: 5 });
     setModalOpen(true);
   };
 
@@ -112,9 +112,8 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
           <Form.Item name="planName" label="Tên kế hoạch" rules={[{ required: true }]}><Input /></Form.Item>
           <Form.Item name="planType" label="Loại" rules={[{ required: true }]}>
             <Select options={[
-              { value: 'GLOBAL', label: 'Toàn cửa hàng' },
               { value: 'CATEGORY', label: 'Theo danh mục' },
-              { value: 'ITEM', label: 'Theo sản phẩm' },
+              { value: 'SKU', label: 'Theo sản phẩm' },
             ]} />
           </Form.Item>
           {planType === 'CATEGORY' && (
@@ -122,7 +121,7 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
               <Select options={categories.map((c) => ({ value: c.id, label: c.categoryName }))} />
             </Form.Item>
           )}
-          {planType === 'ITEM' && (
+          {planType === 'SKU' && (
             <Form.Item name="itemId" label="Sản phẩm" rules={[{ required: true }]}>
               <Select
                 showSearch

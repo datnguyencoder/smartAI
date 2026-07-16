@@ -85,7 +85,7 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
     @Override
     @Transactional(readOnly = true)
     public List<DiscountPlanResponse> listAll() {
-        return discountPlanRepository.findByActiveTrueOrderByPlanNameAsc().stream()
+        return discountPlanRepository.findAllActiveToday(LocalDate.now()).stream()
                 .map(this::toResponse).toList();
     }
 
