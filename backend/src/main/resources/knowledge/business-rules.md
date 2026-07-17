@@ -125,6 +125,17 @@ sequenceDiagram
 *   **SHIFT-04:** Ca lệch tiền không được đóng thẳng; trạng thái chuyển sang `PENDING_REVIEW` để Admin/Manager duyệt đối soát.
 *   **SHIFT-05:** Sau khi Admin/Manager duyệt, ca chuyển sang `CLOSED`, lưu `reviewedBy`, `reviewedAt`, `reviewNote` và audit log.
 
+### 4.2. Chính sách Đổi Trả Hàng (Return Policy)
+
+*   **RETURN-01:** Thời hạn trả hàng tối đa là **7 ngày** kể từ thời điểm tạo hóa đơn gốc (`orderDate + 7 ngày`, cấu hình qua `RETURN_ALLOWED_DAYS`). Quá hạn, hệ thống từ chối tạo phiếu trả.
+*   **RETURN-02:** Chỉ hóa đơn ở trạng thái `COMPLETED` mới được trả hàng. Hóa đơn `CANCELLED` không thể trả.
+*   **RETURN-03:** Số lượng trả của một sản phẩm/lô không được vượt quá số lượng còn lại chưa trả (`đã bán - đã trả trước đó`). Hệ thống tự tính phần còn lại và từ chối nếu yêu cầu vượt mức.
+*   **RETURN-04:** Nếu sản phẩm trên hóa đơn gốc có nhiều lô khác nhau, nhân viên bắt buộc chỉ định `lotId` cụ thể khi trả; hệ thống chỉ tự động chọn lô khi hóa đơn chỉ có duy nhất 1 lô cho sản phẩm đó.
+*   **RETURN-05:** Số tiền hoàn được tính theo giá bán tại thời điểm hóa đơn gốc, áp dụng cùng tỷ lệ chiết khấu (`discountRatio`) đã áp cho hóa đơn gốc — không hoàn theo giá niêm yết hiện tại.
+*   **RETURN-06:** Mỗi dòng hàng trả có `handlingAction` là `RESTOCK` (nhập lại kho) hoặc `DISCARD` (hủy bỏ, không cộng lại tồn) — nhân viên chọn theo tình trạng thực tế của hàng trả (còn nguyên vẹn hay bị hỏng).
+*   **RETURN-07:** Với dòng `RESTOCK`, hệ thống tự động ghi nhận bút toán tăng tồn kho (`SALE_RETURN`) vào đúng vị trí kho đã xuất bán ban đầu.
+*   **RETURN-08:** Mọi phiếu trả hàng đều ghi audit log (`RETURN_CREATE`) kèm số tiền hoàn, số dòng nhập lại kho, số dòng hủy.
+
 ### 5. Quy trình Nhập kho (Purchase Order Workflow)
 
 ```mermaid
