@@ -1,0 +1,117 @@
+groups:
+  - name: smartmart.infra
+    interval: 30s
+    rules:
+      # Backend down > 1 phút
+      - alert: BackendDown
+        expr: up{job="smartmart_backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "SmartMart Backend xuống"
+          description: "Spring Boot backend không phản hồi hơn 1 phút."
+
+      # AI service down
+      - alert: AiServiceDown
+        expr: up{job="smartmart_ai_service"} == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "AI Service xuống"
+          description: "FastAPI AI service không phản hồi hơn 2 phút."
+
+      # VPS RAM > 85%
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "RAM VPS cao: {{ printf \"%.1f\" $value }}%"
+          description: "VPS đang dùng hơn 85% RAM liên tục 5 phút."
+
+      # VPS CPU > 90%
+      - alert: HighCpuUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU VPS cao: {{ printf \"%.1f\" $value }}%"
+          description: "CPU trung bình > 90% trong 5 phút."
+
+      # Disk > 80%
+      - alert: DiskSpaceLow
+        expr: (1 - node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 > 80
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk gần đầy: {{ printf \"%.1f\" $value }}%"
+          description: "Ổ đĩa VPS sử dụng hơn 80%."
+
+      # Disk > 95% — critical
+      - alert: DiskSpaceCritical
+        expr: (1 - node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 > 95
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk nguy hiểm: {{ printf \"%.1f\" $value }}%"
+          description: "Ổ đĩa VPS gần đầy (>95%). Cần dọn ngay."
+
+      # HTTP Error rate > 5%
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m]))
+          /
+          sum(rate(http_server_requests_seconds_count[5m])) * 100 > 5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Lỗi HTTP 5xx cao: {{ printf \"%.1f\" $value }}%"
+          description: "Tỷ lệ lỗi 5xx vượt 5% trong 2 phút."
+
+      # P99 latency > 2s
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_server_requests_seconds_bucket[5m])) by (le, uri)
+          ) > 2
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Latency P99 > 2s tại {{ $labels.uri }}"
+
+      # PostgreSQL down
+      - alert: PostgresDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL xuống"
+
+      # Redis down
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis xuống"
+
+      # JVM Heap > 85%
+      - alert: JvmHeapHigh
+        expr: |
+          jvm_memory_used_bytes{area="heap"}
+          / jvm_memory_max_bytes{area="heap"} * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "JVM Heap cao: {{ printf \"%.1f\" $value }}%"

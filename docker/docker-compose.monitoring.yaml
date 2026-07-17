@@ -1,0 +1,143 @@
+# Monitoring stack — chạy song song với docker-compose.prod.yaml
+# Usage:
+#   docker compose -f docker-compose.prod.yaml -f docker-compose.monitoring.yaml up -d
+#
+# Truy cập:
+#   Grafana    → http://VPS_IP:3000   (admin / admin đổi ngay lần đầu)
+#   Prometheus → http://VPS_IP:9090   (chặn Nginx ngoài prod, chỉ nội bộ)
+#   Uptime Kuma→ http://VPS_IP:3001   (tạo account lần đầu)
+
+services:
+  # ── Prometheus ─────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: smartmart_prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+      - --web.enable-lifecycle
+    ports:
+      - "127.0.0.1:9090:9090"   # chỉ expose nội bộ, dùng qua Nginx nếu cần
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/prometheus-rules:/etc/prometheus/rules:ro
+      - prometheus_data:/prometheus
+    networks:
+      - smartmart_network
+    depends_on:
+      - node-exporter
+      - cadvisor
+
+  # ── Grafana ────────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana-oss:11.0.0
+    container_name: smartmart_grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s:%(http_port)s/"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - smartmart_network
+    depends_on:
+      - prometheus
+
+  # ── Node Exporter (VPS system metrics) ────────────────────────────────────
+  node-exporter:
+    image: prom/node-exporter:v1.8.0
+    container_name: smartmart_node_exporter
+    restart: unless-stopped
+    command:
+      - --path.procfs=/host/proc
+      - --path.rootfs=/rootfs
+      - --path.sysfs=/host/sys
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)
+    ports:
+      - "127.0.0.1:9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - smartmart_network
+
+  # ── cAdvisor (Docker container metrics) ───────────────────────────────────
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: smartmart_cadvisor
+    restart: unless-stopped
+    privileged: true
+    ports:
+      - "127.0.0.1:8082:8080"
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+    networks:
+      - smartmart_network
+
+  # ── PostgreSQL Exporter ────────────────────────────────────────────────────
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: smartmart_postgres_exporter
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-smartmart_admin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-smartmart_db}?sslmode=disable"
+    ports:
+      - "127.0.0.1:9187:9187"
+    networks:
+      - smartmart_network
+    depends_on:
+      - postgres
+
+  # ── Redis Exporter ─────────────────────────────────────────────────────────
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.61.0
+    container_name: smartmart_redis_exporter
+    restart: unless-stopped
+    environment:
+      REDIS_ADDR: redis:6379
+    ports:
+      - "127.0.0.1:9121:9121"
+    networks:
+      - smartmart_network
+    depends_on:
+      - redis
+
+  # ── Uptime Kuma (uptime monitoring + alerts) ───────────────────────────────
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: smartmart_uptime_kuma
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    volumes:
+      - uptime_kuma_data:/app/data
+    networks:
+      - smartmart_network
+
+volumes:
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  uptime_kuma_data:
+    driver: local
+
+networks:
+  smartmart_network:
+    external: true   # dùng chung network với prod stack
