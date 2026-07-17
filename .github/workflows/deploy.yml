@@ -213,6 +213,8 @@ jobs:
           password: ${{ secrets.VPS_PASSWORD }}
           source: "docker/"
           target: "/opt/smartai/"
+          timeout: 60s
+          command_timeout: 5m
 
       - name: Deploy on VPS
         uses: appleboy/ssh-action@v1.0.3
@@ -220,11 +222,25 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: root
           password: ${{ secrets.VPS_PASSWORD }}
+          timeout: 60s
+          command_timeout: 10m
           script: |
             set -e
             cd /opt/smartai/docker
 
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Đợi mọi thao tác docker (rm/create) đang dang dở kết thúc trước khi tự deploy,
+            # tránh lỗi "removal of container ... is already in progress" khi trùng với
+            # thao tác thủ công/song song trên VPS.
+            for i in $(seq 1 12); do
+              if docker ps -a --filter "status=removing" --format '{{.ID}}' | grep -q .; then
+                echo "Đang chờ container cũ gỡ xong (lần $i)..."
+                sleep 5
+              else
+                break
+              fi
+            done
 
             # Chỉ pull image mới nếu job tương ứng đã build
             BACKEND_BUILT="${{ needs.build-backend.result }}"
@@ -251,7 +267,7 @@ jobs:
             fi
 
             docker compose -f docker-compose.prod.yaml -f docker-compose.monitoring.yaml --env-file .env \
-              up -d --no-build
+              up -d --no-build --remove-orphans
 
             sleep 20
             BACKEND=$(curl -sf http://localhost:8080/actuator/health | python3 -c "import json,sys; print(json.load(sys.stdin)['status'])" 2>/dev/null || echo "UNKNOWN")
