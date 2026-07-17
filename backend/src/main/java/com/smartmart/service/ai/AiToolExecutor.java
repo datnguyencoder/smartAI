@@ -13,6 +13,7 @@ import com.smartmart.service.InventoryAlertService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -24,8 +25,11 @@ import java.util.Map;
 /**
  * Định nghĩa "tools" (function declarations) mà Gemini agent có thể gọi, và dispatch
  * lời gọi đó vào service/repository thật của hệ thống. Tất cả tool chỉ đọc (read-only).
+ * Cần @Transactional vì một số tool (vd. get_reorder_recommendations) lazy-load quan hệ
+ * JPA sau khi repository trả về — session phải còn mở khi map sang DTO.
  */
 @Component
+@Transactional(readOnly = true)
 public class AiToolExecutor {
 
     private static final Logger log = LoggerFactory.getLogger(AiToolExecutor.class);
