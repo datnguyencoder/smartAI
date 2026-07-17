@@ -1,0 +1,42 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 15s
+        # Chỉ lấy log của backend + ai-service — frontend host trên Vercel,
+        # postgres/redis/kafka/monitoring stack không cần log nghiệp vụ ở đây.
+        filters:
+          - name: name
+            values:
+              - smartmart_backend
+              - smartmart_ai_service
+    relabel_configs:
+      - source_labels: ["__meta_docker_container_name"]
+        regex: "/(.*)"
+        target_label: "container"
+      - source_labels: ["__meta_docker_container_log_stream"]
+        target_label: "stream"
+    pipeline_stages:
+      # Backend (Spring Boot) log dạng: 2026-07-17T09:05:00.123Z  INFO 1 --- [thread] Logger : message
+      - regex:
+          expression: '^(?P<timestamp>\S+)\s+(?P<level>\w+)\s+\d+\s+---\s+\[(?P<thread>[^\]]*)\]\s+(?P<logger>\S+)\s*:\s*(?P<msg>.*)$'
+      - labels:
+          level:
+      # AI Service (uvicorn/FastAPI) log dạng: INFO:     127.0.0.1:xxxx - "GET /ai/health HTTP/1.1" 200 OK
+      - match:
+          selector: '{container="smartmart_ai_service"}'
+          stages:
+            - regex:
+                expression: '^(?P<level>[A-Z]+):\s*(?P<msg>.*)$'
+            - labels:
+                level:
