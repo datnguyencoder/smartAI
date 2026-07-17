@@ -13,8 +13,6 @@ env:
   REGISTRY: ghcr.io
   IMAGE_BACKEND: ghcr.io/datnguyencoder/smartai-backend
   IMAGE_AI: ghcr.io/datnguyencoder/smartai-ai-service
-  TG_BOT: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-  TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
 
 jobs:
   # ── Notify: Build Started ──────────────────────────────────────────────────
@@ -22,17 +20,39 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Telegram — Build Started
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          COMMIT_SHA: ${{ github.sha }}
+          BRANCH: ${{ github.ref_name }}
+          ACTOR: ${{ github.actor }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
         run: |
-          MSG="🚀 <b>SmartAI — Build Started</b>%0A%0A"
-          MSG+="├ <b>Commit:</b> <code>${{ github.sha }}</code>%0A"
-          MSG+="├ <b>Branch:</b> ${{ github.ref_name }}%0A"
-          MSG+="├ <b>By:</b> ${{ github.actor }}%0A"
-          MSG+="└ <b>Message:</b> ${{ github.event.head_commit.message }}%0A%0A"
-          MSG+="⏳ Đang build Backend + AI Service..."
-          curl -sf "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
-            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -d parse_mode="HTML" \
-            -d text="$MSG" > /dev/null
+          python3 - <<'EOF'
+          import os, urllib.request, json
+
+          text = (
+            "🚀 <b>SmartAI — Build Started</b>\n\n"
+            f"├ <b>Commit:</b> <code>{os.environ['COMMIT_SHA'][:7]}</code>\n"
+            f"├ <b>Branch:</b> {os.environ['BRANCH']}\n"
+            f"├ <b>By:</b> {os.environ['ACTOR']}\n"
+            f"└ <b>Message:</b> {os.environ['COMMIT_MSG']}\n\n"
+            "⏳ Đang build Backend + AI Service..."
+          )
+          payload = json.dumps({
+            "chat_id": os.environ['TG_CHAT'],
+            "text": text,
+            "parse_mode": "HTML"
+          }).encode()
+          req = urllib.request.Request(
+            f"https://api.telegram.org/bot{os.environ['TG_TOKEN']}/sendMessage",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST"
+          )
+          with urllib.request.urlopen(req) as r:
+            print("Sent:", json.loads(r.read()).get("ok"))
+          EOF
 
   # ── Build Backend ──────────────────────────────────────────────────────────
   build-backend:
@@ -75,19 +95,44 @@ jobs:
 
       - name: Telegram — Backend Build OK
         if: success()
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          curl -sf "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
-            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -d parse_mode="HTML" \
-            -d text="✅ <b>Backend image built</b> — pushed to GHCR" > /dev/null
+          python3 - <<'EOF'
+          import os, urllib.request, json
+          payload = json.dumps({"chat_id": os.environ['TG_CHAT'],
+            "text": "✅ <b>Backend image built & pushed</b> → GHCR",
+            "parse_mode": "HTML"}).encode()
+          req = urllib.request.Request(
+            f"https://api.telegram.org/bot{os.environ['TG_TOKEN']}/sendMessage",
+            data=payload, headers={"Content-Type": "application/json"}, method="POST")
+          urllib.request.urlopen(req)
+          EOF
 
       - name: Telegram — Backend Build FAILED
         if: failure()
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_ID: ${{ github.run_id }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
         run: |
-          curl -sf "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
-            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -d parse_mode="HTML" \
-            -d text="❌ <b>Backend Build FAILED!</b>%0A%0A<b>Commit:</b> <code>${{ github.sha }}</code>%0AXem log: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" > /dev/null
+          python3 - <<'EOF'
+          import os, urllib.request, json
+          text = (
+            "❌ <b>Backend Build FAILED!</b>\n\n"
+            f"├ <b>Commit:</b> <code>{os.environ['SHA'][:7]}</code>\n"
+            f"└ <b>Log:</b> https://github.com/{os.environ['REPO']}/actions/runs/{os.environ['RUN_ID']}"
+          )
+          payload = json.dumps({"chat_id": os.environ['TG_CHAT'],
+            "text": text, "parse_mode": "HTML"}).encode()
+          req = urllib.request.Request(
+            f"https://api.telegram.org/bot{os.environ['TG_TOKEN']}/sendMessage",
+            data=payload, headers={"Content-Type": "application/json"}, method="POST")
+          urllib.request.urlopen(req)
+          EOF
 
   # ── Build AI Service ───────────────────────────────────────────────────────
   build-ai-service:
@@ -119,19 +164,44 @@ jobs:
 
       - name: Telegram — AI Service Build OK
         if: success()
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          curl -sf "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
-            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -d parse_mode="HTML" \
-            -d text="✅ <b>AI Service image built</b> — pushed to GHCR" > /dev/null
+          python3 - <<'EOF'
+          import os, urllib.request, json
+          payload = json.dumps({"chat_id": os.environ['TG_CHAT'],
+            "text": "✅ <b>AI Service image built & pushed</b> → GHCR",
+            "parse_mode": "HTML"}).encode()
+          req = urllib.request.Request(
+            f"https://api.telegram.org/bot{os.environ['TG_TOKEN']}/sendMessage",
+            data=payload, headers={"Content-Type": "application/json"}, method="POST")
+          urllib.request.urlopen(req)
+          EOF
 
       - name: Telegram — AI Service Build FAILED
         if: failure()
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_ID: ${{ github.run_id }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
         run: |
-          curl -sf "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
-            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -d parse_mode="HTML" \
-            -d text="❌ <b>AI Service Build FAILED!</b>%0A%0A<b>Commit:</b> <code>${{ github.sha }}</code>%0AXem log: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" > /dev/null
+          python3 - <<'EOF'
+          import os, urllib.request, json
+          text = (
+            "❌ <b>AI Service Build FAILED!</b>\n\n"
+            f"├ <b>Commit:</b> <code>{os.environ['SHA'][:7]}</code>\n"
+            f"└ <b>Log:</b> https://github.com/{os.environ['REPO']}/actions/runs/{os.environ['RUN_ID']}"
+          )
+          payload = json.dumps({"chat_id": os.environ['TG_CHAT'],
+            "text": text, "parse_mode": "HTML"}).encode()
+          req = urllib.request.Request(
+            f"https://api.telegram.org/bot{os.environ['TG_TOKEN']}/sendMessage",
+            data=payload, headers={"Content-Type": "application/json"}, method="POST")
+          urllib.request.urlopen(req)
+          EOF
 
   # ── Deploy to VPS ──────────────────────────────────────────────────────────
   deploy:
@@ -159,10 +229,8 @@ jobs:
             set -e
             cd /opt/smartai/docker
 
-            # Login GHCR
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-            # Cập nhật .env để dùng image từ GHCR
             if grep -q "IMAGE_BACKEND" .env 2>/dev/null; then
               sed -i "s|IMAGE_BACKEND=.*|IMAGE_BACKEND=${{ env.IMAGE_BACKEND }}:latest|" .env
               sed -i "s|IMAGE_AI=.*|IMAGE_AI=${{ env.IMAGE_AI }}:latest|" .env
@@ -171,47 +239,73 @@ jobs:
               echo "IMAGE_AI=${{ env.IMAGE_AI }}:latest" >> .env
             fi
 
-            # Pull images mới
             docker pull ${{ env.IMAGE_BACKEND }}:latest
             docker pull ${{ env.IMAGE_AI }}:latest
 
-            # Deploy với cả prod + monitoring stack
             docker compose -f docker-compose.prod.yaml -f docker-compose.monitoring.yaml --env-file .env \
               up -d --no-build
 
-            # Health check sau deploy
             sleep 20
-            BACKEND_STATUS=$(curl -sf http://localhost:8080/actuator/health | python3 -c "import json,sys; print(json.load(sys.stdin)['status'])" 2>/dev/null || echo "UNKNOWN")
-            AI_STATUS=$(curl -sf http://localhost:8000/ai/health | python3 -c "import json,sys; print(json.load(sys.stdin)['status'])" 2>/dev/null || echo "UNKNOWN")
-            echo "Backend: $BACKEND_STATUS | AI: $AI_STATUS"
+            BACKEND=$(curl -sf http://localhost:8080/actuator/health | python3 -c "import json,sys; print(json.load(sys.stdin)['status'])" 2>/dev/null || echo "UNKNOWN")
+            AI=$(curl -sf http://localhost:8000/ai/health | python3 -c "import json,sys; print(json.load(sys.stdin)['status'])" 2>/dev/null || echo "UNKNOWN")
+            echo "Backend=$BACKEND | AI=$AI"
             echo "Deploy OK - $(date)"
 
       - name: Telegram — Deploy SUCCESS
         if: success()
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SHA: ${{ github.sha }}
+          ACTOR: ${{ github.actor }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
         run: |
-          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          MSG="🎉 <b>SmartAI — Deploy thành công!</b>%0A%0A"
-          MSG+="├ <b>Commit:</b> <code>$SHORT_SHA</code>%0A"
-          MSG+="├ <b>By:</b> ${{ github.actor }}%0A"
-          MSG+="├ <b>Message:</b> ${{ github.event.head_commit.message }}%0A"
-          MSG+="├ <b>Backend:</b> ✅ UP%0A"
-          MSG+="├ <b>AI Service:</b> ✅ UP%0A"
-          MSG+="└ <b>VPS:</b> ${{ secrets.VPS_HOST }}%0A%0A"
-          MSG+="🔗 Dashboard: http://${{ secrets.VPS_HOST }}:3000"
-          curl -sf "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
-            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -d parse_mode="HTML" \
-            -d text="$MSG" > /dev/null
+          python3 - <<'EOF'
+          import os, urllib.request, json
+          text = (
+            "🎉 <b>SmartAI — Deploy thành công!</b>\n\n"
+            f"├ <b>Commit:</b> <code>{os.environ['SHA'][:7]}</code>\n"
+            f"├ <b>By:</b> {os.environ['ACTOR']}\n"
+            f"├ <b>Message:</b> {os.environ['COMMIT_MSG']}\n"
+            f"├ <b>Backend:</b> ✅ UP\n"
+            f"├ <b>AI Service:</b> ✅ UP\n"
+            f"└ <b>Dashboard:</b> http://{os.environ['VPS_HOST']}:3000"
+          )
+          payload = json.dumps({"chat_id": os.environ['TG_CHAT'],
+            "text": text, "parse_mode": "HTML"}).encode()
+          req = urllib.request.Request(
+            f"https://api.telegram.org/bot{os.environ['TG_TOKEN']}/sendMessage",
+            data=payload, headers={"Content-Type": "application/json"}, method="POST")
+          with urllib.request.urlopen(req) as r:
+            print("Deploy notified:", json.loads(r.read()).get("ok"))
+          EOF
 
       - name: Telegram — Deploy FAILED
         if: failure()
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SHA: ${{ github.sha }}
+          BRANCH: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
         run: |
-          MSG="🚨 <b>SmartAI — Deploy THẤT BẠI!</b>%0A%0A"
-          MSG+="├ <b>Commit:</b> <code>${{ github.sha }}</code>%0A"
-          MSG+="├ <b>Branch:</b> ${{ github.ref_name }}%0A"
-          MSG+="└ <b>Xem log:</b> https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}%0A%0A"
-          MSG+="⚠️ Kiểm tra VPS ngay!"
-          curl -sf "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
-            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-            -d parse_mode="HTML" \
-            -d text="$MSG" > /dev/null
+          python3 - <<'EOF'
+          import os, urllib.request, json
+          text = (
+            "🚨 <b>SmartAI — Deploy THẤT BẠI!</b>\n\n"
+            f"├ <b>Commit:</b> <code>{os.environ['SHA'][:7]}</code>\n"
+            f"├ <b>Branch:</b> {os.environ['BRANCH']}\n"
+            f"└ <b>Log:</b> https://github.com/{os.environ['REPO']}/actions/runs/{os.environ['RUN_ID']}\n\n"
+            "⚠️ Kiểm tra VPS ngay!"
+          )
+          payload = json.dumps({"chat_id": os.environ['TG_CHAT'],
+            "text": text, "parse_mode": "HTML"}).encode()
+          req = urllib.request.Request(
+            f"https://api.telegram.org/bot{os.environ['TG_TOKEN']}/sendMessage",
+            data=payload, headers={"Content-Type": "application/json"}, method="POST")
+          urllib.request.urlopen(req)
+          EOF
