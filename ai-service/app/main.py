@@ -15,9 +15,6 @@ app = FastAPI(
     openapi_url="/ai/openapi.json",
 )
 
-# Expose /metrics endpoint cho Prometheus scrape
-Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
-
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(
@@ -54,3 +51,6 @@ app.include_router(health.router)
 app.include_router(train.router)
 app.include_router(forecast.router)
 app.include_router(metrics.router)
+
+# Expose /metrics sau khi add tất cả routers để tránh bug _IncludedRouter
+Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
