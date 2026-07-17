@@ -62,6 +62,7 @@ public class SecurityConfig {
                                 "/h2-console/**",
                                 "/actuator/health",
                                 "/actuator/info",
+                                "/actuator/prometheus",
                                 "/media/**",
                                 "/ws/**"
                         ).permitAll()
