@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.routers import forecast, health, metrics, train
 from app.services import model_store
@@ -13,6 +14,9 @@ app = FastAPI(
     redoc_url="/ai/redoc",
     openapi_url="/ai/openapi.json",
 )
+
+# Expose /metrics endpoint cho Prometheus scrape
+Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
 
 @app.exception_handler(RequestValidationError)
