@@ -242,6 +242,14 @@ jobs:
               fi
             done
 
+            # Dọn container "ma" còn sót từ lần recreate bị ngắt giữa chừng trước đó —
+            # Docker Compose đặt tên tạm dạng <hash>_smartmart_xxx khi rename cuối cùng
+            # không hoàn tất, gây "Conflict: name already in use" ở lần deploy kế tiếp.
+            docker ps -a --format '{{.Names}}' | grep -E '^[a-f0-9]{12}_smartmart_' | while read -r ghost; do
+              echo "Xóa container ma: $ghost"
+              docker rm -f "$ghost" || true
+            done
+
             # Chỉ pull image mới nếu job tương ứng đã build
             BACKEND_BUILT="${{ needs.build-backend.result }}"
             AI_BUILT="${{ needs.build-ai-service.result }}"
