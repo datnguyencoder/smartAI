@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
-from prometheus_fastapi_instrumentator import Instrumentator
+from fastapi.responses import JSONResponse, Response
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from app.routers import forecast, health, metrics, train
 from app.services import model_store
@@ -52,5 +52,7 @@ app.include_router(train.router)
 app.include_router(forecast.router)
 app.include_router(metrics.router)
 
-# Expose /metrics sau khi add tất cả routers để tránh bug _IncludedRouter
-Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+
+@app.get("/metrics", include_in_schema=False)
+def prometheus_metrics() -> Response:
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
