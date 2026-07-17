@@ -6,6 +6,12 @@
 #   Grafana    → http://VPS_IP:3000   (admin / admin đổi ngay lần đầu)
 #   Prometheus → http://VPS_IP:9090   (chặn Nginx ngoài prod, chỉ nội bộ)
 #   Uptime Kuma→ http://VPS_IP:3001   (tạo account lần đầu)
+#
+# Logs (Loki + Promtail):
+#   Xem logs Backend/AI Service tại Grafana → Explore → chọn datasource "Loki"
+#   Query mẫu: {container="smartmart_backend"} hoặc {container="smartmart_ai_service"}
+#   Lưu ý: Frontend host trên Vercel (không chạy Docker trên VPS) nên KHÔNG có trong Loki —
+#   xem log frontend tại dashboard Vercel riêng.
 
 services:
   # ── Prometheus ─────────────────────────────────────────────────────────────
@@ -118,6 +124,35 @@ services:
     depends_on:
       - redis
 
+  # ── Loki (log storage/query) ──────────────────────────────────────────────
+  loki:
+    image: grafana/loki:2.9.8
+    container_name: smartmart_loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "127.0.0.1:3100:3100"
+    volumes:
+      - ./observability/loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    networks:
+      - smartmart_network
+
+  # ── Promtail (thu thập log container Docker, đẩy vào Loki) ────────────────
+  promtail:
+    image: grafana/promtail:2.9.8
+    container_name: smartmart_promtail
+    restart: unless-stopped
+    command: -config.file=/etc/promtail/promtail-config.yaml
+    volumes:
+      - ./observability/promtail/promtail-config.yaml:/etc/promtail/promtail-config.yaml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - smartmart_network
+    depends_on:
+      - loki
+
   # ── Uptime Kuma (uptime monitoring + alerts) ───────────────────────────────
   uptime-kuma:
     image: louislam/uptime-kuma:1
@@ -136,6 +171,8 @@ volumes:
   grafana_data:
     driver: local
   uptime_kuma_data:
+    driver: local
+  loki_data:
     driver: local
 
 networks:

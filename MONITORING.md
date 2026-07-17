@@ -7,7 +7,10 @@ Hệ thống giám sát SmartMart dùng 2 công nghệ chính:
 | Công nghệ | Vai trò | Port |
 |-----------|---------|------|
 | **Prometheus + Grafana** | Thu thập metrics → Visualize dashboard → Alert rules | Grafana: 3000, Prometheus: 9090 |
+| **Loki + Promtail** | Thu thập & xem log Backend/AI Service qua Grafana Explore | Loki: 3100 (nội bộ) |
 | **Uptime Kuma** | Uptime monitoring tất cả endpoint, alert Telegram/Email | 3001 |
+
+> **Lưu ý:** Frontend host trên Vercel (không chạy Docker trên VPS) nên **không có** trong Loki. Xem log frontend tại dashboard Vercel riêng (Project → Deployments → Runtime Logs).
 
 ---
 
@@ -116,6 +119,56 @@ Grafana.com có sẵn dashboard miễn phí, import bằng ID:
 - **PostgreSQL**: ID `9628`
 
 Cách import: Grafana → Dashboards → Import → điền ID → Load
+
+---
+
+## Xem Logs (Loki + Promtail)
+
+Backend và AI Service log được Promtail tự động thu thập từ Docker container logs, đẩy vào Loki, xem trực tiếp trong Grafana — không cần SSH vào VPS `docker logs` thủ công nữa.
+
+### Cách xem
+
+1. Grafana → **Explore** (icon la bàn ở sidebar)
+2. Chọn datasource **Loki** ở góc trên
+3. Gõ query LogQL, ví dụ:
+
+```logql
+# Toàn bộ log backend
+{container="smartmart_backend"}
+
+# Toàn bộ log AI service
+{container="smartmart_ai_service"}
+
+# Chỉ log lỗi (ERROR/WARN) của backend
+{container="smartmart_backend"} |= "ERROR" or "WARN"
+
+# Log liên quan AI agent/Gemini
+{container="smartmart_backend"} |= "Gemini"
+
+# Log request 5xx
+{container="smartmart_backend"} |= "500" or "503"
+
+# Lọc theo level (Promtail đã tự parse thành label "level")
+{container="smartmart_backend", level="ERROR"}
+```
+
+4. Có thể **Split** view để xem logs song song với metrics Prometheus (đối chiếu thời điểm lỗi)
+
+### Giới hạn hiện tại
+
+- **Chỉ có Backend + AI Service** — Frontend host trên Vercel, không chạy Docker trên VPS nên Promtail không lấy được. Xem log FE tại Vercel Dashboard → Project → Deployments → Runtime/Build Logs.
+- **Retention 7 ngày** — Loki tự xóa log cũ hơn 7 ngày để tránh phình đĩa VPS. Cần lưu lâu hơn thì tăng `retention_period` trong `observability/loki/loki-config.yaml`.
+- **Không có log Postgres/Redis/Kafka** — chỉ scrape 2 service nghiệp vụ chính (`smartmart_backend`, `smartmart_ai_service`) theo filter trong `observability/promtail/promtail-config.yaml`. Muốn thêm service nào, sửa `filters.values` trong file đó.
+
+### Deploy lần đầu / sau khi thêm Loki
+
+```bash
+docker compose \
+  -f docker-compose.prod.yaml \
+  -f docker-compose.monitoring.yaml \
+  --env-file .env \
+  up -d loki promtail grafana
+```
 
 ---
 
