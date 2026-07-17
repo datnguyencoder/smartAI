@@ -60,6 +60,7 @@ services:
       start_period: 30s
 
   ai-service:
+    image: ${IMAGE_AI:-ghcr.io/datnguyencoder/smartai-ai-service:latest}
     build:
       context: ../ai-service
       dockerfile: Dockerfile
@@ -85,6 +86,7 @@ services:
       start_period: 15s
 
   backend:
+    image: ${IMAGE_BACKEND:-ghcr.io/datnguyencoder/smartai-backend:latest}
     build:
       context: ../backend
       dockerfile: Dockerfile
