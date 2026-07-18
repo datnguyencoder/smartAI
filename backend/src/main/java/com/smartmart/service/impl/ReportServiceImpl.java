@@ -480,6 +480,24 @@ public class ReportServiceImpl implements ReportService {
                     List<Map<String, Object>> reorderRecs = loadReorderRecsSafe();
                     return excelReportService.generateInventoryReport(
                             getInventoryReport(from, to), from, to, companyName, companyAddress, reorderRecs);
+                case "best-sellers":
+                    return excelReportService.generateBestSellersReport(
+                            getBestSellers(from, to, 20), from, to, companyName, companyAddress);
+                case "customer-due":
+                    return excelReportService.generateCustomerDueReport(
+                            getCustomerDue(), companyName, companyAddress);
+                case "supplier-due":
+                    return excelReportService.generateSupplierDueReport(
+                            getSupplierDue(), companyName, companyAddress);
+                case "product-expiry":
+                    return excelReportService.generateProductExpiryReport(
+                            getProductExpiry(), companyName, companyAddress);
+                case "cash-flow":
+                    return excelReportService.generateCashFlowReport(
+                            getCashFlow(from, to), from, to, companyName, companyAddress);
+                case "profit-loss":
+                    return excelReportService.generateProfitLossReport(
+                            getProfitLoss(from, to), from, to, companyName, companyAddress);
                 default:
                     throw new IllegalArgumentException("Unknown report type: " + type);
             }

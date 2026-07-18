@@ -1,10 +1,8 @@
 package com.smartmart.service.impl;
 
-import com.smartmart.dto.response.InventoryReportResponse;
-import com.smartmart.dto.response.PurchaseReportResponse;
-import com.smartmart.dto.response.SalesReportResponse;
-import com.smartmart.dto.response.ForecastResultResponse;
-import com.smartmart.dto.response.InventoryNxtReportResponse;
+import com.smartmart.dto.response.*;
+import com.smartmart.enums.CustomerDebtStatus;
+import com.smartmart.enums.SupplierDebtStatus;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
@@ -378,6 +376,315 @@ public class ExcelReportServiceImpl implements ExcelReportService {
         Cell clTotal = totalRow.createCell(11); clTotal.setCellValue(sumClVal); clTotal.setCellStyle(totalStyle);
 
         totalRow.createCell(12).setCellStyle(totalStyle);
+    }
+
+    // ==================== New Report Types ====================
+
+    @Override
+    public byte[] generateBestSellersReport(List<BestSellerReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress) throws IOException {
+        try (SXSSFWorkbook workbook = new SXSSFWorkbook(100);
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("Sản Phẩm Bán Chạy");
+            CellStyle headerStyle = createHeaderStyle(workbook);
+            fillBestSellersSheet(workbook, sheet, headerStyle, data, from, to, companyName, companyAddress);
+            workbook.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    @Override
+    public byte[] generateCustomerDueReport(List<CustomerDueReportResponse> data, String companyName, String companyAddress) throws IOException {
+        try (SXSSFWorkbook workbook = new SXSSFWorkbook(100);
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("Công Nợ Khách Hàng");
+            CellStyle headerStyle = createHeaderStyle(workbook);
+            fillCustomerDueSheet(workbook, sheet, headerStyle, data, companyName, companyAddress);
+            workbook.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    @Override
+    public byte[] generateSupplierDueReport(List<SupplierDueReportResponse> data, String companyName, String companyAddress) throws IOException {
+        try (SXSSFWorkbook workbook = new SXSSFWorkbook(100);
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("Công Nợ Nhà Cung Cấp");
+            CellStyle headerStyle = createHeaderStyle(workbook);
+            fillSupplierDueSheet(workbook, sheet, headerStyle, data, companyName, companyAddress);
+            workbook.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    @Override
+    public byte[] generateProductExpiryReport(List<ProductExpiryReportResponse> data, String companyName, String companyAddress) throws IOException {
+        try (SXSSFWorkbook workbook = new SXSSFWorkbook(100);
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("Sản Phẩm Cận Hạn");
+            CellStyle headerStyle = createHeaderStyle(workbook);
+            fillProductExpirySheet(workbook, sheet, headerStyle, data, companyName, companyAddress);
+            workbook.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    @Override
+    public byte[] generateCashFlowReport(List<CashFlowReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress) throws IOException {
+        try (SXSSFWorkbook workbook = new SXSSFWorkbook(100);
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("Dòng Tiền");
+            CellStyle headerStyle = createHeaderStyle(workbook);
+            fillCashFlowSheet(workbook, sheet, headerStyle, data, from, to, companyName, companyAddress);
+            workbook.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    @Override
+    public byte[] generateProfitLossReport(List<ProfitLossReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress) throws IOException {
+        try (SXSSFWorkbook workbook = new SXSSFWorkbook(100);
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("Lãi Lỗ");
+            CellStyle headerStyle = createHeaderStyle(workbook);
+            fillProfitLossSheet(workbook, sheet, headerStyle, data, from, to, companyName, companyAddress);
+            workbook.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    // ==================== Fill Helpers for New Report Types ====================
+
+    private void fillBestSellersSheet(SXSSFWorkbook workbook, Sheet sheet, CellStyle headerStyle, List<BestSellerReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress) {
+        int rowIdx = addHeaderInfo(workbook, sheet, "BÁO CÁO SẢN PHẨM BÁN CHẠY", from, to, companyName, companyAddress, 4);
+
+        Row headerRow = sheet.createRow(rowIdx++);
+        String[] columns = {"STT", "Mã SP", "Tên Sản Phẩm", "SL Bán", "Doanh Thu"};
+        for (int i = 0; i < columns.length; i++) {
+            Cell cell = headerRow.createCell(i);
+            cell.setCellValue(columns[i]);
+            cell.setCellStyle(headerStyle);
+        }
+        sheet.setColumnWidth(0, 6 * 256);
+        sheet.setColumnWidth(1, 15 * 256);
+        sheet.setColumnWidth(2, 30 * 256);
+        sheet.setColumnWidth(3, 15 * 256);
+        sheet.setColumnWidth(4, 20 * 256);
+
+        int stt = 1;
+        for (BestSellerReportResponse rowData : data) {
+            Row row = sheet.createRow(rowIdx++);
+            row.createCell(0).setCellValue(stt++);
+            row.createCell(1).setCellValue(safeStr(rowData.getItemCode()));
+            row.createCell(2).setCellValue(safeStr(rowData.getItemName()));
+            row.createCell(3).setCellValue(rowData.getQuantitySold() != null ? rowData.getQuantitySold().doubleValue() : 0.0);
+            row.createCell(4).setCellValue(rowData.getRevenue() != null ? rowData.getRevenue().doubleValue() : 0.0);
+        }
+    }
+
+    private void fillCustomerDueSheet(SXSSFWorkbook workbook, Sheet sheet, CellStyle headerStyle, List<CustomerDueReportResponse> data, String companyName, String companyAddress) {
+        int rowIdx = addHeaderInfo(workbook, sheet, "BÁO CÁO CÔNG NỢ KHÁCH HÀNG", null, null, companyName, companyAddress, 7);
+
+        Row headerRow = sheet.createRow(rowIdx++);
+        String[] columns = {"Mã nợ", "Mã KH", "Tên Khách Hàng", "Mã Đơn", "Tổng nợ", "Đã trả", "Còn nợ", "Hạn trả", "Trạng thái"};
+        for (int i = 0; i < columns.length; i++) {
+            Cell cell = headerRow.createCell(i);
+            cell.setCellValue(columns[i]);
+            cell.setCellStyle(headerStyle);
+            sheet.setColumnWidth(i, 18 * 256);
+        }
+        sheet.setColumnWidth(2, 25 * 256);
+
+        for (CustomerDueReportResponse rowData : data) {
+            Row row = sheet.createRow(rowIdx++);
+            row.createCell(0).setCellValue(rowData.getDebtId() != null ? rowData.getDebtId() : 0);
+            row.createCell(1).setCellValue(rowData.getCustomerId() != null ? rowData.getCustomerId() : 0);
+            row.createCell(2).setCellValue(safeStr(rowData.getCustomerName()));
+            row.createCell(3).setCellValue(rowData.getOrderId() != null ? rowData.getOrderId() : 0);
+            row.createCell(4).setCellValue(rowData.getAmount() != null ? rowData.getAmount().doubleValue() : 0.0);
+            row.createCell(5).setCellValue(rowData.getPaidAmount() != null ? rowData.getPaidAmount().doubleValue() : 0.0);
+            row.createCell(6).setCellValue(rowData.getRemainingAmount() != null ? rowData.getRemainingAmount().doubleValue() : 0.0);
+            row.createCell(7).setCellValue(rowData.getDueDate() != null ? rowData.getDueDate().toString() : "");
+            row.createCell(8).setCellValue(customerDebtStatusLabel(rowData.getStatus()));
+        }
+    }
+
+    private void fillSupplierDueSheet(SXSSFWorkbook workbook, Sheet sheet, CellStyle headerStyle, List<SupplierDueReportResponse> data, String companyName, String companyAddress) {
+        int rowIdx = addHeaderInfo(workbook, sheet, "BÁO CÁO CÔNG NỢ NHÀ CUNG CẤP", null, null, companyName, companyAddress, 7);
+
+        Row headerRow = sheet.createRow(rowIdx++);
+        String[] columns = {"Mã nợ", "Mã NCC", "Tên Nhà Cung Cấp", "Mã Đơn Nhập", "Tổng nợ", "Đã trả", "Còn nợ", "Hạn trả", "Trạng thái"};
+        for (int i = 0; i < columns.length; i++) {
+            Cell cell = headerRow.createCell(i);
+            cell.setCellValue(columns[i]);
+            cell.setCellStyle(headerStyle);
+            sheet.setColumnWidth(i, 18 * 256);
+        }
+        sheet.setColumnWidth(2, 25 * 256);
+
+        for (SupplierDueReportResponse rowData : data) {
+            Row row = sheet.createRow(rowIdx++);
+            row.createCell(0).setCellValue(rowData.getDebtId() != null ? rowData.getDebtId() : 0);
+            row.createCell(1).setCellValue(rowData.getSupplierId() != null ? rowData.getSupplierId() : 0);
+            row.createCell(2).setCellValue(safeStr(rowData.getSupplierName()));
+            row.createCell(3).setCellValue(rowData.getPurchaseOrderId() != null ? rowData.getPurchaseOrderId() : 0);
+            row.createCell(4).setCellValue(rowData.getAmount() != null ? rowData.getAmount().doubleValue() : 0.0);
+            row.createCell(5).setCellValue(rowData.getPaidAmount() != null ? rowData.getPaidAmount().doubleValue() : 0.0);
+            row.createCell(6).setCellValue(rowData.getRemainingAmount() != null ? rowData.getRemainingAmount().doubleValue() : 0.0);
+            row.createCell(7).setCellValue(rowData.getDueDate() != null ? rowData.getDueDate().toString() : "");
+            row.createCell(8).setCellValue(supplierDebtStatusLabel(rowData.getStatus()));
+        }
+    }
+
+    private void fillProductExpirySheet(SXSSFWorkbook workbook, Sheet sheet, CellStyle headerStyle, List<ProductExpiryReportResponse> data, String companyName, String companyAddress) {
+        int rowIdx = addHeaderInfo(workbook, sheet, "BÁO CÁO SẢN PHẨM CẬN HẠN SỬ DỤNG", null, null, companyName, companyAddress, 7);
+
+        Row headerRow = sheet.createRow(rowIdx++);
+        String[] columns = {"Mã SP", "Tên Sản Phẩm", "Mã Lô", "Số Lô", "Ngày Hết Hạn", "Còn (ngày)", "Số Lượng", "Vị Trí"};
+        for (int i = 0; i < columns.length; i++) {
+            Cell cell = headerRow.createCell(i);
+            cell.setCellValue(columns[i]);
+            cell.setCellStyle(headerStyle);
+            sheet.setColumnWidth(i, 18 * 256);
+        }
+        sheet.setColumnWidth(1, 28 * 256);
+
+        CellStyle warningStyle = workbook.createCellStyle();
+        warningStyle.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex());
+        warningStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+        CellStyle dangerStyle = workbook.createCellStyle();
+        Font dangerFont = workbook.createFont();
+        dangerFont.setBold(true);
+        dangerFont.setColor(IndexedColors.WHITE.getIndex());
+        dangerStyle.setFont(dangerFont);
+        dangerStyle.setFillForegroundColor(IndexedColors.RED.getIndex());
+        dangerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+        for (ProductExpiryReportResponse rowData : data) {
+            Row row = sheet.createRow(rowIdx++);
+            row.createCell(0).setCellValue(safeStr(rowData.getItemCode()));
+            row.createCell(1).setCellValue(safeStr(rowData.getItemName()));
+            row.createCell(2).setCellValue(rowData.getLotId() != null ? rowData.getLotId() : 0);
+            row.createCell(3).setCellValue(safeStr(rowData.getLotNumber()));
+            row.createCell(4).setCellValue(rowData.getExpiryDate() != null ? rowData.getExpiryDate().toString() : "");
+
+            Cell daysCell = row.createCell(5);
+            if (rowData.getDaysUntilExpiry() != null) {
+                daysCell.setCellValue(rowData.getDaysUntilExpiry());
+                if (rowData.getDaysUntilExpiry() <= 0) {
+                    daysCell.setCellStyle(dangerStyle);
+                } else if (rowData.getDaysUntilExpiry() <= 30) {
+                    daysCell.setCellStyle(warningStyle);
+                }
+            } else {
+                daysCell.setCellValue("");
+            }
+
+            row.createCell(6).setCellValue(rowData.getQuantity() != null ? rowData.getQuantity().doubleValue() : 0.0);
+            row.createCell(7).setCellValue(safeStr(rowData.getLocationName()));
+        }
+    }
+
+    private void fillCashFlowSheet(SXSSFWorkbook workbook, Sheet sheet, CellStyle headerStyle, List<CashFlowReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress) {
+        int rowIdx = addHeaderInfo(workbook, sheet, "BÁO CÁO DÒNG TIỀN", from, to, companyName, companyAddress, 4);
+
+        Row headerRow = sheet.createRow(rowIdx++);
+        String[] columns = {"Ngày", "Loại", "Danh Mục", "Số Tiền", "Số Dư Lũy Kế"};
+        for (int i = 0; i < columns.length; i++) {
+            Cell cell = headerRow.createCell(i);
+            cell.setCellValue(columns[i]);
+            cell.setCellStyle(headerStyle);
+            sheet.setColumnWidth(i, 20 * 256);
+        }
+
+        CellStyle incomeStyle = workbook.createCellStyle();
+        Font incomeFont = workbook.createFont();
+        incomeFont.setColor(IndexedColors.DARK_GREEN.getIndex());
+        incomeStyle.setFont(incomeFont);
+
+        CellStyle expenseStyle = workbook.createCellStyle();
+        Font expenseFont = workbook.createFont();
+        expenseFont.setColor(IndexedColors.RED.getIndex());
+        expenseStyle.setFont(expenseFont);
+
+        for (CashFlowReportResponse rowData : data) {
+            Row row = sheet.createRow(rowIdx++);
+            row.createCell(0).setCellValue(rowData.getDate() != null ? rowData.getDate().toString() : "");
+
+            String typeStr = rowData.getType() != null ? rowData.getType().name() : "";
+            Cell typeCell = row.createCell(1);
+            typeCell.setCellValue("INCOME".equals(typeStr) ? "Thu" : "Chi");
+            typeCell.setCellStyle("INCOME".equals(typeStr) ? incomeStyle : expenseStyle);
+
+            row.createCell(2).setCellValue(safeStr(rowData.getCategory()));
+            row.createCell(3).setCellValue(rowData.getAmount() != null ? rowData.getAmount().doubleValue() : 0.0);
+            row.createCell(4).setCellValue(rowData.getRunningBalance() != null ? rowData.getRunningBalance().doubleValue() : 0.0);
+        }
+    }
+
+    private void fillProfitLossSheet(SXSSFWorkbook workbook, Sheet sheet, CellStyle headerStyle, List<ProfitLossReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress) {
+        int rowIdx = addHeaderInfo(workbook, sheet, "BÁO CÁO LÃI LỖ", from, to, companyName, companyAddress, 5);
+
+        Row headerRow = sheet.createRow(rowIdx++);
+        String[] columns = {"Ngày", "Doanh Thu", "Giá Vốn", "Lãi Gộp", "Chi Phí", "Lãi Ròng"};
+        for (int i = 0; i < columns.length; i++) {
+            Cell cell = headerRow.createCell(i);
+            cell.setCellValue(columns[i]);
+            cell.setCellStyle(headerStyle);
+            sheet.setColumnWidth(i, 20 * 256);
+        }
+
+        CellStyle profitStyle = workbook.createCellStyle();
+        Font profitFont = workbook.createFont();
+        profitFont.setColor(IndexedColors.DARK_GREEN.getIndex());
+        profitFont.setBold(true);
+        profitStyle.setFont(profitFont);
+
+        CellStyle lossStyle = workbook.createCellStyle();
+        Font lossFont = workbook.createFont();
+        lossFont.setColor(IndexedColors.RED.getIndex());
+        lossFont.setBold(true);
+        lossStyle.setFont(lossFont);
+
+        for (ProfitLossReportResponse rowData : data) {
+            Row row = sheet.createRow(rowIdx++);
+            row.createCell(0).setCellValue(rowData.getDate() != null ? rowData.getDate().toString() : "");
+            row.createCell(1).setCellValue(rowData.getRevenue() != null ? rowData.getRevenue().doubleValue() : 0.0);
+            row.createCell(2).setCellValue(rowData.getCostOfGoods() != null ? rowData.getCostOfGoods().doubleValue() : 0.0);
+            row.createCell(3).setCellValue(rowData.getGrossProfit() != null ? rowData.getGrossProfit().doubleValue() : 0.0);
+            row.createCell(4).setCellValue(rowData.getExpenses() != null ? rowData.getExpenses().doubleValue() : 0.0);
+
+            Cell netCell = row.createCell(5);
+            double netProfit = rowData.getNetProfit() != null ? rowData.getNetProfit().doubleValue() : 0.0;
+            netCell.setCellValue(netProfit);
+            if (netProfit >= 0) {
+                netCell.setCellStyle(profitStyle);
+            } else {
+                netCell.setCellStyle(lossStyle);
+            }
+        }
+    }
+
+    // ==================== Label Helpers ====================
+
+    private String customerDebtStatusLabel(CustomerDebtStatus status) {
+        if (status == null) return "";
+        return switch (status) {
+            case UNPAID -> "Chưa thanh toán";
+            case PARTIAL -> "Thanh toán một phần";
+            case PAID -> "Đã thanh toán";
+            case OVERDUE -> "Quá hạn";
+        };
+    }
+
+    private String supplierDebtStatusLabel(SupplierDebtStatus status) {
+        if (status == null) return "";
+        return switch (status) {
+            case UNPAID -> "Chưa thanh toán";
+            case PARTIAL -> "Thanh toán một phần";
+            case PAID -> "Đã thanh toán";
+            case OVERDUE -> "Quá hạn";
+        };
     }
 
     private CellStyle createHeaderStyle(SXSSFWorkbook workbook) {

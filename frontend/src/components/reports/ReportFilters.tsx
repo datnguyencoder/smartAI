@@ -145,7 +145,7 @@ export function ReportFilters({
           >
             <option value="excel_current">Xuất Excel (Tab hiện tại)</option>
             <option value="pdf_current">Xuất PDF (Tab hiện tại)</option>
-            <option value="excel_all">Xuất Excel Tổng Hợp (4 Sheet)</option>
+            <option value="excel_all">Xuất Excel Tổng Hợp (Tất cả tab)</option>
             <option value="pdf_all">In Báo Cáo Tổng Hợp (PDF)</option>
           </select>
           <Button

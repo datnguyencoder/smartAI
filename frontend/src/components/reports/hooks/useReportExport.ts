@@ -33,7 +33,7 @@ export function useReportExport({ canExport, activeTab, dateRange, groupBy }: Us
 
     try {
       const { from, to } = formatRange();
-      const type = activeTab as 'sales' | 'purchase' | 'inventory' | 'nxt';
+      const type = activeTab as 'sales' | 'purchase' | 'inventory' | 'nxt' | 'best-sellers' | 'customer-due' | 'supplier-due' | 'product-expiry' | 'cash-flow' | 'profit-loss';
       const blob = await exportReport(type, format, from, to, type === 'sales' ? groupBy : undefined);
 
       const url = window.URL.createObjectURL(blob);
