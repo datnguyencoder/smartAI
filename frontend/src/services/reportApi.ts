@@ -81,7 +81,7 @@ export function fetchProfitLossReport(from?: string, to?: string) {
   return apiRequest<ProfitLossReportDto[]>(`/api/v1/reports/profit-loss${qs ? `?${qs}` : ''}`);
 }
 
-export function exportReport(type: 'sales' | 'purchase' | 'inventory' | 'nxt', format: 'excel' | 'pdf', from?: string, to?: string, groupBy?: string) {
+export function exportReport(type: 'sales' | 'purchase' | 'inventory' | 'nxt' | 'best-sellers' | 'customer-due' | 'supplier-due' | 'product-expiry' | 'cash-flow' | 'profit-loss', format: 'excel' | 'pdf', from?: string, to?: string, groupBy?: string) {
   const params = new URLSearchParams();
   params.set('type', type);
   params.set('format', format);

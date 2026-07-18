@@ -82,7 +82,7 @@ public class ReportController {
 
     @GetMapping("/nxt")
     @Operation(summary = "Báo cáo Nhập Xuất Tồn")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ANALYST')")
     public ResponseEntity<ApiResponse<List<InventoryNxtReportResponse>>> getNxtReport(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
@@ -105,14 +105,14 @@ public class ReportController {
 
     @GetMapping("/customer-due")
     @Operation(summary = "Báo cáo công nợ khách hàng")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ANALYST')")
     public ResponseEntity<ApiResponse<List<CustomerDueReportResponse>>> getCustomerDue() {
         return ResponseEntity.ok(ApiResponse.success(reportService.getCustomerDue()));
     }
 
     @GetMapping("/supplier-due")
     @Operation(summary = "Báo cáo công nợ nhà cung cấp")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ANALYST')")
     public ResponseEntity<ApiResponse<List<SupplierDueReportResponse>>> getSupplierDue() {
         return ResponseEntity.ok(ApiResponse.success(reportService.getSupplierDue()));
     }
@@ -126,7 +126,7 @@ public class ReportController {
 
     @GetMapping("/cash-flow")
     @Operation(summary = "Báo cáo dòng tiền")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ANALYST')")
     public ResponseEntity<ApiResponse<List<CashFlowReportResponse>>> getCashFlow(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
@@ -136,7 +136,7 @@ public class ReportController {
 
     @GetMapping("/profit-loss")
     @Operation(summary = "Báo cáo lãi lỗ")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ANALYST')")
     public ResponseEntity<ApiResponse<List<ProfitLossReportResponse>>> getProfitLoss(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
@@ -146,7 +146,7 @@ public class ReportController {
 
     @GetMapping("/export")
     @Operation(summary = "Xuất báo cáo dưới dạng Excel hoặc PDF")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER') or (hasRole('WAREHOUSE') and (#type == 'inventory' or #type == 'purchase'))")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER') or (hasRole('WAREHOUSE') and (#type == 'inventory' or #type == 'purchase' or #type == 'product-expiry')) or (hasRole('ANALYST') and (#type == 'customer-due' or #type == 'supplier-due' or #type == 'cash-flow' or #type == 'profit-loss' or #type == 'nxt' or #type == 'sales' or #type == 'best-sellers'))")
     public ResponseEntity<org.springframework.core.io.Resource> exportReport(
             @RequestParam String type,
             @RequestParam String format,
