@@ -70,10 +70,16 @@ export default function PurchaseSuggestionsPage({
   );
 
   const openImportCreate = React.useCallback(
-    (items: Array<{ itemId: number; suggestedQty: number }>) => {
+    (items: Array<{ itemId: number; suggestedQty: number; supplierId?: number }>) => {
+      // Phiếu nhập chỉ có 1 NCC — chỉ prefill supplier nếu TẤT CẢ sản phẩm chọn
+      // cùng chung 1 NCC mặc định, tránh gán nhầm NCC khi lập phiếu hàng loạt.
+      const supplierIds = new Set(items.map((i) => i.supplierId).filter((id): id is number => id != null));
+      const commonSupplierId = supplierIds.size === 1 ? [...supplierIds][0] : undefined;
+
       setPrefillItems(items.map((item) => ({
         itemId: Number(item.itemId),
         suggestedQty: Math.max(1, Math.ceil(Number(item.suggestedQty) || 1)),
+        supplierId: commonSupplierId,
       })));
       setPage('import-create');
     },
@@ -88,7 +94,14 @@ export default function PurchaseSuggestionsPage({
           <p className="text-xs text-slate-400">Được đề xuất tự động dựa theo tốc độ bán hàng và chu kỳ vận chuyển.</p>
         </div>
         {suggestions.length > 0 && (
-          <Button type="primary" onClick={() => openImportCreate(suggestions)}>
+          <Button
+            type="primary"
+            onClick={() =>
+              openImportCreate(
+                suggestions.map((s) => ({ itemId: s.itemId, suggestedQty: s.suggestedQty, supplierId: s.supplierId }))
+              )
+            }
+          >
             Lập phiếu tất cả
           </Button>
         )}
@@ -136,6 +149,11 @@ export default function PurchaseSuggestionsPage({
               { title: 'Số lượng đề xuất', dataIndex: 'suggestedQty', render: (v) => <strong>{Math.ceil(Number(v) || 0).toLocaleString('vi-VN')}</strong> },
               { title: 'Nguồn', dataIndex: 'source', render: (v) => <Tag color={v === 'AI' ? 'green' : 'orange'}>{v}</Tag> },
               {
+                title: 'Nhà cung cấp',
+                dataIndex: 'supplierName',
+                render: (v) => v ?? <span className="text-slate-400">Chưa xác định</span>,
+              },
+              {
                 title: 'Độ ưu tiên',
                 dataIndex: 'riskLevel',
                 render: (v) => {
@@ -156,7 +174,9 @@ export default function PurchaseSuggestionsPage({
                     size="small"
                     type="primary"
                     ghost
-                    onClick={() => openImportCreate([{ itemId: row.itemId, suggestedQty: row.suggestedQty }])}
+                    onClick={() =>
+                      openImportCreate([{ itemId: row.itemId, suggestedQty: row.suggestedQty, supplierId: row.supplierId }])
+                    }
                   >
                     Lập phiếu
                   </Button>

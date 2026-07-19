@@ -147,10 +147,9 @@ Backend và AI Service log được Promtail tự động thu thập từ Docker
 
 # Log request 5xx
 {container="smartmart_backend"} |= "500" or "503"
-
-# Lọc theo level (Promtail đã tự parse thành label "level")
-{container="smartmart_backend", level="ERROR"}
 ```
+
+> **Lưu ý:** Nhãn `level` chỉ bám vào dòng log đơn (không kèm stack trace) — với exception Java nhiều dòng, chỉ dòng đầu tiên (có timestamp) khớp được, các dòng `at ...` tiếp theo không mang label. Vì vậy nên **ưu tiên filter theo text** (`|= "ERROR"`) thay vì `level="ERROR"` để không bỏ sót.
 
 4. Có thể **Split** view để xem logs song song với metrics Prometheus (đối chiếu thời điểm lỗi)
 

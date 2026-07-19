@@ -2,12 +2,16 @@ package com.smartmart.service.ai.impl;
 
 import com.smartmart.entity.ForecastResult;
 import com.smartmart.entity.Item;
+import com.smartmart.entity.PurchaseOrderItem;
 import com.smartmart.entity.ReorderRecommendation;
+import com.smartmart.entity.SupplierItem;
 import com.smartmart.repository.CurrentInventoryRepository;
 import com.smartmart.repository.ForecastResultRepository;
 import com.smartmart.repository.ItemRepository;
 import com.smartmart.repository.OrderItemRepository;
+import com.smartmart.repository.PurchaseOrderItemRepository;
 import com.smartmart.repository.ReorderRecommendationRepository;
+import com.smartmart.repository.SupplierItemRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,19 +35,25 @@ public class ReorderRecommendationServiceImpl implements com.smartmart.service.a
     private final ItemRepository itemRepository;
     private final CurrentInventoryRepository currentInventoryRepository;
     private final OrderItemRepository orderItemRepository;
+    private final PurchaseOrderItemRepository purchaseOrderItemRepository;
+    private final SupplierItemRepository supplierItemRepository;
 
     public ReorderRecommendationServiceImpl(
             ReorderRecommendationRepository reorderRepository,
             ForecastResultRepository forecastResultRepository,
             ItemRepository itemRepository,
             CurrentInventoryRepository currentInventoryRepository,
-            OrderItemRepository orderItemRepository
+            OrderItemRepository orderItemRepository,
+            PurchaseOrderItemRepository purchaseOrderItemRepository,
+            SupplierItemRepository supplierItemRepository
     ) {
         this.reorderRepository = reorderRepository;
         this.forecastResultRepository = forecastResultRepository;
         this.itemRepository = itemRepository;
         this.currentInventoryRepository = currentInventoryRepository;
         this.orderItemRepository = orderItemRepository;
+        this.purchaseOrderItemRepository = purchaseOrderItemRepository;
+        this.supplierItemRepository = supplierItemRepository;
     }
 
     @Transactional
@@ -182,8 +192,29 @@ public class ReorderRecommendationServiceImpl implements com.smartmart.service.a
                     m.put("riskLevel", r.getRiskLevel());
                     m.put("source", r.getSource());
                     m.put("reason", r.getReason());
+                    resolveDefaultSupplier(r.getItem()).ifPresent(sup -> {
+                        m.put("supplierId", sup.id());
+                        m.put("supplierName", sup.name());
+                    });
                     return m;
                 })
                 .toList();
+    }
+
+    /**
+     * NCC mặc định để prefill khi lập phiếu nhập từ gợi ý AI: ưu tiên NCC đã nhập
+     * gần nhất cho SKU này, nếu chưa từng nhập thì lấy NCC active có giá rẻ nhất.
+     */
+    private java.util.Optional<SupplierRef> resolveDefaultSupplier(Item item) {
+        return purchaseOrderItemRepository.findFirstByItem_IdOrderByPurchaseOrder_CreatedAtDesc(item.getId())
+                .map(PurchaseOrderItem::getPurchaseOrder)
+                .map(po -> new SupplierRef(po.getSupplier().getId(), po.getSupplier().getSupplierName()))
+                .or(() -> supplierItemRepository
+                        .findFirstBySkuItemIgnoreCaseAndActiveTrueOrderByDefaultCostPriceAsc(item.getItemCode())
+                        .map(SupplierItem::getSupplier)
+                        .map(sup -> new SupplierRef(sup.getId(), sup.getSupplierName())));
+    }
+
+    private record SupplierRef(Long id, String name) {
     }
 }

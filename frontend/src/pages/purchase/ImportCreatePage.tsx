@@ -118,8 +118,20 @@ export default function ImportCreatePage({
     });
 
     if (items.length > 0) {
-      form.setFieldsValue({ items });
-      antdMessage.info('Đã điền sản phẩm từ gợi ý nhập hàng');
+      // Set supplierId CÙNG LÚC với items (không gọi handleSupplierChange vì nó reset
+      // items về rỗng). useEffect theo dõi selectedSupplierId bên dưới sẽ tự fetch
+      // supplierItems; một khi options đó load xong, <select> sẽ tự khớp đúng itemId
+      // đã set sẵn trong form state — không cần set lại itemId lần 2.
+      const supplierId = prefillItems.find((p) => p.supplierId != null)?.supplierId;
+      form.setFieldsValue({
+        ...(supplierId != null ? { supplierId } : {}),
+        items,
+      });
+      antdMessage.info(
+        supplierId != null
+          ? 'Đã điền sản phẩm và nhà cung cấp từ gợi ý nhập hàng'
+          : 'Đã điền số lượng từ gợi ý — sản phẩm này chưa có NCC mặc định, vui lòng chọn NCC'
+      );
       clearPrefillItems?.();
     }
   }, [clearPrefillItems, form, prefillItems, productsList]);
