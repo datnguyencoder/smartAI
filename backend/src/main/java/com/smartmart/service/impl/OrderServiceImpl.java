@@ -150,6 +150,7 @@ public class OrderServiceImpl implements OrderService {
 
             List<InventoryLedgerService.LotAllocation> allocations = inventoryLedgerService.allocateFefo(item, location,
                     line.getQuantity());
+            Category categoryAtSale = item.getCategory();
 
             for (InventoryLedgerService.LotAllocation alloc : allocations) {
                 inventoryLedgerService.applyMovement(
@@ -170,6 +171,8 @@ public class OrderServiceImpl implements OrderService {
                         .quantity(alloc.quantity())
                         .unitPrice(item.getSellingPrice())
                         .subtotal(subtotal)
+                        .categoryIdAtSale(categoryAtSale != null ? categoryAtSale.getId() : null)
+                        .categoryNameAtSale(categoryAtSale != null ? categoryAtSale.getCategoryName() : null)
                         .build();
                 orderItems.add(oi);
                 total = total.add(subtotal);

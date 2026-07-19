@@ -56,7 +56,7 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
         SELECT CAST(oi.item_id AS BIGINT) as item_id,
                CAST(o.order_date AS DATE) as sale_date,
                SUM(oi.quantity) as quantity,
-               MAX(i.category_id) as category_id
+               MAX(COALESCE(oi.category_id_at_sale, i.category_id)) as category_id
         FROM orders o
         JOIN order_items oi ON oi.order_id = o.id
         JOIN items i ON i.id = oi.item_id

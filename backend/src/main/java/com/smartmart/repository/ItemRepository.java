@@ -24,6 +24,8 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
 
        Page<Item> findByActiveTrue(Pageable pageable);
 
+       List<Item> findByCategoryIdAndActiveTrue(Long categoryId);
+
        @Query("SELECT i FROM Item i WHERE i.active = true AND " +
                      "(LOWER(i.itemName) LIKE LOWER(CONCAT('%', :q, '%')) OR LOWER(i.itemCode) LIKE LOWER(CONCAT('%', :q, '%'))) " +
                      "ORDER BY i.id DESC")

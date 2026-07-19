@@ -1,10 +1,10 @@
 import * as React from 'react';
-import { Button, Form, Input, Modal, Switch, message, Checkbox } from 'antd';
+import { Button, Checkbox, Form, Input, Modal, Select as AntdSelect, Switch, Tabs, message } from 'antd';
 import { motion } from 'framer-motion';
 import { Plus, Search, Tags } from 'lucide-react';
 import { AiSummary } from '@/components/ai/AiSummary';
 import { ProductsTable } from '@/components/catalog/ProductsTable';
-import { Card, StatusChip , Select } from '@/components/ui';
+import { Card, StatusChip } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { normalizeRole } from '@/lib/permissions';
 import type { Product } from '@/lib/itemMapper';
@@ -12,23 +12,11 @@ import {
   createCategory,
   deleteCategory,
   fetchCategories,
+  moveCategoryItems,
   updateCategory,
 } from '@/services/wmsApi';
 import type { CategoryDto } from '@/types/api';
 import type { PageKey } from '@/types/pages';
-
-const UOM_CATEGORY_OPTIONS = [
-  { value: 'COUNT', label: 'Số lượng' },
-  { value: 'WEIGHT', label: 'Khối lượng' },
-  { value: 'VOLUME', label: 'Dung tích' },
-  { value: 'PACKAGE', label: 'Đóng gói' },
-  { value: 'LENGTH', label: 'Chiều dài' },
-  { value: 'OTHER', label: 'Khác' },
-];
-
-function splitUomCategories(value?: string) {
-  return value?.split(',').map((item) => item.trim()).filter(Boolean) ?? [];
-}
 
 type Props = {
   productsList: Product[];
@@ -37,15 +25,26 @@ type Props = {
   reloadCatalog?: () => Promise<void>;
 };
 
+type MoveMode = 'all' | 'custom';
+
 export default function CategoriesPage({ productsList, setPage, openProduct, reloadCatalog }: Props) {
   const { authUser } = useAuth();
-  const canEdit = ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_WAREHOUSE'].includes(normalizeRole(authUser?.role));
+  const role = normalizeRole(authUser?.role);
+  const canEdit = ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_WAREHOUSE'].includes(role);
+  const canManageCategoryStatus = ['ROLE_ADMIN', 'ROLE_MANAGER'].includes(role);
   const [rows, setRows] = React.useState<CategoryDto[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState('');
   const [selectedCat, setSelectedCat] = React.useState<CategoryDto | null>(null);
   const [modalOpen, setModalOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<CategoryDto | null>(null);
+  const [moveModalOpen, setMoveModalOpen] = React.useState(false);
+  const [moveSourceCat, setMoveSourceCat] = React.useState<CategoryDto | null>(null);
+  const [moveMode, setMoveMode] = React.useState<MoveMode>('all');
+  const [moveTargetCategoryId, setMoveTargetCategoryId] = React.useState<number | undefined>();
+  const [moveAssignments, setMoveAssignments] = React.useState<Record<string, number | undefined>>({});
+  const [moveAndDeactivate, setMoveAndDeactivate] = React.useState(true);
+  const [movingItems, setMovingItems] = React.useState(false);
   const [form] = Form.useForm();
 
   const load = React.useCallback(async () => {
@@ -67,6 +66,97 @@ export default function CategoriesPage({ productsList, setPage, openProduct, rel
   const filtered = rows.filter(
     (c) => !searchQuery || c.categoryName.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  const moveProducts = React.useMemo(
+    () =>
+      moveSourceCat
+        ? productsList.filter((p) => p.categoryId === moveSourceCat.id || p.category === moveSourceCat.categoryName)
+        : [],
+    [moveSourceCat, productsList]
+  );
+  const targetCategoryOptions = React.useMemo(
+    () =>
+      rows
+        .filter((cat) => cat.active && cat.id !== moveSourceCat?.id)
+        .map((cat) => ({ value: cat.id, label: cat.categoryName })),
+    [moveSourceCat?.id, rows]
+  );
+
+  const resetMoveModal = () => {
+    setMoveModalOpen(false);
+    setMoveSourceCat(null);
+    setMoveMode('all');
+    setMoveTargetCategoryId(undefined);
+    setMoveAssignments({});
+    setMoveAndDeactivate(true);
+    setMovingItems(false);
+  };
+
+  const openMoveModal = (cat: CategoryDto) => {
+    setMoveSourceCat(cat);
+    setMoveMode('all');
+    setMoveTargetCategoryId(undefined);
+    setMoveAssignments({});
+    setMoveAndDeactivate(true);
+    setMoveModalOpen(true);
+  };
+
+  const applyTargetToAllMoveRows = (targetCategoryId?: number) => {
+    if (!targetCategoryId) return;
+    setMoveAssignments(
+      Object.fromEntries(moveProducts.map((product) => [product.key, targetCategoryId]))
+    );
+  };
+
+  const handleMoveItems = async () => {
+    if (!moveSourceCat) return;
+    if (targetCategoryOptions.length === 0) {
+      message.error('Cần có ít nhất một danh mục đang hoạt động khác để chuyển sản phẩm');
+      return;
+    }
+
+    if (moveMode === 'all' && !moveTargetCategoryId) {
+      message.error('Vui lòng chọn danh mục đích');
+      return;
+    }
+
+    if (moveMode === 'custom') {
+      const missingProduct = moveProducts.find((product) => !moveAssignments[product.key]);
+      if (missingProduct) {
+        message.error(`Vui lòng chọn danh mục đích cho ${missingProduct.name}`);
+        return;
+      }
+    }
+
+    const payload =
+      moveMode === 'all'
+        ? {
+            targetCategoryId: moveTargetCategoryId,
+            deleteSourceAfterMove: moveAndDeactivate,
+          }
+        : {
+            deleteSourceAfterMove: moveAndDeactivate,
+            moves: moveProducts.map((product) => ({
+              itemId: Number(product.key),
+              targetCategoryId: moveAssignments[product.key] as number,
+            })),
+          };
+
+    setMovingItems(true);
+    try {
+      const movedCount = await moveCategoryItems(moveSourceCat.id, payload);
+      message.success(
+        moveAndDeactivate
+          ? `Đã chuyển ${movedCount} sản phẩm và ngưng danh mục`
+          : `Đã chuyển ${movedCount} sản phẩm`
+      );
+      resetMoveModal();
+      await load();
+      await reloadCatalog?.();
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : 'Chuyển sản phẩm thất bại');
+      setMovingItems(false);
+    }
+  };
 
   const openCreate = () => {
     setEditing(null);
@@ -85,7 +175,7 @@ export default function CategoriesPage({ productsList, setPage, openProduct, rel
       }
     } catch(e) {}
 
-    form.setFieldsValue({ active: true, uomCategories: ['COUNT', 'PACKAGE'] });
+    form.setFieldsValue({ active: true });
     setModalOpen(true);
   };
 
@@ -94,7 +184,6 @@ export default function CategoriesPage({ productsList, setPage, openProduct, rel
     form.setFieldsValue({
       categoryName: cat.categoryName,
       active: cat.active,
-      uomCategories: splitUomCategories(cat.uomCategories),
     });
     setModalOpen(true);
   };
@@ -103,10 +192,8 @@ export default function CategoriesPage({ productsList, setPage, openProduct, rel
     const values = await form.validateFields();
     const payload = {
       categoryName: values.categoryName,
-      active: values.active,
-      uomCategories: Array.isArray(values.uomCategories)
-        ? values.uomCategories.join(',')
-        : values.uomCategories,
+      active: canManageCategoryStatus ? values.active : editing?.active ?? true,
+      uomCategories: 'RETAIL,PACKAGE',
     };
 
     try {
@@ -130,16 +217,57 @@ export default function CategoriesPage({ productsList, setPage, openProduct, rel
   };
 
   const handleDelete = async (cat: CategoryDto) => {
+    const productCount = productsList.filter((p) => p.categoryId === cat.id || p.category === cat.categoryName).length;
+
+    if (productCount > 0) {
+      openMoveModal(cat);
+      return;
+    }
+
     Modal.confirm({
-      title: 'Xóa danh mục?',
+      title: 'Ngưng hoạt động danh mục?',
       content: `Ngừng hoạt động danh mục "${cat.categoryName}"?`,
-      okText: 'Xóa',
+      okText: 'Ngưng hoạt động',
       okType: 'danger',
+      cancelText: 'Hủy',
       onOk: async () => {
-        await deleteCategory(cat.id);
-        message.success('Đã xóa danh mục');
-        await load();
-        await reloadCatalog?.();
+        try {
+          await deleteCategory(cat.id);
+          message.success('Đã ngưng hoạt động danh mục');
+          await load();
+          await reloadCatalog?.();
+        } catch (e) {
+          Modal.warning({
+            title: 'Không thể ngưng danh mục',
+            content:
+              e instanceof Error
+                ? e.message
+                : 'Danh mục đang có sản phẩm hoặc không thể ngưng tại thời điểm này.',
+            okText: 'Đã hiểu',
+          });
+        }
+      },
+    });
+  };
+
+  const handleActivate = async (cat: CategoryDto) => {
+    Modal.confirm({
+      title: 'Mở lại danh mục?',
+      content: `Mở lại danh mục "${cat.categoryName}" để có thể chọn khi tạo hoặc cập nhật sản phẩm?`,
+      okText: 'Mở lại',
+      cancelText: 'Hủy',
+      onOk: async () => {
+        try {
+          await updateCategory(cat.id, {
+            categoryName: cat.categoryName,
+            active: true,
+          });
+          message.success('Đã mở lại danh mục');
+          await load();
+          await reloadCatalog?.();
+        } catch (e) {
+          message.error(e instanceof Error ? e.message : 'Mở lại danh mục thất bại');
+        }
       },
     });
   };
@@ -191,9 +319,16 @@ export default function CategoriesPage({ productsList, setPage, openProduct, rel
                     <Button size="small" onClick={() => openEdit(cat)}>
                       Sửa
                     </Button>
-                    <Button size="small" danger onClick={() => handleDelete(cat)}>
-                      Xóa
-                    </Button>
+                    {canManageCategoryStatus &&
+                      (cat.active ? (
+                        <Button size="small" danger onClick={() => handleDelete(cat)}>
+                          Ngưng
+                        </Button>
+                      ) : (
+                        <Button size="small" type="primary" ghost onClick={() => handleActivate(cat)}>
+                          Mở lại
+                        </Button>
+                      ))}
                   </div>
                 )}
               </motion.div>
@@ -215,6 +350,106 @@ export default function CategoriesPage({ productsList, setPage, openProduct, rel
             rows={productsList.filter((p) => p.category === selectedCat.categoryName)}
             openProduct={openProduct}
           />
+        )}
+      </Modal>
+      <Modal
+        title="Chuyển sản phẩm trước khi ngưng danh mục"
+        open={moveModalOpen}
+        onCancel={resetMoveModal}
+        width={820}
+        destroyOnClose
+        footer={[
+          <Button key="cancel" onClick={resetMoveModal}>
+            Hủy
+          </Button>,
+          <Button key="submit" type="primary" danger loading={movingItems} onClick={handleMoveItems}>
+            {moveAndDeactivate ? 'Chuyển và ngưng' : 'Chuyển sản phẩm'}
+          </Button>,
+        ]}
+      >
+        {moveSourceCat && (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              Danh mục <strong>{moveSourceCat.categoryName}</strong> đang có{' '}
+              <strong>{moveProducts.length}</strong> sản phẩm đang kinh doanh.
+            </div>
+
+            <Tabs
+              activeKey={moveMode}
+              onChange={(key) => setMoveMode(key as MoveMode)}
+              items={[
+                {
+                  key: 'all',
+                  label: 'Chuyển tất cả',
+                  children: (
+                    <div className="grid gap-2">
+                      <label className="text-sm font-semibold text-slate-700">Danh mục đích</label>
+                      <AntdSelect
+                        showSearch
+                        allowClear
+                        placeholder="Chọn danh mục nhận sản phẩm"
+                        optionFilterProp="label"
+                        value={moveTargetCategoryId}
+                        options={targetCategoryOptions}
+                        onChange={setMoveTargetCategoryId}
+                      />
+                    </div>
+                  ),
+                },
+                {
+                  key: 'custom',
+                  label: 'Chuyển từng sản phẩm',
+                  children: (
+                    <div className="space-y-3">
+                      <div className="grid gap-2 rounded-lg border border-line bg-slate-50 p-3 md:grid-cols-[1fr_auto]">
+                        <AntdSelect
+                          showSearch
+                          allowClear
+                          placeholder="Chọn danh mục để áp dụng nhanh"
+                          optionFilterProp="label"
+                          value={moveTargetCategoryId}
+                          options={targetCategoryOptions}
+                          onChange={setMoveTargetCategoryId}
+                        />
+                        <Button onClick={() => applyTargetToAllMoveRows(moveTargetCategoryId)}>
+                          Áp dụng cho tất cả
+                        </Button>
+                      </div>
+
+                      <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
+                        {moveProducts.map((product) => (
+                          <div
+                            key={product.key}
+                            className="grid gap-3 rounded-lg border border-line p-3 md:grid-cols-[1fr_280px]"
+                          >
+                            <div className="min-w-0">
+                              <div className="truncate font-semibold text-ink">{product.name}</div>
+                              <div className="text-xs text-muted">{product.sku}</div>
+                            </div>
+                            <AntdSelect
+                              showSearch
+                              allowClear
+                              placeholder="Chọn danh mục đích"
+                              optionFilterProp="label"
+                              value={moveAssignments[product.key]}
+                              options={targetCategoryOptions}
+                              onChange={(value) =>
+                                setMoveAssignments((current) => ({ ...current, [product.key]: value }))
+                              }
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ),
+                },
+              ]}
+            />
+
+            <Checkbox checked={moveAndDeactivate} onChange={(e) => setMoveAndDeactivate(e.target.checked)}>
+              Ngưng danh mục "{moveSourceCat.categoryName}" sau khi chuyển
+            </Checkbox>
+          </div>
         )}
       </Modal>
       <Modal
@@ -240,14 +475,7 @@ export default function CategoriesPage({ productsList, setPage, openProduct, rel
           <Form.Item name="categoryName" label="Tên danh mục" rules={[{ required: true, message: 'Nhập tên danh mục' }]}>
             <Input />
           </Form.Item>
-          <Form.Item
-            name="uomCategories"
-            label="Nhóm đơn vị được dùng"
-            rules={[{ required: true, message: 'Vui lòng chọn ít nhất một nhóm đơn vị' }]}
-          >
-            <Checkbox.Group options={UOM_CATEGORY_OPTIONS} className="grid grid-cols-2 gap-2 mt-2" />
-          </Form.Item>
-          {editing && (
+          {editing && canManageCategoryStatus && (
             <Form.Item name="active" label="Đang kinh doanh" valuePropName="checked">
               <Switch />
             </Form.Item>

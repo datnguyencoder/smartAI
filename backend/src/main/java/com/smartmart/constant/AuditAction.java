@@ -20,8 +20,12 @@ public final class AuditAction {
     public static final String CATEGORY_CREATE = "CATEGORY_CREATE";
     public static final String CATEGORY_UPDATE = "CATEGORY_UPDATE";
     public static final String CATEGORY_DELETE = "CATEGORY_DELETE";
+    public static final String CATEGORY_ACTIVATE = "CATEGORY_ACTIVATE";
+    public static final String CATEGORY_DEACTIVATE = "CATEGORY_DEACTIVATE";
+    public static final String CATEGORY_MOVE_ITEMS = "CATEGORY_MOVE_ITEMS";
     public static final String ITEM_CREATE = "ITEM_CREATE";
     public static final String ITEM_UPDATE = "ITEM_UPDATE";
+    public static final String ITEM_MOVE_CATEGORY = "ITEM_MOVE_CATEGORY";
     public static final String SUPPLIER_CREATE = "SUPPLIER_CREATE";
     public static final String SUPPLIER_UPDATE = "SUPPLIER_UPDATE";
     public static final String LOCATION_CREATE = "LOCATION_CREATE";

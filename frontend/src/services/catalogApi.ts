@@ -103,6 +103,20 @@ export function deleteCategory(id: number) {
   return apiRequest<void>(`/api/v1/categories/${id}`, { method: 'DELETE' });
 }
 
+export function moveCategoryItems(
+  id: number,
+  payload: {
+    targetCategoryId?: number;
+    deleteSourceAfterMove?: boolean;
+    moves?: { itemId: number; targetCategoryId: number }[];
+  }
+) {
+  return apiRequest<number>(`/api/v1/categories/${id}/move-items`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
 export function fetchSuppliers() {
   return apiRequest<SupplierDto[]>('/api/v1/suppliers');
 }

@@ -2,6 +2,7 @@ package com.smartmart.controller;
 
 import com.smartmart.common.response.ApiResponse;
 import com.smartmart.dto.request.CreateCategoryRequest;
+import com.smartmart.dto.request.MoveCategoryItemsRequest;
 import com.smartmart.dto.request.UpdateCategoryRequest;
 import com.smartmart.dto.response.CategoryResponse;
 import com.smartmart.service.CategoryService;
@@ -60,9 +61,22 @@ public class CategoryController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
-    @Operation(summary = "Xóa mềm danh mục")
+    @Operation(summary = "Ngưng hoạt động danh mục")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         categoryService.delete(id);
-        return ResponseEntity.ok(ApiResponse.success("Xóa danh mục thành công", null));
+        return ResponseEntity.ok(ApiResponse.success("Ngưng danh mục thành công", null));
+    }
+
+    @PatchMapping("/{id}/move-items")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @Operation(summary = "Chuyển sản phẩm sang danh mục khác")
+    public ResponseEntity<ApiResponse<Integer>> moveItems(
+            @PathVariable Long id,
+            @Valid @RequestBody MoveCategoryItemsRequest request) {
+        int movedCount = categoryService.moveItems(id, request);
+        String message = Boolean.TRUE.equals(request.getDeleteSourceAfterMove())
+                ? "Chuyển sản phẩm và ngưng danh mục thành công"
+                : "Chuyển sản phẩm thành công";
+        return ResponseEntity.ok(ApiResponse.success(message, movedCount));
     }
 }

@@ -115,7 +115,7 @@ export function PageRenderer({
     );
   }
   if (page === 'products') {
-    return <ProductsPage openProduct={openProduct} openModal={openModal} productsList={productsList} />;
+    return <ProductsPage authUser={authUser} openProduct={openProduct} openModal={openModal} productsList={productsList} />;
   }
   if (page === 'categories') {
     return (
@@ -137,7 +137,7 @@ export function PageRenderer({
     return <LocationsPage locations={locations} productsList={productsList} authUser={authUser} reloadCatalog={reloadCatalog} setPage={setPage} />;
   }
   if (page === 'uoms') {
-    return <UomsPage uoms={uoms} reloadCatalog={reloadCatalog} />;
+    return <UomsPage uoms={uoms} authUser={authUser} reloadCatalog={reloadCatalog} />;
   }
   if (page === 'invoices') {
     return <InvoicesPage setSelectedInvoice={setSelectedInvoice} authUser={authUser} />;

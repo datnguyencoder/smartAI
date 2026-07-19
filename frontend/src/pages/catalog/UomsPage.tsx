@@ -3,7 +3,8 @@ import { Button, Form, Input, InputNumber, Modal, Space, Switch, Table, Tag, mes
 import { Info, Lightbulb, Package, Plus, RefreshCw } from 'lucide-react';
 import { Card , Select } from '@/components/ui';
 import { activateUom, createUom, deactivateUom, updateUom } from '@/services/wmsApi';
-import type { UomDto } from '@/types/api';
+import { normalizeRole } from '@/lib/permissions';
+import type { UomDto, UserDto } from '@/types/api';
 
 const TEXT = {
   title: '\u0110\u01a1n v\u1ecb t\u00ednh',
@@ -78,6 +79,7 @@ const getDisplayUomGroup = (uom: UomDto) => {
 
 type Props = {
   uoms: UomDto[];
+  authUser: UserDto;
   reloadCatalog: () => Promise<void>;
 };
 
@@ -162,7 +164,7 @@ function UomHelpPanel() {
     </aside>
   );
 }
-export default function UomsPage({ uoms, reloadCatalog }: Props) {
+export default function UomsPage({ uoms, authUser, reloadCatalog }: Props) {
   const [modalOpen, setModalOpen] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [editingUom, setEditingUom] = React.useState<UomDto | null>(null);
@@ -171,6 +173,8 @@ export default function UomsPage({ uoms, reloadCatalog }: Props) {
   const [form] = Form.useForm<UomFormValues>();
   const selectedCategory = Form.useWatch('category', form);
   const isPackagingGroup = isPackagingUomGroup(selectedCategory);
+  const role = normalizeRole(authUser.role);
+  const canManageUoms = ['ROLE_ADMIN', 'ROLE_MANAGER'].includes(role);
 
   const activeUomOptions = React.useMemo(
     () =>
@@ -193,6 +197,7 @@ export default function UomsPage({ uoms, reloadCatalog }: Props) {
   }, [categoryFilter, searchQuery, uoms]);
 
   const openCreate = () => {
+    if (!canManageUoms) return;
     setEditingUom(null);
     form.resetFields();
     form.setFieldsValue({ category: RETAIL_GROUP, conversionRatio: 1, active: true });
@@ -200,6 +205,7 @@ export default function UomsPage({ uoms, reloadCatalog }: Props) {
   };
 
   const openEdit = (uom: UomDto) => {
+    if (!canManageUoms) return;
     setEditingUom(uom);
     form.setFieldsValue({
       uomName: uom.uomName,
@@ -221,6 +227,7 @@ export default function UomsPage({ uoms, reloadCatalog }: Props) {
   }, [form, selectedCategory]);
 
   const handleSave = async () => {
+    if (!canManageUoms) return;
     const values = await form.validateFields();
     const packaging = isPackagingUomGroup(values.category);
     const payload = {
@@ -256,6 +263,7 @@ export default function UomsPage({ uoms, reloadCatalog }: Props) {
   };
 
   const handleToggleActive = async (uom: UomDto) => {
+    if (!canManageUoms) return;
     const isActive = uom.active !== false;
     try {
       if (isActive) {
@@ -278,9 +286,11 @@ export default function UomsPage({ uoms, reloadCatalog }: Props) {
           <h2 className="text-lg font-semibold">{TEXT.title}</h2>
           <p className="text-sm text-muted">{TEXT.description}</p>
         </div>
-        <Button type="primary" icon={<Plus size={16} />} onClick={openCreate}>
-          {TEXT.addUnit}
-        </Button>
+        {canManageUoms && (
+          <Button type="primary" icon={<Plus size={16} />} onClick={openCreate}>
+            {TEXT.addUnit}
+          </Button>
+        )}
       </div>
 
       <div className="grid gap-5 border-b border-slate-100 p-5 xl:grid-cols-[minmax(0,1fr)_320px]">
@@ -341,6 +351,7 @@ export default function UomsPage({ uoms, reloadCatalog }: Props) {
               title: TEXT.actions,
               key: 'actions',
               render: (_, record: UomDto) => {
+                if (!canManageUoms) return null;
                 const isActive = record.active !== false;
                 return (
                   <Space>
@@ -414,7 +425,7 @@ export default function UomsPage({ uoms, reloadCatalog }: Props) {
               </Form.Item>
             </>
           )}
-          {editingUom && (
+          {editingUom && canManageUoms && (
             <Form.Item name="active" label={TEXT.activeField} valuePropName="checked">
               <Switch />
             </Form.Item>

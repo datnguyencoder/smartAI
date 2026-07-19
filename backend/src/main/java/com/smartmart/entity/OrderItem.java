@@ -42,4 +42,10 @@ public class OrderItem {
 
     @Column(nullable = false)
     private BigDecimal subtotal;
+
+    @Column(name = "category_id_at_sale")
+    private Long categoryIdAtSale;
+
+    @Column(name = "category_name_at_sale", length = 100)
+    private String categoryNameAtSale;
 }

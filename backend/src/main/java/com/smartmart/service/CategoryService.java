@@ -1,6 +1,7 @@
 package com.smartmart.service;
 
 import com.smartmart.dto.request.CreateCategoryRequest;
+import com.smartmart.dto.request.MoveCategoryItemsRequest;
 import com.smartmart.dto.request.UpdateCategoryRequest;
 import com.smartmart.dto.response.CategoryResponse;
 
@@ -17,4 +18,6 @@ public interface CategoryService {
     CategoryResponse update(Long id, UpdateCategoryRequest req);
 
     void delete(Long id);
+
+    int moveItems(Long sourceCategoryId, MoveCategoryItemsRequest req);
 }
