@@ -183,6 +183,39 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
         """, nativeQuery = true)
     List<Object[]> reportBestSellers(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to, @Param("limit") int limit);
 
+    @Query(value = """
+        SELECT TO_CHAR(o.order_date, 'IYYY-"W"IW') as period,
+               COUNT(DISTINCT o.id) as total_orders,
+               COUNT(DISTINCT CASE WHEN o.status = 'CANCELLED' THEN o.id END) as cancelled_orders,
+               COALESCE(SUM(CASE WHEN o.status = 'COMPLETED' THEN oi.subtotal ELSE 0 END), 0) as revenue,
+               COALESCE(SUM(CASE WHEN o.status = 'COMPLETED' THEN oi.quantity * i.cost_price ELSE 0 END), 0) as cost,
+               COALESCE(SUM(CASE WHEN o.status = 'COMPLETED' THEN oi.quantity ELSE 0 END), 0) as items_sold
+        FROM orders o
+        LEFT JOIN order_items oi ON oi.order_id = o.id
+        LEFT JOIN items i ON i.id = oi.item_id
+        WHERE o.order_date >= :from AND o.order_date < :to
+        GROUP BY TO_CHAR(o.order_date, 'IYYY-"W"IW')
+        ORDER BY period
+        """, nativeQuery = true)
+    List<Object[]> reportSalesByWeek(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    @Query(value = """
+        SELECT CAST(COALESCE(oi.category_id_at_sale, i.category_id) AS BIGINT) as category_id,
+               COALESCE(oi.category_name_at_sale, c.category_name) as category_name,
+               SUM(oi.quantity) as quantity_sold,
+               SUM(oi.subtotal) as revenue
+        FROM order_items oi
+        JOIN orders o ON o.id = oi.order_id
+        LEFT JOIN items i ON i.id = oi.item_id
+        LEFT JOIN categories c ON c.id = COALESCE(oi.category_id_at_sale, i.category_id)
+        WHERE o.status = 'COMPLETED'
+          AND o.order_date >= :from AND o.order_date < :to
+        GROUP BY COALESCE(oi.category_id_at_sale, i.category_id), COALESCE(oi.category_name_at_sale, c.category_name)
+        ORDER BY revenue DESC, quantity_sold DESC
+        LIMIT :limit
+        """, nativeQuery = true)
+    List<Object[]> reportBestSellerCategories(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to, @Param("limit") int limit);
+
     List<Order> findByShiftId(Long shiftId);
 
     @Query("""

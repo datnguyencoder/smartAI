@@ -11,6 +11,7 @@ public interface ReportService {
     List<InventoryNxtReportResponse> getNxtReport(LocalDate from, LocalDate to);
 
     List<BestSellerReportResponse> getBestSellers(LocalDate from, LocalDate to, int limit);
+    List<BestSellerCategoryResponse> getBestSellerCategories(LocalDate from, LocalDate to, int limit);
     List<CustomerDueReportResponse> getCustomerDue();
     List<SupplierDueReportResponse> getSupplierDue();
     List<ProductExpiryReportResponse> getProductExpiry();

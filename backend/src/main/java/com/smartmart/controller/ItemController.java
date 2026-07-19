@@ -7,6 +7,7 @@ import com.smartmart.dto.request.UpdateItemRequest;
 import com.smartmart.dto.response.ItemResponse;
 import com.smartmart.dto.response.UomResponse;
 import com.smartmart.service.ItemService;
+import com.smartmart.util.BarcodeGeneratorUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -91,15 +92,21 @@ public class ItemController {
         String barcode = item.getItemCode() != null ? item.getItemCode() : String.valueOf(item.getId());
         String name = item.getItemName() != null ? item.getItemName() : "";
         String price = item.getSellingPrice() != null ? item.getSellingPrice().toPlainString() : "0";
+        
+        // Generate Code 128 barcode lines SVG (width=250px, height=50px)
+        String barcodeLinesSvg = BarcodeGeneratorUtil.generateCode128SVG(barcode, 250, 50);
+
         String svg = """
                 <svg xmlns="http://www.w3.org/2000/svg" width="280" height="120">
                   <rect width="280" height="120" fill="white" stroke="#333"/>
-                  <text x="10" y="20" font-size="12" font-family="Arial">%s</text>
-                  <text x="10" y="55" font-family="monospace" font-size="22">%s</text>
-                  <text x="10" y="85" font-size="14" font-family="Arial">%s VND</text>
-                  <text x="10" y="105" font-size="10" font-family="Arial">SmartMart</text>
+                  <text x="140" y="22" font-size="12" font-family="Arial" font-weight="bold" text-anchor="middle">%s</text>
+                  <g transform="translate(15, 30)">
+                    %s
+                  </g>
+                  <text x="140" y="96" font-family="monospace" font-size="12" text-anchor="middle">%s</text>
+                  <text x="140" y="111" font-size="11" font-family="Arial" font-weight="bold" text-anchor="middle">%s VND</text>
                 </svg>
-                """.formatted(escapeXml(name), escapeXml(barcode), price);
+                """.formatted(escapeXml(name), barcodeLinesSvg, escapeXml(barcode), price);
         return ResponseEntity.ok()
                 .header("Content-Disposition", "inline; filename=\"label-" + id + ".svg\"")
                 .body(svg);

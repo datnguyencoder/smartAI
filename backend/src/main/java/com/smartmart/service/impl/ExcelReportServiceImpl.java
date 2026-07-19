@@ -20,13 +20,13 @@ import java.util.Map;
 public class ExcelReportServiceImpl implements ExcelReportService {
 
     @Override
-    public byte[] generateSalesReport(List<SalesReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress) throws IOException {
+    public byte[] generateSalesReport(List<SalesReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress, String companyPhone) throws IOException {
         try (SXSSFWorkbook workbook = new SXSSFWorkbook(100);
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             
             Sheet sheet = workbook.createSheet("Báo Cáo Doanh Thu");
             CellStyle headerStyle = createHeaderStyle(workbook);
-            fillSalesSheet(workbook, sheet, headerStyle, data, from, to, companyName, companyAddress);
+            fillSalesSheet(workbook, sheet, headerStyle, data, from, to, companyName, companyAddress, companyPhone);
             
             workbook.write(out);
             return out.toByteArray();
@@ -34,13 +34,13 @@ public class ExcelReportServiceImpl implements ExcelReportService {
     }
 
     @Override
-    public byte[] generatePurchaseReport(List<PurchaseReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress) throws IOException {
+    public byte[] generatePurchaseReport(List<PurchaseReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress, String companyPhone) throws IOException {
         try (SXSSFWorkbook workbook = new SXSSFWorkbook(100);
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             
             Sheet sheet = workbook.createSheet("Báo Cáo Nhập Hàng");
             CellStyle headerStyle = createHeaderStyle(workbook);
-            fillPurchaseSheet(workbook, sheet, headerStyle, data, from, to, companyName, companyAddress);
+            fillPurchaseSheet(workbook, sheet, headerStyle, data, from, to, companyName, companyAddress, companyPhone);
             
             workbook.write(out);
             return out.toByteArray();
@@ -48,13 +48,13 @@ public class ExcelReportServiceImpl implements ExcelReportService {
     }
 
     @Override
-    public byte[] generateInventoryReport(List<InventoryReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress) throws IOException {
+    public byte[] generateInventoryReport(List<InventoryReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress, String companyPhone) throws IOException {
         try (SXSSFWorkbook workbook = new SXSSFWorkbook(100);
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             
             Sheet sheet = workbook.createSheet("Báo Cáo Tồn Kho");
             CellStyle headerStyle = createHeaderStyle(workbook);
-            fillInventorySheet(workbook, sheet, headerStyle, data, from, to, companyName, companyAddress);
+            fillInventorySheet(workbook, sheet, headerStyle, data, from, to, companyName, companyAddress, companyPhone);
             
             workbook.write(out);
             return out.toByteArray();
@@ -62,12 +62,12 @@ public class ExcelReportServiceImpl implements ExcelReportService {
     }
 
     @Override
-    public byte[] generateNxtReport(List<InventoryNxtReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress) throws IOException {
+    public byte[] generateNxtReport(List<InventoryNxtReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress, String companyPhone) throws IOException {
         try (SXSSFWorkbook workbook = new SXSSFWorkbook(100);
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             
             Sheet sheet = workbook.createSheet("Nhập Xuất Tồn");
-            fillNxtSheet(workbook, sheet, data, from, to, companyName, companyAddress);
+            fillNxtSheet(workbook, sheet, data, from, to, companyName, companyAddress, companyPhone);
             
             workbook.write(out);
             return out.toByteArray();
@@ -80,30 +80,30 @@ public class ExcelReportServiceImpl implements ExcelReportService {
                                              List<PurchaseReportResponse> purchases, 
                                              List<InventoryReportResponse> inventory, 
                                              List<InventoryNxtReportResponse> nxt,
-                                             LocalDate from, LocalDate to, String companyName, String companyAddress) throws IOException {
+                                             LocalDate from, LocalDate to, String companyName, String companyAddress, String companyPhone) throws IOException {
         try (SXSSFWorkbook workbook = new SXSSFWorkbook(100);
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
             CellStyle headerStyle = createHeaderStyle(workbook);
 
             Sheet salesSheet = workbook.createSheet("Báo Cáo Doanh Thu");
-            fillSalesSheet(workbook, salesSheet, headerStyle, sales, from, to, companyName, companyAddress);
+            fillSalesSheet(workbook, salesSheet, headerStyle, sales, from, to, companyName, companyAddress, companyPhone);
 
             Sheet purchaseSheet = workbook.createSheet("Báo Cáo Nhập Hàng");
-            fillPurchaseSheet(workbook, purchaseSheet, headerStyle, purchases, from, to, companyName, companyAddress);
+            fillPurchaseSheet(workbook, purchaseSheet, headerStyle, purchases, from, to, companyName, companyAddress, companyPhone);
 
             Sheet inventorySheet = workbook.createSheet("Báo Cáo Tồn Kho");
-            fillInventorySheet(workbook, inventorySheet, headerStyle, inventory, from, to, companyName, companyAddress);
+            fillInventorySheet(workbook, inventorySheet, headerStyle, inventory, from, to, companyName, companyAddress, companyPhone);
 
             Sheet nxtSheet = workbook.createSheet("Nhập Xuất Tồn");
-            fillNxtSheet(workbook, nxtSheet, nxt, from, to, companyName, companyAddress);
+            fillNxtSheet(workbook, nxtSheet, nxt, from, to, companyName, companyAddress, companyPhone);
 
             workbook.write(out);
             return out.toByteArray();
         }
     }
 
-    private int addHeaderInfo(SXSSFWorkbook workbook, Sheet sheet, String title, LocalDate from, LocalDate to, String companyName, String companyAddress, int mergeCols) {
+    private int addHeaderInfo(SXSSFWorkbook workbook, Sheet sheet, String title, LocalDate from, LocalDate to, String companyName, String companyAddress, String companyPhone, int mergeCols) {
         int rowIndex = 0;
 
         // 1. Company Info
@@ -111,6 +111,10 @@ public class ExcelReportServiceImpl implements ExcelReportService {
         row0.createCell(0).setCellValue("CÔNG TY: " + companyName);
         Row row1 = sheet.createRow(rowIndex++);
         row1.createCell(0).setCellValue("ĐỊA CHỈ: " + companyAddress);
+        if (companyPhone != null && !companyPhone.isBlank()) {
+            Row row2 = sheet.createRow(rowIndex++);
+            row2.createCell(0).setCellValue("HOTLINE: " + companyPhone);
+        }
         rowIndex++; // empty row
 
         // 2. Title
@@ -139,8 +143,8 @@ public class ExcelReportServiceImpl implements ExcelReportService {
         return rowIndex;
     }
 
-    private void fillSalesSheet(SXSSFWorkbook workbook, Sheet sheet, CellStyle headerStyle, List<SalesReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress) {
-        int rowIdx = addHeaderInfo(workbook, sheet, "BÁO CÁO DOANH THU", from, to, companyName, companyAddress, 6);
+    private void fillSalesSheet(SXSSFWorkbook workbook, Sheet sheet, CellStyle headerStyle, List<SalesReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress, String companyPhone) {
+        int rowIdx = addHeaderInfo(workbook, sheet, "BÁO CÁO DOANH THU", from, to, companyName, companyAddress, companyPhone, 6);
 
         Row headerRow = sheet.createRow(rowIdx++);
         String[] columns = {"Chu kỳ", "Tổng đơn hàng", "Đơn hàng hủy", "Tổng doanh thu", "Tổng giá vốn", "Lợi nhuận gộp", "Tổng SP bán ra"};
@@ -166,8 +170,8 @@ public class ExcelReportServiceImpl implements ExcelReportService {
 
     }
 
-    private void fillPurchaseSheet(SXSSFWorkbook workbook, Sheet sheet, CellStyle headerStyle, List<PurchaseReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress) {
-        int rowIdx = addHeaderInfo(workbook, sheet, "BÁO CÁO NHẬP HÀNG", from, to, companyName, companyAddress, 5);
+    private void fillPurchaseSheet(SXSSFWorkbook workbook, Sheet sheet, CellStyle headerStyle, List<PurchaseReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress, String companyPhone) {
+        int rowIdx = addHeaderInfo(workbook, sheet, "BÁO CÁO NHẬP HÀNG", from, to, companyName, companyAddress, companyPhone, 5);
 
         Row headerRow = sheet.createRow(rowIdx++);
         String[] columns = {"Mã NCC", "Tên Nhà Cung Cấp", "Tổng số đơn", "Tổng tiền nhập", "Tổng số loại SP", "Tổng số lượng"};
@@ -190,8 +194,8 @@ public class ExcelReportServiceImpl implements ExcelReportService {
         }
     }
 
-    private void fillInventorySheet(SXSSFWorkbook workbook, Sheet sheet, CellStyle headerStyle, List<InventoryReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress) {
-        int rowIdx = addHeaderInfo(workbook, sheet, "BÁO CÁO TỒN KHO", from, to, companyName, companyAddress, 8);
+    private void fillInventorySheet(SXSSFWorkbook workbook, Sheet sheet, CellStyle headerStyle, List<InventoryReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress, String companyPhone) {
+        int rowIdx = addHeaderInfo(workbook, sheet, "BÁO CÁO TỒN KHO", from, to, companyName, companyAddress, companyPhone, 8);
 
         Row headerRow = sheet.createRow(rowIdx++);
         String[] columns = {"Mã SP", "Tên Sản Phẩm", "Danh Mục", "Tồn kho hiện tại", "Tổng Nhập", "Tổng Bán", "Hủy/Lỗi", "Thất Thoát", "Tỷ lệ vòng quay"};
@@ -217,8 +221,8 @@ public class ExcelReportServiceImpl implements ExcelReportService {
         }
     }
 
-    private void fillNxtSheet(SXSSFWorkbook workbook, Sheet sheet, List<InventoryNxtReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress) {
-        int rowIndex = addHeaderInfo(workbook, sheet, "BẢNG TỔNG HỢP VẬT TƯ NHẬP XUẤT TỒN", from, to, companyName, companyAddress, 12);
+    private void fillNxtSheet(SXSSFWorkbook workbook, Sheet sheet, List<InventoryNxtReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress, String companyPhone) {
+        int rowIndex = addHeaderInfo(workbook, sheet, "BẢNG TỔNG HỢP VẬT TƯ NHẬP XUẤT TỒN", from, to, companyName, companyAddress, companyPhone, 12);
 
         // 3. Headers
         CellStyle baseHeaderStyle = createHeaderStyle(workbook);
@@ -381,72 +385,84 @@ public class ExcelReportServiceImpl implements ExcelReportService {
     // ==================== New Report Types ====================
 
     @Override
-    public byte[] generateBestSellersReport(List<BestSellerReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress) throws IOException {
+    public byte[] generateBestSellersReport(List<BestSellerReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress, String companyPhone) throws IOException {
         try (SXSSFWorkbook workbook = new SXSSFWorkbook(100);
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet("Sản Phẩm Bán Chạy");
             CellStyle headerStyle = createHeaderStyle(workbook);
-            fillBestSellersSheet(workbook, sheet, headerStyle, data, from, to, companyName, companyAddress);
+            fillBestSellersSheet(workbook, sheet, headerStyle, data, from, to, companyName, companyAddress, companyPhone);
             workbook.write(out);
             return out.toByteArray();
         }
     }
 
     @Override
-    public byte[] generateCustomerDueReport(List<CustomerDueReportResponse> data, String companyName, String companyAddress) throws IOException {
+    public byte[] generateBestSellerCategoriesReport(List<BestSellerCategoryResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress, String companyPhone) throws IOException {
+        try (SXSSFWorkbook workbook = new SXSSFWorkbook(100);
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("Danh Mục Bán Chạy");
+            CellStyle headerStyle = createHeaderStyle(workbook);
+            fillBestSellerCategoriesSheet(workbook, sheet, headerStyle, data, from, to, companyName, companyAddress, companyPhone);
+            workbook.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    @Override
+    public byte[] generateCustomerDueReport(List<CustomerDueReportResponse> data, String companyName, String companyAddress, String companyPhone) throws IOException {
         try (SXSSFWorkbook workbook = new SXSSFWorkbook(100);
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet("Công Nợ Khách Hàng");
             CellStyle headerStyle = createHeaderStyle(workbook);
-            fillCustomerDueSheet(workbook, sheet, headerStyle, data, companyName, companyAddress);
+            fillCustomerDueSheet(workbook, sheet, headerStyle, data, companyName, companyAddress, companyPhone);
             workbook.write(out);
             return out.toByteArray();
         }
     }
 
     @Override
-    public byte[] generateSupplierDueReport(List<SupplierDueReportResponse> data, String companyName, String companyAddress) throws IOException {
+    public byte[] generateSupplierDueReport(List<SupplierDueReportResponse> data, String companyName, String companyAddress, String companyPhone) throws IOException {
         try (SXSSFWorkbook workbook = new SXSSFWorkbook(100);
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet("Công Nợ Nhà Cung Cấp");
             CellStyle headerStyle = createHeaderStyle(workbook);
-            fillSupplierDueSheet(workbook, sheet, headerStyle, data, companyName, companyAddress);
+            fillSupplierDueSheet(workbook, sheet, headerStyle, data, companyName, companyAddress, companyPhone);
             workbook.write(out);
             return out.toByteArray();
         }
     }
 
     @Override
-    public byte[] generateProductExpiryReport(List<ProductExpiryReportResponse> data, String companyName, String companyAddress) throws IOException {
+    public byte[] generateProductExpiryReport(List<ProductExpiryReportResponse> data, String companyName, String companyAddress, String companyPhone) throws IOException {
         try (SXSSFWorkbook workbook = new SXSSFWorkbook(100);
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet("Sản Phẩm Cận Hạn");
             CellStyle headerStyle = createHeaderStyle(workbook);
-            fillProductExpirySheet(workbook, sheet, headerStyle, data, companyName, companyAddress);
+            fillProductExpirySheet(workbook, sheet, headerStyle, data, companyName, companyAddress, companyPhone);
             workbook.write(out);
             return out.toByteArray();
         }
     }
 
     @Override
-    public byte[] generateCashFlowReport(List<CashFlowReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress) throws IOException {
+    public byte[] generateCashFlowReport(List<CashFlowReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress, String companyPhone) throws IOException {
         try (SXSSFWorkbook workbook = new SXSSFWorkbook(100);
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet("Dòng Tiền");
             CellStyle headerStyle = createHeaderStyle(workbook);
-            fillCashFlowSheet(workbook, sheet, headerStyle, data, from, to, companyName, companyAddress);
+            fillCashFlowSheet(workbook, sheet, headerStyle, data, from, to, companyName, companyAddress, companyPhone);
             workbook.write(out);
             return out.toByteArray();
         }
     }
 
     @Override
-    public byte[] generateProfitLossReport(List<ProfitLossReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress) throws IOException {
+    public byte[] generateProfitLossReport(List<ProfitLossReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress, String companyPhone) throws IOException {
         try (SXSSFWorkbook workbook = new SXSSFWorkbook(100);
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet("Lãi Lỗ");
             CellStyle headerStyle = createHeaderStyle(workbook);
-            fillProfitLossSheet(workbook, sheet, headerStyle, data, from, to, companyName, companyAddress);
+            fillProfitLossSheet(workbook, sheet, headerStyle, data, from, to, companyName, companyAddress, companyPhone);
             workbook.write(out);
             return out.toByteArray();
         }
@@ -454,8 +470,8 @@ public class ExcelReportServiceImpl implements ExcelReportService {
 
     // ==================== Fill Helpers for New Report Types ====================
 
-    private void fillBestSellersSheet(SXSSFWorkbook workbook, Sheet sheet, CellStyle headerStyle, List<BestSellerReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress) {
-        int rowIdx = addHeaderInfo(workbook, sheet, "BÁO CÁO SẢN PHẨM BÁN CHẠY", from, to, companyName, companyAddress, 4);
+    private void fillBestSellersSheet(SXSSFWorkbook workbook, Sheet sheet, CellStyle headerStyle, List<BestSellerReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress, String companyPhone) {
+        int rowIdx = addHeaderInfo(workbook, sheet, "BÁO CÁO SẢN PHẨM BÁN CHẠY", from, to, companyName, companyAddress, companyPhone, 4);
 
         Row headerRow = sheet.createRow(rowIdx++);
         String[] columns = {"STT", "Mã SP", "Tên Sản Phẩm", "SL Bán", "Doanh Thu"};
@@ -481,8 +497,33 @@ public class ExcelReportServiceImpl implements ExcelReportService {
         }
     }
 
-    private void fillCustomerDueSheet(SXSSFWorkbook workbook, Sheet sheet, CellStyle headerStyle, List<CustomerDueReportResponse> data, String companyName, String companyAddress) {
-        int rowIdx = addHeaderInfo(workbook, sheet, "BÁO CÁO CÔNG NỢ KHÁCH HÀNG", null, null, companyName, companyAddress, 7);
+    private void fillBestSellerCategoriesSheet(SXSSFWorkbook workbook, Sheet sheet, CellStyle headerStyle, List<BestSellerCategoryResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress, String companyPhone) {
+        int rowIdx = addHeaderInfo(workbook, sheet, "BÁO CÁO DANH MỤC BÁN CHẠY", from, to, companyName, companyAddress, companyPhone, 3);
+
+        Row headerRow = sheet.createRow(rowIdx++);
+        String[] columns = {"STT", "Tên Danh Mục", "SL Bán", "Doanh Thu"};
+        for (int i = 0; i < columns.length; i++) {
+            Cell cell = headerRow.createCell(i);
+            cell.setCellValue(columns[i]);
+            cell.setCellStyle(headerStyle);
+        }
+        sheet.setColumnWidth(0, 6 * 256);
+        sheet.setColumnWidth(1, 30 * 256);
+        sheet.setColumnWidth(2, 15 * 256);
+        sheet.setColumnWidth(3, 20 * 256);
+
+        int stt = 1;
+        for (BestSellerCategoryResponse rowData : data) {
+            Row row = sheet.createRow(rowIdx++);
+            row.createCell(0).setCellValue(stt++);
+            row.createCell(1).setCellValue(safeStr(rowData.getCategoryName()));
+            row.createCell(2).setCellValue(rowData.getQuantitySold() != null ? rowData.getQuantitySold().doubleValue() : 0.0);
+            row.createCell(3).setCellValue(rowData.getRevenue() != null ? rowData.getRevenue().doubleValue() : 0.0);
+        }
+    }
+
+    private void fillCustomerDueSheet(SXSSFWorkbook workbook, Sheet sheet, CellStyle headerStyle, List<CustomerDueReportResponse> data, String companyName, String companyAddress, String companyPhone) {
+        int rowIdx = addHeaderInfo(workbook, sheet, "BÁO CÁO CÔNG NỢ KHÁCH HÀNG", null, null, companyName, companyAddress, companyPhone, 7);
 
         Row headerRow = sheet.createRow(rowIdx++);
         String[] columns = {"Mã nợ", "Mã KH", "Tên Khách Hàng", "Mã Đơn", "Tổng nợ", "Đã trả", "Còn nợ", "Hạn trả", "Trạng thái"};
@@ -508,8 +549,8 @@ public class ExcelReportServiceImpl implements ExcelReportService {
         }
     }
 
-    private void fillSupplierDueSheet(SXSSFWorkbook workbook, Sheet sheet, CellStyle headerStyle, List<SupplierDueReportResponse> data, String companyName, String companyAddress) {
-        int rowIdx = addHeaderInfo(workbook, sheet, "BÁO CÁO CÔNG NỢ NHÀ CUNG CẤP", null, null, companyName, companyAddress, 7);
+    private void fillSupplierDueSheet(SXSSFWorkbook workbook, Sheet sheet, CellStyle headerStyle, List<SupplierDueReportResponse> data, String companyName, String companyAddress, String companyPhone) {
+        int rowIdx = addHeaderInfo(workbook, sheet, "BÁO CÁO CÔNG NỢ NHÀ CUNG CẤP", null, null, companyName, companyAddress, companyPhone, 7);
 
         Row headerRow = sheet.createRow(rowIdx++);
         String[] columns = {"Mã nợ", "Mã NCC", "Tên Nhà Cung Cấp", "Mã Đơn Nhập", "Tổng nợ", "Đã trả", "Còn nợ", "Hạn trả", "Trạng thái"};
@@ -535,8 +576,8 @@ public class ExcelReportServiceImpl implements ExcelReportService {
         }
     }
 
-    private void fillProductExpirySheet(SXSSFWorkbook workbook, Sheet sheet, CellStyle headerStyle, List<ProductExpiryReportResponse> data, String companyName, String companyAddress) {
-        int rowIdx = addHeaderInfo(workbook, sheet, "BÁO CÁO SẢN PHẨM CẬN HẠN SỬ DỤNG", null, null, companyName, companyAddress, 7);
+    private void fillProductExpirySheet(SXSSFWorkbook workbook, Sheet sheet, CellStyle headerStyle, List<ProductExpiryReportResponse> data, String companyName, String companyAddress, String companyPhone) {
+        int rowIdx = addHeaderInfo(workbook, sheet, "BÁO CÁO SẢN PHẨM CẬN HẠN SỬ DỤNG", null, null, companyName, companyAddress, companyPhone, 7);
 
         Row headerRow = sheet.createRow(rowIdx++);
         String[] columns = {"Mã SP", "Tên Sản Phẩm", "Mã Lô", "Số Lô", "Ngày Hết Hạn", "Còn (ngày)", "Số Lượng", "Vị Trí"};
@@ -585,8 +626,8 @@ public class ExcelReportServiceImpl implements ExcelReportService {
         }
     }
 
-    private void fillCashFlowSheet(SXSSFWorkbook workbook, Sheet sheet, CellStyle headerStyle, List<CashFlowReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress) {
-        int rowIdx = addHeaderInfo(workbook, sheet, "BÁO CÁO DÒNG TIỀN", from, to, companyName, companyAddress, 4);
+    private void fillCashFlowSheet(SXSSFWorkbook workbook, Sheet sheet, CellStyle headerStyle, List<CashFlowReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress, String companyPhone) {
+        int rowIdx = addHeaderInfo(workbook, sheet, "BÁO CÁO DÒNG TIỀN", from, to, companyName, companyAddress, companyPhone, 4);
 
         Row headerRow = sheet.createRow(rowIdx++);
         String[] columns = {"Ngày", "Loại", "Danh Mục", "Số Tiền", "Số Dư Lũy Kế"};
@@ -622,8 +663,8 @@ public class ExcelReportServiceImpl implements ExcelReportService {
         }
     }
 
-    private void fillProfitLossSheet(SXSSFWorkbook workbook, Sheet sheet, CellStyle headerStyle, List<ProfitLossReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress) {
-        int rowIdx = addHeaderInfo(workbook, sheet, "BÁO CÁO LÃI LỖ", from, to, companyName, companyAddress, 5);
+    private void fillProfitLossSheet(SXSSFWorkbook workbook, Sheet sheet, CellStyle headerStyle, List<ProfitLossReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress, String companyPhone) {
+        int rowIdx = addHeaderInfo(workbook, sheet, "BÁO CÁO LÃI LỖ", from, to, companyName, companyAddress, companyPhone, 5);
 
         Row headerRow = sheet.createRow(rowIdx++);
         String[] columns = {"Ngày", "Doanh Thu", "Giá Vốn", "Lãi Gộp", "Chi Phí", "Lãi Ròng"};
@@ -705,14 +746,14 @@ public class ExcelReportServiceImpl implements ExcelReportService {
 
     @Override
     public byte[] generateSalesReport(List<SalesReportResponse> data, LocalDate from, LocalDate to,
-                                      String companyName, String companyAddress,
+                                      String companyName, String companyAddress, String companyPhone,
                                       List<ForecastResultResponse> forecasts) throws IOException {
         try (SXSSFWorkbook workbook = new SXSSFWorkbook(100);
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
             Sheet sheet = workbook.createSheet("Báo Cáo Doanh Thu");
             CellStyle headerStyle = createHeaderStyle(workbook);
-            fillSalesSheet(workbook, sheet, headerStyle, data, from, to, companyName, companyAddress);
+            fillSalesSheet(workbook, sheet, headerStyle, data, from, to, companyName, companyAddress, companyPhone);
 
             if (forecasts != null && !forecasts.isEmpty()) {
                 fillAiForecastSection(workbook, sheet, sheet.getLastRowNum() + 3, forecasts);
@@ -725,14 +766,14 @@ public class ExcelReportServiceImpl implements ExcelReportService {
 
     @Override
     public byte[] generateInventoryReport(List<InventoryReportResponse> data, LocalDate from, LocalDate to,
-                                          String companyName, String companyAddress,
+                                          String companyName, String companyAddress, String companyPhone,
                                           List<Map<String, Object>> reorderRecs) throws IOException {
         try (SXSSFWorkbook workbook = new SXSSFWorkbook(100);
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
             Sheet sheet = workbook.createSheet("Báo Cáo Tồn Kho");
             CellStyle headerStyle = createHeaderStyle(workbook);
-            fillInventorySheet(workbook, sheet, headerStyle, data, from, to, companyName, companyAddress);
+            fillInventorySheet(workbook, sheet, headerStyle, data, from, to, companyName, companyAddress, companyPhone);
 
             if (reorderRecs != null && !reorderRecs.isEmpty()) {
                 fillReorderSection(workbook, sheet, sheet.getLastRowNum() + 3, reorderRecs);
@@ -749,7 +790,7 @@ public class ExcelReportServiceImpl implements ExcelReportService {
                                               List<InventoryReportResponse> inventory,
                                               List<InventoryNxtReportResponse> nxt,
                                               LocalDate from, LocalDate to,
-                                              String companyName, String companyAddress,
+                                              String companyName, String companyAddress, String companyPhone,
                                               List<ForecastResultResponse> forecasts,
                                               List<Map<String, Object>> reorderRecs) throws IOException {
         try (SXSSFWorkbook workbook = new SXSSFWorkbook(100);
@@ -758,29 +799,29 @@ public class ExcelReportServiceImpl implements ExcelReportService {
             CellStyle headerStyle = createHeaderStyle(workbook);
 
             Sheet salesSheet = workbook.createSheet("Báo Cáo Doanh Thu");
-            fillSalesSheet(workbook, salesSheet, headerStyle, sales, from, to, companyName, companyAddress);
+            fillSalesSheet(workbook, salesSheet, headerStyle, sales, from, to, companyName, companyAddress, companyPhone);
             if (forecasts != null && !forecasts.isEmpty()) {
                 fillAiForecastSection(workbook, salesSheet, salesSheet.getLastRowNum() + 3, forecasts);
             }
 
             Sheet purchaseSheet = workbook.createSheet("Báo Cáo Nhập Hàng");
-            fillPurchaseSheet(workbook, purchaseSheet, headerStyle, purchases, from, to, companyName, companyAddress);
+            fillPurchaseSheet(workbook, purchaseSheet, headerStyle, purchases, from, to, companyName, companyAddress, companyPhone);
 
             Sheet inventorySheet = workbook.createSheet("Báo Cáo Tồn Kho");
-            fillInventorySheet(workbook, inventorySheet, headerStyle, inventory, from, to, companyName, companyAddress);
+            fillInventorySheet(workbook, inventorySheet, headerStyle, inventory, from, to, companyName, companyAddress, companyPhone);
             if (reorderRecs != null && !reorderRecs.isEmpty()) {
                 fillReorderSection(workbook, inventorySheet, inventorySheet.getLastRowNum() + 3, reorderRecs);
             }
 
             Sheet nxtSheet = workbook.createSheet("Nhập Xuất Tồn");
-            fillNxtSheet(workbook, nxtSheet, nxt, from, to, companyName, companyAddress);
+            fillNxtSheet(workbook, nxtSheet, nxt, from, to, companyName, companyAddress, companyPhone);
 
             // Sheet AI Insights tổng hợp
             boolean hasAiData = (forecasts != null && !forecasts.isEmpty())
                     || (reorderRecs != null && !reorderRecs.isEmpty());
             if (hasAiData) {
                 Sheet aiSheet = workbook.createSheet("AI Insights");
-                fillAiInsightsSheet(workbook, aiSheet, from, to, companyName, companyAddress, forecasts, reorderRecs);
+                fillAiInsightsSheet(workbook, aiSheet, from, to, companyName, companyAddress, companyPhone, forecasts, reorderRecs);
             }
 
             workbook.write(out);
@@ -906,10 +947,10 @@ public class ExcelReportServiceImpl implements ExcelReportService {
 
     private void fillAiInsightsSheet(SXSSFWorkbook workbook, Sheet sheet,
                                      LocalDate from, LocalDate to,
-                                     String companyName, String companyAddress,
+                                     String companyName, String companyAddress, String companyPhone,
                                      List<ForecastResultResponse> forecasts,
                                      List<Map<String, Object>> reorderRecs) {
-        int rowIdx = addHeaderInfo(workbook, sheet, "PHÂN TÍCH AI TỔNG HỢP", from, to, companyName, companyAddress, 8);
+        int rowIdx = addHeaderInfo(workbook, sheet, "PHÂN TÍCH AI TỔNG HỢP", from, to, companyName, companyAddress, companyPhone, 8);
 
         if (forecasts != null && !forecasts.isEmpty()) {
             fillAiForecastSection(workbook, sheet, rowIdx, forecasts);

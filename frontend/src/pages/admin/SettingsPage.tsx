@@ -8,12 +8,12 @@ const RECEIPT_KEYS = [
   { key: 'store_address', label: 'Địa chỉ cửa hàng' },
   { key: 'store_phone', label: 'Hotline' },
   { key: 'receipt_footer', label: 'Chân hóa đơn', multiline: true },
-  { key: 'paper_width', label: 'Khổ giấy in (vd: 80mm)' },
+  { key: 'receipt_paper_width', label: 'Khổ giấy in (vd: 80mm)' },
 ];
 
 const POS_KEYS = [
   { key: 'vat_rate', label: 'Thuế VAT (%)', number: true },
-  { key: 'loyalty_earn_rate', label: 'Tỷ lệ tích điểm (điểm/1000đ)', number: true },
+  { key: 'LOYALTY_POINT_RATE', label: 'Tỷ lệ tích điểm (VND trên 1 điểm)', number: true },
 ];
 
 export default function SettingsPage() {
