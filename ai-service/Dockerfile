@@ -5,13 +5,17 @@ FROM python:3.10-slim
 
 # Prevent Python from writing .pyc compiled files to disk and enable direct console logging
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    TZ=Asia/Ho_Chi_Minh
 
 WORKDIR /app
 
 # Install basic system build utilities to build optional binary Python packages
+# + tzdata so datetime.now() uses giờ VN thay vì mặc định UTC của image gốc
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    tzdata \
+    && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
     && rm -rf /var/lib/apt/lists/*
 
 # Cache dependencies by copying requirements.txt first

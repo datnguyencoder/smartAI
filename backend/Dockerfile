@@ -18,8 +18,13 @@ RUN mvn package -DskipTests -B
 FROM eclipse-temurin:21-jre-alpine AS runner
 WORKDIR /app
 
-# Healthcheck + optional debugging (wget for compose health probe)
-RUN apk add --no-cache wget
+# Healthcheck + optional debugging (wget for compose health probe) + tzdata
+# (Alpine JRE base image has no timezone database — without it, TZ/user.timezone
+# below silently falls back to UTC, causing LocalDate.now() to be off by up to
+# 7h for VN business logic: HSD, cảnh báo cận date, ngày công nợ, mã phiếu...)
+RUN apk add --no-cache wget tzdata
+
+ENV TZ=Asia/Ho_Chi_Minh
 
 # Create a non-root system user and group for maximum runtime security
 RUN addgroup -S spring && adduser -S spring -G spring
@@ -33,7 +38,7 @@ EXPOSE 8080
 
 # Environment variables with sensible defaults for containerized execution
 ENV SPRING_PROFILES_ACTIVE=prod \
-    JAVA_OPTS="-XX:+UseG1GC -XX:+UseStringDeduplication -Xmx1024m"
+    JAVA_OPTS="-XX:+UseG1GC -XX:+UseStringDeduplication -Xmx1024m -Duser.timezone=Asia/Ho_Chi_Minh"
 
 # Execute the application
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

@@ -22,6 +22,10 @@ public interface SupplierItemRepository extends JpaRepository<SupplierItem, Long
 
     boolean existsBySupplierIdAndSkuItemIgnoreCase(Long supplierId, String skuItem);
 
+    // Fallback khi sản phẩm chưa từng được nhập lần nào — chọn NCC có giá nhập rẻ nhất
+    // trong số các NCC đang active cung cấp SKU này.
+    Optional<SupplierItem> findFirstBySkuItemIgnoreCaseAndActiveTrueOrderByDefaultCostPriceAsc(String skuItem);
+
     @Query("""
     SELECT AVG(si.defaultCostPrice)
     FROM SupplierItem si

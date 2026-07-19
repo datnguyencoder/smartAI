@@ -6,7 +6,9 @@ import com.smartmart.repository.CurrentInventoryRepository;
 import com.smartmart.repository.ForecastResultRepository;
 import com.smartmart.repository.ItemRepository;
 import com.smartmart.repository.OrderItemRepository;
+import com.smartmart.repository.PurchaseOrderItemRepository;
 import com.smartmart.repository.ReorderRecommendationRepository;
+import com.smartmart.repository.SupplierItemRepository;
 import com.smartmart.service.ai.impl.ReorderRecommendationServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,6 +36,10 @@ class ReorderRecommendationServiceTest {
     private CurrentInventoryRepository currentInventoryRepository;
     @Mock
     private OrderItemRepository orderItemRepository;
+    @Mock
+    private PurchaseOrderItemRepository purchaseOrderItemRepository;
+    @Mock
+    private SupplierItemRepository supplierItemRepository;
 
     private ReorderRecommendationService service;
 
@@ -44,7 +50,9 @@ class ReorderRecommendationServiceTest {
                 forecastResultRepository,
                 itemRepository,
                 currentInventoryRepository,
-                orderItemRepository
+                orderItemRepository,
+                purchaseOrderItemRepository,
+                supplierItemRepository
         );
     }
 

@@ -413,6 +413,8 @@ export type ReorderRecommendationDto = {
   riskLevel: 'HIGH' | 'MEDIUM' | 'LOW' | string;
   source: 'AI' | 'FALLBACK' | string;
   reason?: string;
+  supplierId?: number;
+  supplierName?: string;
 };
 
 export type PromotionRecommendationDto = {

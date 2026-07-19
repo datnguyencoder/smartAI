@@ -38,4 +38,5 @@ export type PageKey =
 export type PurchaseSuggestionPrefillItem = {
   itemId: number;
   suggestedQty: number;
+  supplierId?: number;
 };
