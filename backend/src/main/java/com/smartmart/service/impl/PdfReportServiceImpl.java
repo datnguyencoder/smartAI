@@ -72,19 +72,45 @@ public class PdfReportServiceImpl implements PdfReportService {
         return FontFactory.getFont(FontFactory.HELVETICA, size, style);
     }
 
+    private void addLetterhead(Document document, String storeName, String storeAddress, String storePhone) throws DocumentException {
+        Font nameFont = getVietnameseFont(13, Font.BOLD);
+        Font infoFont = getVietnameseFont(10, Font.NORMAL);
+
+        Paragraph pName = new Paragraph(storeName, nameFont);
+        pName.setAlignment(Element.ALIGN_LEFT);
+        document.add(pName);
+
+        Paragraph pAddr = new Paragraph("Địa chỉ: " + storeAddress, infoFont);
+        pAddr.setAlignment(Element.ALIGN_LEFT);
+        document.add(pAddr);
+
+        if (storePhone != null && !storePhone.isBlank()) {
+            Paragraph pPhone = new Paragraph("Hotline: " + storePhone, infoFont);
+            pPhone.setAlignment(Element.ALIGN_LEFT);
+            document.add(pPhone);
+        }
+
+        // Separator line
+        Paragraph separator = new Paragraph("\n");
+        separator.setSpacingAfter(10);
+        document.add(separator);
+    }
+
     // Individual reports implementation
     @Override
-    public byte[] generateSalesReport(List<SalesReportResponse> data, LocalDate from, LocalDate to) {
+    public byte[] generateSalesReport(List<SalesReportResponse> data, LocalDate from, LocalDate to, String storeName, String storeAddress, String storePhone) {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document document = new Document(PageSize.A4.rotate(), 36, 36, 36, 50);
             PdfWriter writer = PdfWriter.getInstance(document, out);
             writer.setPageEvent(new ReportHeaderFooterEvent(footerText, getVietnameseFont(10, Font.ITALIC)));
 
             document.addTitle("Báo Cáo Doanh Thu Bán Hàng");
-            document.addAuthor("SmartAI WMS");
+            document.addAuthor(storeName);
             document.addCreationDate();
 
             document.open();
+
+            addLetterhead(document, storeName, storeAddress, storePhone);
 
             Paragraph title = new Paragraph("BÁO CÁO DOANH THU BÁN HÀNG", getVietnameseFont(22, Font.BOLD));
             title.setAlignment(Element.ALIGN_CENTER);
@@ -107,17 +133,19 @@ public class PdfReportServiceImpl implements PdfReportService {
     }
 
     @Override
-    public byte[] generatePurchaseReport(List<PurchaseReportResponse> data, LocalDate from, LocalDate to) {
+    public byte[] generatePurchaseReport(List<PurchaseReportResponse> data, LocalDate from, LocalDate to, String storeName, String storeAddress, String storePhone) {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document document = new Document(PageSize.A4.rotate(), 36, 36, 36, 50);
             PdfWriter writer = PdfWriter.getInstance(document, out);
             writer.setPageEvent(new ReportHeaderFooterEvent(footerText, getVietnameseFont(10, Font.ITALIC)));
 
             document.addTitle("Báo Cáo Nhập Hàng & Chi Phí");
-            document.addAuthor("SmartAI WMS");
+            document.addAuthor(storeName);
             document.addCreationDate();
 
             document.open();
+
+            addLetterhead(document, storeName, storeAddress, storePhone);
 
             Paragraph title = new Paragraph("BÁO CÁO NHẬP HÀNG & CHI PHÍ", getVietnameseFont(22, Font.BOLD));
             title.setAlignment(Element.ALIGN_CENTER);
@@ -140,17 +168,19 @@ public class PdfReportServiceImpl implements PdfReportService {
     }
 
     @Override
-    public byte[] generateInventoryReport(List<InventoryReportResponse> data, LocalDate from, LocalDate to) {
+    public byte[] generateInventoryReport(List<InventoryReportResponse> data, LocalDate from, LocalDate to, String storeName, String storeAddress, String storePhone) {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document document = new Document(PageSize.A4.rotate(), 36, 36, 36, 50);
             PdfWriter writer = PdfWriter.getInstance(document, out);
             writer.setPageEvent(new ReportHeaderFooterEvent(footerText, getVietnameseFont(10, Font.ITALIC)));
 
             document.addTitle("Báo Cáo Quản Trị Tồn Kho");
-            document.addAuthor("SmartAI WMS");
+            document.addAuthor(storeName);
             document.addCreationDate();
 
             document.open();
+
+            addLetterhead(document, storeName, storeAddress, storePhone);
 
             Paragraph title = new Paragraph("BÁO CÁO QUẢN TRỊ TỒN KHO", getVietnameseFont(22, Font.BOLD));
             title.setAlignment(Element.ALIGN_CENTER);
@@ -178,7 +208,8 @@ public class PdfReportServiceImpl implements PdfReportService {
             List<PurchaseReportResponse> purchases,
             List<InventoryReportResponse> inventory,
             List<InventoryNxtReportResponse> nxt,
-            LocalDate from, LocalDate to) throws DocumentException, IOException {
+            LocalDate from, LocalDate to,
+            String storeName, String storeAddress, String storePhone) throws DocumentException, IOException {
 
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document document = new Document(PageSize.A4.rotate(), 36, 36, 36, 50);
@@ -189,13 +220,13 @@ public class PdfReportServiceImpl implements PdfReportService {
 
             // Metadata
             document.addTitle("Báo Cáo Quản Trị Tổng Hợp");
-            document.addAuthor("SmartAI WMS");
+            document.addAuthor(storeName);
             document.addCreationDate();
 
             document.open();
 
             // 1. Cover Page
-            generateCoverPage(document, from, to);
+            generateCoverPage(document, from, to, storeName, storeAddress, storePhone);
             document.newPage();
 
             // 2. Executive Dashboard
@@ -226,21 +257,38 @@ public class PdfReportServiceImpl implements PdfReportService {
         }
     }
 
-    private void generateCoverPage(Document document, LocalDate from, LocalDate to) throws DocumentException {
+    private void generateCoverPage(Document document, LocalDate from, LocalDate to, String storeName, String storeAddress, String storePhone) throws DocumentException {
         Font titleFont = getVietnameseFont(28, Font.BOLD);
         Font subtitleFont = getVietnameseFont(16, Font.NORMAL);
         Font metaFont = getVietnameseFont(12, Font.ITALIC);
         Font confFont = getVietnameseFont(14, Font.BOLD);
         confFont.setColor(Color.RED);
+        Font storeFont = getVietnameseFont(14, Font.BOLD);
+        Font storeInfoFont = getVietnameseFont(12, Font.NORMAL);
 
-        Paragraph spacing = new Paragraph("\n\n\n\n\n");
+        // Store info at top-left
+        Paragraph pStoreName = new Paragraph(storeName, storeFont);
+        pStoreName.setAlignment(Element.ALIGN_LEFT);
+        document.add(pStoreName);
+
+        Paragraph pStoreAddr = new Paragraph("Địa chỉ: " + storeAddress, storeInfoFont);
+        pStoreAddr.setAlignment(Element.ALIGN_LEFT);
+        document.add(pStoreAddr);
+
+        if (storePhone != null && !storePhone.isBlank()) {
+            Paragraph pStorePhone = new Paragraph("Hotline: " + storePhone, storeInfoFont);
+            pStorePhone.setAlignment(Element.ALIGN_LEFT);
+            document.add(pStorePhone);
+        }
+
+        Paragraph spacing = new Paragraph("\n\n\n");
         document.add(spacing);
 
         Paragraph confidential = new Paragraph("[CONFIDENTIAL]", confFont);
         confidential.setAlignment(Element.ALIGN_RIGHT);
         document.add(confidential);
 
-        document.add(spacing);
+        document.add(new Paragraph("\n\n\n"));
 
         Paragraph title = new Paragraph("BÁO CÁO HOẠT ĐỘNG KINH DOANH TỔNG HỢP", titleFont);
         title.setAlignment(Element.ALIGN_CENTER);

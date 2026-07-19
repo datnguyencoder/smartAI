@@ -108,6 +108,9 @@ public class ReportServiceImpl implements ReportService {
         // 2. Get periodic details
         List<Object[]> rawSales;
         switch (groupBy.toUpperCase()) {
+            case "WEEK":
+                rawSales = orderRepository.reportSalesByWeek(fromTime, toTime);
+                break;
             case "MONTH":
                 rawSales = orderRepository.reportSalesByMonth(fromTime, toTime);
                 break;
@@ -303,6 +306,25 @@ public class ReportServiceImpl implements ReportService {
     }
 
     @Override
+    public List<BestSellerCategoryResponse> getBestSellerCategories(LocalDate from, LocalDate to, int limit) {
+        if (from == null) from = LocalDate.now().minusDays(30);
+        if (to == null) to = LocalDate.now();
+        if (limit <= 0) limit = 10;
+        LocalDateTime fromTime = from.atStartOfDay();
+        LocalDateTime toTime = to.plusDays(1).atStartOfDay();
+        List<BestSellerCategoryResponse> result = new ArrayList<>();
+        for (Object[] row : orderRepository.reportBestSellerCategories(fromTime, toTime, limit)) {
+            result.add(BestSellerCategoryResponse.builder()
+                    .categoryId(toLong(row[0]))
+                    .categoryName((String) row[1])
+                    .quantitySold(toBigDecimal(row[2]))
+                    .revenue(toBigDecimal(row[3]))
+                    .build());
+        }
+        return result;
+    }
+
+    @Override
     public List<CustomerDueReportResponse> getCustomerDue() {
         return customerDebtRepository.findAllByOrderByIdDesc().stream()
                 .filter(d -> d.getStatus() != CustomerDebtStatus.PAID)
@@ -466,38 +488,42 @@ public class ReportServiceImpl implements ReportService {
     @Override
     public byte[] exportExcel(String type, LocalDate from, LocalDate to, String groupBy) {
         try {
-            String companyName = settingService.getValue("company_name", "---");
-            String companyAddress = settingService.getValue("company_address", "---");
+            String companyName = settingService.getValue("store_name", "SMARTMART AI");
+            String companyAddress = settingService.getValue("store_address", "TP. Hồ Chí Minh");
+            String companyPhone = settingService.getValue("store_phone", "");
             switch (type.toLowerCase()) {
                 case "sales":
                     List<ForecastResultResponse> forecasts = loadForecastsSafe();
                     return excelReportService.generateSalesReport(
-                            getSalesReport(from, to, groupBy), from, to, companyName, companyAddress, forecasts);
+                            getSalesReport(from, to, groupBy), from, to, companyName, companyAddress, companyPhone, forecasts);
                 case "purchase":
                     return excelReportService.generatePurchaseReport(
-                            getPurchaseReport(from, to), from, to, companyName, companyAddress);
+                            getPurchaseReport(from, to), from, to, companyName, companyAddress, companyPhone);
                 case "inventory":
                     List<Map<String, Object>> reorderRecs = loadReorderRecsSafe();
                     return excelReportService.generateInventoryReport(
-                            getInventoryReport(from, to), from, to, companyName, companyAddress, reorderRecs);
+                            getInventoryReport(from, to), from, to, companyName, companyAddress, companyPhone, reorderRecs);
                 case "best-sellers":
                     return excelReportService.generateBestSellersReport(
-                            getBestSellers(from, to, 20), from, to, companyName, companyAddress);
+                            getBestSellers(from, to, 20), from, to, companyName, companyAddress, companyPhone);
+                case "best-seller-categories":
+                    return excelReportService.generateBestSellerCategoriesReport(
+                            getBestSellerCategories(from, to, 20), from, to, companyName, companyAddress, companyPhone);
                 case "customer-due":
                     return excelReportService.generateCustomerDueReport(
-                            getCustomerDue(), companyName, companyAddress);
+                            getCustomerDue(), companyName, companyAddress, companyPhone);
                 case "supplier-due":
                     return excelReportService.generateSupplierDueReport(
-                            getSupplierDue(), companyName, companyAddress);
+                            getSupplierDue(), companyName, companyAddress, companyPhone);
                 case "product-expiry":
                     return excelReportService.generateProductExpiryReport(
-                            getProductExpiry(), companyName, companyAddress);
+                            getProductExpiry(), companyName, companyAddress, companyPhone);
                 case "cash-flow":
                     return excelReportService.generateCashFlowReport(
-                            getCashFlow(from, to), from, to, companyName, companyAddress);
+                            getCashFlow(from, to), from, to, companyName, companyAddress, companyPhone);
                 case "profit-loss":
                     return excelReportService.generateProfitLossReport(
-                            getProfitLoss(from, to), from, to, companyName, companyAddress);
+                            getProfitLoss(from, to), from, to, companyName, companyAddress, companyPhone);
                 default:
                     throw new IllegalArgumentException("Unknown report type: " + type);
             }
@@ -510,9 +536,10 @@ public class ReportServiceImpl implements ReportService {
     public byte[] exportNxtExcel(LocalDate from, LocalDate to) {
         try {
             List<InventoryNxtReportResponse> data = getNxtReport(from, to);
-            String companyName = settingService.getValue("company_name", "---");
-            String companyAddress = settingService.getValue("company_address", "---");
-            return excelReportService.generateNxtReport(data, from, to, companyName, companyAddress);
+            String companyName = settingService.getValue("store_name", "SMARTMART AI");
+            String companyAddress = settingService.getValue("store_address", "TP. Hồ Chí Minh");
+            String companyPhone = settingService.getValue("store_phone", "");
+            return excelReportService.generateNxtReport(data, from, to, companyName, companyAddress, companyPhone);
         } catch (Exception e) {
             throw new RuntimeException("Error generating NXT Excel report", e);
         }
@@ -521,13 +548,16 @@ public class ReportServiceImpl implements ReportService {
     @Override
     public byte[] exportPdf(String type, LocalDate from, LocalDate to, String groupBy) {
         try {
+            String storeName = settingService.getValue("store_name", "SMARTMART AI");
+            String storeAddress = settingService.getValue("store_address", "TP. Hồ Chí Minh");
+            String storePhone = settingService.getValue("store_phone", "");
             switch (type.toLowerCase()) {
                 case "sales":
-                    return pdfReportService.generateSalesReport(getSalesReport(from, to, groupBy), from, to);
+                    return pdfReportService.generateSalesReport(getSalesReport(from, to, groupBy), from, to, storeName, storeAddress, storePhone);
                 case "purchase":
-                    return pdfReportService.generatePurchaseReport(getPurchaseReport(from, to), from, to);
+                    return pdfReportService.generatePurchaseReport(getPurchaseReport(from, to), from, to, storeName, storeAddress, storePhone);
                 case "inventory":
-                    return pdfReportService.generateInventoryReport(getInventoryReport(from, to), from, to);
+                    return pdfReportService.generateInventoryReport(getInventoryReport(from, to), from, to, storeName, storeAddress, storePhone);
                 default:
                     throw new IllegalArgumentException("Unknown report type: " + type);
             }
@@ -544,7 +574,11 @@ public class ReportServiceImpl implements ReportService {
             List<InventoryReportResponse> inventory = getInventoryReport(from, to);
             List<InventoryNxtReportResponse> nxt = getNxtReport(from, to);
 
-            return pdfReportService.generateComprehensiveReport(sales, purchases, inventory, nxt, from, to);
+            String storeName = settingService.getValue("store_name", "SMARTMART AI");
+            String storeAddress = settingService.getValue("store_address", "TP. Hồ Chí Minh");
+            String storePhone = settingService.getValue("store_phone", "");
+
+            return pdfReportService.generateComprehensiveReport(sales, purchases, inventory, nxt, from, to, storeName, storeAddress, storePhone);
         } catch (Exception e) {
             throw new RuntimeException("Error generating Comprehensive PDF report", e);
         }
@@ -558,14 +592,15 @@ public class ReportServiceImpl implements ReportService {
             List<InventoryReportResponse> inventory = getInventoryReport(from, to);
             List<InventoryNxtReportResponse> nxt = getNxtReport(from, to);
 
-            String companyName = settingService.getValue("company_name", "---");
-            String companyAddress = settingService.getValue("company_address", "---");
+            String companyName = settingService.getValue("store_name", "SMARTMART AI");
+            String companyAddress = settingService.getValue("store_address", "TP. Hồ Chí Minh");
+            String companyPhone = settingService.getValue("store_phone", "");
 
             List<ForecastResultResponse> forecasts = loadForecastsSafe();
             List<Map<String, Object>> reorderRecs = loadReorderRecsSafe();
 
             return excelReportService.generateComprehensiveExcel(
-                    sales, purchases, inventory, nxt, from, to, companyName, companyAddress, forecasts, reorderRecs);
+                    sales, purchases, inventory, nxt, from, to, companyName, companyAddress, companyPhone, forecasts, reorderRecs);
         } catch (Exception e) {
             throw new RuntimeException("Error generating Comprehensive Excel report", e);
         }

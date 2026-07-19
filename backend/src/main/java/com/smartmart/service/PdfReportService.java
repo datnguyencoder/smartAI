@@ -11,8 +11,8 @@ import java.time.LocalDate;
 import java.util.List;
 
 public interface PdfReportService {
-    byte[] generateSalesReport(List<SalesReportResponse> data, LocalDate from, LocalDate to);
-    byte[] generatePurchaseReport(List<PurchaseReportResponse> data, LocalDate from, LocalDate to);
-    byte[] generateInventoryReport(List<InventoryReportResponse> data, LocalDate from, LocalDate to);
-    byte[] generateComprehensiveReport(List<SalesReportResponse> sales, List<PurchaseReportResponse> purchases, List<InventoryReportResponse> inventory, List<InventoryNxtReportResponse> nxt, LocalDate from, LocalDate to) throws DocumentException, IOException;
+    byte[] generateSalesReport(List<SalesReportResponse> data, LocalDate from, LocalDate to, String storeName, String storeAddress, String storePhone);
+    byte[] generatePurchaseReport(List<PurchaseReportResponse> data, LocalDate from, LocalDate to, String storeName, String storeAddress, String storePhone);
+    byte[] generateInventoryReport(List<InventoryReportResponse> data, LocalDate from, LocalDate to, String storeName, String storeAddress, String storePhone);
+    byte[] generateComprehensiveReport(List<SalesReportResponse> sales, List<PurchaseReportResponse> purchases, List<InventoryReportResponse> inventory, List<InventoryNxtReportResponse> nxt, LocalDate from, LocalDate to, String storeName, String storeAddress, String storePhone) throws DocumentException, IOException;
 }

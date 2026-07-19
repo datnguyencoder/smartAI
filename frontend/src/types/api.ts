@@ -745,6 +745,13 @@ export type BestSellerReportDto = {
   revenue: number;
 };
 
+export type BestSellerCategoryReportDto = {
+  categoryId: number;
+  categoryName: string;
+  quantitySold: number;
+  revenue: number;
+};
+
 export type CustomerDueReportDto = {
   debtId: number;
   customerId: number;

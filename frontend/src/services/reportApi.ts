@@ -1,5 +1,6 @@
 import { apiDownloadBlob, apiRequest } from '@/services/apiClient';
 import type {
+  BestSellerCategoryReportDto,
   BestSellerReportDto,
   CashFlowReportDto,
   CustomerDueReportDto,
@@ -53,6 +54,14 @@ export function fetchBestSellers(from?: string, to?: string, limit = 10) {
   return apiRequest<BestSellerReportDto[]>(`/api/v1/reports/best-sellers?${params}`);
 }
 
+export function fetchBestSellerCategories(from?: string, to?: string, limit = 10) {
+  const params = new URLSearchParams();
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  params.set('limit', String(limit));
+  return apiRequest<BestSellerCategoryReportDto[]>(`/api/v1/reports/best-seller-categories?${params}`);
+}
+
 export function fetchCustomerDueReport() {
   return apiRequest<CustomerDueReportDto[]>('/api/v1/reports/customer-due');
 }
@@ -81,7 +90,7 @@ export function fetchProfitLossReport(from?: string, to?: string) {
   return apiRequest<ProfitLossReportDto[]>(`/api/v1/reports/profit-loss${qs ? `?${qs}` : ''}`);
 }
 
-export function exportReport(type: 'sales' | 'purchase' | 'inventory' | 'nxt' | 'best-sellers' | 'customer-due' | 'supplier-due' | 'product-expiry' | 'cash-flow' | 'profit-loss', format: 'excel' | 'pdf', from?: string, to?: string, groupBy?: string) {
+export function exportReport(type: 'sales' | 'purchase' | 'inventory' | 'nxt' | 'best-sellers' | 'best-seller-categories' | 'customer-due' | 'supplier-due' | 'product-expiry' | 'cash-flow' | 'profit-loss', format: 'excel' | 'pdf', from?: string, to?: string, groupBy?: string) {
   const params = new URLSearchParams();
   params.set('type', type);
   params.set('format', format);

@@ -30,12 +30,12 @@ public class SettingServiceImpl implements SettingService {
     @Override
     public SettingResponse update(String key, UpdateSettingRequest request) {
         Setting setting = settingRepository.findByKey(key)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy cấu hình: " + key));
+                .orElseGet(() -> Setting.builder().key(key).value("").build());
         setting.setValue(request.getValue());
         if (request.getDescription() != null) {
             setting.setDescription(request.getDescription());
         }
-        return toResponse(setting);
+        return toResponse(settingRepository.save(setting));
     }
 
     @Transactional(readOnly = true)

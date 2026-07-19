@@ -11,6 +11,7 @@ import type {
   InventoryReportDto,
   InventoryItemDto,
   InventoryNxtReportDto,
+  BestSellerCategoryReportDto,
   BestSellerReportDto,
   CustomerDueReportDto,
   SupplierDueReportDto,
@@ -20,6 +21,7 @@ import type {
 } from '@/types/api';
 import {
   fetchBestSellers,
+  fetchBestSellerCategories,
   fetchCashFlowReport,
   fetchCustomerDueReport,
   fetchInventory,
@@ -30,6 +32,7 @@ import {
   fetchPurchaseReport,
   fetchSalesReport,
   fetchSupplierDueReport,
+  exportReport,
 } from '@/services/wmsApi';
 
 // Hooks
@@ -75,6 +78,7 @@ export default function ReportsPage({ productsList, invoicesList: _invoicesList,
   const [inventoryData, setInventoryData] = React.useState<InventoryReportDto[]>([]);
   const [nxtData, setNxtData] = React.useState<InventoryNxtReportDto[]>([]);
   const [bestSellerData, setBestSellerData] = React.useState<BestSellerReportDto[]>([]);
+  const [bestSellerCategoryData, setBestSellerCategoryData] = React.useState<BestSellerCategoryReportDto[]>([]);
   const [customerDueData, setCustomerDueData] = React.useState<CustomerDueReportDto[]>([]);
   const [supplierDueData, setSupplierDueData] = React.useState<SupplierDueReportDto[]>([]);
   const [expiryData, setExpiryData] = React.useState<ProductExpiryReportDto[]>([]);
@@ -112,7 +116,12 @@ export default function ReportsPage({ productsList, invoicesList: _invoicesList,
         const data = await fetchNxtReport(from, to);
         setNxtData(data);
       } else if (activeTab === 'best-sellers') {
-        setBestSellerData(await fetchBestSellers(from, to, 20));
+        const [products, categories] = await Promise.all([
+          fetchBestSellers(from, to, 20),
+          fetchBestSellerCategories(from, to, 20),
+        ]);
+        setBestSellerData(products);
+        setBestSellerCategoryData(categories);
       } else if (activeTab === 'customer-due') {
         setCustomerDueData(await fetchCustomerDueReport());
       } else if (activeTab === 'supplier-due') {
@@ -276,6 +285,7 @@ export default function ReportsPage({ productsList, invoicesList: _invoicesList,
           className="w-[140px] h-[40px] px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 bg-white text-slate-800"
         >
           <option value="day">Theo ngày</option>
+          <option value="week">Theo tuần</option>
           <option value="month">Theo tháng</option>
           <option value="year">Theo năm</option>
         </select>
@@ -319,6 +329,29 @@ export default function ReportsPage({ productsList, invoicesList: _invoicesList,
   }, [activeTab, groupBy, selectedCategory, selectedExpiryStatus, uniqueCategories, visibleColumns]);
 
   const hasActiveFilters = Boolean(searchText || selectedCategory !== 'all' || selectedExpiryStatus !== 'all');
+
+  const handleExportCustom = async (type: 'best-sellers' | 'best-seller-categories') => {
+    if (!canExport) {
+      antdMessage.warning('Bạn không có quyền thực hiện chức năng này.');
+      return;
+    }
+    try {
+      const { from, to } = formatRange();
+      const blob = await exportReport(type, 'excel', from, to);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const ext = 'xlsx';
+      link.setAttribute('download', `${type}-report-${new Date().toISOString().split('T')[0]}.${ext}`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      antdMessage.success('Xuất báo cáo Excel thành công!');
+    } catch (e) {
+      antdMessage.error('Lỗi khi xuất báo cáo: ' + (e instanceof Error ? e.message : String(e)));
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -403,17 +436,64 @@ export default function ReportsPage({ productsList, invoicesList: _invoicesList,
             key: 'best-sellers',
             label: 'Bán chạy',
             children: (
-              <Table
-                rowKey="itemId"
-                loading={loading}
-                dataSource={bestSellerData}
-                columns={[
-                  { title: 'Mã SP', dataIndex: 'itemCode' },
-                  { title: 'Tên', dataIndex: 'itemName' },
-                  { title: 'SL bán', dataIndex: 'quantitySold', align: 'right' },
-                  { title: 'Doanh thu', dataIndex: 'revenue', align: 'right', render: (v: number) => `${Number(v).toLocaleString('vi-VN')} đ` },
-                ]}
-              />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-50 pb-2">
+                    <h3 className="text-base font-semibold text-slate-800 flex items-center gap-2">
+                      Sản phẩm bán chạy
+                    </h3>
+                    {canExport && (
+                      <Button
+                        type="link"
+                        onClick={() => handleExportCustom('best-sellers')}
+                        className="text-indigo-600 hover:text-indigo-700 font-semibold p-0 flex items-center gap-1 text-xs"
+                      >
+                        Excel
+                      </Button>
+                    )}
+                  </div>
+                  <Table
+                    rowKey="itemId"
+                    loading={loading}
+                    dataSource={bestSellerData}
+                    columns={[
+                      { title: 'Mã SP', dataIndex: 'itemCode' },
+                      { title: 'Tên', dataIndex: 'itemName' },
+                      { title: 'SL bán', dataIndex: 'quantitySold', align: 'right' },
+                      { title: 'Doanh thu', dataIndex: 'revenue', align: 'right', render: (v: number) => `${Number(v).toLocaleString('vi-VN')} đ` },
+                    ]}
+                    pagination={{ pageSize: 10 }}
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-50 pb-2">
+                    <h3 className="text-base font-semibold text-slate-800 flex items-center gap-2">
+                      Danh mục bán chạy
+                    </h3>
+                    {canExport && (
+                      <Button
+                        type="link"
+                        onClick={() => handleExportCustom('best-seller-categories')}
+                        className="text-indigo-600 hover:text-indigo-700 font-semibold p-0 flex items-center gap-1 text-xs"
+                      >
+                        Excel
+                      </Button>
+                    )}
+                  </div>
+                  <Table
+                    rowKey="categoryId"
+                    loading={loading}
+                    dataSource={bestSellerCategoryData}
+                    columns={[
+                      { title: 'Danh mục', dataIndex: 'categoryName', render: (v: string) => v || 'Chưa phân loại' },
+                      { title: 'SL bán', dataIndex: 'quantitySold', align: 'right' },
+                      { title: 'Doanh thu', dataIndex: 'revenue', align: 'right', render: (v: number) => `${Number(v).toLocaleString('vi-VN')} đ` },
+                    ]}
+                    pagination={{ pageSize: 10 }}
+                  />
+                </div>
+              </div>
             ),
           },
           {
