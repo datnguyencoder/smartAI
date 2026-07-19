@@ -241,6 +241,8 @@ function App() {
           </main>
           <ProductDrawer
             product={drawerProduct}
+            categories={categories}
+            authUser={authUser}
             onClose={() => setDrawerProduct(null)}
             onUpdated={reloadCatalog}
           />

@@ -4,16 +4,21 @@ import { Plus, Search } from 'lucide-react';
 import { Card } from '@/components/ui';
 import { ProductsTable } from '@/components/catalog/ProductsTable';
 import type { Product } from '@/lib/itemMapper';
+import { normalizeRole } from '@/lib/permissions';
+import type { UserDto } from '@/types/api';
 
 type Props = {
+  authUser: UserDto;
   openProduct: (product: Product) => void;
   openModal: () => void;
   productsList: Product[];
 };
 
-export default function ProductsPage({ openProduct, openModal, productsList }: Props) {
+export default function ProductsPage({ authUser, openProduct, openModal, productsList }: Props) {
   const [searchQuery, setSearchQuery] = React.useState('');
   const [selectedCat, setSelectedCat] = React.useState('all');
+  const role = normalizeRole(authUser.role);
+  const canCreateProduct = ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_WAREHOUSE'].includes(role);
 
   const filtered = productsList.filter((p) => {
     const matchesSearch =
@@ -49,9 +54,11 @@ export default function ProductsPage({ openProduct, openModal, productsList }: P
             </option>
           ))}
         </select>
+        {canCreateProduct && (
         <Button className="ml-auto" type="primary" icon={<Plus size={16} />} onClick={openModal}>
           Thêm mới sản phẩm
         </Button>
+        )}
       </Card>
       <ProductsTable title="Danh sách sản phẩm" rows={filtered} openProduct={openProduct} />
     </div>

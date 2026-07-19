@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 
 @Service
@@ -141,9 +142,6 @@ public class ItemServiceImpl implements ItemService {
                 ? uomRepository.findById(req.getPurchaseUomId())
                         .orElseThrow(() -> new NotFoundException("Không tìm thấy UOM nhập"))
                 : baseUom;
-        validateUomMatchesCategory(baseUom, category);
-        validateUomMatchesCategory(purchaseUom, category);
-
         BigDecimal purchaseConversionRatio = purchaseUom.getConversionRatio();
 
         String imageUrl = resolveImageUrlForCreate(req.getImageUrl(), itemCode);
@@ -181,6 +179,9 @@ public class ItemServiceImpl implements ItemService {
     public ItemResponse update(Long id, UpdateItemRequest req) {
         Item item = findItem(id);
         String beforeData = itemData(item);
+        Category previousCategory = item.getCategory();
+        Long previousCategoryId = previousCategory != null ? previousCategory.getId() : null;
+        String previousCategoryName = previousCategory != null ? previousCategory.getCategoryName() : null;
         if (req.getItemCode() != null && !req.getItemCode().isBlank()) {
             String newItemCode = normalizeItemCode(req.getItemCode());
             if (!newItemCode.equalsIgnoreCase(item.getItemCode())) {
@@ -203,7 +204,8 @@ public class ItemServiceImpl implements ItemService {
             item.setItemType(req.getItemType());
         }
         if (req.getCategoryId() != null) {
-            item.setCategory(resolveActiveCategory(req.getCategoryId()));
+            Category targetCategory = resolveActiveCategory(req.getCategoryId());
+            item.setCategory(targetCategory);
         }
         if (req.getBaseUomId() != null && !req.getBaseUomId().equals(item.getBaseUom().getId())) {
             checkItemUsageForUomChange(id);
@@ -245,8 +247,6 @@ public class ItemServiceImpl implements ItemService {
                     : req.getImageUrl().trim());
         }
         BigDecimal sold = soldQtyMap().getOrDefault(id, BigDecimal.ZERO);
-        validateUomMatchesCategory(item.getBaseUom(), item.getCategory());
-        validateUomMatchesCategory(item.getPurchaseUom(), item.getCategory());
         Item saved = itemRepository.save(item);
         auditLogService.log(
                 AuditAction.ITEM_UPDATE,
@@ -256,6 +256,22 @@ public class ItemServiceImpl implements ItemService {
                         + " - " + saved.getItemName(),
                 beforeData,
                 itemData(saved));
+        Long newCategoryId = saved.getCategory() != null ? saved.getCategory().getId() : null;
+        if (!Objects.equals(previousCategoryId, newCategoryId)) {
+            String newCategoryName = saved.getCategory() != null ? saved.getCategory().getCategoryName() : null;
+            auditLogService.log(
+                    AuditAction.ITEM_MOVE_CATEGORY,
+                    "ITEM",
+                    saved.getId().toString(),
+                    "Chuyển danh mục sản phẩm: " + saved.getItemCode()
+                            + " - " + saved.getItemName(),
+                    AuditData.of(
+                            "categoryId", previousCategoryId,
+                            "categoryName", previousCategoryName),
+                    AuditData.of(
+                            "categoryId", newCategoryId,
+                            "categoryName", newCategoryName));
+        }
         return toResponse(saved, sold);
     }
 
@@ -380,28 +396,17 @@ public class ItemServiceImpl implements ItemService {
                 "active", item.isActive());
     }
 
-    private void validateUomMatchesCategory(Uom uom, Category category) {
-        if (uom == null || category == null || category.getUomCategories() == null || category.getUomCategories().isBlank()) {
-            return;
-        }
-
-        List<String> allowed = Arrays.stream(category.getUomCategories().split(","))
-                .map(String::trim)
-                .filter(s -> !s.isBlank())
-                .map(String::toUpperCase)
-                .toList();
-
-        if (uom.getCategory() == null || !allowed.contains(uom.getCategory().toUpperCase())) {
-            throw new BadRequestException("Đơn vị tính không phù hợp với danh mục sản phẩm");
-        }
-    }
-
     private BigDecimal resolveDisplayCostPrice(Item item) {
+        BigDecimal averageReceivedCost = purchaseOrderItemRepository.averageReceivedUnitPriceByItemId(item.getId());
+        if (averageReceivedCost != null) {
+            return averageReceivedCost.setScale(2, RoundingMode.HALF_UP);
+        }
+
         BigDecimal averageSupplierCost = supplierItemRepository
                 .averageDefaultCostPriceBySkuItem(item.getItemCode());
 
         return averageSupplierCost != null
-                ? averageSupplierCost
+                ? averageSupplierCost.setScale(2, RoundingMode.HALF_UP)
                 : item.getCostPrice();
     }
 }

@@ -74,7 +74,7 @@ const QUICK_CREATE_PAGES: Partial<Record<PageKey, string[]>> = {
   products: ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_WAREHOUSE'],
   categories: ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_WAREHOUSE'],
   brands: ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_WAREHOUSE'],
-  uoms: ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_WAREHOUSE'],
+  uoms: ['ROLE_ADMIN', 'ROLE_MANAGER'],
   suppliers: ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_WAREHOUSE'],
   'import-create': ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_WAREHOUSE'],
 };

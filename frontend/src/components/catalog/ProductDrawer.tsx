@@ -1,30 +1,47 @@
-import { Button, Drawer, Form, Input, InputNumber, Progress, Statistic, Table, Upload } from 'antd';
+import { Button, Drawer, Form, Input, InputNumber, Modal, Progress, Select as AntdSelect, Statistic, Table, Upload } from 'antd';
 import * as React from 'react';
 import { message as antdMessage } from 'antd';
 import { ImagePlus, RotateCcw, UploadCloud } from 'lucide-react';
 import { animateDrawer } from '@/lib/gsapAnimations';
 import { formatMoney, type Product } from '@/lib/itemMapper';
+import { normalizeRole } from '@/lib/permissions';
 import { ProductThumbnail } from '@/components/catalog/ProductThumbnail';
 import { aiExplainRisk, downloadBarcodeLabel, fetchInventory, updateItem, uploadMedia } from '@/services/wmsApi';
-import type { InventoryItemDto } from '@/types/api';
+import type { CategoryDto, InventoryItemDto, UserDto } from '@/types/api';
 import { MarkdownMessage } from '@/components/ai/MarkdownMessage';
 
 type Props = {
   product: Product | null;
+  categories: CategoryDto[];
+  authUser?: UserDto | null;
   onClose: () => void;
   onUpdated?: () => void;
 };
 
-export function ProductDrawer({ product, onClose, onUpdated }: Props) {
+export function ProductDrawer({ product, categories, authUser, onClose, onUpdated }: Props) {
   const bodyRef = React.useRef<HTMLDivElement>(null);
   const [saving, setSaving] = React.useState(false);
   const [price, setPrice] = React.useState<number | null>(null);
   const [imageUrl, setImageUrl] = React.useState('');
+  const [categoryId, setCategoryId] = React.useState<number | undefined>();
   const [lots, setLots] = React.useState<InventoryItemDto[]>([]);
   const [loadingLots, setLoadingLots] = React.useState(false);
   const [riskInsight, setRiskInsight] = React.useState<string | null>(null);
   const [riskLoading, setRiskLoading] = React.useState(false);
   const [uploading, setUploading] = React.useState(false);
+  const role = normalizeRole(authUser?.role);
+  const canEditProduct = ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_WAREHOUSE'].includes(role);
+  const canExplainRisk = ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_ANALYST'].includes(role);
+  const categoryOptions = React.useMemo(() => {
+    const currentCategoryOption =
+      product && product.categoryId
+        ? [{ value: product.categoryId, label: product.category }]
+        : [];
+    const activeCategoryOptions = categories
+      .filter((category) => category.active && category.id !== product?.categoryId)
+      .map((category) => ({ value: category.id, label: category.categoryName }));
+    return [...currentCategoryOption, ...activeCategoryOptions];
+  }, [categories, product]);
 
   const handleUpload = async (options: any) => {
     const { file, onSuccess, onError } = options;
@@ -47,6 +64,7 @@ export function ProductDrawer({ product, onClose, onUpdated }: Props) {
       animateDrawer(bodyRef.current, true);
       setPrice(product.price);
       setImageUrl(product.imageUrl ?? '');
+      setCategoryId(product.categoryId || undefined);
       setRiskInsight(null);
       setLoadingLots(true);
       fetchInventory()
@@ -55,10 +73,11 @@ export function ProductDrawer({ product, onClose, onUpdated }: Props) {
         .finally(() => setLoadingLots(false));
     } else {
       setLots([]);
+      setCategoryId(undefined);
     }
   }, [product]);
 
-  const handleSave = async () => {
+  const saveChanges = async () => {
     if (!product || price == null) return;
     const itemId = Number(product.key);
     if (Number.isNaN(itemId)) {
@@ -70,6 +89,7 @@ export function ProductDrawer({ product, onClose, onUpdated }: Props) {
       await updateItem(itemId, {
         sellingPrice: price,
         imageUrl: imageUrl.trim(),
+        categoryId,
       });
       antdMessage.success('Đã cập nhật sản phẩm');
       onUpdated?.();
@@ -79,6 +99,26 @@ export function ProductDrawer({ product, onClose, onUpdated }: Props) {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSave = async () => {
+    if (!product || !canEditProduct) return;
+    if (!categoryId) {
+      antdMessage.error('Vui lòng chọn danh mục cho sản phẩm');
+      return;
+    }
+    if (categoryId !== product.categoryId) {
+      Modal.confirm({
+        title: 'Chuyển danh mục sản phẩm?',
+        content:
+          'Việc này chỉ thay đổi phân loại hiện tại của sản phẩm, không thay đổi tồn kho, giá vốn hoặc lịch sử hóa đơn.',
+        okText: 'Chuyển danh mục',
+        cancelText: 'Hủy',
+        onOk: saveChanges,
+      });
+      return;
+    }
+    await saveChanges();
   };
 
   const previewImageUrl = imageUrl.trim() || undefined;
@@ -117,28 +157,49 @@ export function ProductDrawer({ product, onClose, onUpdated }: Props) {
                   placeholder="Dán link ảnh sản phẩm..."
                   prefix={<ImagePlus size={16} className="text-slate-400" />}
                   value={imageUrl}
+                  disabled={!canEditProduct}
                   onChange={(e) => setImageUrl(e.target.value)}
                 />
-                <Upload customRequest={handleUpload} showUploadList={false} accept="image/*">
-                  <Button icon={<UploadCloud size={16} />} loading={uploading} />
+                <Upload customRequest={handleUpload} showUploadList={false} accept="image/*" disabled={!canEditProduct}>
+                  <Button icon={<UploadCloud size={16} />} loading={uploading} disabled={!canEditProduct} />
                 </Upload>
               </div>
               <Button
                 className="mt-2"
                 icon={<RotateCcw size={15} />}
                 size="small"
+                disabled={!canEditProduct}
                 onClick={() => setImageUrl(product.imageUrl ?? '')}
               >
                 Khôi phục ảnh cũ
               </Button>
             </Form.Item>
             <Form.Item label="Giá bán mới (VNĐ)">
-              <InputNumber className="w-full" min={0} value={price ?? undefined} onChange={(v) => setPrice(v ?? null)} />
+              <InputNumber
+                className="w-full"
+                min={0}
+                value={price ?? undefined}
+                disabled={!canEditProduct}
+                onChange={(v) => setPrice(v ?? null)}
+              />
+            </Form.Item>
+            <Form.Item label="Danh mục">
+              <AntdSelect
+                showSearch
+                placeholder="Chọn danh mục"
+                optionFilterProp="label"
+                value={categoryId}
+                disabled={!canEditProduct}
+                options={categoryOptions}
+                onChange={setCategoryId}
+              />
             </Form.Item>
           </Form>
-          <Button type="primary" block loading={saving} onClick={handleSave}>
-            Lưu thay đổi
-          </Button>
+          {canEditProduct && (
+            <Button type="primary" block loading={saving} onClick={handleSave}>
+              Lưu thay đổi
+            </Button>
+          )}
 
           <div className="border-t border-slate-200 pt-6 mt-6">
             <h3 className="mb-3 text-base font-semibold text-slate-800">Chi tiết tồn kho theo lô</h3>
@@ -183,31 +244,33 @@ export function ProductDrawer({ product, onClose, onUpdated }: Props) {
             In nhãn barcode
           </Button>
 
-          <Button
-            block
-            loading={riskLoading}
-            onClick={async () => {
-              if (!product) return;
-              setRiskLoading(true);
-              try {
-                const text = await aiExplainRisk({
-                  itemId: Number(product.key),
-                  itemName: product.name,
-                  stock: product.stock,
-                  sold: product.sold,
-                  price: product.price,
-                });
-                setRiskInsight(text);
-              } catch (e) {
-                antdMessage.error(e instanceof Error ? e.message : 'Phân tích thất bại');
-              } finally {
-                setRiskLoading(false);
-              }
-            }}
-          >
-            Phân tích rủi ro AI
-          </Button>
-          {riskInsight && (
+          {canExplainRisk && (
+            <Button
+              block
+              loading={riskLoading}
+              onClick={async () => {
+                if (!product) return;
+                setRiskLoading(true);
+                try {
+                  const text = await aiExplainRisk({
+                    itemId: Number(product.key),
+                    itemName: product.name,
+                    stock: product.stock,
+                    sold: product.sold,
+                    price: product.price,
+                  });
+                  setRiskInsight(text);
+                } catch (e) {
+                  antdMessage.error(e instanceof Error ? e.message : 'Phân tích thất bại');
+                } finally {
+                  setRiskLoading(false);
+                }
+              }}
+            >
+              Phân tích rủi ro AI
+            </Button>
+          )}
+          {canExplainRisk && riskInsight && (
             <div className="rounded-xl border border-line bg-white p-4 text-sm">
               <MarkdownMessage text={riskInsight} />
             </div>

@@ -1,8 +1,7 @@
-import { Select } from '@/components/ui';
-import { Form, Input, InputNumber, Modal, Switch, Upload, Button, message as antdMessage } from 'antd';
+import { Button, Form, Input, InputNumber, Modal, Select as AntdSelect, Switch, Upload, message as antdMessage } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import * as React from 'react';
-import { createItem, createSupplier, uploadMedia } from '@/services/wmsApi';
+import { createCategory, createItem, createSupplier, uploadMedia } from '@/services/wmsApi';
 import type { CategoryDto, UomDto } from '@/types/api';
 import type { PageKey } from '@/types/pages';
 import { ProductThumbnail } from '@/components/catalog/ProductThumbnail';
@@ -47,6 +46,20 @@ const pageTitles: Record<PageKey, { title: string }> = {
   'audit-logs': { title: 'Nhật ký hoạt động' },
 };
 
+const normalizeUomGroup = (category?: string) => {
+  const value = category?.trim().toUpperCase();
+
+  if (['ĐƠN VỊ LẺ', 'BÁN LẺ', 'COUNT', 'WEIGHT', 'VOLUME', 'LENGTH', 'OTHER', 'RETAIL'].includes(value ?? '')) {
+    return 'RETAIL';
+  }
+
+  if (['ĐÓNG GÓI', 'PACKAGE', 'PACKAGING'].includes(value ?? '')) {
+    return 'PACKAGE';
+  }
+
+  return 'OTHER';
+};
+
 type Props = {
   open: boolean;
   onCancel: () => void;
@@ -63,21 +76,60 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
   const [uploading, setUploading] = React.useState(false);
   const [previewName, setPreviewName] = React.useState('');
   const [previewUrl, setPreviewUrl] = React.useState<string | undefined>();
+  const [quickCategoryOpen, setQuickCategoryOpen] = React.useState(false);
+  const [quickCategoryName, setQuickCategoryName] = React.useState('');
+  const [creatingCategory, setCreatingCategory] = React.useState(false);
+  const [localCategories, setLocalCategories] = React.useState<CategoryDto[]>(categories);
+  const activeCategories = React.useMemo(
+    () => localCategories.filter((category) => category.active !== false),
+    [localCategories]
+  );
   const filteredUoms = React.useMemo(() => uoms.filter((uom) => uom.active !== false), [uoms]);
   const retailUoms = React.useMemo(
-    () => filteredUoms.filter((uom) => uom.category === 'Đơn vị lẻ'),
+    () => filteredUoms.filter((uom) => normalizeUomGroup(uom.category) === 'RETAIL'),
     [filteredUoms]
   );
   const packagingUoms = React.useMemo(
-    () => filteredUoms.filter((uom) => uom.category === 'Đóng gói'),
+    () => filteredUoms.filter((uom) => normalizeUomGroup(uom.category) === 'PACKAGE'),
     [filteredUoms]
   );
+
+  React.useEffect(() => {
+    setLocalCategories(categories);
+  }, [categories]);
 
   const handleCancel = () => {
     form.resetFields();
     setPreviewName('');
     setPreviewUrl(undefined);
+    setQuickCategoryOpen(false);
+    setQuickCategoryName('');
     onCancel();
+  };
+
+  const handleQuickCreateCategory = async () => {
+    const categoryName = quickCategoryName.trim();
+    if (!categoryName) {
+      antdMessage.error('Vui lòng nhập tên loại hàng');
+      return;
+    }
+    setCreatingCategory(true);
+    try {
+      const created = await createCategory({
+        categoryName,
+        uomCategories: 'RETAIL,PACKAGE',
+      });
+      setLocalCategories((prev) => [created, ...prev.filter((category) => category.id !== created.id)]);
+      form.setFieldValue('categoryId', created.id);
+      setQuickCategoryOpen(false);
+      setQuickCategoryName('');
+      await onCreated();
+      antdMessage.success(`Đã tạo loại hàng ${created.categoryName}`);
+    } catch (e) {
+      antdMessage.error(e instanceof Error ? e.message : 'Tạo loại hàng thất bại');
+    } finally {
+      setCreatingCategory(false);
+    }
   };
 
   const handleUpload = async (options: any) => {
@@ -101,7 +153,7 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
   const handleFinish = async (values: {
     name: string;
     sku: string;
-    categoryId?: number;
+    categoryId: number;
     baseUomId: number;
     purchaseUomId?: number;
     price: number;
@@ -124,7 +176,7 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
         await createItem({
           itemCode: values.sku || `SKU-${Date.now()}`,
           itemName: values.name,
-          categoryId: values.categoryId ? Number(values.categoryId) : undefined,
+          categoryId: Number(values.categoryId),
           baseUomId: Number(values.baseUomId),
           purchaseUomId: values.purchaseUomId ? Number(values.purchaseUomId) : undefined,
           costPrice: values.costPrice ?? values.price * 0.8,
@@ -207,15 +259,61 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
               <Form.Item name="sku" label="Mã SKU" rules={[{ required: true }]}>
                 <Input placeholder="Ví dụ: MILK-BOT-500" />
               </Form.Item>
-              <Form.Item name="categoryId" label="Danh mục">
-                <select className="h-8 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                  <option value="">Chọn danh mục</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>{c.categoryName}</option>
-                  ))}
-                </select>
+              <Form.Item label="Loại hàng" required className="mb-0">
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+                  <Form.Item
+                    name="categoryId"
+                    noStyle
+                    rules={[{ required: true, message: 'Vui lòng chọn loại hàng' }]}
+                  >
+                    <AntdSelect
+                      showSearch
+                      placeholder="Chọn loại hàng"
+                      optionFilterProp="label"
+                      options={activeCategories.map((category) => ({
+                        value: category.id,
+                        label: category.categoryName,
+                      }))}
+                    />
+                  </Form.Item>
+                  <Button htmlType="button" onClick={() => setQuickCategoryOpen((open) => !open)}>
+                    Tạo mới
+                  </Button>
+                </div>
               </Form.Item>
             </div>
+            {quickCategoryOpen && (
+              <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50/60 p-3">
+                <div className="mb-3 text-sm font-semibold text-blue-700">Tạo loại hàng nhanh</div>
+                <div className="grid gap-3">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-slate-700">
+                      Tên loại hàng <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      placeholder="Ví dụ: Đồ uống đóng chai"
+                      value={quickCategoryName}
+                      onChange={(event) => setQuickCategoryName(event.target.value)}
+                      onPressEnter={handleQuickCreateCategory}
+                    />
+                  </div>
+                </div>
+                <div className="mt-3 flex justify-end gap-2">
+                  <Button
+                    htmlType="button"
+                    onClick={() => {
+                      setQuickCategoryOpen(false);
+                      setQuickCategoryName('');
+                    }}
+                  >
+                    Hủy
+                  </Button>
+                  <Button htmlType="button" type="primary" loading={creatingCategory} onClick={handleQuickCreateCategory}>
+                    Tạo loại hàng
+                  </Button>
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <Form.Item name="baseUomId" label="Đơn vị lẻ" rules={[{ required: true, message: 'Vui lòng chọn đơn vị lẻ' }]}>
                 <select className="h-8 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
