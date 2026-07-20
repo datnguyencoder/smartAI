@@ -1,5 +1,5 @@
 import { apiRequest } from '@/services/apiClient';
-import type { AuditLogDto, PageResponseDto, ShiftDto, ShiftSummaryDto } from '@/types/api';
+import type { AuditLogDto, PageResponseDto, ShiftBillFlowDto, ShiftDashboardDto, ShiftDto, ShiftMoneyFlowDto, ShiftReturnedItemDto, ShiftSummaryDto } from '@/types/api';
 
 export function fetchShifts() {
   return apiRequest<ShiftDto[]>('/api/v1/shifts');
@@ -9,8 +9,20 @@ export function fetchCurrentShift() {
   return apiRequest<ShiftDto | null>('/api/v1/shifts/current');
 }
 
+export function fetchShiftDashboard() {
+  return apiRequest<ShiftDashboardDto>('/api/v1/shifts/dashboard');
+}
+
+export function fetchShiftReturnedItems() {
+  return apiRequest<ShiftReturnedItemDto[]>('/api/v1/shifts/returned-items');
+}
+
 export function fetchShiftSummary(id: number) {
   return apiRequest<ShiftSummaryDto>(`/api/v1/shifts/${id}/summary`);
+}
+
+export function fetchShiftBillFlow(id: number) {
+  return apiRequest<ShiftBillFlowDto[]>(`/api/v1/shifts/${id}/bill-flow`);
 }
 
 export function openShift(note: string) {
@@ -20,10 +32,10 @@ export function openShift(note: string) {
   });
 }
 
-export function closeShift(id: number, closingCash: number, note: string, varianceReason?: string) {
+export function closeShift(id: number, matchesSystemData: boolean, note: string, varianceReason?: string) {
   return apiRequest<ShiftDto>(`/api/v1/shifts/${id}/close`, {
     method: 'POST',
-    body: JSON.stringify({ closingCash, note, varianceReason }),
+    body: JSON.stringify({ matchesSystemData, note, varianceReason }),
   });
 }
 
@@ -42,6 +54,10 @@ export const approveShift = (id: number, note: string) => shiftNoteAction(id, 'a
 
 export function fetchShiftActivity(id: number) {
   return apiRequest<PageResponseDto<AuditLogDto>>(`/api/v1/shifts/${id}/activity?size=100`);
+}
+
+export function fetchShiftMoneyFlow(id: number) {
+  return apiRequest<ShiftMoneyFlowDto[]>(`/api/v1/shifts/${id}/money-flow`);
 }
 
 export function reviewShift(id: number, reviewNote?: string) {

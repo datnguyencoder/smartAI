@@ -39,4 +39,26 @@ public interface ReturnOrderRepository extends JpaRepository<ReturnOrder, Long> 
             @Param("shiftId") Long shiftId,
             @Param("status") ReturnOrderStatus status
     );
+
+    @EntityGraph(attributePaths = {"originalOrder", "originalOrder.shift", "items", "items.item"})
+    @Query("""
+        SELECT DISTINCT r FROM ReturnOrder r
+        WHERE r.originalOrder.shift.id IN :shiftIds AND r.status = :status
+        ORDER BY r.returnDate DESC
+        """)
+    List<ReturnOrder> findByShiftIdsAndStatusWithItems(
+            @Param("shiftIds") List<Long> shiftIds,
+            @Param("status") ReturnOrderStatus status
+    );
+
+    @EntityGraph(attributePaths = {"originalOrder", "items", "items.item"})
+    @Query("""
+        SELECT DISTINCT r FROM ReturnOrder r
+        WHERE r.originalOrder.shift.id = :shiftId AND r.status = :status
+        ORDER BY r.returnDate ASC
+        """)
+    List<ReturnOrder> findByShiftIdAndStatusWithItems(
+            @Param("shiftId") Long shiftId,
+            @Param("status") ReturnOrderStatus status
+    );
 }

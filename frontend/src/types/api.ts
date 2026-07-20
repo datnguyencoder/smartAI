@@ -727,6 +727,8 @@ export type ShiftSummaryDto = {
   refundedOrders: number;
   grossSales: number;
   refundAmount: number;
+  cashRefundAmount: number;
+  nonCashRefundAmount: number;
   netRevenue: number;
   totalRevenue: number;
   cashSales: number;
@@ -735,6 +737,69 @@ export type ShiftSummaryDto = {
   walletSales: number;
   otherSales: number;
   nonCashSales: number;
+  cashDrawerEndingAmount: number;
+  storeMoneyMovement: number;
+  refundAmountAtClose: number;
+  postCloseRefundAmount: number;
+  revenueAfterPostCloseReturns: number;
+};
+
+export type ShiftBillFlowDto = {
+  occurredAt: string;
+  transactionType: 'SALE' | 'RETURN';
+  shiftId: number;
+  billCode: string;
+  returnOrderId?: number;
+  itemSummary: string;
+  paymentMethods?: string;
+  amount: number;
+  afterShiftClosed: boolean;
+};
+
+export type ShiftMoneyFlowDto = {
+  occurredAt: string;
+  transactionType: string;
+  referenceCode?: string;
+  description?: string;
+  paymentMethod?: string;
+  moneyIn: number;
+  moneyOut: number;
+  amount: number;
+  actorName?: string;
+};
+
+export type ShiftReturnedItemDto = {
+  shiftId: number;
+  returnOrderId: number;
+  returnItemId: number;
+  originalOrderCode: string;
+  returnedAt: string;
+  itemId: number;
+  itemName: string;
+  quantity: number;
+  refundAmount: number;
+  paymentMethods?: string;
+};
+
+export type ShiftDashboardDto = {
+  currentStoreMoney: number;
+  currentCashDrawerAmount: number;
+  totalCashCollected: number;
+  totalNonCashCollected: number;
+  totalRefunded: number;
+  activeShiftCount: number;
+  pendingManagerCount: number;
+  pendingAdminCount: number;
+  statistics: {
+    totalShifts: number;
+    totalCompletedOrders: number;
+    totalCancelledOrders: number;
+    totalCashCollected: number;
+    totalNonCashCollected: number;
+    totalRefunded: number;
+    currentStoreMoney: number;
+  };
+  recentShifts: ShiftDto[];
 };
 
 export type BestSellerReportDto = {
