@@ -22,7 +22,9 @@ type DraftLine = { itemId: number; lotId?: number; itemName: string; lotNumber?:
 
 export default function StocktakePage() {
   const { authUser } = useAuth();
-  const canApprove = ['ROLE_ADMIN', 'ROLE_MANAGER'].includes(normalizeRole(authUser?.role));
+  const role = normalizeRole(authUser?.role);
+  const canApprove = role === 'ROLE_ADMIN';
+  const canCancel = role === 'ROLE_ADMIN' || role === 'ROLE_MANAGER';
   const [stocktakes, setStocktakes] = useState<StocktakeDto[]>([]);
   const [locations, setLocations] = useState<LocationDto[]>([]);
   const [inventory, setInventory] = useState<InventoryItemDto[]>([]);
@@ -114,14 +116,14 @@ export default function StocktakePage() {
 
   const handleSubmit = (stocktake: StocktakeDto) => {
     Modal.confirm({
-      title: 'Chốt số đếm và gửi Manager duyệt?',
-      content: 'Sau khi chốt, số thực tế không thể sửa. Tồn kho chỉ thay đổi khi Manager duyệt.',
+      title: 'Chốt số đếm và gửi Admin duyệt?',
+      content: 'Sau khi chốt, số thực tế không thể sửa. Tồn kho chỉ thay đổi khi Admin duyệt.',
       okText: 'Chốt số đếm',
       cancelText: 'Quay lại',
       onOk: async () => {
         try {
           await submitStocktake(stocktake.id, buildSubmittedItems(stocktake));
-          message.success('Đã chốt số đếm và gửi Manager duyệt');
+          message.success('Đã chốt số đếm và gửi Admin duyệt');
           setSelectedStocktake(null);
           await load();
         } catch (e: unknown) {
@@ -165,7 +167,7 @@ export default function StocktakePage() {
 
   const statusLabel = (status: StocktakeDto['status']) => ({
     DRAFT: 'Nháp',
-    PENDING_APPROVAL: 'Chờ Manager duyệt',
+    PENDING_APPROVAL: 'Chờ Admin duyệt',
     CONFIRMED: 'Đã duyệt & cập nhật kho',
     CANCELLED: 'Đã hủy',
   }[status]);
@@ -183,7 +185,7 @@ export default function StocktakePage() {
       'Trạng thái': statusLabel(stocktake.status),
       'Người chốt': stocktake.submittedByUsername || '',
       'Thời gian chốt': stocktake.submittedAt ? dayjs(stocktake.submittedAt).format('DD/MM/YYYY HH:mm') : '',
-      'Manager duyệt': stocktake.approvedByUsername || '',
+      'Admin duyệt': stocktake.approvedByUsername || '',
       'Thời gian duyệt': stocktake.confirmedAt ? dayjs(stocktake.confirmedAt).format('DD/MM/YYYY HH:mm') : '',
       'Tổng lệch tăng': stocktake.items.reduce((sum, item) => sum + Math.max(Number(item.variance || 0), 0), 0),
       'Tổng lệch giảm': stocktake.items.reduce((sum, item) => sum + Math.min(Number(item.variance || 0), 0), 0),
@@ -219,7 +221,7 @@ export default function StocktakePage() {
       dataIndex: 'status',
       render: (s: string) => {
         const colors: Record<string, string> = { DRAFT: 'processing', PENDING_APPROVAL: 'warning', CONFIRMED: 'success', CANCELLED: 'error' };
-        const labels: Record<string, string> = { DRAFT: 'Nháp', PENDING_APPROVAL: 'Chờ Manager duyệt', CONFIRMED: 'Đã duyệt & cập nhật kho', CANCELLED: 'Đã hủy' };
+        const labels: Record<string, string> = { DRAFT: 'Nháp', PENDING_APPROVAL: 'Chờ Admin duyệt', CONFIRMED: 'Đã duyệt & cập nhật kho', CANCELLED: 'Đã hủy' };
         return <Tag color={colors[s] || 'default'}>{labels[s] || s}</Tag>;
       },
     },
@@ -248,16 +250,16 @@ export default function StocktakePage() {
           {r.status === 'DRAFT' && (
             <>
               <Button size="small" type="primary" onClick={() => handleSubmit(r)}>Chốt số đếm</Button>
-              {canApprove && <Button size="small" danger onClick={() => handleCancel(r)}>Hủy</Button>}
+              {canCancel && <Button size="small" danger onClick={() => handleCancel(r)}>Hủy</Button>}
             </>
           )}
           {r.status === 'PENDING_APPROVAL' && (
-            canApprove
-              ? <>
-                  <Button size="small" type="primary" onClick={() => handleApprove(r)}>Duyệt & cập nhật kho</Button>
-                  <Button size="small" danger onClick={() => handleCancel(r)}>Hủy</Button>
-                </>
-              : <Tag color="orange">Chờ Manager duyệt</Tag>
+            <>
+              {canApprove
+                ? <Button size="small" type="primary" onClick={() => handleApprove(r)}>Duyệt & cập nhật kho</Button>
+                : <Tag color="orange">Chờ Admin duyệt</Tag>}
+              {canCancel && <Button size="small" danger onClick={() => handleCancel(r)}>Hủy</Button>}
+            </>
           )}
         </Space>
       ),
@@ -268,7 +270,7 @@ export default function StocktakePage() {
     <Card>
       <CardHeader
         title="Kiểm kê kho"
-        description="Nhập và chốt số đếm → Manager duyệt → hệ thống cập nhật tồn kho theo số thực tế"
+        description="Nhập và chốt số đếm → Admin duyệt → hệ thống cập nhật tồn kho theo số thực tế"
         action={<Space>
           <Button icon={<FileExcelOutlined />} onClick={() => exportStocktakes(stocktakes)}>Xuất Excel</Button>
           <Button type="primary" onClick={() => setCreateOpen(true)}>Tạo phiếu kiểm kê</Button>
@@ -282,7 +284,7 @@ export default function StocktakePage() {
         >
           <option value="ALL">Tất cả</option>
           <option value="DRAFT">Nháp</option>
-          <option value="PENDING_APPROVAL">Chờ Manager duyệt</option>
+          <option value="PENDING_APPROVAL">Chờ Admin duyệt</option>
           <option value="CONFIRMED">Đã duyệt & cập nhật kho</option>
           <option value="CANCELLED">Đã hủy</option>
         </select>

@@ -63,7 +63,7 @@ public class StocktakeController {
 
     @PostMapping("/{id}/submit")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
-    @Operation(summary = "Chốt số đếm và gửi phiếu kiểm kê cho Manager duyệt")
+    @Operation(summary = "Chốt số đếm và gửi phiếu kiểm kê cho Admin duyệt")
     public ResponseEntity<ApiResponse<StocktakeResponse>> submit(
             @PathVariable Long id,
             @Valid @RequestBody(required = false) ConfirmStocktakeRequest request
@@ -71,12 +71,12 @@ public class StocktakeController {
         StocktakeResponse resp = WmsResponseMapper.toStocktakeResponse(
                 stocktakeService.submitForApproval(id, request));
         stocktakeService.enrichUsernames(Collections.singletonList(resp));
-        return ResponseEntity.ok(ApiResponse.success("Đã chốt số đếm và gửi Manager duyệt", resp));
+        return ResponseEntity.ok(ApiResponse.success("Đã chốt số đếm và gửi Admin duyệt", resp));
     }
 
     @PostMapping("/{id}/approve")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
-    @Operation(summary = "Manager duyệt phiếu kiểm kê và cập nhật tồn kho theo số thực tế")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Admin duyệt phiếu kiểm kê và cập nhật tồn kho theo số thực tế")
     public ResponseEntity<ApiResponse<StocktakeResponse>> approve(@PathVariable Long id) {
         StocktakeResponse resp = WmsResponseMapper.toStocktakeResponse(stocktakeService.approve(id));
         stocktakeService.enrichUsernames(Collections.singletonList(resp));
@@ -84,7 +84,7 @@ public class StocktakeController {
     }
 
     @PostMapping("/{id}/confirm")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "API tương thích: duyệt phiếu kiểm kê đang chờ")
     public ResponseEntity<ApiResponse<StocktakeResponse>> confirmCompatibility(@PathVariable Long id) {
         return approve(id);

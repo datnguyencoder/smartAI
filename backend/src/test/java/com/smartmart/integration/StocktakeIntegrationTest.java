@@ -33,15 +33,17 @@ class StocktakeIntegrationTest {
 
     private String warehouseToken;
     private String managerToken;
+    private String adminToken;
 
     @BeforeEach
     void login() throws Exception {
         warehouseToken = loginAs("warehouse", "warehouse123");
         managerToken = loginAs("manager", "manager123");
+        adminToken = loginAs("admin", "admin123");
     }
 
     @Test
-    void warehouseSubmitsCountAndManagerApprovalSetsExactInventory() throws Exception {
+    void warehouseSubmitsCountAndOnlyAdminApprovalSetsExactInventory() throws Exception {
         JsonNode inventoryRow = inventoryRows(warehouseToken).get(0);
         long itemId = inventoryRow.path("itemId").asLong();
         long locationId = inventoryRow.path("locationId").asLong();
@@ -70,7 +72,7 @@ class StocktakeIntegrationTest {
 
         mockMvc.perform(post("/api/v1/stocktakes/" + stocktakeId + "/approve")
                         .header("Authorization", "Bearer " + managerToken))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isForbidden());
 
         mockMvc.perform(post("/api/v1/stocktakes/" + stocktakeId + "/submit")
                         .header("Authorization", "Bearer " + warehouseToken)
@@ -90,16 +92,24 @@ class StocktakeIntegrationTest {
 
         mockMvc.perform(post("/api/v1/stocktakes/" + stocktakeId + "/approve")
                         .header("Authorization", "Bearer " + managerToken))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/v1/stocktakes/" + stocktakeId + "/confirm")
+                        .header("Authorization", "Bearer " + managerToken))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/v1/stocktakes/" + stocktakeId + "/approve")
+                        .header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("CONFIRMED"))
                 .andExpect(jsonPath("$.data.approvedBy").isNumber())
                 .andExpect(jsonPath("$.data.items[0].actualQuantity").value(counted.doubleValue()));
 
-        assertThat(findInventoryRow(managerToken, itemId, locationId, lotId).path("quantity").decimalValue())
+        assertThat(findInventoryRow(adminToken, itemId, locationId, lotId).path("quantity").decimalValue())
                 .isEqualByComparingTo(counted);
 
         mockMvc.perform(post("/api/v1/stocktakes/" + stocktakeId + "/approve")
-                        .header("Authorization", "Bearer " + managerToken))
+                        .header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isBadRequest());
     }
 

@@ -196,10 +196,17 @@ public class ShiftServiceImpl implements ShiftService {
 
     @Override
     public Shift approveShift(Long id, String note) {
+        requireAdminApproval();
         Shift shift = findById(id);
         requireStatus(shift, ShiftStatus.REVIEWED_BY_MANAGER, "Chỉ ca đã được quản lý duyệt mới có thể phê duyệt");
         return transition(shift, ShiftStatus.APPROVED, note, AuditAction.SHIFT_APPROVED,
                 "Admin phê duyệt ca", true);
+    }
+
+    private void requireAdminApproval() {
+        if (!SecurityUtils.hasRole("ADMIN")) {
+            throw new ForbiddenException("Chỉ Admin được phê duyệt cuối ca làm việc");
+        }
     }
 
     @Override
