@@ -7,7 +7,11 @@ import com.smartmart.dto.request.OpenShiftRequest;
 import com.smartmart.dto.request.ReviewShiftRequest;
 import com.smartmart.dto.request.PaymentMethodCorrectionRequest;
 import com.smartmart.dto.request.ShiftNoteRequest;
+import com.smartmart.dto.response.ShiftDashboardResponse;
+import com.smartmart.dto.response.ShiftBillFlowResponse;
+import com.smartmart.dto.response.ShiftMoneyFlowResponse;
 import com.smartmart.dto.response.ShiftResponse;
+import com.smartmart.dto.response.ShiftReturnedItemResponse;
 import com.smartmart.dto.response.ShiftSummaryResponse;
 import com.smartmart.dto.response.AuditLogResponse;
 import com.smartmart.entity.Shift;
@@ -59,6 +63,27 @@ public class ShiftController {
                 .orElse(ResponseEntity.ok(ApiResponse.success("Không có ca đang mở", null)));
     }
 
+    @GetMapping("/dashboard")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF')")
+    @Operation(summary = "Tổng quan tiền và thống kê ca làm việc")
+    public ResponseEntity<ApiResponse<ShiftDashboardResponse>> dashboard() {
+        return ResponseEntity.ok(ApiResponse.success(shiftService.getDashboard()));
+    }
+
+    @GetMapping("/returned-items")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF')")
+    @Operation(summary = "Danh sách hàng trả theo ca được phép xem")
+    public ResponseEntity<ApiResponse<List<ShiftReturnedItemResponse>>> returnedItems() {
+        return ResponseEntity.ok(ApiResponse.success(shiftService.getReturnedItems()));
+    }
+
+    @GetMapping("/{id}/bill-flow")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF')")
+    @Operation(summary = "Hóa đơn bán và trả hàng của ca")
+    public ResponseEntity<ApiResponse<List<ShiftBillFlowResponse>>> billFlow(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(shiftService.getBillFlow(id)));
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF')")
     @Operation(summary = "Chi tiết ca làm việc")
@@ -71,6 +96,13 @@ public class ShiftController {
     @Operation(summary = "Báo cáo Z ca làm việc")
     public ResponseEntity<ApiResponse<ShiftSummaryResponse>> summary(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(shiftService.getSummary(id)));
+    }
+
+    @GetMapping("/{id}/money-flow")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF')")
+    @Operation(summary = "Dòng tiền phát sinh trong ca")
+    public ResponseEntity<ApiResponse<List<ShiftMoneyFlowResponse>>> moneyFlow(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(shiftService.getMoneyFlow(id)));
     }
 
     @PostMapping("/open")
