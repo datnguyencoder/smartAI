@@ -883,12 +883,15 @@ export type AccountTransferDto = {
 export type DiscountPlanDto = {
   id: number;
   planName: string;
-  planType: 'CATEGORY' | 'ITEM' | 'GLOBAL' | string;
+  planType: 'CATEGORY' | 'SKU' | string;
   categoryId?: number;
   categoryName?: string;
   itemId?: number;
   itemName?: string;
-  discountPercent: number;
+  dealType: 'PERCENTAGE' | 'BOGO' | string;
+  discountPercent?: number;
+  buyQuantity?: number;
+  freeQuantity?: number;
   startDate?: string;
   endDate?: string;
   active: boolean;

@@ -94,6 +94,13 @@ const SUGGESTED_PROMPTS: PromptItem[] = [
     tone: 'bg-purple-50 text-purple-700 ring-purple-100',
   },
   {
+    title: 'Lên chiến dịch KM',
+    hint: 'AI tự tạo khuyến mãi',
+    prompt: 'Kiểm tra các lô hàng cận date trong 14 ngày tới, rồi lên chiến dịch giảm giá xả hàng phù hợp cho từng sản phẩm (giảm sâu hơn nếu càng gần hết hạn). Xác nhận lại với tôi trước khi tạo.',
+    icon: Sparkles,
+    tone: 'bg-pink-50 text-pink-700 ring-pink-100',
+  },
+  {
     title: 'Cảnh báo',
     hint: 'Chưa xử lý',
     prompt: 'Tóm tắt tất cả cảnh báo tồn kho chưa xử lý. Sắp theo mức độ ưu tiên và đề xuất bước tiếp theo.',
@@ -173,13 +180,15 @@ function buildFollowUpSuggestions(topic: string): ChatSuggestion[] {
       ];
     case 'expiry':
       return [
+        { label: 'Lên KM xả hàng', prompt: 'Lên chiến dịch giảm giá xả hàng cho các lô cận date ở trên, giảm sâu hơn nếu càng gần hết hạn. Xác nhận với tôi trước khi tạo.' },
         { label: 'Xử lý cận hạn', prompt: 'Đề xuất cách xử lý các lô cận hạn theo ưu tiên bán, giảm giá hoặc hủy.' },
         { label: 'Xem rủi ro HSD', page: 'expiry-risk' },
         ...common,
       ];
     case 'promotion':
       return [
-        { label: 'Tạo chương trình', prompt: 'Đề xuất chương trình khuyến mãi cụ thể gồm SKU, mức giảm và thời gian chạy.' },
+        { label: 'Tạo KM mua 1 tặng 1', prompt: 'Lên chiến dịch mua 1 tặng 1 cho sản phẩm tôi sẽ nêu tên; hỏi lại tôi tên sản phẩm và thời gian chạy nếu chưa rõ.' },
+        { label: 'Tạo mã giảm giá', prompt: 'Tạo một mã khuyến mãi giảm % trên tổng đơn; hỏi lại tôi mức giảm và điều kiện đơn tối thiểu.' },
         { label: 'Mở khuyến mãi', page: 'promotion-manage' },
         ...common,
       ];
