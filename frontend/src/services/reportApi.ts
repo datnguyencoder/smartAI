@@ -11,6 +11,7 @@ import type {
   PurchaseReportDto,
   SalesReportDto,
   SupplierDueReportDto,
+  RefundReportDto,
 } from '@/types/api';
 
 export function fetchSalesReport(from?: string, to?: string, groupBy?: string) {
@@ -88,6 +89,14 @@ export function fetchProfitLossReport(from?: string, to?: string) {
   if (to) params.set('to', to);
   const qs = params.toString();
   return apiRequest<ProfitLossReportDto[]>(`/api/v1/reports/profit-loss${qs ? `?${qs}` : ''}`);
+}
+
+export function fetchRefundReport(from?: string, to?: string) {
+  const params = new URLSearchParams();
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  const qs = params.toString();
+  return apiRequest<RefundReportDto>(`/api/v1/reports/refund-statistics${qs ? `?${qs}` : ''}`);
 }
 
 export function exportReport(type: 'sales' | 'purchase' | 'inventory' | 'nxt' | 'best-sellers' | 'best-seller-categories' | 'customer-due' | 'supplier-due' | 'product-expiry' | 'cash-flow' | 'profit-loss', format: 'excel' | 'pdf', from?: string, to?: string, groupBy?: string) {

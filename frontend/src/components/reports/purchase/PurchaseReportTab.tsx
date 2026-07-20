@@ -175,6 +175,29 @@ export function PurchaseReportTab({
       sorter: (a, b) => a.totalItemTypes - b.totalItemTypes,
     },
     {
+      title: 'Tiền hoàn trả',
+      dataIndex: 'totalRefundedAmount',
+      width: 150,
+      render: (v: number) => <span className="font-semibold text-red-600">{v > 0 ? money(v) : '—'}</span>,
+      sorter: (a, b) => (a.totalRefundedAmount || 0) - (b.totalRefundedAmount || 0),
+    },
+    {
+      title: 'Tỉ lệ sai lệch/hủy',
+      dataIndex: 'discrepancyRate',
+      width: 160,
+      render: (v: number) => {
+        const val = v || 0;
+        let color = 'text-emerald-600 font-semibold';
+        if (val > 15) {
+          color = 'text-rose-600 font-bold';
+        } else if (val > 0) {
+          color = 'text-amber-500 font-semibold';
+        }
+        return <span className={color}>{val.toFixed(1)}%</span>;
+      },
+      sorter: (a, b) => (a.discrepancyRate || 0) - (b.discrepancyRate || 0),
+    },
+    {
       title: 'Tổng SL nhập',
       dataIndex: 'totalQuantity',
       width: 130,
@@ -213,11 +236,13 @@ export function PurchaseReportTab({
   const renderPurchaseSummary = (pageData: readonly PurchaseReportDto[]) => {
     let totalOrd = 0;
     let totalAmt = 0;
+    let totalRefund = 0;
     let totalQty = 0;
 
     pageData.forEach((r) => {
       totalOrd += r.totalOrders;
       totalAmt += r.totalAmount;
+      totalRefund += (r.totalRefundedAmount || 0);
       totalQty += r.totalQuantity;
     });
 
@@ -229,7 +254,9 @@ export function PurchaseReportTab({
           <Table.Summary.Cell index={2}>{money(totalAmt)}</Table.Summary.Cell>
           <Table.Summary.Cell index={3}>—</Table.Summary.Cell>
           <Table.Summary.Cell index={4}>—</Table.Summary.Cell>
-          <Table.Summary.Cell index={5}>{Math.round(totalQty).toLocaleString('vi-VN')}</Table.Summary.Cell>
+          <Table.Summary.Cell index={5}>{totalRefund > 0 ? money(totalRefund) : '—'}</Table.Summary.Cell>
+          <Table.Summary.Cell index={6}>—</Table.Summary.Cell>
+          <Table.Summary.Cell index={7}>{Math.round(totalQty).toLocaleString('vi-VN')}</Table.Summary.Cell>
         </Table.Summary.Row>
       </Table.Summary>
     );

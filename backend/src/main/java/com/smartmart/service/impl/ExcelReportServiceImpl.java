@@ -115,6 +115,8 @@ public class ExcelReportServiceImpl implements ExcelReportService {
             Row row2 = sheet.createRow(rowIndex++);
             row2.createCell(0).setCellValue("HOTLINE: " + companyPhone);
         }
+        Row rowExportTime = sheet.createRow(rowIndex++);
+        rowExportTime.createCell(0).setCellValue("THỜI GIAN XUẤT: " + java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")));
         rowIndex++; // empty row
 
         // 2. Title
@@ -155,26 +157,59 @@ public class ExcelReportServiceImpl implements ExcelReportService {
             sheet.setColumnWidth(i, 20 * 256);
         }
 
+        int startRow = rowIdx + 1;
         for (SalesReportResponse rowData : data) {
             Row row = sheet.createRow(rowIdx++);
+            int rowNum = rowIdx;
 
             row.createCell(0).setCellValue(rowData.getPeriod());
             row.createCell(1).setCellValue(rowData.getTotalOrders());
             row.createCell(2).setCellValue(rowData.getCancelledOrders());
             row.createCell(3).setCellValue(rowData.getTotalRevenue() != null ? rowData.getTotalRevenue().doubleValue() : 0.0);
             row.createCell(4).setCellValue(rowData.getTotalCost() != null ? rowData.getTotalCost().doubleValue() : 0.0);
-            row.createCell(5).setCellValue(rowData.getGrossProfit() != null ? rowData.getGrossProfit().doubleValue() : 0.0);
+            row.createCell(5).setCellFormula("D" + rowNum + "-E" + rowNum);
             row.createCell(6).setCellValue(rowData.getTotalItemsSold());
         }
+        int endRow = rowIdx;
 
+        if (!data.isEmpty()) {
+            CellStyle totalStyle = createHeaderStyle(workbook);
+            Row totalRow = sheet.createRow(rowIdx++);
+            Cell totalLabelCell = totalRow.createCell(0);
+            totalLabelCell.setCellValue("CỘNG");
+            totalLabelCell.setCellStyle(totalStyle);
 
+            Cell totalOrders = totalRow.createCell(1);
+            totalOrders.setCellFormula("SUM(B" + startRow + ":B" + endRow + ")");
+            totalOrders.setCellStyle(totalStyle);
+
+            Cell totalCancelled = totalRow.createCell(2);
+            totalCancelled.setCellFormula("SUM(C" + startRow + ":C" + endRow + ")");
+            totalCancelled.setCellStyle(totalStyle);
+
+            Cell totalRevenue = totalRow.createCell(3);
+            totalRevenue.setCellFormula("SUM(D" + startRow + ":D" + endRow + ")");
+            totalRevenue.setCellStyle(totalStyle);
+
+            Cell totalCost = totalRow.createCell(4);
+            totalCost.setCellFormula("SUM(E" + startRow + ":E" + endRow + ")");
+            totalCost.setCellStyle(totalStyle);
+
+            Cell totalProfit = totalRow.createCell(5);
+            totalProfit.setCellFormula("SUM(F" + startRow + ":F" + endRow + ")");
+            totalProfit.setCellStyle(totalStyle);
+
+            Cell totalItemsSold = totalRow.createCell(6);
+            totalItemsSold.setCellFormula("SUM(G" + startRow + ":G" + endRow + ")");
+            totalItemsSold.setCellStyle(totalStyle);
+        }
     }
 
     private void fillPurchaseSheet(SXSSFWorkbook workbook, Sheet sheet, CellStyle headerStyle, List<PurchaseReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress, String companyPhone) {
-        int rowIdx = addHeaderInfo(workbook, sheet, "BÁO CÁO NHẬP HÀNG", from, to, companyName, companyAddress, companyPhone, 5);
+        int rowIdx = addHeaderInfo(workbook, sheet, "BÁO CÁO NHẬP HÀNG", from, to, companyName, companyAddress, companyPhone, 7);
 
         Row headerRow = sheet.createRow(rowIdx++);
-        String[] columns = {"Mã NCC", "Tên Nhà Cung Cấp", "Tổng số đơn", "Tổng tiền nhập", "Tổng số loại SP", "Tổng số lượng"};
+        String[] columns = {"Mã NCC", "Tên Nhà Cung Cấp", "Tổng số đơn", "Tổng tiền nhập", "Tổng số loại SP", "Tiền hoàn trả", "Tỉ lệ sai lệch/hủy (%)", "Tổng số lượng"};
         for (int i = 0; i < columns.length; i++) {
             Cell cell = headerRow.createCell(i);
             cell.setCellValue(columns[i]);
@@ -182,6 +217,7 @@ public class ExcelReportServiceImpl implements ExcelReportService {
             sheet.setColumnWidth(i, 20 * 256);
         }
 
+        int startRow = rowIdx + 1;
         for (PurchaseReportResponse rowData : data) {
             Row row = sheet.createRow(rowIdx++);
 
@@ -190,7 +226,41 @@ public class ExcelReportServiceImpl implements ExcelReportService {
             row.createCell(2).setCellValue(rowData.getTotalOrders());
             row.createCell(3).setCellValue(rowData.getTotalAmount() != null ? rowData.getTotalAmount().doubleValue() : 0.0);
             row.createCell(4).setCellValue(rowData.getTotalItemTypes());
-            row.createCell(5).setCellValue(rowData.getTotalQuantity() != null ? rowData.getTotalQuantity().doubleValue() : 0.0);
+            row.createCell(5).setCellValue(rowData.getTotalRefundedAmount() != null ? rowData.getTotalRefundedAmount().doubleValue() : 0.0);
+            row.createCell(6).setCellValue(rowData.getDiscrepancyRate() != null ? rowData.getDiscrepancyRate().doubleValue() : 0.0);
+            row.createCell(7).setCellValue(rowData.getTotalQuantity() != null ? rowData.getTotalQuantity().doubleValue() : 0.0);
+        }
+        int endRow = rowIdx;
+
+        if (!data.isEmpty()) {
+            CellStyle totalStyle = createHeaderStyle(workbook);
+            Row totalRow = sheet.createRow(rowIdx++);
+
+            Cell totalLabelCell = totalRow.createCell(0);
+            totalLabelCell.setCellValue("CỘNG");
+            totalLabelCell.setCellStyle(totalStyle);
+
+            totalRow.createCell(1).setCellStyle(totalStyle);
+
+            Cell totalOrders = totalRow.createCell(2);
+            totalOrders.setCellFormula("SUM(C" + startRow + ":C" + endRow + ")");
+            totalOrders.setCellStyle(totalStyle);
+
+            Cell totalAmount = totalRow.createCell(3);
+            totalAmount.setCellFormula("SUM(D" + startRow + ":D" + endRow + ")");
+            totalAmount.setCellStyle(totalStyle);
+
+            totalRow.createCell(4).setCellStyle(totalStyle);
+
+            Cell totalRefund = totalRow.createCell(5);
+            totalRefund.setCellFormula("SUM(F" + startRow + ":F" + endRow + ")");
+            totalRefund.setCellStyle(totalStyle);
+
+            totalRow.createCell(6).setCellStyle(totalStyle);
+
+            Cell totalQty = totalRow.createCell(7);
+            totalQty.setCellFormula("SUM(H" + startRow + ":H" + endRow + ")");
+            totalQty.setCellStyle(totalStyle);
         }
     }
 
@@ -206,8 +276,10 @@ public class ExcelReportServiceImpl implements ExcelReportService {
             sheet.setColumnWidth(i, 18 * 256);
         }
 
+        int startRow = rowIdx + 1;
         for (InventoryReportResponse rowData : data) {
             Row row = sheet.createRow(rowIdx++);
+            int rowNum = rowIdx;
 
             row.createCell(0).setCellValue(rowData.getItemCode());
             row.createCell(1).setCellValue(rowData.getItemName());
@@ -217,7 +289,45 @@ public class ExcelReportServiceImpl implements ExcelReportService {
             row.createCell(5).setCellValue(rowData.getTotalSold() != null ? rowData.getTotalSold().doubleValue() : 0.0);
             row.createCell(6).setCellValue(rowData.getTotalScrapped() != null ? rowData.getTotalScrapped().doubleValue() : 0.0);
             row.createCell(7).setCellValue(rowData.getShrinkage() != null ? rowData.getShrinkage().doubleValue() : 0.0);
-            row.createCell(8).setCellValue(rowData.getTurnoverRate() != null ? rowData.getTurnoverRate().doubleValue() : 0.0);
+            row.createCell(8).setCellFormula("IF(D" + rowNum + ">0,F" + rowNum + "/D" + rowNum + ",0)");
+        }
+        int endRow = rowIdx;
+
+        if (!data.isEmpty()) {
+            CellStyle totalStyle = createHeaderStyle(workbook);
+            Row totalRow = sheet.createRow(rowIdx++);
+
+            Cell totalLabelCell = totalRow.createCell(0);
+            totalLabelCell.setCellValue("CỘNG");
+            totalLabelCell.setCellStyle(totalStyle);
+
+            totalRow.createCell(1).setCellStyle(totalStyle);
+            totalRow.createCell(2).setCellStyle(totalStyle);
+
+            Cell currentStock = totalRow.createCell(3);
+            currentStock.setCellFormula("SUM(D" + startRow + ":D" + endRow + ")");
+            currentStock.setCellStyle(totalStyle);
+
+            Cell totalPurchased = totalRow.createCell(4);
+            totalPurchased.setCellFormula("SUM(E" + startRow + ":E" + endRow + ")");
+            totalPurchased.setCellStyle(totalStyle);
+
+            Cell totalSold = totalRow.createCell(5);
+            totalSold.setCellFormula("SUM(F" + startRow + ":F" + endRow + ")");
+            totalSold.setCellStyle(totalStyle);
+
+            Cell totalScrapped = totalRow.createCell(6);
+            totalScrapped.setCellFormula("SUM(G" + startRow + ":G" + endRow + ")");
+            totalScrapped.setCellStyle(totalStyle);
+
+            Cell totalShrinkage = totalRow.createCell(7);
+            totalShrinkage.setCellFormula("SUM(H" + startRow + ":H" + endRow + ")");
+            totalShrinkage.setCellStyle(totalStyle);
+
+            Cell totalTurnover = totalRow.createCell(8);
+            int totalRowNum = rowIdx;
+            totalTurnover.setCellFormula("IF(D" + totalRowNum + ">0,F" + totalRowNum + "/D" + totalRowNum + ",0)");
+            totalTurnover.setCellStyle(totalStyle);
         }
     }
 
@@ -318,39 +428,37 @@ public class ExcelReportServiceImpl implements ExcelReportService {
         rowStyle.setBorderRight(BorderStyle.THIN);
         rowStyle.setBorderLeft(BorderStyle.THIN);
 
-        double sumOpVal = 0, sumImVal = 0, sumExVal = 0, sumClVal = 0;
         int stt = 1;
+        int startRow = rowIndex + 1;
 
         for (InventoryNxtReportResponse rowData : data) {
             Row row = sheet.createRow(rowIndex++);
+            int rowNum = rowIndex;
+
             row.createCell(0).setCellValue(stt++);
             row.createCell(1).setCellValue(rowData.getItemCode());
             row.createCell(2).setCellValue(rowData.getItemName());
             row.createCell(3).setCellValue(rowData.getUnitName() != null ? rowData.getUnitName() : "");
 
             row.createCell(4).setCellValue(rowData.getOpeningQty() != null ? rowData.getOpeningQty().doubleValue() : 0.0);
-            row.createCell(5).setCellValue(rowData.getOpeningValue() != null ? rowData.getOpeningValue().doubleValue() : 0.0);
+            row.createCell(5).setCellFormula("E" + rowNum + "*M" + rowNum);
 
             row.createCell(6).setCellValue(rowData.getImportedQty() != null ? rowData.getImportedQty().doubleValue() : 0.0);
-            row.createCell(7).setCellValue(rowData.getImportedValue() != null ? rowData.getImportedValue().doubleValue() : 0.0);
+            row.createCell(7).setCellFormula("G" + rowNum + "*M" + rowNum);
 
             row.createCell(8).setCellValue(rowData.getExportedQty() != null ? rowData.getExportedQty().doubleValue() : 0.0);
-            row.createCell(9).setCellValue(rowData.getExportedValue() != null ? rowData.getExportedValue().doubleValue() : 0.0);
+            row.createCell(9).setCellFormula("I" + rowNum + "*M" + rowNum);
 
-            row.createCell(10).setCellValue(rowData.getClosingQty() != null ? rowData.getClosingQty().doubleValue() : 0.0);
-            row.createCell(11).setCellValue(rowData.getClosingValue() != null ? rowData.getClosingValue().doubleValue() : 0.0);
+            row.createCell(10).setCellFormula("E" + rowNum + "+G" + rowNum + "-I" + rowNum);
+            row.createCell(11).setCellFormula("K" + rowNum + "*M" + rowNum);
 
             row.createCell(12).setCellValue(rowData.getReferencePrice() != null ? rowData.getReferencePrice().doubleValue() : 0.0);
 
             for(int i=0; i<=12; i++) {
                 if (row.getCell(i) != null) row.getCell(i).setCellStyle(rowStyle);
             }
-
-            sumOpVal += (rowData.getOpeningValue() != null ? rowData.getOpeningValue().doubleValue() : 0.0);
-            sumImVal += (rowData.getImportedValue() != null ? rowData.getImportedValue().doubleValue() : 0.0);
-            sumExVal += (rowData.getExportedValue() != null ? rowData.getExportedValue().doubleValue() : 0.0);
-            sumClVal += (rowData.getClosingValue() != null ? rowData.getClosingValue().doubleValue() : 0.0);
         }
+        int endRow = rowIndex;
 
         // 5. Total Row (at bottom)
         CellStyle totalStyle = workbook.createCellStyle();
@@ -368,16 +476,40 @@ public class ExcelReportServiceImpl implements ExcelReportService {
         sheet.addMergedRegion(new CellRangeAddress(rowIndex - 1, rowIndex - 1, 0, 3));
 
         totalRow.createCell(4).setCellStyle(totalStyle); // Empty qty
-        Cell opTotal = totalRow.createCell(5); opTotal.setCellValue(sumOpVal); opTotal.setCellStyle(totalStyle);
+        Cell opTotal = totalRow.createCell(5);
+        opTotal.setCellStyle(totalStyle);
+        if (!data.isEmpty()) {
+            opTotal.setCellFormula("SUM(F" + startRow + ":F" + endRow + ")");
+        } else {
+            opTotal.setCellValue(0.0);
+        }
 
         totalRow.createCell(6).setCellStyle(totalStyle);
-        Cell imTotal = totalRow.createCell(7); imTotal.setCellValue(sumImVal); imTotal.setCellStyle(totalStyle);
+        Cell imTotal = totalRow.createCell(7);
+        imTotal.setCellStyle(totalStyle);
+        if (!data.isEmpty()) {
+            imTotal.setCellFormula("SUM(H" + startRow + ":H" + endRow + ")");
+        } else {
+            imTotal.setCellValue(0.0);
+        }
 
         totalRow.createCell(8).setCellStyle(totalStyle);
-        Cell exTotal = totalRow.createCell(9); exTotal.setCellValue(sumExVal); exTotal.setCellStyle(totalStyle);
+        Cell exTotal = totalRow.createCell(9);
+        exTotal.setCellStyle(totalStyle);
+        if (!data.isEmpty()) {
+            exTotal.setCellFormula("SUM(J" + startRow + ":J" + endRow + ")");
+        } else {
+            exTotal.setCellValue(0.0);
+        }
 
         totalRow.createCell(10).setCellStyle(totalStyle);
-        Cell clTotal = totalRow.createCell(11); clTotal.setCellValue(sumClVal); clTotal.setCellStyle(totalStyle);
+        Cell clTotal = totalRow.createCell(11);
+        clTotal.setCellStyle(totalStyle);
+        if (!data.isEmpty()) {
+            clTotal.setCellFormula("SUM(L" + startRow + ":L" + endRow + ")");
+        } else {
+            clTotal.setCellValue(0.0);
+        }
 
         totalRow.createCell(12).setCellStyle(totalStyle);
     }
@@ -486,6 +618,7 @@ public class ExcelReportServiceImpl implements ExcelReportService {
         sheet.setColumnWidth(3, 15 * 256);
         sheet.setColumnWidth(4, 20 * 256);
 
+        int startRow = rowIdx + 1;
         int stt = 1;
         for (BestSellerReportResponse rowData : data) {
             Row row = sheet.createRow(rowIdx++);
@@ -494,6 +627,27 @@ public class ExcelReportServiceImpl implements ExcelReportService {
             row.createCell(2).setCellValue(safeStr(rowData.getItemName()));
             row.createCell(3).setCellValue(rowData.getQuantitySold() != null ? rowData.getQuantitySold().doubleValue() : 0.0);
             row.createCell(4).setCellValue(rowData.getRevenue() != null ? rowData.getRevenue().doubleValue() : 0.0);
+        }
+        int endRow = rowIdx;
+
+        if (!data.isEmpty()) {
+            CellStyle totalStyle = createHeaderStyle(workbook);
+            Row totalRow = sheet.createRow(rowIdx++);
+
+            Cell totalLabelCell = totalRow.createCell(0);
+            totalLabelCell.setCellValue("CỘNG");
+            totalLabelCell.setCellStyle(totalStyle);
+
+            totalRow.createCell(1).setCellStyle(totalStyle);
+            totalRow.createCell(2).setCellStyle(totalStyle);
+
+            Cell totalQty = totalRow.createCell(3);
+            totalQty.setCellFormula("SUM(D" + startRow + ":D" + endRow + ")");
+            totalQty.setCellStyle(totalStyle);
+
+            Cell totalRev = totalRow.createCell(4);
+            totalRev.setCellFormula("SUM(E" + startRow + ":E" + endRow + ")");
+            totalRev.setCellStyle(totalStyle);
         }
     }
 
@@ -512,6 +666,7 @@ public class ExcelReportServiceImpl implements ExcelReportService {
         sheet.setColumnWidth(2, 15 * 256);
         sheet.setColumnWidth(3, 20 * 256);
 
+        int startRow = rowIdx + 1;
         int stt = 1;
         for (BestSellerCategoryResponse rowData : data) {
             Row row = sheet.createRow(rowIdx++);
@@ -519,6 +674,26 @@ public class ExcelReportServiceImpl implements ExcelReportService {
             row.createCell(1).setCellValue(safeStr(rowData.getCategoryName()));
             row.createCell(2).setCellValue(rowData.getQuantitySold() != null ? rowData.getQuantitySold().doubleValue() : 0.0);
             row.createCell(3).setCellValue(rowData.getRevenue() != null ? rowData.getRevenue().doubleValue() : 0.0);
+        }
+        int endRow = rowIdx;
+
+        if (!data.isEmpty()) {
+            CellStyle totalStyle = createHeaderStyle(workbook);
+            Row totalRow = sheet.createRow(rowIdx++);
+
+            Cell totalLabelCell = totalRow.createCell(0);
+            totalLabelCell.setCellValue("CỘNG");
+            totalLabelCell.setCellStyle(totalStyle);
+
+            totalRow.createCell(1).setCellStyle(totalStyle);
+
+            Cell totalQty = totalRow.createCell(2);
+            totalQty.setCellFormula("SUM(C" + startRow + ":C" + endRow + ")");
+            totalQty.setCellStyle(totalStyle);
+
+            Cell totalRev = totalRow.createCell(3);
+            totalRev.setCellFormula("SUM(D" + startRow + ":D" + endRow + ")");
+            totalRev.setCellStyle(totalStyle);
         }
     }
 
@@ -535,17 +710,49 @@ public class ExcelReportServiceImpl implements ExcelReportService {
         }
         sheet.setColumnWidth(2, 25 * 256);
 
+        int startRow = rowIdx + 1;
         for (CustomerDueReportResponse rowData : data) {
             Row row = sheet.createRow(rowIdx++);
+            int rowNum = rowIdx;
+
             row.createCell(0).setCellValue(rowData.getDebtId() != null ? rowData.getDebtId() : 0);
             row.createCell(1).setCellValue(rowData.getCustomerId() != null ? rowData.getCustomerId() : 0);
             row.createCell(2).setCellValue(safeStr(rowData.getCustomerName()));
             row.createCell(3).setCellValue(rowData.getOrderId() != null ? rowData.getOrderId() : 0);
             row.createCell(4).setCellValue(rowData.getAmount() != null ? rowData.getAmount().doubleValue() : 0.0);
             row.createCell(5).setCellValue(rowData.getPaidAmount() != null ? rowData.getPaidAmount().doubleValue() : 0.0);
-            row.createCell(6).setCellValue(rowData.getRemainingAmount() != null ? rowData.getRemainingAmount().doubleValue() : 0.0);
+            row.createCell(6).setCellFormula("E" + rowNum + "-F" + rowNum);
             row.createCell(7).setCellValue(rowData.getDueDate() != null ? rowData.getDueDate().toString() : "");
             row.createCell(8).setCellValue(customerDebtStatusLabel(rowData.getStatus()));
+        }
+        int endRow = rowIdx;
+
+        if (!data.isEmpty()) {
+            CellStyle totalStyle = createHeaderStyle(workbook);
+            Row totalRow = sheet.createRow(rowIdx++);
+
+            Cell totalLabelCell = totalRow.createCell(0);
+            totalLabelCell.setCellValue("CỘNG");
+            totalLabelCell.setCellStyle(totalStyle);
+
+            for (int i = 1; i <= 3; i++) {
+                totalRow.createCell(i).setCellStyle(totalStyle);
+            }
+
+            Cell totalAmt = totalRow.createCell(4);
+            totalAmt.setCellFormula("SUM(E" + startRow + ":E" + endRow + ")");
+            totalAmt.setCellStyle(totalStyle);
+
+            Cell totalPaid = totalRow.createCell(5);
+            totalPaid.setCellFormula("SUM(F" + startRow + ":F" + endRow + ")");
+            totalPaid.setCellStyle(totalStyle);
+
+            Cell totalRem = totalRow.createCell(6);
+            totalRem.setCellFormula("SUM(G" + startRow + ":G" + endRow + ")");
+            totalRem.setCellStyle(totalStyle);
+
+            totalRow.createCell(7).setCellStyle(totalStyle);
+            totalRow.createCell(8).setCellStyle(totalStyle);
         }
     }
 
@@ -562,17 +769,49 @@ public class ExcelReportServiceImpl implements ExcelReportService {
         }
         sheet.setColumnWidth(2, 25 * 256);
 
+        int startRow = rowIdx + 1;
         for (SupplierDueReportResponse rowData : data) {
             Row row = sheet.createRow(rowIdx++);
+            int rowNum = rowIdx;
+
             row.createCell(0).setCellValue(rowData.getDebtId() != null ? rowData.getDebtId() : 0);
             row.createCell(1).setCellValue(rowData.getSupplierId() != null ? rowData.getSupplierId() : 0);
             row.createCell(2).setCellValue(safeStr(rowData.getSupplierName()));
             row.createCell(3).setCellValue(rowData.getPurchaseOrderId() != null ? rowData.getPurchaseOrderId() : 0);
             row.createCell(4).setCellValue(rowData.getAmount() != null ? rowData.getAmount().doubleValue() : 0.0);
             row.createCell(5).setCellValue(rowData.getPaidAmount() != null ? rowData.getPaidAmount().doubleValue() : 0.0);
-            row.createCell(6).setCellValue(rowData.getRemainingAmount() != null ? rowData.getRemainingAmount().doubleValue() : 0.0);
+            row.createCell(6).setCellFormula("E" + rowNum + "-F" + rowNum);
             row.createCell(7).setCellValue(rowData.getDueDate() != null ? rowData.getDueDate().toString() : "");
             row.createCell(8).setCellValue(supplierDebtStatusLabel(rowData.getStatus()));
+        }
+        int endRow = rowIdx;
+
+        if (!data.isEmpty()) {
+            CellStyle totalStyle = createHeaderStyle(workbook);
+            Row totalRow = sheet.createRow(rowIdx++);
+
+            Cell totalLabelCell = totalRow.createCell(0);
+            totalLabelCell.setCellValue("CỘNG");
+            totalLabelCell.setCellStyle(totalStyle);
+
+            for (int i = 1; i <= 3; i++) {
+                totalRow.createCell(i).setCellStyle(totalStyle);
+            }
+
+            Cell totalAmt = totalRow.createCell(4);
+            totalAmt.setCellFormula("SUM(E" + startRow + ":E" + endRow + ")");
+            totalAmt.setCellStyle(totalStyle);
+
+            Cell totalPaid = totalRow.createCell(5);
+            totalPaid.setCellFormula("SUM(F" + startRow + ":F" + endRow + ")");
+            totalPaid.setCellStyle(totalStyle);
+
+            Cell totalRem = totalRow.createCell(6);
+            totalRem.setCellFormula("SUM(G" + startRow + ":G" + endRow + ")");
+            totalRem.setCellStyle(totalStyle);
+
+            totalRow.createCell(7).setCellStyle(totalStyle);
+            totalRow.createCell(8).setCellStyle(totalStyle);
         }
     }
 
@@ -601,6 +840,7 @@ public class ExcelReportServiceImpl implements ExcelReportService {
         dangerStyle.setFillForegroundColor(IndexedColors.RED.getIndex());
         dangerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
 
+        int startRow = rowIdx + 1;
         for (ProductExpiryReportResponse rowData : data) {
             Row row = sheet.createRow(rowIdx++);
             row.createCell(0).setCellValue(safeStr(rowData.getItemCode()));
@@ -623,6 +863,26 @@ public class ExcelReportServiceImpl implements ExcelReportService {
 
             row.createCell(6).setCellValue(rowData.getQuantity() != null ? rowData.getQuantity().doubleValue() : 0.0);
             row.createCell(7).setCellValue(safeStr(rowData.getLocationName()));
+        }
+        int endRow = rowIdx;
+
+        if (!data.isEmpty()) {
+            CellStyle totalStyle = createHeaderStyle(workbook);
+            Row totalRow = sheet.createRow(rowIdx++);
+
+            Cell totalLabelCell = totalRow.createCell(0);
+            totalLabelCell.setCellValue("CỘNG");
+            totalLabelCell.setCellStyle(totalStyle);
+
+            for (int i = 1; i <= 5; i++) {
+                totalRow.createCell(i).setCellStyle(totalStyle);
+            }
+
+            Cell totalQty = totalRow.createCell(6);
+            totalQty.setCellFormula("SUM(G" + startRow + ":G" + endRow + ")");
+            totalQty.setCellStyle(totalStyle);
+
+            totalRow.createCell(7).setCellStyle(totalStyle);
         }
     }
 
@@ -648,8 +908,12 @@ public class ExcelReportServiceImpl implements ExcelReportService {
         expenseFont.setColor(IndexedColors.RED.getIndex());
         expenseStyle.setFont(expenseFont);
 
-        for (CashFlowReportResponse rowData : data) {
+        int startRow = rowIdx + 1;
+        for (int idx = 0; idx < data.size(); idx++) {
+            CashFlowReportResponse rowData = data.get(idx);
             Row row = sheet.createRow(rowIdx++);
+            int rowNum = rowIdx;
+
             row.createCell(0).setCellValue(rowData.getDate() != null ? rowData.getDate().toString() : "");
 
             String typeStr = rowData.getType() != null ? rowData.getType().name() : "";
@@ -659,7 +923,12 @@ public class ExcelReportServiceImpl implements ExcelReportService {
 
             row.createCell(2).setCellValue(safeStr(rowData.getCategory()));
             row.createCell(3).setCellValue(rowData.getAmount() != null ? rowData.getAmount().doubleValue() : 0.0);
-            row.createCell(4).setCellValue(rowData.getRunningBalance() != null ? rowData.getRunningBalance().doubleValue() : 0.0);
+
+            if (idx == 0) {
+                row.createCell(4).setCellFormula("IF(B" + rowNum + "=\"Thu\",D" + rowNum + ",-D" + rowNum + ")");
+            } else {
+                row.createCell(4).setCellFormula("E" + (rowNum - 1) + "+IF(B" + rowNum + "=\"Thu\",D" + rowNum + ",-D" + rowNum + ")");
+            }
         }
     }
 
@@ -687,22 +956,49 @@ public class ExcelReportServiceImpl implements ExcelReportService {
         lossFont.setBold(true);
         lossStyle.setFont(lossFont);
 
+        int startRow = rowIdx + 1;
         for (ProfitLossReportResponse rowData : data) {
             Row row = sheet.createRow(rowIdx++);
+            int rowNum = rowIdx;
+
             row.createCell(0).setCellValue(rowData.getDate() != null ? rowData.getDate().toString() : "");
             row.createCell(1).setCellValue(rowData.getRevenue() != null ? rowData.getRevenue().doubleValue() : 0.0);
             row.createCell(2).setCellValue(rowData.getCostOfGoods() != null ? rowData.getCostOfGoods().doubleValue() : 0.0);
-            row.createCell(3).setCellValue(rowData.getGrossProfit() != null ? rowData.getGrossProfit().doubleValue() : 0.0);
+            row.createCell(3).setCellFormula("B" + rowNum + "-C" + rowNum);
             row.createCell(4).setCellValue(rowData.getExpenses() != null ? rowData.getExpenses().doubleValue() : 0.0);
 
             Cell netCell = row.createCell(5);
-            double netProfit = rowData.getNetProfit() != null ? rowData.getNetProfit().doubleValue() : 0.0;
-            netCell.setCellValue(netProfit);
-            if (netProfit >= 0) {
-                netCell.setCellStyle(profitStyle);
-            } else {
-                netCell.setCellStyle(lossStyle);
-            }
+            netCell.setCellFormula("D" + rowNum + "-E" + rowNum);
+        }
+        int endRow = rowIdx;
+
+        if (!data.isEmpty()) {
+            CellStyle totalStyle = createHeaderStyle(workbook);
+            Row totalRow = sheet.createRow(rowIdx++);
+
+            Cell totalLabelCell = totalRow.createCell(0);
+            totalLabelCell.setCellValue("CỘNG");
+            totalLabelCell.setCellStyle(totalStyle);
+
+            Cell totalRevenue = totalRow.createCell(1);
+            totalRevenue.setCellFormula("SUM(B" + startRow + ":B" + endRow + ")");
+            totalRevenue.setCellStyle(totalStyle);
+
+            Cell totalCost = totalRow.createCell(2);
+            totalCost.setCellFormula("SUM(C" + startRow + ":C" + endRow + ")");
+            totalCost.setCellStyle(totalStyle);
+
+            Cell totalGross = totalRow.createCell(3);
+            totalGross.setCellFormula("SUM(D" + startRow + ":D" + endRow + ")");
+            totalGross.setCellStyle(totalStyle);
+
+            Cell totalExpenses = totalRow.createCell(4);
+            totalExpenses.setCellFormula("SUM(E" + startRow + ":E" + endRow + ")");
+            totalExpenses.setCellStyle(totalStyle);
+
+            Cell totalNet = totalRow.createCell(5);
+            totalNet.setCellFormula("SUM(F" + startRow + ":F" + endRow + ")");
+            totalNet.setCellStyle(totalStyle);
         }
     }
 
@@ -1058,5 +1354,80 @@ public class ExcelReportServiceImpl implements ExcelReportService {
         if (obj == null) return 0.0;
         if (obj instanceof Number) return ((Number) obj).doubleValue();
         try { return Double.parseDouble(obj.toString()); } catch (Exception e) { return 0.0; }
+    }
+
+    @Override
+    public byte[] generateRefundReport(RefundReportResponse data, LocalDate from, LocalDate to, String companyName, String companyAddress, String companyPhone) throws IOException {
+        try (SXSSFWorkbook workbook = new SXSSFWorkbook(100);
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("Đổi Trả Hoàn Tiền");
+            CellStyle headerStyle = createHeaderStyle(workbook);
+            fillRefundSheet(workbook, sheet, headerStyle, data, from, to, companyName, companyAddress, companyPhone);
+            workbook.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    private void fillRefundSheet(SXSSFWorkbook workbook, Sheet sheet, CellStyle headerStyle, RefundReportResponse data, LocalDate from, LocalDate to, String companyName, String companyAddress, String companyPhone) {
+        int rowIdx = addHeaderInfo(workbook, sheet, "BÁO CÁO ĐỔI TRẢ HOÀN TIỀN KHÁCH HÀNG", from, to, companyName, companyAddress, companyPhone, 4);
+
+        // Summary indices
+        Row cardHeader = sheet.createRow(rowIdx++);
+        cardHeader.createCell(0).setCellValue("Chỉ số tổng quan:");
+
+        Row cardRow = sheet.createRow(rowIdx++);
+        cardRow.createCell(0).setCellValue("Tổng tiền hoàn trả:");
+        cardRow.createCell(1).setCellValue(data.getTotalRefundAmount() != null ? data.getTotalRefundAmount().doubleValue() : 0.0);
+        cardRow.createCell(2).setCellValue("Hoàn trả do hư hại:");
+        cardRow.createCell(3).setCellValue(data.getDamagedRefundAmount() != null ? data.getDamagedRefundAmount().doubleValue() : 0.0);
+        cardRow.createCell(4).setCellValue("Hoàn trả do hết hạn:");
+        cardRow.createCell(5).setCellValue(data.getExpiredRefundAmount() != null ? data.getExpiredRefundAmount().doubleValue() : 0.0);
+        cardRow.createCell(6).setCellValue("Lý do khác:");
+        cardRow.createCell(7).setCellValue(data.getOtherRefundAmount() != null ? data.getOtherRefundAmount().doubleValue() : 0.0);
+
+        sheet.createRow(rowIdx++); // spacer
+
+        Row headerRow = sheet.createRow(rowIdx++);
+        String[] columns = {"Mã Phiếu Trả", "Hóa đơn gốc", "Ngày Trả", "Lý Do Trả", "Tổng Tiền Hoàn"};
+        for (int i = 0; i < columns.length; i++) {
+            Cell cell = headerRow.createCell(i);
+            cell.setCellValue(columns[i]);
+            cell.setCellStyle(headerStyle);
+        }
+        sheet.setColumnWidth(0, 15 * 256);
+        sheet.setColumnWidth(1, 15 * 256);
+        sheet.setColumnWidth(2, 20 * 256);
+        sheet.setColumnWidth(3, 35 * 256);
+        sheet.setColumnWidth(4, 20 * 256);
+
+        int startRow = rowIdx + 1;
+        if (data.getRefundOrders() != null) {
+            for (ReturnOrderResponse rowData : data.getRefundOrders()) {
+                Row row = sheet.createRow(rowIdx++);
+                row.createCell(0).setCellValue("RO-" + rowData.getId());
+                row.createCell(1).setCellValue(safeStr(rowData.getOriginalOrderCode()));
+                row.createCell(2).setCellValue(rowData.getReturnDate() != null ? rowData.getReturnDate().toString() : "");
+                row.createCell(3).setCellValue(safeStr(rowData.getReason()));
+                row.createCell(4).setCellValue(rowData.getRefundAmount() != null ? rowData.getRefundAmount().doubleValue() : 0.0);
+            }
+        }
+        int endRow = rowIdx;
+
+        if (data.getRefundOrders() != null && !data.getRefundOrders().isEmpty()) {
+            CellStyle totalStyle = createHeaderStyle(workbook);
+            Row totalRow = sheet.createRow(rowIdx++);
+
+            Cell totalLabelCell = totalRow.createCell(0);
+            totalLabelCell.setCellValue("CỘNG");
+            totalLabelCell.setCellStyle(totalStyle);
+
+            totalRow.createCell(1).setCellStyle(totalStyle);
+            totalRow.createCell(2).setCellStyle(totalStyle);
+            totalRow.createCell(3).setCellStyle(totalStyle);
+
+            Cell totalRev = totalRow.createCell(4);
+            totalRev.setCellFormula("SUM(E" + startRow + ":E" + endRow + ")");
+            totalRev.setCellStyle(totalStyle);
+        }
     }
 }

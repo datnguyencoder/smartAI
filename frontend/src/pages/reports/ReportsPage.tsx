@@ -17,6 +17,7 @@ import type {
   SupplierDueReportDto,
   ProductExpiryReportDto,
   ProfitLossReportDto,
+  RefundReportDto,
 } from '@/types/api';
 import {
   fetchBestSellers,
@@ -31,6 +32,7 @@ import {
   fetchSalesReport,
   fetchSupplierDueReport,
   exportReport,
+  fetchRefundReport,
 } from '@/services/wmsApi';
 
 // Hooks
@@ -44,6 +46,7 @@ import { PurchaseReportTab } from '@/components/reports/purchase/PurchaseReportT
 import { InventoryReportTab } from '@/components/reports/inventory/InventoryReportTab';
 import { NxtReportTab } from '@/components/reports/nxt/NxtReportTab';
 import { CashFlowReportTab } from '@/components/reports/finance/CashFlowReportTab';
+import { RefundReportTab } from '@/components/reports/refund/RefundReportTab';
 
 type Props = {
   productsList: Product[];
@@ -83,6 +86,7 @@ export default function ReportsPage({ productsList, invoicesList: _invoicesList,
   const [supplierDueData, setSupplierDueData] = React.useState<SupplierDueReportDto[]>([]);
   const [expiryData, setExpiryData] = React.useState<ProductExpiryReportDto[]>([]);
   const [profitLossData, setProfitLossData] = React.useState<ProfitLossReportDto[]>([]);
+  const [refundData, setRefundData] = React.useState<RefundReportDto | null>(null);
   const [inventoryLots, setInventoryLots] = React.useState<InventoryItemDto[]>([]);
   const [loadingLots, setLoadingLots] = React.useState(false);
 
@@ -131,6 +135,8 @@ export default function ReportsPage({ productsList, invoicesList: _invoicesList,
         setProfitLossData(await fetchProfitLossReport(from, to));
       } else if (activeTab === 'profit-loss') {
         setProfitLossData(await fetchProfitLossReport(from, to));
+      } else if (activeTab === 'refund') {
+        setRefundData(await fetchRefundReport(from, to));
       } else {
         const data = await fetchInventoryReport(from, to);
         setInventoryData(data);
@@ -586,6 +592,17 @@ export default function ReportsPage({ productsList, invoicesList: _invoicesList,
                   { title: 'Chi phí', dataIndex: 'expenses', align: 'right', render: (v: number) => `${Number(v).toLocaleString('vi-VN')} đ` },
                   { title: 'Lãi ròng', dataIndex: 'netProfit', align: 'right', render: (v: number) => `${Number(v).toLocaleString('vi-VN')} đ` },
                 ]}
+              />
+            ),
+          },
+          {
+            key: 'refund',
+            label: 'Báo cáo đổi trả',
+            children: (
+              <RefundReportTab
+                refundData={refundData}
+                loading={loading}
+                debouncedSearchText={debouncedSearchText}
               />
             ),
           },

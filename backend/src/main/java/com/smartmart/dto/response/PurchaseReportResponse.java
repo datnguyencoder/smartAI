@@ -13,4 +13,6 @@ public class PurchaseReportResponse {
     private BigDecimal totalAmount;
     private long totalItemTypes;
     private BigDecimal totalQuantity;
+    private BigDecimal totalRefundedAmount;
+    private BigDecimal discrepancyRate;
 }

@@ -15,4 +15,5 @@ public interface PdfReportService {
     byte[] generatePurchaseReport(List<PurchaseReportResponse> data, LocalDate from, LocalDate to, String storeName, String storeAddress, String storePhone);
     byte[] generateInventoryReport(List<InventoryReportResponse> data, LocalDate from, LocalDate to, String storeName, String storeAddress, String storePhone);
     byte[] generateComprehensiveReport(List<SalesReportResponse> sales, List<PurchaseReportResponse> purchases, List<InventoryReportResponse> inventory, List<InventoryNxtReportResponse> nxt, LocalDate from, LocalDate to, String storeName, String storeAddress, String storePhone) throws DocumentException, IOException;
+    byte[] generateRefundReport(com.smartmart.dto.response.RefundReportResponse data, LocalDate from, LocalDate to, String storeName, String storeAddress, String storePhone);
 }

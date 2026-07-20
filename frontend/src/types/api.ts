@@ -514,6 +514,20 @@ export type PurchaseReportDto = {
   totalAmount: number;
   totalItemTypes: number;
   totalQuantity: number;
+  totalRefundedAmount: number;
+  discrepancyRate: number;
+};
+
+export type RefundReportDto = {
+  totalRefundAmount: number;
+  damagedRefundAmount: number;
+  expiredRefundAmount: number;
+  otherRefundAmount: number;
+  totalRefundOrders: number;
+  damagedRefundOrders: number;
+  expiredRefundOrders: number;
+  otherRefundOrders: number;
+  refundOrders: ReturnOrderDto[];
 };
 
 export type InventoryReportDto = {

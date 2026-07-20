@@ -13,6 +13,16 @@ import com.smartmart.repository.OrderRepository;
 import com.smartmart.repository.PurchaseOrderRepository;
 import com.smartmart.repository.CurrentInventoryRepository;
 import com.smartmart.repository.SupplierDebtRepository;
+import com.smartmart.repository.ReturnOrderRepository;
+import com.smartmart.repository.PurchaseReturnOrderRepository;
+import com.smartmart.entity.ReturnOrder;
+import com.smartmart.entity.PurchaseReturnOrder;
+import com.smartmart.entity.PurchaseOrder;
+import com.smartmart.entity.PurchaseOrderItem;
+import com.smartmart.enums.PurchaseStatus;
+import com.smartmart.mapper.WmsResponseMapper;
+import java.util.HashMap;
+import java.util.stream.Collectors;
 import com.smartmart.service.ExcelReportService;
 import com.smartmart.service.PdfReportService;
 import com.smartmart.service.ReportService;
@@ -50,6 +60,8 @@ public class ReportServiceImpl implements ReportService {
     private final SettingService settingService;
     private final ForecastOrchestrationService forecastService;
     private final ReorderRecommendationService reorderService;
+    private final ReturnOrderRepository returnOrderRepository;
+    private final PurchaseReturnOrderRepository purchaseReturnOrderRepository;
 
     public ReportServiceImpl(
             OrderRepository orderRepository,
@@ -62,7 +74,9 @@ public class ReportServiceImpl implements ReportService {
             PdfReportService pdfReportService,
             SettingService settingService,
             ForecastOrchestrationService forecastService,
-            ReorderRecommendationService reorderService) {
+            ReorderRecommendationService reorderService,
+            ReturnOrderRepository returnOrderRepository,
+            PurchaseReturnOrderRepository purchaseReturnOrderRepository) {
         this.orderRepository = orderRepository;
         this.purchaseOrderRepository = purchaseOrderRepository;
         this.currentInventoryRepository = currentInventoryRepository;
@@ -74,6 +88,8 @@ public class ReportServiceImpl implements ReportService {
         this.settingService = settingService;
         this.forecastService = forecastService;
         this.reorderService = reorderService;
+        this.returnOrderRepository = returnOrderRepository;
+        this.purchaseReturnOrderRepository = purchaseReturnOrderRepository;
     }
 
     @Override
@@ -157,16 +173,64 @@ public class ReportServiceImpl implements ReportService {
         LocalDateTime toTime = to.plusDays(1).atStartOfDay();
 
         List<Object[]> rawPurchases = purchaseOrderRepository.reportPurchaseBySupplier(fromTime, toTime);
+        List<PurchaseReturnOrder> returns = purchaseReturnOrderRepository.findByReturnDateBetween(fromTime, toTime);
+        Map<Long, BigDecimal> refundMap = new HashMap<>();
+        for (PurchaseReturnOrder r : returns) {
+            if (r.getSupplier() != null) {
+                refundMap.merge(r.getSupplier().getId(), r.getTotalAmount(), BigDecimal::add);
+            }
+        }
+
+        List<PurchaseOrder> allOrders = purchaseOrderRepository.findAllByPurchaseDateBetween(fromTime, toTime);
+        Map<Long, List<PurchaseOrder>> supplierOrdersMap = new HashMap<>();
+        for (PurchaseOrder po : allOrders) {
+            if (po.getSupplier() != null) {
+                supplierOrdersMap.computeIfAbsent(po.getSupplier().getId(), k -> new ArrayList<>()).add(po);
+            }
+        }
+
         List<PurchaseReportResponse> report = new ArrayList<>();
 
         for (Object[] row : rawPurchases) {
+            Long supplierId = toLong(row[0]);
+            BigDecimal refundedAmount = refundMap.getOrDefault(supplierId, BigDecimal.ZERO);
+
+            List<PurchaseOrder> sOrders = supplierOrdersMap.getOrDefault(supplierId, new ArrayList<>());
+            long totalCount = sOrders.size();
+            long faultyCount = 0;
+            for (PurchaseOrder po : sOrders) {
+                if (po.getStatus() == PurchaseStatus.CANCELLED) {
+                    faultyCount++;
+                } else if (po.getStatus() != PurchaseStatus.PENDING) {
+                    boolean hasDiscrepancy = false;
+                    for (PurchaseOrderItem item : po.getItems()) {
+                        if (item.getOrderedQty().compareTo(item.getReceivedQty()) != 0) {
+                            hasDiscrepancy = true;
+                            break;
+                        }
+                    }
+                    if (hasDiscrepancy) {
+                        faultyCount++;
+                    }
+                }
+            }
+
+            BigDecimal discrepancyRate = BigDecimal.ZERO;
+            if (totalCount > 0) {
+                discrepancyRate = BigDecimal.valueOf(faultyCount)
+                        .multiply(BigDecimal.valueOf(100))
+                        .divide(BigDecimal.valueOf(totalCount), 2, RoundingMode.HALF_UP);
+            }
+
             report.add(PurchaseReportResponse.builder()
-                    .supplierId(toLong(row[0]))
+                    .supplierId(supplierId)
                     .supplierName((String) row[1])
                     .totalOrders(toLong(row[2]))
                     .totalAmount(toBigDecimal(row[3]))
                     .totalItemTypes(toLong(row[4]))
                     .totalQuantity(toBigDecimal(row[5]))
+                    .totalRefundedAmount(refundedAmount)
+                    .discrepancyRate(discrepancyRate)
                     .build());
         }
 
@@ -524,6 +588,9 @@ public class ReportServiceImpl implements ReportService {
                 case "profit-loss":
                     return excelReportService.generateProfitLossReport(
                             getProfitLoss(from, to), from, to, companyName, companyAddress, companyPhone);
+                case "refund":
+                    return excelReportService.generateRefundReport(
+                            getRefundReport(from, to), from, to, companyName, companyAddress, companyPhone);
                 default:
                     throw new IllegalArgumentException("Unknown report type: " + type);
             }
@@ -558,6 +625,8 @@ public class ReportServiceImpl implements ReportService {
                     return pdfReportService.generatePurchaseReport(getPurchaseReport(from, to), from, to, storeName, storeAddress, storePhone);
                 case "inventory":
                     return pdfReportService.generateInventoryReport(getInventoryReport(from, to), from, to, storeName, storeAddress, storePhone);
+                case "refund":
+                    return pdfReportService.generateRefundReport(getRefundReport(from, to), from, to, storeName, storeAddress, storePhone);
                 default:
                     throw new IllegalArgumentException("Unknown report type: " + type);
             }
@@ -624,5 +693,82 @@ public class ReportServiceImpl implements ReportService {
             log.warn("Could not load reorder recommendations for report: {}", e.getMessage());
             return List.of();
         }
+    }
+
+    @Override
+    public RefundReportResponse getRefundReport(LocalDate from, LocalDate to) {
+        if (from == null) {
+            from = LocalDate.now().minusDays(30);
+        }
+        if (to == null) {
+            to = LocalDate.now();
+        }
+
+        LocalDateTime fromTime = from.atStartOfDay();
+        LocalDateTime toTime = to.plusDays(1).atStartOfDay();
+
+        List<ReturnOrder> returns = returnOrderRepository.findByReturnDateBetweenWithDetails(fromTime, toTime);
+
+        BigDecimal totalRefundAmount = BigDecimal.ZERO;
+        BigDecimal damagedRefundAmount = BigDecimal.ZERO;
+        BigDecimal expiredRefundAmount = BigDecimal.ZERO;
+        BigDecimal otherRefundAmount = BigDecimal.ZERO;
+
+        long totalRefundOrders = 0;
+        long damagedRefundOrders = 0;
+        long expiredRefundOrders = 0;
+        long otherRefundOrders = 0;
+
+        List<ReturnOrderResponse> returnOrderResponses = new ArrayList<>();
+
+        for (ReturnOrder ro : returns) {
+            totalRefundOrders++;
+            BigDecimal refund = ro.getRefundAmount();
+            totalRefundAmount = totalRefundAmount.add(refund);
+
+            // Classification by reason keywords (case-insensitive)
+            String reason = ro.getReason() != null ? ro.getReason().toLowerCase() : "";
+            boolean isDamaged = false;
+            boolean isExpired = false;
+
+            // Damaged keywords
+            if (reason.contains("hư hại") || reason.contains("hỏng") || reason.contains("lỗi") ||
+                reason.contains("móp") || reason.contains("nứt") || reason.contains("vỡ") ||
+                reason.contains("rách") || reason.contains("bể") || reason.contains("defect") ||
+                reason.contains("damage")) {
+                isDamaged = true;
+            }
+            // Expired keywords
+            else if (reason.contains("hết hạn") || reason.contains("hết date") ||
+                     reason.contains("quá hạn") || reason.contains("quá date") ||
+                     reason.contains("expired") || reason.contains("outdate")) {
+                isExpired = true;
+            }
+
+            if (isDamaged) {
+                damagedRefundOrders++;
+                damagedRefundAmount = damagedRefundAmount.add(refund);
+            } else if (isExpired) {
+                expiredRefundOrders++;
+                expiredRefundAmount = expiredRefundAmount.add(refund);
+            } else {
+                otherRefundOrders++;
+                otherRefundAmount = otherRefundAmount.add(refund);
+            }
+
+            returnOrderResponses.add(WmsResponseMapper.toReturnOrderResponse(ro));
+        }
+
+        return RefundReportResponse.builder()
+                .totalRefundAmount(totalRefundAmount)
+                .damagedRefundAmount(damagedRefundAmount)
+                .expiredRefundAmount(expiredRefundAmount)
+                .otherRefundAmount(otherRefundAmount)
+                .totalRefundOrders(totalRefundOrders)
+                .damagedRefundOrders(damagedRefundOrders)
+                .expiredRefundOrders(expiredRefundOrders)
+                .otherRefundOrders(otherRefundOrders)
+                .refundOrders(returnOrderResponses)
+                .build();
     }
 }

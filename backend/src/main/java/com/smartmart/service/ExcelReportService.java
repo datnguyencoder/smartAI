@@ -22,6 +22,7 @@ public interface ExcelReportService {
     byte[] generateProductExpiryReport(List<ProductExpiryReportResponse> data, String companyName, String companyAddress, String companyPhone) throws IOException;
     byte[] generateCashFlowReport(List<CashFlowReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress, String companyPhone) throws IOException;
     byte[] generateProfitLossReport(List<ProfitLossReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress, String companyPhone) throws IOException;
+    byte[] generateRefundReport(RefundReportResponse data, LocalDate from, LocalDate to, String companyName, String companyAddress, String companyPhone) throws IOException;
 
     // --- Overloaded methods with AI data ---
     byte[] generateSalesReport(List<SalesReportResponse> data, LocalDate from, LocalDate to, String companyName, String companyAddress, String companyPhone, List<ForecastResultResponse> forecasts) throws IOException;
