@@ -104,7 +104,7 @@ export const navGroups: NavGroup[] = [
       { key: 'expired-products', label: 'Hàng cận hạn', icon: CalendarX },
       { key: 'item-lots', label: 'Lô hàng', icon: Package },
       { key: 'stocktake', label: 'Kiểm kê', icon: ClipboardList },
-      { key: 'scrap-orders', label: 'Loại bỏ', icon: Trash2 },
+      { key: 'scrap-orders', label: 'Hủy hàng', icon: Trash2 },
       { key: 'inventory-alerts', label: 'Cảnh báo', icon: AlertTriangle },
       { key: 'inventory-logs', label: 'Biến động kho', icon: ScrollText },
     ],
