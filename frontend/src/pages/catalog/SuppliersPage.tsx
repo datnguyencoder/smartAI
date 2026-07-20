@@ -46,6 +46,7 @@ export default function SuppliersPage({
   const [supplierItemsLoading, setSupplierItemsLoading] = React.useState(false);
   const [supplierItemPrices, setSupplierItemPrices] = React.useState<Record<number, number>>({});
   const [allDebts, setAllDebts] = React.useState<SupplierDebtDto[]>([]);
+  const [supplierSkuCounts, setSupplierSkuCounts] = React.useState<Record<number, number>>({});
 
   React.useEffect(() => {
     fetchSupplierDebts().then(setAllDebts).catch(() => setAllDebts([]));
@@ -76,11 +77,38 @@ export default function SuppliersPage({
     return fuzzySearch(suppliers, ['supplierName', 'contactPerson', 'phone'], searchQuery);
   }, [suppliers, searchQuery]);
 
+  React.useEffect(() => {
+    let cancelled = false;
+
+    if (suppliers.length === 0) {
+      setSupplierSkuCounts({});
+      return;
+    }
+
+    Promise.all(
+      suppliers.map(async (supplier) => {
+        try {
+          const items = await fetchSupplierItems(supplier.id);
+          return [supplier.id, items.length] as const;
+        } catch {
+          return [supplier.id, 0] as const;
+        }
+      })
+    ).then((entries) => {
+      if (!cancelled) setSupplierSkuCounts(Object.fromEntries(entries));
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [suppliers]);
+
   const loadSupplierItems = async (supplierId: number) => {
     setSupplierItemsLoading(true);
     try {
       const data = await fetchSupplierItems(supplierId);
       setSupplierItems(data);
+      setSupplierSkuCounts((prev) => ({ ...prev, [supplierId]: data.length }));
       setSupplierItemPrices(
         Object.fromEntries(
           data
@@ -367,7 +395,9 @@ export default function SuppliersPage({
           </div>
         </div>
         <div className="grid gap-3 px-5 py-5 md:grid-cols-2">
-          {filteredSuppliers.map((sup) => (
+          {filteredSuppliers.map((sup) => {
+            const skuCount = supplierSkuCounts[sup.id];
+            return (
             <motion.div whileHover={{ y: -3 }} onClick={() => handleOpen(sup)} className="cursor-pointer rounded-xl border border-line bg-slate-50 p-4 transition-colors hover:bg-slate-100 hover:border-indigo-300" key={sup.id}>
               <div className="mb-4 flex items-center justify-between">
                 <div className="grid h-10 w-10 place-items-center rounded-lg bg-indigo-50 text-indigo">
@@ -378,10 +408,11 @@ export default function SuppliersPage({
               <strong className="text-ink text-base">{sup.supplierName}</strong>
               <p className="text-xs text-muted mt-0.5">{sup.contactPerson ?? '—'} · {sup.phone ?? '—'}</p>
               <div className="mt-3 border-t border-slate-100 pt-2 text-xs text-slate-500">
-                {productsList.length} SKU trong hệ thống
+                {skuCount ?? '...'} SKU đã gán
               </div>
             </motion.div>
-          ))}
+            );
+          })}
         </div>
       </Card>
       </div>
