@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -47,6 +48,9 @@ public interface PurchaseOrderRepository
       GROUP BY s.id, s.supplier_name
       ORDER BY total_amount DESC
       """, nativeQuery = true)
-  List<Object[]> reportPurchaseBySupplier(LocalDateTime from, LocalDateTime to);
+  List<Object[]> reportPurchaseBySupplier(java.time.LocalDateTime from, java.time.LocalDateTime to);
 
+  @EntityGraph(attributePaths = {"supplier", "items"})
+  @Query("SELECT DISTINCT po FROM PurchaseOrder po WHERE po.purchaseDate >= :from AND po.purchaseDate < :to")
+  List<PurchaseOrder> findAllByPurchaseDateBetween(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
 }

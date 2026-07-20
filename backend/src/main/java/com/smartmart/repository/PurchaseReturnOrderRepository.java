@@ -13,4 +13,7 @@ public interface PurchaseReturnOrderRepository extends JpaRepository<PurchaseRet
 
     @EntityGraph(attributePaths = {"supplier", "location", "items", "items.item"})
     List<PurchaseReturnOrder> findAllByOrderByCreatedAtDesc();
+
+    @EntityGraph(attributePaths = {"supplier"})
+    List<PurchaseReturnOrder> findByReturnDateBetween(java.time.LocalDateTime from, java.time.LocalDateTime to);
 }

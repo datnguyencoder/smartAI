@@ -155,9 +155,19 @@ public class ReportController {
         return ResponseEntity.ok(ApiResponse.success(reportService.getProfitLoss(from, to)));
     }
 
+    @GetMapping("/refund-statistics")
+    @Operation(summary = "Báo cáo đổi trả hoàn tiền")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','ANALYST')")
+    public ResponseEntity<ApiResponse<RefundReportResponse>> getRefundReport(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        validateDateRange(from, to);
+        return ResponseEntity.ok(ApiResponse.success(reportService.getRefundReport(from, to)));
+    }
+
     @GetMapping("/export")
     @Operation(summary = "Xuất báo cáo dưới dạng Excel hoặc PDF")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER') or (hasRole('WAREHOUSE') and (#type == 'inventory' or #type == 'purchase' or #type == 'product-expiry')) or (hasRole('ANALYST') and (#type == 'customer-due' or #type == 'supplier-due' or #type == 'cash-flow' or #type == 'profit-loss' or #type == 'nxt' or #type == 'sales' or #type == 'best-sellers' or #type == 'best-seller-categories'))")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER') or (hasRole('WAREHOUSE') and (#type == 'inventory' or #type == 'purchase' or #type == 'product-expiry')) or (hasRole('ANALYST') and (#type == 'customer-due' or #type == 'supplier-due' or #type == 'cash-flow' or #type == 'profit-loss' or #type == 'nxt' or #type == 'sales' or #type == 'best-sellers' or #type == 'best-seller-categories' or #type == 'refund'))")
     public ResponseEntity<org.springframework.core.io.Resource> exportReport(
             @RequestParam String type,
             @RequestParam String format,

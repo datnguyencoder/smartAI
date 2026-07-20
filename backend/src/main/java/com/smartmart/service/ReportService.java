@@ -17,6 +17,7 @@ public interface ReportService {
     List<ProductExpiryReportResponse> getProductExpiry();
     List<CashFlowReportResponse> getCashFlow(LocalDate from, LocalDate to);
     List<ProfitLossReportResponse> getProfitLoss(LocalDate from, LocalDate to);
+    RefundReportResponse getRefundReport(LocalDate from, LocalDate to);
 
     byte[] exportExcel(String type, LocalDate from, LocalDate to, String groupBy);
     byte[] exportNxtExcel(LocalDate from, LocalDate to);

@@ -9,6 +9,8 @@ import com.smartmart.dto.response.InventoryReportResponse;
 import com.smartmart.dto.response.PurchaseReportResponse;
 import com.smartmart.dto.response.SalesReportResponse;
 import com.smartmart.dto.response.InventoryNxtReportResponse;
+import com.smartmart.dto.response.RefundReportResponse;
+import com.smartmart.dto.response.ReturnOrderResponse;
 import com.smartmart.util.ChartGeneratorUtil;
 import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.data.general.DefaultPieDataset;
@@ -120,8 +122,15 @@ public class PdfReportServiceImpl implements PdfReportService {
             Paragraph period = new Paragraph(String.format("Kỳ báo cáo: %s đến %s", from, to),
                     getVietnameseFont(12, Font.NORMAL));
             period.setAlignment(Element.ALIGN_CENTER);
-            period.setSpacingAfter(15);
+            period.setSpacingAfter(5);
             document.add(period);
+
+            Paragraph generatedTime = new Paragraph(
+                    "Thời gian xuất: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy")),
+                    getVietnameseFont(10, Font.ITALIC));
+            generatedTime.setAlignment(Element.ALIGN_CENTER);
+            generatedTime.setSpacingAfter(15);
+            document.add(generatedTime);
 
             generateSalesSection(document, data);
 
@@ -155,8 +164,15 @@ public class PdfReportServiceImpl implements PdfReportService {
             Paragraph period = new Paragraph(String.format("Kỳ báo cáo: %s đến %s", from, to),
                     getVietnameseFont(12, Font.NORMAL));
             period.setAlignment(Element.ALIGN_CENTER);
-            period.setSpacingAfter(15);
+            period.setSpacingAfter(5);
             document.add(period);
+
+            Paragraph generatedTime = new Paragraph(
+                    "Thời gian xuất: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy")),
+                    getVietnameseFont(10, Font.ITALIC));
+            generatedTime.setAlignment(Element.ALIGN_CENTER);
+            generatedTime.setSpacingAfter(15);
+            document.add(generatedTime);
 
             generatePurchaseSection(document, data);
 
@@ -190,8 +206,15 @@ public class PdfReportServiceImpl implements PdfReportService {
             Paragraph period = new Paragraph(String.format("Kỳ báo cáo: %s đến %s", from, to),
                     getVietnameseFont(12, Font.NORMAL));
             period.setAlignment(Element.ALIGN_CENTER);
-            period.setSpacingAfter(15);
+            period.setSpacingAfter(5);
             document.add(period);
+
+            Paragraph generatedTime = new Paragraph(
+                    "Thời gian xuất: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy")),
+                    getVietnameseFont(10, Font.ITALIC));
+            generatedTime.setAlignment(Element.ALIGN_CENTER);
+            generatedTime.setSpacingAfter(15);
+            document.add(generatedTime);
 
             generateInventorySection(document, data);
 
@@ -483,12 +506,12 @@ public class PdfReportServiceImpl implements PdfReportService {
         document.add(chartImg);
 
         // Table
-        PdfPTable table = new PdfPTable(4);
+        PdfPTable table = new PdfPTable(6);
         table.setWidthPercentage(100);
         table.setHeaderRows(1);
         table.setSpacingBefore(10);
 
-        String[] headers = { "Tên Nhà Cung Cấp", "Tổng đơn", "Tổng tiền nhập", "Tổng SL SP" };
+        String[] headers = { "Tên Nhà Cung Cấp", "Tổng đơn", "Tổng tiền nhập", "Tiền hoàn trả", "Tỉ lệ sai lệch/hủy", "Tổng SL SP" };
         for (String h : headers) {
             PdfPCell cell = new PdfPCell(new Phrase(h, getVietnameseFont(11, Font.BOLD)));
             cell.setBackgroundColor(Color.LIGHT_GRAY);
@@ -499,6 +522,10 @@ public class PdfReportServiceImpl implements PdfReportService {
             table.addCell(new Phrase(row.getSupplierName(), normalFont));
             table.addCell(new Phrase(String.format("%,d", row.getTotalOrders()), normalFont));
             table.addCell(new Phrase(row.getTotalAmount() != null ? String.format("%,.0f", row.getTotalAmount()) : "0",
+                    normalFont));
+            table.addCell(new Phrase(row.getTotalRefundedAmount() != null ? String.format("%,.0f", row.getTotalRefundedAmount()) : "0",
+                    normalFont));
+            table.addCell(new Phrase(row.getDiscrepancyRate() != null ? String.format("%.1f%%", row.getDiscrepancyRate()) : "0.0%",
                     normalFont));
             table.addCell(new Phrase(
                     row.getTotalQuantity() != null ? String.format("%,.0f", row.getTotalQuantity()) : "0", normalFont));
@@ -672,5 +699,123 @@ public class PdfReportServiceImpl implements PdfReportService {
                     new Phrase(text, footerFont),
                     document.right(), document.bottom() - 10, 0);
         }
+    }
+
+    @Override
+    public byte[] generateRefundReport(RefundReportResponse data, LocalDate from, LocalDate to, String storeName, String storeAddress, String storePhone) {
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Document document = new Document(PageSize.A4.rotate(), 36, 36, 36, 50);
+            PdfWriter writer = PdfWriter.getInstance(document, out);
+            writer.setPageEvent(new ReportHeaderFooterEvent(footerText, getVietnameseFont(10, Font.ITALIC)));
+
+            document.addTitle("Báo Cáo Đổi Trả Hoàn Tiền");
+            document.addAuthor(storeName);
+            document.addCreationDate();
+
+            document.open();
+
+            addLetterhead(document, storeName, storeAddress, storePhone);
+
+            Paragraph title = new Paragraph("BÁO CÁO ĐỔI TRẢ HOÀN TIỀN KHÁCH HÀNG", getVietnameseFont(22, Font.BOLD));
+            title.setAlignment(Element.ALIGN_CENTER);
+            title.setSpacingAfter(5);
+            document.add(title);
+
+            Paragraph period = new Paragraph(String.format("Kỳ báo cáo: %s đến %s", from, to),
+                    getVietnameseFont(12, Font.NORMAL));
+            period.setAlignment(Element.ALIGN_CENTER);
+            period.setSpacingAfter(5);
+            document.add(period);
+
+            Paragraph generatedTime = new Paragraph(
+                    "Thời gian xuất: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy")),
+                    getVietnameseFont(10, Font.ITALIC));
+            generatedTime.setAlignment(Element.ALIGN_CENTER);
+            generatedTime.setSpacingAfter(15);
+            document.add(generatedTime);
+
+            generateRefundSection(document, data);
+
+            document.close();
+            return out.toByteArray();
+        } catch (Exception e) {
+            throw new RuntimeException("Error generating refund PDF report", e);
+        }
+    }
+
+    private void generateRefundSection(Document document, RefundReportResponse data)
+            throws DocumentException, IOException {
+        Font headerFont = getVietnameseFont(16, Font.BOLD);
+        Font normalFont = getVietnameseFont(11, Font.NORMAL);
+
+        document.add(new Paragraph("PHẦN I - CHỈ SỐ HOÀN TIỀN", headerFont));
+        document.add(new Paragraph(" "));
+
+        // Pie chart for breakdown
+        DefaultPieDataset pieData = new DefaultPieDataset();
+        double damaged = data.getDamagedRefundAmount() != null ? data.getDamagedRefundAmount().doubleValue() : 0.0;
+        double expired = data.getExpiredRefundAmount() != null ? data.getExpiredRefundAmount().doubleValue() : 0.0;
+        double other = data.getOtherRefundAmount() != null ? data.getOtherRefundAmount().doubleValue() : 0.0;
+
+        if (damaged > 0 || expired > 0 || other > 0) {
+            pieData.setValue("Hư hại / Hỏng", damaged);
+            pieData.setValue("Hết hạn sử dụng", expired);
+            pieData.setValue("Lý do khác", other);
+
+            byte[] pieChart = chartUtil.createDonutChart("Tỷ lệ phân loại hoàn tiền", pieData, 600, 260);
+            Image chartImg = Image.getInstance(pieChart);
+            chartImg.setAlignment(Element.ALIGN_CENTER);
+            chartImg.setSpacingAfter(15);
+            document.add(chartImg);
+        }
+
+        // Summary Statistics Table
+        PdfPTable statsTable = new PdfPTable(4);
+        statsTable.setWidthPercentage(100);
+        statsTable.setSpacingBefore(10);
+        statsTable.setSpacingAfter(15);
+
+        String[] statHeaders = { "Tổng hoàn tiền", "Hoàn trả do Hư hại", "Hoàn trả do Hết hạn", "Lý do khác" };
+        for (String h : statHeaders) {
+            PdfPCell cell = new PdfPCell(new Phrase(h, getVietnameseFont(11, Font.BOLD)));
+            cell.setBackgroundColor(Color.LIGHT_GRAY);
+            cell.setPadding(6);
+            cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+            statsTable.addCell(cell);
+        }
+
+        statsTable.addCell(new Phrase(data.getTotalRefundAmount() != null ? String.format("%,.0f đ", data.getTotalRefundAmount()) : "0 đ", normalFont));
+        statsTable.addCell(new Phrase(data.getDamagedRefundAmount() != null ? String.format("%,.0f đ", data.getDamagedRefundAmount()) : "0 đ", normalFont));
+        statsTable.addCell(new Phrase(data.getExpiredRefundAmount() != null ? String.format("%,.0f đ", data.getExpiredRefundAmount()) : "0 đ", normalFont));
+        statsTable.addCell(new Phrase(data.getOtherRefundAmount() != null ? String.format("%,.0f đ", data.getOtherRefundAmount()) : "0 đ", normalFont));
+        document.add(statsTable);
+
+        document.add(new Paragraph("PHẦN II - CHI TIẾT PHIẾU ĐỔI TRẢ", headerFont));
+        document.add(new Paragraph(" "));
+
+        // Details Table
+        PdfPTable table = new PdfPTable(5);
+        table.setWidthPercentage(100);
+        table.setHeaderRows(1);
+        table.setSpacingBefore(10);
+
+        String[] headers = { "Mã Phiếu Trả", "Hóa đơn gốc", "Ngày Trả", "Lý Do Trả", "Tổng Tiền Hoàn" };
+        for (String h : headers) {
+            PdfPCell cell = new PdfPCell(new Phrase(h, getVietnameseFont(11, Font.BOLD)));
+            cell.setBackgroundColor(Color.LIGHT_GRAY);
+            cell.setPadding(6);
+            table.addCell(cell);
+        }
+
+        if (data.getRefundOrders() != null) {
+            for (ReturnOrderResponse row : data.getRefundOrders()) {
+                table.addCell(new Phrase("RO-" + row.getId(), normalFont));
+                table.addCell(new Phrase(row.getOriginalOrderCode() != null ? row.getOriginalOrderCode() : "", normalFont));
+                table.addCell(new Phrase(row.getReturnDate() != null ? row.getReturnDate().toString() : "", normalFont));
+                table.addCell(new Phrase(row.getReason() != null ? row.getReason() : "", normalFont));
+                table.addCell(new Phrase(row.getRefundAmount() != null ? String.format("%,.0f", row.getRefundAmount()) : "0", normalFont));
+            }
+        }
+        document.add(table);
     }
 }

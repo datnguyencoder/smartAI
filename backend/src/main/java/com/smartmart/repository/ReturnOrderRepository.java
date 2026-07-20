@@ -98,4 +98,11 @@ public interface ReturnOrderRepository extends JpaRepository<ReturnOrder, Long> 
             @Param("shiftId") Long shiftId,
             @Param("status") ReturnOrderStatus status
     );
+
+    @EntityGraph(attributePaths = {"originalOrder", "items", "items.item", "items.lot"})
+    @Query("SELECT DISTINCT ro FROM ReturnOrder ro WHERE ro.returnDate >= :from AND ro.returnDate < :to ORDER BY ro.returnDate DESC")
+    List<ReturnOrder> findByReturnDateBetweenWithDetails(
+            @Param("from") java.time.LocalDateTime from,
+            @Param("to") java.time.LocalDateTime to
+    );
 }
