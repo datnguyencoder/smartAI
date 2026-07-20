@@ -1032,7 +1032,12 @@ export default function PosPage({
             )}
 
             <div className="flex gap-2">
-              <UiButton className="flex-1" variant="secondary" onClick={handleParkOrder} disabled={posCart.length === 0}>
+              <UiButton
+                className="flex-1 border border-[#2563EB] bg-[#2563EB] text-white hover:border-[#1D4ED8] hover:bg-[#1D4ED8] focus:ring-blue-500/40"
+                variant="primary"
+                onClick={handleParkOrder}
+                disabled={posCart.length === 0}
+              >
                 <PauseCircle size={16} className="mr-1 inline" /> Giữ đơn
               </UiButton>
               <Popconfirm
@@ -1042,8 +1047,12 @@ export default function PosPage({
                 cancelText="Quay lại"
                 onConfirm={resetTransaction}
               >
-                <UiButton className="flex-1" variant="secondary" disabled={posCart.length === 0}>
-                  <RotateCcw size={16} className="mr-1 inline" /> Reset
+                <UiButton
+                  className="flex-1 border-[#D1D5DB] text-[#6B7280] hover:border-[#9CA3AF] hover:bg-[#F3F4F6] hover:text-[#374151] focus:ring-slate-400/40"
+                  variant="ghost"
+                  disabled={posCart.length === 0}
+                >
+                  <RotateCcw size={16} className="mr-1 inline" /> Đặt lại
                 </UiButton>
               </Popconfirm>
             </div>
