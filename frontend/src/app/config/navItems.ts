@@ -24,7 +24,6 @@ import {
   BadgePercent,
   Inbox,
   RotateCcw,
-  WalletCards,
   Printer,
   CalendarX,
   Tag,
@@ -120,7 +119,6 @@ export const navGroups: NavGroup[] = [
       { key: 'discount-plans', label: 'Kế hoạch giảm giá', icon: BadgePercent },
       { key: 'ai-assistant', label: 'Trợ lý AI', icon: antdNavIcon(CommentOutlined) },
       { key: 'reports', label: 'Báo cáo', icon: BarChart3, section: 'Báo cáo' },
-      { key: 'finance', label: 'Thu chi', icon: WalletCards },
     ],
   },
   {

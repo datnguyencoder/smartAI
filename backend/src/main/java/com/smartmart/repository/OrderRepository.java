@@ -11,10 +11,46 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
 public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecificationExecutor<Order> {
+    @Query("""
+        SELECT COALESCE(SUM(o.totalAmount), 0)
+        FROM Order o
+        WHERE o.status = com.smartmart.enums.OrderStatus.COMPLETED
+        """)
+    BigDecimal sumAllCompletedRevenue();
+
+    @Query("""
+        SELECT COALESCE(SUM(o.totalAmount), 0)
+        FROM Order o
+        WHERE o.status = com.smartmart.enums.OrderStatus.COMPLETED
+          AND o.orderDate >= :from
+          AND o.orderDate < :to
+        """)
+    BigDecimal sumCompletedRevenueBetween(
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to
+    );
+
+    @Query("""
+        SELECT COALESCE(SUM(o.totalAmount), 0)
+        FROM Order o
+        WHERE o.status = com.smartmart.enums.OrderStatus.COMPLETED
+          AND o.orderDate >= :from
+        """)
+    BigDecimal sumCompletedRevenueFrom(@Param("from") LocalDateTime from);
+
+    @Query("""
+        SELECT COALESCE(SUM(o.totalAmount), 0)
+        FROM Order o
+        WHERE o.status = com.smartmart.enums.OrderStatus.COMPLETED
+          AND o.orderDate < :to
+        """)
+    BigDecimal sumCompletedRevenueBefore(@Param("to") LocalDateTime to);
+
     @Query("""
     SELECT o FROM Order o
     WHERE (:status IS NULL OR o.status = :status)

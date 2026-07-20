@@ -9,8 +9,45 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 public interface ReturnOrderRepository extends JpaRepository<ReturnOrder, Long> {
+    @Query("""
+        SELECT COALESCE(SUM(r.refundAmount), 0)
+        FROM ReturnOrder r
+        WHERE r.status = com.smartmart.enums.ReturnOrderStatus.COMPLETED
+        """)
+    BigDecimal sumAllCompletedRefunds();
+
+    @Query("""
+        SELECT COALESCE(SUM(r.refundAmount), 0)
+        FROM ReturnOrder r
+        WHERE r.status = com.smartmart.enums.ReturnOrderStatus.COMPLETED
+          AND r.returnDate >= :from
+          AND r.returnDate < :to
+        """)
+    BigDecimal sumCompletedRefundsBetween(
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to
+    );
+
+    @Query("""
+        SELECT COALESCE(SUM(r.refundAmount), 0)
+        FROM ReturnOrder r
+        WHERE r.status = com.smartmart.enums.ReturnOrderStatus.COMPLETED
+          AND r.returnDate >= :from
+        """)
+    BigDecimal sumCompletedRefundsFrom(@Param("from") LocalDateTime from);
+
+    @Query("""
+        SELECT COALESCE(SUM(r.refundAmount), 0)
+        FROM ReturnOrder r
+        WHERE r.status = com.smartmart.enums.ReturnOrderStatus.COMPLETED
+          AND r.returnDate < :to
+        """)
+    BigDecimal sumCompletedRefundsBefore(@Param("to") LocalDateTime to);
+
 
     @EntityGraph(attributePaths = {"originalOrder", "items", "items.item", "items.lot"})
     @Query("SELECT ro FROM ReturnOrder ro WHERE ro.id = :id")

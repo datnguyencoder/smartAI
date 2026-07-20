@@ -39,7 +39,7 @@ const pageTitles: Record<PageKey, { title: string }> = {
   'discount-plans': { title: 'Kế hoạch giảm giá' },
   'ai-assistant': { title: 'Trợ lý AI' },
   reports: { title: 'Báo cáo hệ thống' },
-  finance: { title: 'Thu chi' },
+  finance: { title: 'Báo cáo dòng tiền' },
   users: { title: 'Người dùng' },
   settings: { title: 'Cài đặt hệ thống' },
   'scrap-orders': { title: 'Quản lý hủy hàng' },

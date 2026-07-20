@@ -31,8 +31,8 @@ export const pageTitles: Record<PageKey, { title: string; description: string }>
   'promotion-manage': { title: 'Quản lý mã KM', description: 'Tạo mã giảm giá, thời hạn áp dụng và dùng ngay tại POS.' },
   'discount-plans': { title: 'Kế hoạch giảm giá', description: 'Quy tắc giảm giá theo danh mục, sản phẩm hoặc toàn cửa hàng.' },
   'ai-assistant': { title: 'Trợ lý AI', description: 'Hỏi đáp nghiệp vụ, phân tích bán hàng và tạo tác vụ nhanh.' },
-  reports: { title: 'Báo cáo hệ thống', description: 'Báo cáo doanh thu, tồn kho, nhân sự và hiệu quả AI.' },
-  finance: { title: 'Thu chi', description: 'Ghi nhận khoản thu, khoản chi và theo dõi dòng tiền cửa hàng.' },
+  reports: { title: 'Báo cáo hệ thống', description: 'Doanh thu, dòng tiền, tồn kho, công nợ và hiệu quả cửa hàng.' },
+  finance: { title: 'Báo cáo hệ thống', description: 'Doanh thu, dòng tiền, tồn kho, công nợ và hiệu quả cửa hàng.' },
   users: { title: 'Quản lý người dùng', description: 'Phân quyền nhân viên, vai trò và nhật ký truy cập.' },
   settings: { title: 'Cài đặt hệ thống', description: 'Cấu hình cửa hàng, AI, cảnh báo và tích hợp.' },
   'audit-logs': {
