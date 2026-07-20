@@ -30,6 +30,7 @@ import com.smartmart.repository.ShiftRepository;
 import com.smartmart.repository.UserRepository;
 import com.smartmart.security.SecurityUtils;
 import com.smartmart.service.AuditLogService;
+import com.smartmart.service.FinanceService;
 import com.smartmart.service.ShiftService;
 import com.smartmart.util.AuditData;
 import org.springframework.stereotype.Service;
@@ -55,6 +56,7 @@ public class ShiftServiceImpl implements ShiftService {
     private final ReturnOrderRepository returnOrderRepository;
     private final AuditLogService auditLogService;
     private final UserRepository userRepository;
+    private final FinanceService financeService;
 
     public ShiftServiceImpl(
             ShiftRepository shiftRepository,
@@ -62,7 +64,8 @@ public class ShiftServiceImpl implements ShiftService {
             OrderPaymentRepository orderPaymentRepository,
             ReturnOrderRepository returnOrderRepository,
             AuditLogService auditLogService,
-            UserRepository userRepository
+            UserRepository userRepository,
+            FinanceService financeService
     ) {
         this.shiftRepository = shiftRepository;
         this.orderRepository = orderRepository;
@@ -70,6 +73,7 @@ public class ShiftServiceImpl implements ShiftService {
         this.returnOrderRepository = returnOrderRepository;
         this.auditLogService = auditLogService;
         this.userRepository = userRepository;
+        this.financeService = financeService;
     }
 
     @Override
@@ -283,7 +287,10 @@ public class ShiftServiceImpl implements ShiftService {
                 .map(ShiftSummaryResponse::getNonCashSales).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal totalRefunded = summaries.stream()
                 .map(ShiftSummaryResponse::getRefundAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal currentStoreMoney = totalCashCollected.add(totalNonCashCollected).subtract(totalRefunded);
+        BigDecimal shiftRecordedMoney = totalCashCollected.add(totalNonCashCollected).subtract(totalRefunded);
+        BigDecimal currentStoreMoney = SecurityUtils.hasAnyRole("ADMIN", "MANAGER")
+                ? financeService.summary(null, null).getCurrentStoreMoney()
+                : shiftRecordedMoney;
         BigDecimal currentCashDrawerAmount = summaries.stream()
                 .filter(summary -> ShiftStatus.OPEN.name().equals(summary.getStatus()))
                 .map(ShiftSummaryResponse::getCashDrawerEndingAmount)

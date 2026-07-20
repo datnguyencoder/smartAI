@@ -52,7 +52,7 @@ type Props = {
   initialTab?: string;
 };
 
-export default function ReportsPage({ productsList, invoicesList: _invoicesList, authUser, initialTab = 'sales' }: Props) {
+export default function ReportsPage({ productsList, invoicesList: _invoicesList, authUser, initialTab = 'cash-flow' }: Props) {
   const [activeTab, setActiveTab] = React.useState(initialTab);
   const [dateRange, setDateRange] = React.useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(() => [
     dayjs().subtract(30, 'day'),
@@ -388,6 +388,21 @@ export default function ReportsPage({ productsList, invoicesList: _invoicesList,
         onChange={setActiveTab}
         items={[
           {
+            key: 'cash-flow',
+            label: 'Dòng tiền',
+            children: (
+              <CashFlowReportTab
+                dateRange={dateRange}
+                setDateRange={setDateRange}
+                profitLossData={profitLossData}
+                reportLoading={loading}
+                searchText={debouncedSearchText}
+                canManage={authUser.role === 'ROLE_ADMIN' || authUser.role === 'ROLE_MANAGER'}
+                onDataChanged={loadReport}
+              />
+            ),
+          },
+          {
             key: 'sales',
             label: 'Báo cáo bán hàng',
             children: (
@@ -552,21 +567,6 @@ export default function ReportsPage({ productsList, invoicesList: _invoicesList,
                   { title: 'Còn (ngày)', dataIndex: 'daysUntilExpiry' },
                   { title: 'SL', dataIndex: 'quantity', align: 'right' },
                 ]}
-              />
-            ),
-          },
-          {
-            key: 'cash-flow',
-            label: 'Dòng tiền',
-            children: (
-              <CashFlowReportTab
-                dateRange={dateRange}
-                setDateRange={setDateRange}
-                profitLossData={profitLossData}
-                reportLoading={loading}
-                searchText={debouncedSearchText}
-                canManage={authUser.role === 'ROLE_ADMIN' || authUser.role === 'ROLE_MANAGER'}
-                onDataChanged={loadReport}
               />
             ),
           },

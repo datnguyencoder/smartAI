@@ -223,15 +223,19 @@ export default function ShiftsPage() {
     <div className="px-5 pb-5 space-y-5">
       <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
         <Row gutter={[16, 16]}>
-          <Col xs={24} md={6}><Statistic title="Tổng tiền hiện có của cửa hàng" value={formatMoney(dashboard?.currentStoreMoney ?? 0)} /></Col>
+          <Col xs={24} md={6}><Statistic title="Tiền cửa hàng hiện tại (toàn hệ thống)" value={formatMoney(dashboard?.currentStoreMoney ?? 0)} /></Col>
           <Col xs={24} md={6}><Statistic title="Tiền mặt trong két hiện tại" value={formatMoney(dashboard?.currentCashDrawerAmount ?? 0)} /></Col>
-          <Col xs={24} md={6}><Statistic title="Tổng tiền mặt đã thu" value={formatMoney(dashboard?.totalCashCollected ?? 0)} /></Col>
-          <Col xs={24} md={6}><Statistic title="Thanh toán không tiền mặt" value={formatMoney(dashboard?.totalNonCashCollected ?? 0)} /></Col>
+          <Col xs={24} md={6}><Statistic title="Tiền mặt đã ghi nhận theo ca" value={formatMoney(dashboard?.totalCashCollected ?? 0)} /></Col>
+          <Col xs={24} md={6}><Statistic title="Không tiền mặt đã ghi nhận theo ca" value={formatMoney(dashboard?.totalNonCashCollected ?? 0)} /></Col>
           <Col xs={24} md={6}><Statistic title="Số ca đang mở" value={dashboard?.activeShiftCount ?? 0} /></Col>
           <Col xs={24} md={6}><Statistic title="Số ca chờ Manager" value={dashboard?.pendingManagerCount ?? 0} /></Col>
           <Col xs={24} md={6}><Statistic title="Số ca chờ Admin" value={dashboard?.pendingAdminCount ?? 0} /></Col>
         </Row>
       </div>
+
+      {management && <p className="-mt-3 text-xs text-slate-500">
+        Tiền cửa hàng hiện tại dùng cùng số liệu với Báo cáo → Dòng tiền. Các ô tiền mặt và không tiền mặt chỉ thống kê hóa đơn đã gắn với ca làm việc.
+      </p>}
 
       {current ? <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
         <Row gutter={[16, 16]}>
@@ -273,7 +277,7 @@ export default function ShiftsPage() {
           <Col xs={24} md={6}><Statistic title="Tổng số ca" value={dashboard?.statistics.totalShifts ?? 0} /></Col>
           <Col xs={24} md={6}><Statistic title="Tổng đơn hoàn thành" value={dashboard?.statistics.totalCompletedOrders ?? 0} /></Col>
           <Col xs={24} md={6}><Statistic title="Tổng đơn bị hủy" value={dashboard?.statistics.totalCancelledOrders ?? 0} /></Col>
-          <Col xs={24} md={6}><Statistic title="Tổng tiền hiện có" value={formatMoney(dashboard?.statistics.currentStoreMoney ?? 0)} /></Col>
+          <Col xs={24} md={6}><Statistic title="Tiền cửa hàng hiện tại" value={formatMoney(dashboard?.statistics.currentStoreMoney ?? 0)} /></Col>
         </Row>
       </div>
 
