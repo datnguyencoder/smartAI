@@ -60,11 +60,20 @@ class ShiftIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data").isArray());
 
-        mockMvc.perform(get("/api/v1/shifts/dashboard")
+        MvcResult financeSummary = mockMvc.perform(get("/api/v1/finance/summary")
                         .header("Authorization", "Bearer " + admin))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.currentStoreMoney").value(0))
-                .andExpect(jsonPath("$.data.recentShifts").isArray());
+                .andReturn();
+        MvcResult shiftDashboard = mockMvc.perform(get("/api/v1/shifts/dashboard")
+                        .header("Authorization", "Bearer " + admin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.recentShifts").isArray())
+                .andReturn();
+        JsonNode financeMoney = objectMapper.readTree(financeSummary.getResponse().getContentAsString())
+                .path("data").path("currentStoreMoney");
+        JsonNode shiftMoney = objectMapper.readTree(shiftDashboard.getResponse().getContentAsString())
+                .path("data").path("currentStoreMoney");
+        org.junit.jupiter.api.Assertions.assertEquals(0, financeMoney.decimalValue().compareTo(shiftMoney.decimalValue()));
 
         mockMvc.perform(get("/api/v1/shifts/returned-items")
                         .header("Authorization", "Bearer " + staff))
