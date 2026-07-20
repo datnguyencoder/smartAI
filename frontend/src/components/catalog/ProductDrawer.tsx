@@ -22,6 +22,7 @@ export function ProductDrawer({ product, categories, authUser, onClose, onUpdate
   const bodyRef = React.useRef<HTMLDivElement>(null);
   const [saving, setSaving] = React.useState(false);
   const [price, setPrice] = React.useState<number | null>(null);
+  const [minimumStock, setMinimumStock] = React.useState<number | null>(null);
   const [imageUrl, setImageUrl] = React.useState('');
   const [categoryId, setCategoryId] = React.useState<number | undefined>();
   const [lots, setLots] = React.useState<InventoryItemDto[]>([]);
@@ -63,6 +64,7 @@ export function ProductDrawer({ product, categories, authUser, onClose, onUpdate
     if (product) {
       animateDrawer(bodyRef.current, true);
       setPrice(product.price);
+      setMinimumStock(product.minimumStock);
       setImageUrl(product.imageUrl ?? '');
       setCategoryId(product.categoryId || undefined);
       setRiskInsight(null);
@@ -74,11 +76,12 @@ export function ProductDrawer({ product, categories, authUser, onClose, onUpdate
     } else {
       setLots([]);
       setCategoryId(undefined);
+      setMinimumStock(null);
     }
   }, [product]);
 
   const saveChanges = async () => {
-    if (!product || price == null) return;
+    if (!product || price == null || minimumStock == null) return;
     const itemId = Number(product.key);
     if (Number.isNaN(itemId)) {
       antdMessage.warning('Không cập nhật được sản phẩm demo');
@@ -88,6 +91,7 @@ export function ProductDrawer({ product, categories, authUser, onClose, onUpdate
     try {
       await updateItem(itemId, {
         sellingPrice: price,
+        minimumStock,
         imageUrl: imageUrl.trim(),
         categoryId,
       });
@@ -146,6 +150,7 @@ export function ProductDrawer({ product, categories, authUser, onClose, onUpdate
             <Statistic title="Đã bán" value={product.sold} suffix={product.baseUomName || ''} />
             <Statistic title="Giá nhập TB" value={product.cost} formatter={(v) => formatMoney(Number(v))} />
             <Statistic title="Giá bán" value={product.price} formatter={(v) => formatMoney(Number(v))} />
+            <Statistic title="Tồn tối thiểu" value={product.minimumStock} suffix={product.baseUomName || ''} />
             <Statistic title="Hạn dùng" value={product.expiry} className="col-span-2" />
           </div>
           <Progress percent={Math.min(100, Math.round((product.stock / 900) * 100))} strokeColor="#006c49" />
@@ -181,6 +186,16 @@ export function ProductDrawer({ product, categories, authUser, onClose, onUpdate
                 value={price ?? undefined}
                 disabled={!canEditProduct}
                 onChange={(v) => setPrice(v ?? null)}
+              />
+            </Form.Item>
+            <Form.Item label="Tồn tối thiểu (theo đơn vị lẻ)">
+              <InputNumber
+                className="w-full"
+                min={0}
+                precision={0}
+                value={minimumStock ?? undefined}
+                disabled={!canEditProduct}
+                onChange={(v) => setMinimumStock(v ?? null)}
               />
             </Form.Item>
             <Form.Item label="Danh mục">

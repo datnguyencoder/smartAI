@@ -13,6 +13,7 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -163,7 +164,7 @@ public class AuditLogServiceImpl implements AuditLogService {
             }
 
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
-        }, PageRequest.of(page, size));
+        }, PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt", "id")));
 
         return PageResponse.of(
                 auditLogs,
