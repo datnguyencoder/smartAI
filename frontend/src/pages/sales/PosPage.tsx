@@ -31,6 +31,7 @@ import {
   createHeldOrder,
   fetchCustomers,
   fetchCurrentShift,
+  fetchDiscountPlans,
   fetchHeldOrders,
   fetchInventory,
   fetchItemById,
@@ -42,7 +43,7 @@ import {
   validatePromotion,
   cancelHeldOrder,
 } from '@/services/wmsApi';
-import type { CustomerDto, HeldOrderDto, ShiftDto } from '@/types/api';
+import type { CustomerDto, DiscountPlanDto, HeldOrderDto, ShiftDto } from '@/types/api';
 import type { PageKey } from '@/types/pages';
 import { animateCartBump, animateModalContent } from '@/lib/gsapAnimations';
 
@@ -69,6 +70,30 @@ function stockBySellingLocation(rows: any[]) {
     acc[itemId] = (acc[itemId] || 0) + availableQty(row);
     return acc;
   }, {});
+}
+
+function isPlanActiveToday(plan: DiscountPlanDto) {
+  if (!plan.active) return false;
+  const today = new Date().toISOString().slice(0, 10);
+  if (plan.startDate && plan.startDate > today) return false;
+  if (plan.endDate && plan.endDate < today) return false;
+  return true;
+}
+
+function applyBestDiscount(product: Product, plans: DiscountPlanDto[]): Product {
+  const itemId = Number(product.key);
+  const skuPlans = plans.filter(
+    (p) => p.planType === 'SKU' && p.itemId === itemId && isPlanActiveToday(p)
+  );
+  const categoryPlans = plans.filter(
+    (p) => p.planType === 'CATEGORY' && p.categoryId === product.categoryId && isPlanActiveToday(p)
+  );
+  const candidates = skuPlans.length > 0 ? skuPlans : categoryPlans;
+  if (candidates.length === 0) return product;
+
+  const best = candidates.reduce((a, b) => (b.discountPercent > a.discountPercent ? b : a));
+  const discounted = Math.round(product.price * (1 - best.discountPercent / 100));
+  return { ...product, price: discounted, originalPrice: product.price, discountPercent: best.discountPercent };
 }
 
 function applySellableStock(product: Product, stock?: number) {
@@ -135,6 +160,7 @@ export default function PosPage({
 
   const [localProducts, setLocalProducts] = React.useState<Product[]>([]);
   const [loadingItems, setLoadingItems] = React.useState(false);
+  const [discountPlans, setDiscountPlans] = React.useState<DiscountPlanDto[]>([]);
   const [customerOptions, setCustomerOptions] = React.useState<{ value: string; label: string }[]>([]);
   const [customerInput, setCustomerInput] = React.useState('');
   const [currentTime, setCurrentTime] = React.useState(() => new Date());
@@ -168,6 +194,10 @@ export default function PosPage({
   }, [loadHeldOrders]);
 
   React.useEffect(() => {
+    fetchDiscountPlans().then(setDiscountPlans).catch(() => setDiscountPlans([]));
+  }, []);
+
+  React.useEffect(() => {
     const pendingCode = sessionStorage.getItem('smartmart_pending_promo_code');
     if (!pendingCode) return;
     sessionStorage.removeItem('smartmart_pending_promo_code');
@@ -187,7 +217,9 @@ export default function PosPage({
         const stockMap = stockBySellingLocation(inventory as any[]);
         if (active) {
           setLocalProducts(
-            items.map((item) => applySellableStock(itemToProduct(item), stockMap[Number(item.id)]))
+            items.map((item) =>
+              applyBestDiscount(applySellableStock(itemToProduct(item), stockMap[Number(item.id)]), discountPlans)
+            )
           );
         }
       } catch (e) {
@@ -198,7 +230,7 @@ export default function PosPage({
     };
     const timer = setTimeout(loadItems, 300);
     return () => { active = false; clearTimeout(timer); };
-  }, [searchQuery, selectedCategoryId]);
+  }, [searchQuery, selectedCategoryId, discountPlans]);
 
   React.useEffect(() => {
     let active = true;
@@ -720,10 +752,21 @@ export default function PosPage({
                     <strong className="line-clamp-2 text-base font-extrabold leading-snug text-slate-800">{product.name}</strong>
                   </div>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-lg font-black text-[#0f1f46]">{money(product.price)}</span>
-                    <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-500">
-                      Tồn {product.stock}
+                    <span className="flex items-baseline gap-1.5">
+                      <span className="text-lg font-black text-[#0f1f46]">{money(product.price)}</span>
+                      {product.discountPercent ? (
+                        <span className="text-xs font-semibold text-slate-400 line-through">{money(product.originalPrice ?? 0)}</span>
+                      ) : null}
                     </span>
+                    {product.discountPercent ? (
+                      <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-bold text-red-600">
+                        -{product.discountPercent}%
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-500">
+                        Tồn {product.stock}
+                      </span>
+                    )}
                   </div>
                 </div>
                 </button>

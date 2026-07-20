@@ -18,6 +18,8 @@ export type Product = {
   minimumStock: number;
   baseUomName?: string;
   purchaseUomName?: string;
+  originalPrice?: number;
+  discountPercent?: number;
 };
 
 function defaultProductImageUrl(itemCode?: string | null) {
