@@ -20,6 +20,11 @@ public class StocktakeResponse {
     private LocalDateTime stocktakeDate;
     private StocktakeStatus status;
     private String note;
+    private Long submittedBy;
+    private String submittedByUsername;
+    private LocalDateTime submittedAt;
+    private Long approvedBy;
+    private String approvedByUsername;
     private LocalDateTime confirmedAt;
     private List<StocktakeItemResponse> items;
 }

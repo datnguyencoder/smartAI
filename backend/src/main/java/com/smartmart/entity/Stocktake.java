@@ -34,6 +34,15 @@ public class Stocktake extends LongAuditableEntity {
 
     private String note;
 
+    @Column(name = "submitted_by")
+    private Long submittedBy;
+
+    @Column(name = "submitted_at")
+    private LocalDateTime submittedAt;
+
+    @Column(name = "approved_by")
+    private Long approvedBy;
+
     @Column(name = "confirmed_at")
     private LocalDateTime confirmedAt;
 

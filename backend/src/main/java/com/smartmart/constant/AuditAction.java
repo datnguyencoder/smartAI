@@ -53,6 +53,8 @@ public final class AuditAction {
     public static final String PROMOTION_DELETE = "PROMOTION_DELETE";
 
     public static final String STOCKTAKE_CREATE = "STOCKTAKE_CREATE";
+    public static final String STOCKTAKE_SUBMIT = "STOCKTAKE_SUBMIT";
+    public static final String STOCKTAKE_APPROVE = "STOCKTAKE_APPROVE";
     public static final String STOCKTAKE_CONFIRM = "STOCKTAKE_CONFIRM";
     public static final String STOCKTAKE_CANCEL = "STOCKTAKE_CANCEL";
 

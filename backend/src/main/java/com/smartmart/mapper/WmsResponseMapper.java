@@ -138,6 +138,9 @@ public final class WmsResponseMapper {
                                 .stocktakeDate(st.getStocktakeDate())
                                 .status(st.getStatus())
                                 .note(st.getNote())
+                                .submittedBy(st.getSubmittedBy())
+                                .submittedAt(st.getSubmittedAt())
+                                .approvedBy(st.getApprovedBy())
                                 .confirmedAt(st.getConfirmedAt())
                                 .items(items)
                                 .build();
