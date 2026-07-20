@@ -18,7 +18,7 @@ export const pageTitles: Record<PageKey, { title: string; description: string }>
   inventory: { title: 'Quản lý tồn kho', description: 'Kiểm soát tồn theo kho, ngưỡng cảnh báo và vòng quay hàng.' },
   'barcode-print': { title: 'In mã vạch', description: 'Chọn sản phẩm và in nhãn mã vạch hàng loạt.' },
   'expired-products': { title: 'Hàng cận hạn', description: 'Danh sách lô hàng sắp hết hạn và thao tác nhanh.' },
-  'scrap-orders': { title: 'Quản lý Yêu cầu loại bỏ hàng hóa', description: 'Danh sách và duyệt các yêu cầu xuất hủy hàng hóa.' },
+  'scrap-orders': { title: 'Quản lý hủy hàng', description: 'Tạo, theo dõi và duyệt các phiếu hủy hàng khỏi tồn kho.' },
   'inventory-alerts': { title: 'Cảnh báo tồn kho', description: 'Ưu tiên sản phẩm hết hàng, sắp hết và tồn bất thường.' },
   'inventory-logs': { title: 'Lịch sử biến động kho', description: 'Nhật ký toàn bộ biến động nhập, xuất, hủy và điều chỉnh tồn kho.' },
   stocktake: { title: 'Kiểm kê kho', description: 'Đối chiếu tồn thực tế với sổ sách và xử lý chênh lệch.' },
