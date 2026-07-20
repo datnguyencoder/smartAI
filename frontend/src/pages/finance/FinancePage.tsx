@@ -5,6 +5,7 @@ import { PlusCircle } from 'lucide-react';
 import { Card, CardHeader , Select } from '@/components/ui';
 import {
   createCashAccount,
+  createFinanceCategory,
   createFinanceTransaction,
   fetchCashAccounts,
   fetchFinanceCategories,
@@ -194,16 +195,22 @@ export default function FinancePage() {
           <Form.Item name="type" label="Loại" rules={[{ required: true }]}><Select options={[{ value: 'INCOME', label: 'Thu' }, { value: 'EXPENSE', label: 'Chi' }]} /></Form.Item>
           <Form.Item name="category" label="Danh mục" rules={[{ required: true, message: 'Chọn danh mục' }]}>
             <Select
-              showSearch
               placeholder="Chọn danh mục"
-              options={categoryOptions}
-              notFoundContent="Chưa có danh mục — nhập tên mới"
-              dropdownRender={(menu: any) => (
-                <>
-                  {menu}
-                  <div className="p-2 border-t text-xs text-slate-500">Hoặc nhập tên danh mục tùy chỉnh</div>
-                </>
-              )}
+              options={[...categoryOptions, { value: '__NEW__', label: '+ Thêm danh mục mới...' }]}
+              onChange={async (val: any) => {
+                if (val !== '__NEW__') return;
+                const name = window.prompt('Tên danh mục mới:');
+                if (!name || !name.trim()) return;
+                try {
+                  await createFinanceCategory({ name: name.trim(), type: txType || 'EXPENSE' });
+                  message.success('Đã thêm danh mục');
+                  const cats = await fetchFinanceCategories();
+                  setCategories(cats);
+                  form.setFieldValue('category', name.trim());
+                } catch (e) {
+                  message.error(e instanceof Error ? e.message : 'Không thể thêm danh mục');
+                }
+              }}
             />
           </Form.Item>
           <Form.Item name="amount" label="Số tiền" rules={[{ required: true, message: 'Nhập số tiền' }]}><InputNumber className="w-full" min={1} /></Form.Item>
