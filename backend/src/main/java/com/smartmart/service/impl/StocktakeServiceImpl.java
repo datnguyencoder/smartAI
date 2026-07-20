@@ -10,6 +10,7 @@ import com.smartmart.enums.InventoryActionType;
 import com.smartmart.enums.ReferenceType;
 import com.smartmart.enums.StocktakeStatus;
 import com.smartmart.exception.BadRequestException;
+import com.smartmart.exception.ForbiddenException;
 import com.smartmart.exception.NotFoundException;
 import com.smartmart.repository.CurrentInventoryRepository;
 import com.smartmart.repository.ItemLotRepository;
@@ -196,7 +197,7 @@ public class StocktakeServiceImpl implements StocktakeService {
                 AuditAction.STOCKTAKE_SUBMIT,
                 "STOCKTAKE",
                 saved.getId().toString(),
-                "Chốt số đếm kiểm kê #" + saved.getId() + " và gửi Manager duyệt",
+                "Chốt số đếm kiểm kê #" + saved.getId() + " và gửi Admin duyệt",
                 AuditData.of("status", StocktakeStatus.DRAFT),
                 AuditData.of("status", saved.getStatus())
         );
@@ -205,9 +206,10 @@ public class StocktakeServiceImpl implements StocktakeService {
 
     @Override
     public Stocktake approve(Long id) {
+        requireAdminApproval();
         Stocktake stocktake = findById(id);
         if (stocktake.getStatus() != StocktakeStatus.PENDING_APPROVAL) {
-            throw new BadRequestException("Chỉ có thể duyệt phiếu đang chờ Manager duyệt");
+            throw new BadRequestException("Chỉ có thể duyệt phiếu đang chờ Admin duyệt");
         }
 
         Long userId = SecurityUtils.getCurrentUserId().orElse(null);
@@ -239,7 +241,7 @@ public class StocktakeServiceImpl implements StocktakeService {
                     ReferenceType.STOCKTAKE,
                     stocktake.getId(),
                     userId,
-                    "Manager duyệt kiểm kê: đặt tồn thực tế về " + actualQty
+                    "Admin duyệt kiểm kê: đặt tồn thực tế về " + actualQty
             );
         }
 
@@ -252,11 +254,17 @@ public class StocktakeServiceImpl implements StocktakeService {
                 AuditAction.STOCKTAKE_APPROVE,
                 "STOCKTAKE",
                 saved.getId().toString(),
-                "Manager duyệt phiếu kiểm kê #" + saved.getId() + " và cập nhật tồn kho",
+                "Admin duyệt phiếu kiểm kê #" + saved.getId() + " và cập nhật tồn kho",
                 AuditData.of("status", StocktakeStatus.PENDING_APPROVAL),
                 AuditData.of("status", saved.getStatus())
         );
         return saved;
+    }
+
+    private void requireAdminApproval() {
+        if (!SecurityUtils.hasRole("ADMIN")) {
+            throw new ForbiddenException("Chỉ Admin được phê duyệt cuối phiếu kiểm kê");
+        }
     }
 
     @Override
