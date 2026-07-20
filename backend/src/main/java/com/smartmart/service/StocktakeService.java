@@ -10,8 +10,8 @@ import java.util.List;
 
 public interface StocktakeService {
     Stocktake create(CreateStocktakeRequest request);
-    Stocktake confirm(Long id);
-    Stocktake confirm(Long id, ConfirmStocktakeRequest request);
+    Stocktake submitForApproval(Long id, ConfirmStocktakeRequest request);
+    Stocktake approve(Long id);
     Stocktake cancel(Long id);
     Stocktake findById(Long id);
     List<Stocktake> listAll(StocktakeStatus status);

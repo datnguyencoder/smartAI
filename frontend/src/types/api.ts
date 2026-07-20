@@ -603,8 +603,13 @@ export type StocktakeDto = {
   createdBy?: number;
   createdByUsername?: string;
   stocktakeDate: string;
-  status: 'DRAFT' | 'CONFIRMED' | 'CANCELLED';
+  status: 'DRAFT' | 'PENDING_APPROVAL' | 'CONFIRMED' | 'CANCELLED';
   note?: string;
+  submittedBy?: number;
+  submittedByUsername?: string;
+  submittedAt?: string;
+  approvedBy?: number;
+  approvedByUsername?: string;
   confirmedAt?: string;
   items: StocktakeItemDto[];
 };

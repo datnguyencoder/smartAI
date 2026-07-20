@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { Table, Tag, Button, Modal, Input, InputNumber, message, Form, Space } from 'antd';
-import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
+import { ArrowUpOutlined, ArrowDownOutlined, FileExcelOutlined } from '@ant-design/icons';
+import * as XLSX from 'xlsx';
 import {
+  approveStocktake,
   cancelStocktake,
-  confirmStocktake,
   createStocktake,
   fetchInventory,
   fetchLocations,
   fetchStocktakes,
+  submitStocktake,
 } from '@/services/wmsApi';
 import type { InventoryItemDto, LocationDto, StocktakeDto } from '@/types/api';
 import dayjs from 'dayjs';
@@ -20,7 +22,7 @@ type DraftLine = { itemId: number; lotId?: number; itemName: string; lotNumber?:
 
 export default function StocktakePage() {
   const { authUser } = useAuth();
-  const canConfirm = ['ROLE_ADMIN', 'ROLE_MANAGER'].includes(normalizeRole(authUser?.role));
+  const canApprove = ['ROLE_ADMIN', 'ROLE_MANAGER'].includes(normalizeRole(authUser?.role));
   const [stocktakes, setStocktakes] = useState<StocktakeDto[]>([]);
   const [locations, setLocations] = useState<LocationDto[]>([]);
   const [inventory, setInventory] = useState<InventoryItemDto[]>([]);
@@ -101,20 +103,111 @@ export default function StocktakePage() {
     }
   };
 
-  const handleConfirm = async (r: StocktakeDto) => {
+  const buildSubmittedItems = (r: StocktakeDto) => {
     const prefix = `${r.id}-`;
-    const items = r.items.map((line) => {
+    return r.items.map((line) => {
       const key = prefix + lineKey(line.itemId, line.lotId);
-      const actualQuantity = editCounts[key] ?? Number(line.actualQuantity);
+      const actualQuantity = editCounts[key] ?? Number(line.actualQuantity ?? line.systemQuantity);
       return { itemId: line.itemId, lotId: line.lotId, actualQuantity };
     });
+  };
+
+  const handleSubmit = (stocktake: StocktakeDto) => {
+    Modal.confirm({
+      title: 'Chốt số đếm và gửi Manager duyệt?',
+      content: 'Sau khi chốt, số thực tế không thể sửa. Tồn kho chỉ thay đổi khi Manager duyệt.',
+      okText: 'Chốt số đếm',
+      cancelText: 'Quay lại',
+      onOk: async () => {
+        try {
+          await submitStocktake(stocktake.id, buildSubmittedItems(stocktake));
+          message.success('Đã chốt số đếm và gửi Manager duyệt');
+          setSelectedStocktake(null);
+          await load();
+        } catch (e: unknown) {
+          message.error(e instanceof Error ? e.message : 'Không thể chốt phiếu kiểm kê');
+          throw e;
+        }
+      },
+    });
+  };
+
+  const handleApprove = (stocktake: StocktakeDto) => {
+    Modal.confirm({
+      title: 'Duyệt và cập nhật tồn kho?',
+      content: 'Hệ thống sẽ điều chỉnh từng mặt hàng để tồn kho cuối bằng đúng số lượng thực tế đã chốt.',
+      okText: 'Duyệt & cập nhật kho',
+      cancelText: 'Quay lại',
+      onOk: async () => {
+        try {
+          await approveStocktake(stocktake.id);
+          message.success('Đã duyệt và cập nhật tồn kho theo số thực tế');
+          setSelectedStocktake(null);
+          await load();
+        } catch (e: unknown) {
+          message.error(e instanceof Error ? e.message : 'Duyệt kiểm kê thất bại');
+          throw e;
+        }
+      },
+    });
+  };
+
+  const handleCancel = async (stocktake: StocktakeDto) => {
     try {
-      await confirmStocktake(r.id, items);
-      message.success('Đã xác nhận kiểm kê');
-      load();
+      await cancelStocktake(stocktake.id);
+      message.success('Đã hủy phiếu kiểm kê');
+      setSelectedStocktake(null);
+      await load();
     } catch (e: unknown) {
-      message.error(e instanceof Error ? e.message : 'Xác nhận thất bại');
+      message.error(e instanceof Error ? e.message : 'Hủy thất bại');
     }
+  };
+
+  const statusLabel = (status: StocktakeDto['status']) => ({
+    DRAFT: 'Nháp',
+    PENDING_APPROVAL: 'Chờ Manager duyệt',
+    CONFIRMED: 'Đã duyệt & cập nhật kho',
+    CANCELLED: 'Đã hủy',
+  }[status]);
+
+  const exportStocktakes = (rows: StocktakeDto[]) => {
+    if (rows.length === 0) {
+      message.warning('Không có phiếu kiểm kê để xuất');
+      return;
+    }
+    const summaryRows = rows.map((stocktake) => ({
+      'Mã phiếu': `ST-${String(stocktake.id).padStart(4, '0')}`,
+      Kho: stocktake.locationName,
+      'Ngày tạo': dayjs(stocktake.stocktakeDate).format('DD/MM/YYYY HH:mm'),
+      'Người tạo': stocktake.createdByUsername || '',
+      'Trạng thái': statusLabel(stocktake.status),
+      'Người chốt': stocktake.submittedByUsername || '',
+      'Thời gian chốt': stocktake.submittedAt ? dayjs(stocktake.submittedAt).format('DD/MM/YYYY HH:mm') : '',
+      'Manager duyệt': stocktake.approvedByUsername || '',
+      'Thời gian duyệt': stocktake.confirmedAt ? dayjs(stocktake.confirmedAt).format('DD/MM/YYYY HH:mm') : '',
+      'Tổng lệch tăng': stocktake.items.reduce((sum, item) => sum + Math.max(Number(item.variance || 0), 0), 0),
+      'Tổng lệch giảm': stocktake.items.reduce((sum, item) => sum + Math.min(Number(item.variance || 0), 0), 0),
+      'Ghi chú': stocktake.note || '',
+    }));
+    const detailRows = rows.flatMap((stocktake) => stocktake.items.map((item) => ({
+      'Mã phiếu': `ST-${String(stocktake.id).padStart(4, '0')}`,
+      Kho: stocktake.locationName,
+      'Mã sản phẩm': item.itemCode,
+      'Sản phẩm': item.itemName,
+      'Số lô': item.lotNumber || '',
+      'Tồn hệ thống': Number(item.systemQuantity || 0),
+      'Số thực tế': Number(item.actualQuantity || 0),
+      'Chênh lệch': Number(item.variance || 0),
+      'Ghi chú dòng': item.note || '',
+    })));
+    const workbook = XLSX.utils.book_new();
+    const summarySheet = XLSX.utils.json_to_sheet(summaryRows);
+    const detailSheet = XLSX.utils.json_to_sheet(detailRows);
+    summarySheet['!cols'] = Object.keys(summaryRows[0]).map(() => ({ wch: 22 }));
+    detailSheet['!cols'] = Object.keys(detailRows[0] || {}).map(() => ({ wch: 20 }));
+    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Phiếu kiểm kê');
+    XLSX.utils.book_append_sheet(workbook, detailSheet, 'Chi tiết');
+    XLSX.writeFile(workbook, `Kiem_Ke_Kho_${dayjs().format('YYYYMMDD_HHmm')}.xlsx`);
   };
 
   const columns = [
@@ -125,8 +218,8 @@ export default function StocktakePage() {
       title: 'Trạng thái',
       dataIndex: 'status',
       render: (s: string) => {
-        const colors: Record<string, string> = { DRAFT: 'processing', CONFIRMED: 'success', CANCELLED: 'error' };
-        const labels: Record<string, string> = { DRAFT: 'Nháp', CONFIRMED: 'Đã xác nhận', CANCELLED: 'Đã hủy' };
+        const colors: Record<string, string> = { DRAFT: 'processing', PENDING_APPROVAL: 'warning', CONFIRMED: 'success', CANCELLED: 'error' };
+        const labels: Record<string, string> = { DRAFT: 'Nháp', PENDING_APPROVAL: 'Chờ Manager duyệt', CONFIRMED: 'Đã duyệt & cập nhật kho', CANCELLED: 'Đã hủy' };
         return <Tag color={colors[s] || 'default'}>{labels[s] || s}</Tag>;
       },
     },
@@ -154,23 +247,17 @@ export default function StocktakePage() {
           <Button size="small" onClick={() => setSelectedStocktake(r)}>Chi tiết</Button>
           {r.status === 'DRAFT' && (
             <>
-              {canConfirm ? (
-                <Button size="small" type="primary" onClick={() => handleConfirm(r)}>Xác nhận</Button>
-              ) : (
-                <Tag color="orange">Chờ quản lý xác nhận</Tag>
-              )}
-              {canConfirm && (
-              <Button size="small" danger onClick={async () => {
-                try {
-                  await cancelStocktake(r.id);
-                  message.success('Đã hủy');
-                  load();
-                } catch (e: unknown) {
-                  message.error(e instanceof Error ? e.message : 'Hủy thất bại');
-                }
-              }}>Hủy</Button>
-              )}
+              <Button size="small" type="primary" onClick={() => handleSubmit(r)}>Chốt số đếm</Button>
+              {canApprove && <Button size="small" danger onClick={() => handleCancel(r)}>Hủy</Button>}
             </>
+          )}
+          {r.status === 'PENDING_APPROVAL' && (
+            canApprove
+              ? <>
+                  <Button size="small" type="primary" onClick={() => handleApprove(r)}>Duyệt & cập nhật kho</Button>
+                  <Button size="small" danger onClick={() => handleCancel(r)}>Hủy</Button>
+                </>
+              : <Tag color="orange">Chờ Manager duyệt</Tag>
           )}
         </Space>
       ),
@@ -181,8 +268,11 @@ export default function StocktakePage() {
     <Card>
       <CardHeader
         title="Kiểm kê kho"
-        description="Nhập số đếm thực tế trước khi xác nhận — hệ thống tự tính chênh lệch tại thời điểm confirm"
-        action={<Button type="primary" onClick={() => setCreateOpen(true)}>Tạo phiếu kiểm kê</Button>}
+        description="Nhập và chốt số đếm → Manager duyệt → hệ thống cập nhật tồn kho theo số thực tế"
+        action={<Space>
+          <Button icon={<FileExcelOutlined />} onClick={() => exportStocktakes(stocktakes)}>Xuất Excel</Button>
+          <Button type="primary" onClick={() => setCreateOpen(true)}>Tạo phiếu kiểm kê</Button>
+        </Space>}
       />
       <div className="px-5 pb-5">
         <select
@@ -192,7 +282,9 @@ export default function StocktakePage() {
         >
           <option value="ALL">Tất cả</option>
           <option value="DRAFT">Nháp</option>
-          <option value="CONFIRMED">Đã xác nhận</option>
+          <option value="PENDING_APPROVAL">Chờ Manager duyệt</option>
+          <option value="CONFIRMED">Đã duyệt & cập nhật kho</option>
+          <option value="CANCELLED">Đã hủy</option>
         </select>
         <Table rowKey="id" loading={loading} dataSource={stocktakes} columns={columns} scroll={{ x: 'max-content', y: 'calc(100vh - 300px)' }} pagination={{ pageSize: 10 }} />
       </div>
@@ -202,7 +294,11 @@ export default function StocktakePage() {
         title={`Chi tiết kiểm kê ST-${String(selectedStocktake?.id || 0).padStart(4, '0')}`} 
         open={!!selectedStocktake} 
         onCancel={() => setSelectedStocktake(null)} 
-        footer={null} 
+        footer={selectedStocktake ? <Space>
+          <Button icon={<FileExcelOutlined />} onClick={() => exportStocktakes([selectedStocktake])}>Xuất Excel phiếu này</Button>
+          {selectedStocktake.status === 'DRAFT' && <Button type="primary" onClick={() => handleSubmit(selectedStocktake)}>Chốt số đếm</Button>}
+          {selectedStocktake.status === 'PENDING_APPROVAL' && canApprove && <Button type="primary" onClick={() => handleApprove(selectedStocktake)}>Duyệt & cập nhật kho</Button>}
+        </Space> : null}
         width={800}
       >
         {selectedStocktake && (

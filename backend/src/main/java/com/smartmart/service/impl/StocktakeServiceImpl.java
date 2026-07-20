@@ -74,7 +74,10 @@ public class StocktakeServiceImpl implements StocktakeService {
     @Override
     public void enrichUsernames(List<StocktakeResponse> responses) {
         List<Long> userIds = responses.stream()
-                .map(StocktakeResponse::getCreatedBy)
+                .flatMap(response -> java.util.stream.Stream.of(
+                        response.getCreatedBy(),
+                        response.getSubmittedBy(),
+                        response.getApprovedBy()))
                 .filter(Objects::nonNull)
                 .distinct()
                 .toList();
@@ -86,6 +89,12 @@ public class StocktakeServiceImpl implements StocktakeService {
         responses.forEach(r -> {
             if (r.getCreatedBy() != null) {
                 r.setCreatedByUsername(nameMap.getOrDefault(r.getCreatedBy(), "—"));
+            }
+            if (r.getSubmittedBy() != null) {
+                r.setSubmittedByUsername(nameMap.getOrDefault(r.getSubmittedBy(), "—"));
+            }
+            if (r.getApprovedBy() != null) {
+                r.setApprovedByUsername(nameMap.getOrDefault(r.getApprovedBy(), "—"));
             }
         });
     }
@@ -142,35 +151,66 @@ public class StocktakeServiceImpl implements StocktakeService {
     }
 
     @Override
-    public Stocktake confirm(Long id) {
-        return confirm(id, null);
-    }
-
-    @Override
-    public Stocktake confirm(Long id, ConfirmStocktakeRequest request) {
+    public Stocktake submitForApproval(Long id, ConfirmStocktakeRequest request) {
         Stocktake stocktake = findById(id);
         if (stocktake.getStatus() != StocktakeStatus.DRAFT) {
-            throw new BadRequestException("Chỉ có thể xác nhận phiếu kiểm kê ở trạng thái DRAFT");
+            throw new BadRequestException("Chỉ có thể chốt phiếu kiểm kê đang ở trạng thái nháp");
         }
 
         if (request != null && request.getItems() != null) {
             for (StocktakeLineRequest update : request.getItems()) {
-                stocktake.getItems().stream()
+                StocktakeItem matchedLine = stocktake.getItems().stream()
                         .filter(line -> line.getItem().getId().equals(update.getItemId())
                                 && ((update.getLotId() == null && line.getLot() == null)
                                 || (line.getLot() != null && line.getLot().getId().equals(update.getLotId()))))
                         .findFirst()
-                        .ifPresent(line -> {
-                            if (update.getActualQuantity() != null) {
-                                line.setActualQuantity(update.getActualQuantity());
-                            }
-                        });
+                        .orElseThrow(() -> new BadRequestException("Dòng kiểm kê không thuộc phiếu này"));
+                if (update.getActualQuantity() == null) {
+                    throw new BadRequestException("Số lượng thực tế không được để trống");
+                }
+                matchedLine.setActualQuantity(update.getActualQuantity());
             }
         }
 
-        Long userId = SecurityUtils.getCurrentUserId().orElse(null);
+        List<StocktakeItem> sortedItems = new ArrayList<>(stocktake.getItems());
+        sortedItems.sort(Comparator.comparing(line -> line.getItem().getId()));
+        for (StocktakeItem line : sortedItems) {
+            itemRepository.findByIdWithPessimisticLock(line.getItem().getId());
+            if (line.getActualQuantity() == null) {
+                throw new BadRequestException("Phải nhập đủ số lượng thực tế trước khi chốt");
+            }
+            BigDecimal freshSystemQty = getExactSystemQuantity(
+                    line.getItem().getId(),
+                    stocktake.getLocation().getId(),
+                    line.getLot() != null ? line.getLot().getId() : null);
+            line.setSystemQuantity(freshSystemQty);
+            line.setVariance(line.getActualQuantity().subtract(freshSystemQty));
+        }
 
-        // Lock items theo thứ tự ID để giảm deadlock khi nhiều giao dịch chạm cùng SKU
+        stocktake.setStatus(StocktakeStatus.PENDING_APPROVAL);
+        stocktake.setSubmittedBy(SecurityUtils.getCurrentUserId().orElse(null));
+        stocktake.setSubmittedAt(LocalDateTime.now());
+        Stocktake saved = stocktakeRepository.save(stocktake);
+
+        auditLogService.log(
+                AuditAction.STOCKTAKE_SUBMIT,
+                "STOCKTAKE",
+                saved.getId().toString(),
+                "Chốt số đếm kiểm kê #" + saved.getId() + " và gửi Manager duyệt",
+                AuditData.of("status", StocktakeStatus.DRAFT),
+                AuditData.of("status", saved.getStatus())
+        );
+        return saved;
+    }
+
+    @Override
+    public Stocktake approve(Long id) {
+        Stocktake stocktake = findById(id);
+        if (stocktake.getStatus() != StocktakeStatus.PENDING_APPROVAL) {
+            throw new BadRequestException("Chỉ có thể duyệt phiếu đang chờ Manager duyệt");
+        }
+
+        Long userId = SecurityUtils.getCurrentUserId().orElse(null);
         List<StocktakeItem> sortedItems = new ArrayList<>(stocktake.getItems());
         sortedItems.sort(Comparator.comparing(line -> line.getItem().getId()));
         for (StocktakeItem line : sortedItems) {
@@ -182,10 +222,9 @@ public class StocktakeServiceImpl implements StocktakeService {
                     line.getItem().getId(),
                     stocktake.getLocation().getId(),
                     line.getLot() != null ? line.getLot().getId() : null);
-
-            line.setSystemQuantity(freshSystemQty);
-            BigDecimal actualQty = line.getActualQuantity() != null ? line.getActualQuantity() : freshSystemQty;
+            BigDecimal actualQty = line.getActualQuantity();
             BigDecimal variance = actualQty.subtract(freshSystemQty);
+            line.setSystemQuantity(freshSystemQty);
             line.setVariance(variance);
 
             if (variance.compareTo(BigDecimal.ZERO) == 0) {
@@ -200,20 +239,21 @@ public class StocktakeServiceImpl implements StocktakeService {
                     ReferenceType.STOCKTAKE,
                     stocktake.getId(),
                     userId,
-                    "Kiểm kê: chênh lệch " + variance
+                    "Manager duyệt kiểm kê: đặt tồn thực tế về " + actualQty
             );
         }
 
         stocktake.setStatus(StocktakeStatus.CONFIRMED);
+        stocktake.setApprovedBy(userId);
         stocktake.setConfirmedAt(LocalDateTime.now());
         Stocktake saved = stocktakeRepository.save(stocktake);
 
         auditLogService.log(
-                AuditAction.STOCKTAKE_CONFIRM,
+                AuditAction.STOCKTAKE_APPROVE,
                 "STOCKTAKE",
                 saved.getId().toString(),
-                "Xác nhận phiếu kiểm kê #" + saved.getId(),
-                AuditData.of("status", StocktakeStatus.DRAFT),
+                "Manager duyệt phiếu kiểm kê #" + saved.getId() + " và cập nhật tồn kho",
+                AuditData.of("status", StocktakeStatus.PENDING_APPROVAL),
                 AuditData.of("status", saved.getStatus())
         );
         return saved;
@@ -222,9 +262,11 @@ public class StocktakeServiceImpl implements StocktakeService {
     @Override
     public Stocktake cancel(Long id) {
         Stocktake stocktake = findById(id);
-        if (stocktake.getStatus() != StocktakeStatus.DRAFT) {
-            throw new BadRequestException("Chỉ có thể hủy phiếu kiểm kê ở trạng thái DRAFT");
+        if (stocktake.getStatus() != StocktakeStatus.DRAFT
+                && stocktake.getStatus() != StocktakeStatus.PENDING_APPROVAL) {
+            throw new BadRequestException("Chỉ có thể hủy phiếu nháp hoặc phiếu đang chờ duyệt");
         }
+        StocktakeStatus previousStatus = stocktake.getStatus();
         stocktake.setStatus(StocktakeStatus.CANCELLED);
         Stocktake saved = stocktakeRepository.save(stocktake);
         auditLogService.log(
@@ -232,7 +274,7 @@ public class StocktakeServiceImpl implements StocktakeService {
                 "STOCKTAKE",
                 saved.getId().toString(),
                 "Hủy phiếu kiểm kê #" + saved.getId(),
-                AuditData.of("status", StocktakeStatus.DRAFT),
+                AuditData.of("status", previousStatus),
                 AuditData.of("status", saved.getStatus())
         );
         return saved;

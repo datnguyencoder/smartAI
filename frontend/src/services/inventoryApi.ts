@@ -106,11 +106,15 @@ export function createStocktake(payload: {
   return apiRequest<StocktakeDto>('/api/v1/stocktakes', { method: 'POST', body: JSON.stringify(payload) });
 }
 
-export function confirmStocktake(id: number, items?: { itemId: number; lotId?: number; actualQuantity: number }[]) {
-  return apiRequest<StocktakeDto>(`/api/v1/stocktakes/${id}/confirm`, {
+export function submitStocktake(id: number, items: { itemId: number; lotId?: number; actualQuantity: number }[]) {
+  return apiRequest<StocktakeDto>(`/api/v1/stocktakes/${id}/submit`, {
     method: 'POST',
-    body: JSON.stringify(items && items.length > 0 ? { items } : {}),
+    body: JSON.stringify({ items }),
   });
+}
+
+export function approveStocktake(id: number) {
+  return apiRequest<StocktakeDto>(`/api/v1/stocktakes/${id}/approve`, { method: 'POST' });
 }
 
 export function cancelStocktake(id: number) {

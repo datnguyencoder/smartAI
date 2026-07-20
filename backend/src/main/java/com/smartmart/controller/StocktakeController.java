@@ -61,17 +61,33 @@ public class StocktakeController {
                 .body(ApiResponse.success("Tạo phiếu kiểm kê thành công", resp));
     }
 
-    @PostMapping("/{id}/confirm")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
-    @Operation(summary = "Xác nhận phiếu kiểm kê — điều chỉnh tồn kho")
-    public ResponseEntity<ApiResponse<StocktakeResponse>> confirm(
+    @PostMapping("/{id}/submit")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
+    @Operation(summary = "Chốt số đếm và gửi phiếu kiểm kê cho Manager duyệt")
+    public ResponseEntity<ApiResponse<StocktakeResponse>> submit(
             @PathVariable Long id,
-            @RequestBody(required = false) ConfirmStocktakeRequest request
+            @Valid @RequestBody(required = false) ConfirmStocktakeRequest request
     ) {
         StocktakeResponse resp = WmsResponseMapper.toStocktakeResponse(
-                        request != null ? stocktakeService.confirm(id, request) : stocktakeService.confirm(id));
+                stocktakeService.submitForApproval(id, request));
         stocktakeService.enrichUsernames(Collections.singletonList(resp));
-        return ResponseEntity.ok(ApiResponse.success("Xác nhận kiểm kê thành công", resp));
+        return ResponseEntity.ok(ApiResponse.success("Đã chốt số đếm và gửi Manager duyệt", resp));
+    }
+
+    @PostMapping("/{id}/approve")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @Operation(summary = "Manager duyệt phiếu kiểm kê và cập nhật tồn kho theo số thực tế")
+    public ResponseEntity<ApiResponse<StocktakeResponse>> approve(@PathVariable Long id) {
+        StocktakeResponse resp = WmsResponseMapper.toStocktakeResponse(stocktakeService.approve(id));
+        stocktakeService.enrichUsernames(Collections.singletonList(resp));
+        return ResponseEntity.ok(ApiResponse.success("Đã duyệt kiểm kê và cập nhật tồn kho", resp));
+    }
+
+    @PostMapping("/{id}/confirm")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @Operation(summary = "API tương thích: duyệt phiếu kiểm kê đang chờ")
+    public ResponseEntity<ApiResponse<StocktakeResponse>> confirmCompatibility(@PathVariable Long id) {
+        return approve(id);
     }
 
     @PostMapping("/{id}/cancel")
