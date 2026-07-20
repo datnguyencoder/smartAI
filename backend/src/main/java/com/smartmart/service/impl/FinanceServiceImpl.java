@@ -8,6 +8,8 @@ import com.smartmart.enums.FinanceTransactionType;
 import com.smartmart.repository.FinanceTransactionRepository;
 import com.smartmart.repository.FinanceCategoryRepository;
 import com.smartmart.repository.CashAccountRepository;
+import com.smartmart.repository.OrderRepository;
+import com.smartmart.repository.ReturnOrderRepository;
 import com.smartmart.entity.FinanceCategory;
 import com.smartmart.entity.CashAccount;
 import com.smartmart.exception.BadRequestException;
@@ -19,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -27,14 +30,20 @@ public class FinanceServiceImpl implements FinanceService {
     private final FinanceTransactionRepository financeTransactionRepository;
     private final FinanceCategoryRepository financeCategoryRepository;
     private final CashAccountRepository cashAccountRepository;
+    private final OrderRepository orderRepository;
+    private final ReturnOrderRepository returnOrderRepository;
 
     public FinanceServiceImpl(
             FinanceTransactionRepository financeTransactionRepository,
             FinanceCategoryRepository financeCategoryRepository,
-            CashAccountRepository cashAccountRepository) {
+            CashAccountRepository cashAccountRepository,
+            OrderRepository orderRepository,
+            ReturnOrderRepository returnOrderRepository) {
         this.financeTransactionRepository = financeTransactionRepository;
         this.financeCategoryRepository = financeCategoryRepository;
         this.cashAccountRepository = cashAccountRepository;
+        this.orderRepository = orderRepository;
+        this.returnOrderRepository = returnOrderRepository;
     }
 
     @Override
@@ -102,11 +111,61 @@ public class FinanceServiceImpl implements FinanceService {
                 expense = expense.add(tx.getAmount());
             }
         }
+        var fromTime = from != null ? from.atStartOfDay() : null;
+        var toTime = to != null ? to.plusDays(1).atStartOfDay() : null;
+        BigDecimal salesRevenue = sumCompletedRevenue(fromTime, toTime);
+        BigDecimal refundAmount = sumCompletedRefunds(fromTime, toTime);
+
+        BigDecimal allTimeSales = orderRepository.sumAllCompletedRevenue();
+        BigDecimal allTimeRefunds = returnOrderRepository.sumAllCompletedRefunds();
+        BigDecimal allTimeRevenue = allTimeSales.subtract(allTimeRefunds);
+
+        BigDecimal allTimeIncome = BigDecimal.ZERO;
+        BigDecimal allTimeExpense = BigDecimal.ZERO;
+        for (FinanceTransaction tx : financeTransactionRepository.findFiltered(null, null, null)) {
+            if (tx.getType() == FinanceTransactionType.INCOME) {
+                allTimeIncome = allTimeIncome.add(tx.getAmount());
+            } else {
+                allTimeExpense = allTimeExpense.add(tx.getAmount());
+            }
+        }
+        BigDecimal allTimeNetCashFlow = allTimeIncome.subtract(allTimeExpense);
+
         return FinanceSummaryResponse.builder()
+                .salesRevenue(salesRevenue)
+                .refundAmount(refundAmount)
                 .totalIncome(income)
                 .totalExpense(expense)
                 .netCashFlow(income.subtract(expense))
+                .allTimeRevenue(allTimeRevenue)
+                .currentStoreMoney(allTimeRevenue.add(allTimeNetCashFlow))
                 .build();
+    }
+
+    private BigDecimal sumCompletedRevenue(LocalDateTime from, LocalDateTime to) {
+        if (from != null && to != null) {
+            return orderRepository.sumCompletedRevenueBetween(from, to);
+        }
+        if (from != null) {
+            return orderRepository.sumCompletedRevenueFrom(from);
+        }
+        if (to != null) {
+            return orderRepository.sumCompletedRevenueBefore(to);
+        }
+        return orderRepository.sumAllCompletedRevenue();
+    }
+
+    private BigDecimal sumCompletedRefunds(LocalDateTime from, LocalDateTime to) {
+        if (from != null && to != null) {
+            return returnOrderRepository.sumCompletedRefundsBetween(from, to);
+        }
+        if (from != null) {
+            return returnOrderRepository.sumCompletedRefundsFrom(from);
+        }
+        if (to != null) {
+            return returnOrderRepository.sumCompletedRefundsBefore(to);
+        }
+        return returnOrderRepository.sumAllCompletedRefunds();
     }
 
     private FinanceTransactionResponse toResponse(FinanceTransaction tx) {

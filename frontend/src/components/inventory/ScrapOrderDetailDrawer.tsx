@@ -47,7 +47,7 @@ export default function ScrapOrderDetailDrawer({ open, order, onClose }: Props) 
         <div className="flex items-center justify-between mr-8 pt-1">
           <div className="flex items-center gap-3">
             <span className="text-lg font-bold text-slate-800">
-              Chi tiết phiếu hủy: {slipCode}
+              Chi tiết phiếu hủy hàng: {slipCode}
             </span>
             <StatusChip tone={
               order.status === 'PENDING' ? 'warning' 

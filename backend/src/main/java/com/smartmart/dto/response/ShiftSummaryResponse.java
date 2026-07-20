@@ -24,6 +24,8 @@ public class ShiftSummaryResponse {
     private int refundedOrders;
     private BigDecimal grossSales;
     private BigDecimal refundAmount;
+    private BigDecimal cashRefundAmount;
+    private BigDecimal nonCashRefundAmount;
     private BigDecimal netRevenue;
     private BigDecimal totalRevenue;
     private BigDecimal cashSales;
@@ -32,4 +34,9 @@ public class ShiftSummaryResponse {
     private BigDecimal walletSales;
     private BigDecimal otherSales;
     private BigDecimal nonCashSales;
+    private BigDecimal cashDrawerEndingAmount;
+    private BigDecimal storeMoneyMovement;
+    private BigDecimal refundAmountAtClose;
+    private BigDecimal postCloseRefundAmount;
+    private BigDecimal revenueAfterPostCloseReturns;
 }

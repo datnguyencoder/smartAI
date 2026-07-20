@@ -24,7 +24,6 @@ import ExpiredProductsPage from '@/pages/inventory/ExpiredProductsPage';
 import ScrapOrdersPage from '@/pages/inventory/ScrapOrdersPage';
 import StocktakePage from '@/pages/inventory/StocktakePage';
 import ItemLotsPage from '@/pages/inventory/ItemLotsPage';
-import FinancePage from '@/pages/finance/FinancePage';
 import ShiftsPage from '@/pages/operations/ShiftsPage';
 import PromotionsManagePage from '@/pages/promotions/PromotionsManagePage';
 import DiscountPlansPage from '@/pages/promotions/DiscountPlansPage';
@@ -233,7 +232,7 @@ export function PageRenderer({
     return <ReportsPage productsList={productsList} invoicesList={invoicesList} authUser={authUser} />;
   }
   if (page === 'finance') {
-    return <FinancePage />;
+    return <ReportsPage productsList={productsList} invoicesList={invoicesList} authUser={authUser} initialTab="cash-flow" />;
   }
   if (page === 'users') {
     return <UsersPage />;

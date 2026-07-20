@@ -109,6 +109,8 @@ export function ReportFilters({
               ? 'Tìm theo kỳ...'
               : activeTab === 'purchase'
                 ? 'Tìm theo nhà cung cấp...'
+                : activeTab === 'cash-flow'
+                  ? 'Tìm danh mục, ghi chú...'
                 : 'Tìm theo tên, mã sản phẩm...'
           }
           value={searchText}

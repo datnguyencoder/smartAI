@@ -4,6 +4,10 @@ import com.smartmart.dto.request.CloseShiftRequest;
 import com.smartmart.dto.request.OpenShiftRequest;
 import com.smartmart.dto.request.ReviewShiftRequest;
 import com.smartmart.dto.request.PaymentMethodCorrectionRequest;
+import com.smartmart.dto.response.ShiftDashboardResponse;
+import com.smartmart.dto.response.ShiftBillFlowResponse;
+import com.smartmart.dto.response.ShiftMoneyFlowResponse;
+import com.smartmart.dto.response.ShiftReturnedItemResponse;
 import com.smartmart.dto.response.ShiftSummaryResponse;
 import com.smartmart.entity.Shift;
 
@@ -25,4 +29,8 @@ public interface ShiftService {
     List<Shift> listAll();
     List<Shift> listByCashier(Long cashierId);
     ShiftSummaryResponse getSummary(Long id);
+    ShiftDashboardResponse getDashboard();
+    List<ShiftMoneyFlowResponse> getMoneyFlow(Long id);
+    List<ShiftReturnedItemResponse> getReturnedItems();
+    List<ShiftBillFlowResponse> getBillFlow(Long id);
 }

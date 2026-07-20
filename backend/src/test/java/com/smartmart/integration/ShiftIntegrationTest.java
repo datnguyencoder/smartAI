@@ -11,8 +11,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -31,17 +31,54 @@ class ShiftIntegrationTest {
 
         MvcResult opened = postJson("/api/v1/shifts/open", staff, "{\"note\":\"Bắt đầu ca bình thường\"}", 201)
                 .andExpect(jsonPath("$.data.status").value("OPEN"))
-                .andExpect(jsonPath("$.data.openingCash").value(0))
+                .andExpect(jsonPath("$.data.openingCash").value(1000000))
                 .andReturn();
         long shiftId = objectMapper.readTree(opened.getResponse().getContentAsString()).path("data").path("id").asLong();
 
         postJson("/api/v1/shifts/open", staff, "{\"note\":\"Không được mở trùng\"}", 400);
         postJson("/api/v1/shifts/" + shiftId + "/close", staff,
-                "{\"closingCash\":1000,\"matchesSystemData\":false,\"note\":\"Đã kiểm tra đơn trong ca\"}", 400);
+                "{\"matchesSystemData\":false,\"note\":\"Đã kiểm tra đơn trong ca\"}", 400);
         postJson("/api/v1/shifts/" + shiftId + "/close", staff,
-                "{\"closingCash\":1000,\"matchesSystemData\":false,\"note\":\"Đã kiểm tra đơn trong ca\",\"varianceReason\":\"Giao dịch chuyển khoản ghi nhầm tiền mặt\"}", 200)
+                "{\"matchesSystemData\":false,\"note\":\"Đã kiểm tra đơn trong ca\",\"varianceReason\":\"Giao dịch chuyển khoản ghi nhầm tiền mặt\"}", 200)
                 .andExpect(jsonPath("$.data.status").value("PENDING_REVIEW"))
-                .andExpect(jsonPath("$.data.staffMismatchReported").value(true));
+                .andExpect(jsonPath("$.data.staffMismatchReported").value(true))
+                .andExpect(jsonPath("$.data.closingCash").value(1000000));
+
+        mockMvc.perform(get("/api/v1/shifts/" + shiftId + "/summary")
+                        .header("Authorization", "Bearer " + staff))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.cashDrawerEndingAmount").value(1000000))
+                .andExpect(jsonPath("$.data.storeMoneyMovement").value(0));
+
+        mockMvc.perform(get("/api/v1/shifts/" + shiftId + "/money-flow")
+                        .header("Authorization", "Bearer " + staff))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].transactionType").value("OPENING_FUND"));
+
+        mockMvc.perform(get("/api/v1/shifts/" + shiftId + "/bill-flow")
+                        .header("Authorization", "Bearer " + staff))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isArray());
+
+        MvcResult financeSummary = mockMvc.perform(get("/api/v1/finance/summary")
+                        .header("Authorization", "Bearer " + admin))
+                .andExpect(status().isOk())
+                .andReturn();
+        MvcResult shiftDashboard = mockMvc.perform(get("/api/v1/shifts/dashboard")
+                        .header("Authorization", "Bearer " + admin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.recentShifts").isArray())
+                .andReturn();
+        JsonNode financeMoney = objectMapper.readTree(financeSummary.getResponse().getContentAsString())
+                .path("data").path("currentStoreMoney");
+        JsonNode shiftMoney = objectMapper.readTree(shiftDashboard.getResponse().getContentAsString())
+                .path("data").path("currentStoreMoney");
+        org.junit.jupiter.api.Assertions.assertEquals(0, financeMoney.decimalValue().compareTo(shiftMoney.decimalValue()));
+
+        mockMvc.perform(get("/api/v1/shifts/returned-items")
+                        .header("Authorization", "Bearer " + staff))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isArray());
 
         postJson("/api/v1/shifts/" + shiftId + "/manager-review", staff,
                 "{\"note\":\"Không được phép\"}", 403);
@@ -67,8 +104,8 @@ class ShiftIntegrationTest {
                 .andExpect(jsonPath("$.data.content[0].actorRole").exists());
 
         postJson("/api/v1/shifts/open", staff, "{\"note\":\"Mở ca kế tiếp\"}", 201)
-                .andExpect(jsonPath("$.data.openingCash").value(1000))
-                .andExpect(jsonPath("$.data.openingBalanceSourceShiftId").value(shiftId));
+                .andExpect(jsonPath("$.data.openingCash").value(1000000))
+                .andExpect(jsonPath("$.data.openingBalanceSourceShiftId").doesNotExist());
     }
 
     private org.springframework.test.web.servlet.ResultActions postJson(

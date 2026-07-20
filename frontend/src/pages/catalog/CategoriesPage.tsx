@@ -63,8 +63,12 @@ export default function CategoriesPage({ productsList, setPage, openProduct, rel
     load();
   }, [load]);
 
-  const filtered = rows.filter(
-    (c) => !searchQuery || c.categoryName.toLowerCase().includes(searchQuery.toLowerCase())
+  const filtered = React.useMemo(
+    () =>
+      rows
+        .filter((c) => !searchQuery || c.categoryName.toLowerCase().includes(searchQuery.toLowerCase()))
+        .sort((a, b) => Number(b.active) - Number(a.active)),
+    [rows, searchQuery]
   );
   const moveProducts = React.useMemo(
     () =>
