@@ -158,6 +158,7 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
     purchaseUomId?: number;
     price: number;
     costPrice: number;
+    minimumStock?: number;
     hasExpiry?: boolean;
     imageUrl?: string;
     supplierName?: string;
@@ -181,7 +182,7 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
           purchaseUomId: values.purchaseUomId ? Number(values.purchaseUomId) : undefined,
           costPrice: values.costPrice ?? values.price * 0.8,
           sellingPrice: values.price,
-          minimumStock: 10,
+          minimumStock: Number(values.minimumStock ?? 10),
           hasExpiry: Boolean(values.hasExpiry),
           imageUrl: values.imageUrl,
         });
@@ -245,7 +246,7 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
           setPreviewUrl(resolveMediaUrl(all.imageUrl));
           saveDraft();
         }}
-        initialValues={{ hasExpiry: false }}
+        initialValues={{ hasExpiry: false, minimumStock: 10 }}
       >
         {page === 'products' ? (
           <div className="space-y-1">
@@ -366,6 +367,13 @@ export function CreateProductModal({ open, onCancel, page, categories, uoms, onC
                 <InputNumber className="w-full" min={0} />
               </Form.Item>
             </div>
+            <Form.Item
+              name="minimumStock"
+              label="Tồn tối thiểu (theo đơn vị lẻ)"
+              rules={[{ required: true, message: 'Vui lòng nhập tồn tối thiểu' }]}
+            >
+              <InputNumber className="w-full" min={0} precision={0} />
+            </Form.Item>
             <Form.Item name="hasExpiry" label="Có hạn dùng" valuePropName="checked">
               <Switch />
             </Form.Item>
