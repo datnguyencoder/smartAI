@@ -1,5 +1,6 @@
 package com.smartmart.dto.response;
 
+import com.smartmart.enums.DiscountDealType;
 import com.smartmart.enums.DiscountPlanType;
 import lombok.Builder;
 import lombok.Getter;
@@ -18,7 +19,10 @@ public class DiscountPlanResponse {
     private String categoryName;
     private Long itemId;
     private String itemName;
+    private DiscountDealType dealType;
     private BigDecimal discountPercent;
+    private Integer buyQuantity;
+    private Integer freeQuantity;
     private LocalDate startDate;
     private LocalDate endDate;
     private boolean active;

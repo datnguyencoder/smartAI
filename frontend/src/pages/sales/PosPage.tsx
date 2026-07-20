@@ -80,6 +80,27 @@ function isPlanActiveToday(plan: DiscountPlanDto) {
   return true;
 }
 
+function planEffectivePercent(plan: DiscountPlanDto) {
+  if (plan.dealType === 'BOGO') {
+    const buy = plan.buyQuantity ?? 0;
+    const free = plan.freeQuantity ?? 0;
+    const group = buy + free;
+    return group > 0 ? (free / group) * 100 : 0;
+  }
+  return plan.discountPercent ?? 0;
+}
+
+/** For a BOGO deal (buy N get M free), how many units within `qty` are free. */
+export function computeBogoFreeUnits(qty: number, buyQuantity: number, freeQuantity: number) {
+  const groupSize = buyQuantity + freeQuantity;
+  if (groupSize <= 0 || qty <= 0) return 0;
+  const fullGroups = Math.floor(qty / groupSize);
+  const remainder = qty % groupSize;
+  let free = fullGroups * freeQuantity;
+  if (remainder > buyQuantity) free += remainder - buyQuantity;
+  return free;
+}
+
 function applyBestDiscount(product: Product, plans: DiscountPlanDto[]): Product {
   const itemId = Number(product.key);
   const skuPlans = plans.filter(
@@ -91,9 +112,20 @@ function applyBestDiscount(product: Product, plans: DiscountPlanDto[]): Product 
   const candidates = skuPlans.length > 0 ? skuPlans : categoryPlans;
   if (candidates.length === 0) return product;
 
-  const best = candidates.reduce((a, b) => (b.discountPercent > a.discountPercent ? b : a));
-  const discounted = Math.round(product.price * (1 - best.discountPercent / 100));
-  return { ...product, price: discounted, originalPrice: product.price, discountPercent: best.discountPercent };
+  const best = candidates.reduce((a, b) => (planEffectivePercent(b) > planEffectivePercent(a) ? b : a));
+
+  if (best.dealType === 'BOGO' && best.buyQuantity && best.freeQuantity) {
+    return {
+      ...product,
+      bogoBuyQuantity: best.buyQuantity,
+      bogoFreeQuantity: best.freeQuantity,
+      bogoPlanName: best.planName,
+    };
+  }
+
+  const percent = best.discountPercent ?? 0;
+  const discounted = Math.round(product.price * (1 - percent / 100));
+  return { ...product, price: discounted, originalPrice: product.price, discountPercent: percent };
 }
 
 function applySellableStock(product: Product, stock?: number) {
@@ -295,7 +327,16 @@ export default function PosPage({
     return result;
   }, [posCart]);
 
-  const subtotal = posCart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const lineAmount = (item: { product: Product; quantity: number }) => {
+    const { product, quantity } = item;
+    if (product.bogoBuyQuantity && product.bogoFreeQuantity) {
+      const freeUnits = computeBogoFreeUnits(quantity, product.bogoBuyQuantity, product.bogoFreeQuantity);
+      return product.price * (quantity - freeUnits);
+    }
+    return product.price * quantity;
+  };
+
+  const subtotal = posCart.reduce((sum, item) => sum + lineAmount(item), 0);
 
   const validatePromoCode = async (code: string, amount = subtotal) => {
     if (!code.trim()) {
@@ -762,6 +803,10 @@ export default function PosPage({
                       <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-bold text-red-600">
                         -{product.discountPercent}%
                       </span>
+                    ) : product.bogoBuyQuantity && product.bogoFreeQuantity ? (
+                      <span className="rounded-full bg-purple-100 px-2 py-1 text-xs font-bold text-purple-600">
+                        Mua {product.bogoBuyQuantity} tặng {product.bogoFreeQuantity}
+                      </span>
                     ) : (
                       <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-500">
                         Tồn {product.stock}
@@ -786,7 +831,14 @@ export default function PosPage({
                 <ProductThumbnail name={item.product.name} imageUrl={resolvePosProductImage(item.product)} size={36} className="mr-2 shrink-0" />
                 <div className="min-w-0">
                   <strong className="text-sm font-semibold text-ink line-clamp-1">{item.product.name}</strong>
-                  <p className="text-xs text-slate-400 mt-0.5">{money(item.product.price)}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {money(item.product.price)}
+                    {item.product.bogoBuyQuantity && item.product.bogoFreeQuantity ? (
+                      <span className="ml-1.5 rounded bg-purple-100 px-1.5 py-0.5 text-[10px] font-bold text-purple-600">
+                        Mua {item.product.bogoBuyQuantity} tặng {item.product.bogoFreeQuantity}
+                      </span>
+                    ) : null}
+                  </p>
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <div className="flex items-center gap-1">
@@ -802,7 +854,15 @@ export default function PosPage({
                     />
                     <Button size="small" shape="circle" onClick={() => updateQuantity(item.product.key, 1)}>+</Button>
                   </div>
-                  <span className="min-w-[80px] text-right text-sm font-bold text-slate-700">{money(item.product.price * item.quantity)}</span>
+                  <span className="min-w-[80px] text-right text-sm font-bold text-slate-700">{money(lineAmount(item))}</span>
+                  {item.product.bogoBuyQuantity && item.product.bogoFreeQuantity ? (
+                    (() => {
+                      const free = computeBogoFreeUnits(item.quantity, item.product.bogoBuyQuantity, item.product.bogoFreeQuantity);
+                      return free > 0 ? (
+                        <span className="text-[11px] font-semibold text-purple-600">Tặng {free} sản phẩm</span>
+                      ) : null;
+                    })()
+                  ) : null}
                 </div>
               </div>
             ))}

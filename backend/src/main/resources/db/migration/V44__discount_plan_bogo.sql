@@ -1,0 +1,4 @@
+ALTER TABLE discount_plans ADD COLUMN IF NOT EXISTS deal_type VARCHAR(20) NOT NULL DEFAULT 'PERCENTAGE';
+ALTER TABLE discount_plans ALTER COLUMN discount_percent DROP NOT NULL;
+ALTER TABLE discount_plans ADD COLUMN IF NOT EXISTS buy_quantity INT;
+ALTER TABLE discount_plans ADD COLUMN IF NOT EXISTS free_quantity INT;

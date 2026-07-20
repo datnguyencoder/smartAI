@@ -1,6 +1,7 @@
 package com.smartmart.entity;
 
 import com.smartmart.common.base.LongAuditableEntity;
+import com.smartmart.enums.DiscountDealType;
 import com.smartmart.enums.DiscountPlanType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -32,8 +33,19 @@ public class DiscountPlan extends LongAuditableEntity {
     @JoinColumn(name = "item_id")
     private Item item;
 
-    @Column(name = "discount_percent", nullable = false)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "deal_type", nullable = false)
+    @Builder.Default
+    private DiscountDealType dealType = DiscountDealType.PERCENTAGE;
+
+    @Column(name = "discount_percent")
     private BigDecimal discountPercent;
+
+    @Column(name = "buy_quantity")
+    private Integer buyQuantity;
+
+    @Column(name = "free_quantity")
+    private Integer freeQuantity;
 
     @Column(name = "start_date")
     private LocalDate startDate;
