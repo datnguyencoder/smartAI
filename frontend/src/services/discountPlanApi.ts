@@ -14,7 +14,10 @@ export function createDiscountPlan(payload: {
   planType: string;
   categoryId?: number;
   itemId?: number;
-  discountPercent: number;
+  dealType?: string;
+  discountPercent?: number;
+  buyQuantity?: number;
+  freeQuantity?: number;
   startDate?: string;
   endDate?: string;
 }) {
@@ -26,10 +29,9 @@ export function createDiscountPlan(payload: {
 
 export function updateDiscountPlan(id: number, payload: {
   planName?: string;
-  planType?: string;
-  categoryId?: number;
-  itemId?: number;
   discountPercent?: number;
+  buyQuantity?: number;
+  freeQuantity?: number;
   startDate?: string;
   endDate?: string;
   active?: boolean;

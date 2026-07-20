@@ -182,8 +182,12 @@ public class OrderServiceImpl implements OrderService {
         BigDecimal planDiscountAmount = BigDecimal.ZERO;
         for (OrderLineRequest line : request.getItems()) {
             var apply = discountPlanService.applyForItem(line.getItemId());
-            if (apply.getDiscountPercent() != null && apply.getDiscountPercent().compareTo(BigDecimal.ZERO) > 0) {
-                Item lineItem = itemService.findItem(line.getItemId());
+            Item lineItem = itemService.findItem(line.getItemId());
+            if (apply.getDealType() == com.smartmart.enums.DiscountDealType.BOGO
+                    && apply.getBuyQuantity() != null && apply.getFreeQuantity() != null) {
+                BigDecimal freeUnits = computeBogoFreeUnits(line.getQuantity(), apply.getBuyQuantity(), apply.getFreeQuantity());
+                planDiscountAmount = planDiscountAmount.add(lineItem.getSellingPrice().multiply(freeUnits));
+            } else if (apply.getDiscountPercent() != null && apply.getDiscountPercent().compareTo(BigDecimal.ZERO) > 0) {
                 BigDecimal lineSubtotal = lineItem.getSellingPrice().multiply(line.getQuantity());
                 planDiscountAmount = planDiscountAmount.add(
                         lineSubtotal.multiply(apply.getDiscountPercent()).divide(BigDecimal.valueOf(100)));
@@ -550,5 +554,21 @@ public class OrderServiceImpl implements OrderService {
             return List.of();
         }
         return orderRepository.suggestCustomerNames(keyword.trim());
+    }
+
+    /** For a BOGO plan (buy N get M free), returns how many units in {@code quantity} are free. */
+    private BigDecimal computeBogoFreeUnits(BigDecimal quantity, int buyQuantity, int freeQuantity) {
+        long qty = quantity.longValue();
+        long groupSize = buyQuantity + freeQuantity;
+        if (groupSize <= 0 || qty <= 0) {
+            return BigDecimal.ZERO;
+        }
+        long fullGroups = qty / groupSize;
+        long remainder = qty % groupSize;
+        long free = fullGroups * freeQuantity;
+        if (remainder > buyQuantity) {
+            free += remainder - buyQuantity;
+        }
+        return BigDecimal.valueOf(free);
     }
 }

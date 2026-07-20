@@ -20,6 +20,9 @@ export type Product = {
   purchaseUomName?: string;
   originalPrice?: number;
   discountPercent?: number;
+  bogoBuyQuantity?: number;
+  bogoFreeQuantity?: number;
+  bogoPlanName?: string;
 };
 
 function defaultProductImageUrl(itemCode?: string | null) {
