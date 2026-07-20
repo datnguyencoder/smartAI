@@ -12,13 +12,13 @@ import {
 import type { ScrapOrderDto, LocationDto, ItemDto, InventoryItemDto } from '@/types/api';
 import dayjs from 'dayjs';
 import { useAuth } from '@/contexts/AuthContext';
-import { Trash2 } from 'lucide-react';
+import { AlertTriangle, Trash2 } from 'lucide-react';
 import { Card, CardHeader } from '@/components/ui';
 import type { PageKey } from '@/types/pages';
 
 const { Text } = Typography;
 
-const selectClass = "h-8 px-2 bg-white border border-slate-200 rounded text-sm text-slate-700 transition-all hover:border-emerald-300 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-100";
+const selectClass = "h-8 px-2 bg-white border border-slate-200 rounded text-sm text-slate-700 transition-all hover:border-red-300 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-100";
 
 type LineForm = { itemId: number; lotId?: number; quantity: number; reason: string };
 
@@ -84,7 +84,7 @@ export default function ScrapOrdersPage({ setPage }: { setPage: (page: PageKey) 
         setOrders(res);
       }
     } catch (error: any) {
-      message.error(error.message || 'Lỗi tải danh sách phiếu hủy');
+      message.error(error.message || 'Lỗi tải danh sách phiếu hủy hàng');
     } finally {
       setLoading(false);
     }
@@ -134,7 +134,7 @@ export default function ScrapOrdersPage({ setPage }: { setPage: (page: PageKey) 
       loadData();
       loadBaseData(); // Refresh inventory
     } catch (err: any) {
-      message.error(err.message || 'Lỗi tạo phiếu hủy');
+      message.error(err.message || 'Lỗi tạo phiếu hủy hàng');
     } finally {
       setLoading(false);
     }
@@ -144,7 +144,7 @@ export default function ScrapOrdersPage({ setPage }: { setPage: (page: PageKey) 
     try {
       setLoading(true);
       await approveScrapOrder(id);
-      message.success('Đã duyệt phiếu hủy và trừ tồn kho thành công!');
+      message.success('Đã duyệt hủy hàng và trừ tồn kho thành công!');
       setDrawerVisible(false);
       loadData();
     } catch (error: any) {
@@ -184,9 +184,9 @@ export default function ScrapOrdersPage({ setPage }: { setPage: (page: PageKey) 
   const renderStatus = (status: string) => {
     switch (status) {
       case 'PENDING':
-        return <Tag color="warning">Chờ duyệt</Tag>;
+        return <Tag color="warning">Chờ duyệt hủy</Tag>;
       case 'COMPLETED':
-        return <Tag color="success">Đã duyệt</Tag>;
+        return <Tag color="error">Đã hủy hàng</Tag>;
       case 'CANCELLED':
         return <Tag color="error">Đã từ chối</Tag>;
       default:
@@ -243,25 +243,37 @@ export default function ScrapOrdersPage({ setPage }: { setPage: (page: PageKey) 
   ];
 
   return (
-    <Card>
+    <Card className="overflow-hidden border-red-100">
+      <div className="h-1 bg-gradient-to-r from-red-600 via-orange-500 to-amber-400" />
       <CardHeader
-        title="Phiếu hủy hàng"
-        description="Quản lý và tạo mới các yêu cầu loại bỏ hàng hóa hỏng, lỗi, hoặc hết hạn"
+        title={
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-red-50 text-red-600 ring-1 ring-red-100">
+              <Trash2 size={20} />
+            </span>
+            <span>Phiếu hủy hàng</span>
+          </div>
+        }
+        description="Quản lý hàng hỏng, lỗi hoặc hết hạn cần hủy khỏi tồn kho."
         action={
-          <Button type="primary" onClick={() => setCreateOpen(true)}>
-            Tạo phiếu hủy
+          <Button type="primary" danger icon={<Trash2 size={16} />} onClick={() => setCreateOpen(true)}>
+            Tạo phiếu hủy hàng
           </Button>
         }
       />
       <div className="px-5 pb-5">
+        <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <AlertTriangle className="mt-0.5 shrink-0 text-amber-600" size={18} />
+          <span>Hàng hóa chỉ bị trừ khỏi tồn kho sau khi phiếu hủy được quản lý hoặc quản trị viên duyệt.</span>
+        </div>
         <select
           className={`${selectClass} mb-4 w-40`}
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
         >
           <option value="ALL">Tất cả</option>
-          <option value="PENDING">Chờ duyệt</option>
-          <option value="COMPLETED">Đã duyệt</option>
+          <option value="PENDING">Chờ duyệt hủy</option>
+          <option value="COMPLETED">Đã hủy hàng</option>
           <option value="CANCELLED">Đã từ chối</option>
         </select>
 
@@ -272,11 +284,31 @@ export default function ScrapOrdersPage({ setPage }: { setPage: (page: PageKey) 
           loading={loading}
           scroll={{ x: 'max-content', y: 'calc(100vh - 300px)' }}
           pagination={{ pageSize: 10 }}
+          locale={{
+            emptyText: (
+              <div className="flex flex-col items-center py-10 text-slate-400">
+                <span className="mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-slate-100 text-slate-400">
+                  <Trash2 size={25} />
+                </span>
+                <span className="font-medium text-slate-500">Chưa có phiếu hủy hàng</span>
+                <span className="mt-1 text-xs">Không có phiếu phù hợp với trạng thái đang chọn.</span>
+              </div>
+            ),
+          }}
         />
       </div>
 
       {/* CREATE MODAL */}
-      <Modal title="Tạo phiếu xuất hủy" open={createOpen} onCancel={() => setCreateOpen(false)} onOk={handleCreate} width={800} okText="Gửi yêu cầu" cancelText="Hủy">
+      <Modal
+        title="Tạo phiếu hủy hàng"
+        open={createOpen}
+        onCancel={() => setCreateOpen(false)}
+        onOk={handleCreate}
+        width={800}
+        okText="Gửi phiếu hủy"
+        cancelText="Đóng"
+        okButtonProps={{ danger: true }}
+      >
         <div className="mb-4">
           <label className="text-xs font-semibold">Kho xuất hủy</label>
           <select className={`${selectClass} w-full mt-1`} value={locationId || ''} onChange={(e) => {
@@ -317,18 +349,18 @@ export default function ScrapOrdersPage({ setPage }: { setPage: (page: PageKey) 
       </Modal>
 
       <Drawer
-        title={`Chi tiết phiếu hủy SCRAP-${selectedOrder?.id?.toString().padStart(4, '0')}`}
+        title={`Chi tiết phiếu hủy hàng SCRAP-${selectedOrder?.id?.toString().padStart(4, '0')}`}
         width={600}
         open={drawerVisible}
         onClose={() => setDrawerVisible(false)}
         extra={
           selectedOrder?.status === 'PENDING' && isAdminOrManager && (
             <Space>
-              <Button danger onClick={() => handleRejectClick(selectedOrder.id)}>
+              <Button onClick={() => handleRejectClick(selectedOrder.id)}>
                 Từ chối
               </Button>
-              <Button type="primary" onClick={() => handleApprove(selectedOrder.id)}>
-                Đồng ý duyệt
+              <Button type="primary" danger onClick={() => handleApprove(selectedOrder.id)}>
+                Duyệt hủy hàng
               </Button>
             </Space>
           )
@@ -373,7 +405,7 @@ export default function ScrapOrdersPage({ setPage }: { setPage: (page: PageKey) 
       </Drawer>
 
       <Modal
-        title="Từ chối phiếu hủy"
+        title="Từ chối phiếu hủy hàng"
         open={rejectVisible}
         onOk={confirmReject}
         onCancel={() => setRejectVisible(false)}

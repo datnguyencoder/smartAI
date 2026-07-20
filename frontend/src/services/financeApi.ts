@@ -18,7 +18,9 @@ export function fetchFinanceTransactions(type?: string, from?: string, to?: stri
 
 export function createFinanceTransaction(payload: {
   type: string;
-  category: string;
+  category?: string;
+  categoryId?: number;
+  cashAccountId?: number;
   amount: number;
   paymentAccount: string;
   transactionDate: string;

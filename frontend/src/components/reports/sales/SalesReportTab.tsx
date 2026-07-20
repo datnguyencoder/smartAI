@@ -15,7 +15,8 @@ type SalesReportTabProps = {
 
 export function SalesReportTab({ salesData, loading, debouncedSearchText }: SalesReportTabProps) {
   const filteredSalesData = useMemo(() => {
-    return fuzzySearch(salesData, ['period'], debouncedSearchText);
+    return [...fuzzySearch(salesData, ['period'], debouncedSearchText)]
+      .sort((a, b) => (b.period || '').localeCompare(a.period || ''));
   }, [salesData, debouncedSearchText]);
 
   const salesTotals = useMemo(() => {
@@ -33,6 +34,7 @@ export function SalesReportTab({ salesData, loading, debouncedSearchText }: Sale
       width: 130,
       fixed: 'left',
       sorter: (a, b) => (a.period || '').localeCompare(b.period || ''),
+      defaultSortOrder: 'descend',
     },
     {
       title: 'Tổng đơn',

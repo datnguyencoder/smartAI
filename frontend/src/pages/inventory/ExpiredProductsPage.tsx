@@ -40,7 +40,7 @@ export default function ExpiredProductsPage({ setPage }: Props) {
     <Card>
       <CardHeader
         title="Hàng cận hạn"
-        description="Lô hàng sắp hết hạn — ưu tiên xử lý giảm giá hoặc loại bỏ."
+        description="Lô hàng sắp hết hạn — ưu tiên xử lý giảm giá hoặc lập phiếu hủy hàng."
         action={
           <div className="flex gap-2">
             {setPage && (
