@@ -36,7 +36,11 @@ class FinanceIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.totalIncome").exists())
                 .andExpect(jsonPath("$.data.totalExpense").exists())
-                .andExpect(jsonPath("$.data.netCashFlow").exists());
+                .andExpect(jsonPath("$.data.netCashFlow").exists())
+                .andExpect(jsonPath("$.data.salesRevenue").exists())
+                .andExpect(jsonPath("$.data.refundAmount").exists())
+                .andExpect(jsonPath("$.data.allTimeRevenue").exists())
+                .andExpect(jsonPath("$.data.currentStoreMoney").exists());
     }
 
     @Test

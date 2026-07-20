@@ -143,6 +143,8 @@ export type FinanceTransactionDto = {
   id: number;
   type: 'INCOME' | 'EXPENSE' | string;
   category: string;
+  categoryId?: number;
+  cashAccountId?: number;
   amount: number;
   paymentAccount: 'CASH' | 'BANK' | 'WALLET' | 'OTHER' | string;
   transactionDate: string;
@@ -152,9 +154,13 @@ export type FinanceTransactionDto = {
 };
 
 export type FinanceSummaryDto = {
+  salesRevenue: number;
+  refundAmount: number;
   totalIncome: number;
   totalExpense: number;
   netCashFlow: number;
+  allTimeRevenue: number;
+  currentStoreMoney: number;
 };
 
 export type CustomerDto = {

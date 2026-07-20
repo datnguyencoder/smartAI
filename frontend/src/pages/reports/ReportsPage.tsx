@@ -16,13 +16,11 @@ import type {
   CustomerDueReportDto,
   SupplierDueReportDto,
   ProductExpiryReportDto,
-  CashFlowReportDto,
   ProfitLossReportDto,
 } from '@/types/api';
 import {
   fetchBestSellers,
   fetchBestSellerCategories,
-  fetchCashFlowReport,
   fetchCustomerDueReport,
   fetchInventory,
   fetchInventoryReport,
@@ -45,15 +43,17 @@ import { SalesReportTab } from '@/components/reports/sales/SalesReportTab';
 import { PurchaseReportTab } from '@/components/reports/purchase/PurchaseReportTab';
 import { InventoryReportTab } from '@/components/reports/inventory/InventoryReportTab';
 import { NxtReportTab } from '@/components/reports/nxt/NxtReportTab';
+import { CashFlowReportTab } from '@/components/reports/finance/CashFlowReportTab';
 
 type Props = {
   productsList: Product[];
   invoicesList: any[];
   authUser: UserDto;
+  initialTab?: string;
 };
 
-export default function ReportsPage({ productsList, invoicesList: _invoicesList, authUser }: Props) {
-  const [activeTab, setActiveTab] = React.useState('sales');
+export default function ReportsPage({ productsList, invoicesList: _invoicesList, authUser, initialTab = 'sales' }: Props) {
+  const [activeTab, setActiveTab] = React.useState(initialTab);
   const [dateRange, setDateRange] = React.useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(() => [
     dayjs().subtract(30, 'day'),
     dayjs(),
@@ -82,7 +82,6 @@ export default function ReportsPage({ productsList, invoicesList: _invoicesList,
   const [customerDueData, setCustomerDueData] = React.useState<CustomerDueReportDto[]>([]);
   const [supplierDueData, setSupplierDueData] = React.useState<SupplierDueReportDto[]>([]);
   const [expiryData, setExpiryData] = React.useState<ProductExpiryReportDto[]>([]);
-  const [cashFlowData, setCashFlowData] = React.useState<CashFlowReportDto[]>([]);
   const [profitLossData, setProfitLossData] = React.useState<ProfitLossReportDto[]>([]);
   const [inventoryLots, setInventoryLots] = React.useState<InventoryItemDto[]>([]);
   const [loadingLots, setLoadingLots] = React.useState(false);
@@ -129,7 +128,7 @@ export default function ReportsPage({ productsList, invoicesList: _invoicesList,
       } else if (activeTab === 'product-expiry') {
         setExpiryData(await fetchProductExpiryReport());
       } else if (activeTab === 'cash-flow') {
-        setCashFlowData(await fetchCashFlowReport(from, to));
+        setProfitLossData(await fetchProfitLossReport(from, to));
       } else if (activeTab === 'profit-loss') {
         setProfitLossData(await fetchProfitLossReport(from, to));
       } else {
@@ -217,6 +216,13 @@ export default function ReportsPage({ productsList, invoicesList: _invoicesList,
         csvContent += [`"${r.supplierName}"`, r.totalOrders, r.totalAmount, r.totalItemTypes, r.totalQuantity].join(',') + '\n';
       });
       filename = `purchase-report-filtered-${new Date().toISOString().split('T')[0]}.csv`;
+    } else if (activeTab === 'cash-flow') {
+      const headers = ['Ngày', 'Doanh thu (VNĐ)', 'Giá vốn (VNĐ)', 'Chi khác (VNĐ)', 'Kết quả ròng (VNĐ)'];
+      csvContent += headers.join(',') + '\n';
+      profitLossData.forEach((row) => {
+        csvContent += [row.date, row.revenue, row.costOfGoods, row.expenses, row.netProfit].join(',') + '\n';
+      });
+      filename = `cash-flow-report-filtered-${new Date().toISOString().split('T')[0]}.csv`;
     } else {
       const headers = ['Mã SP', 'Tên sản phẩm', 'Danh mục', 'Tồn hiện tại', 'Giá trị tồn (VNĐ)', 'Tồn tối thiểu', 'Vị trí', 'Đã nhập', 'Đã bán', 'Đã hủy', 'Hao hụt', 'Quay vòng', 'Hạn gần nhất', 'Còn (ngày)'];
       csvContent += headers.join(',') + '\n';
@@ -553,17 +559,14 @@ export default function ReportsPage({ productsList, invoicesList: _invoicesList,
             key: 'cash-flow',
             label: 'Dòng tiền',
             children: (
-              <Table
-                rowKey={(r, i) => `${r.date}-${r.category}-${i}`}
-                loading={loading}
-                dataSource={cashFlowData}
-                columns={[
-                  { title: 'Ngày', dataIndex: 'date' },
-                  { title: 'Loại', dataIndex: 'type' },
-                  { title: 'Danh mục', dataIndex: 'category' },
-                  { title: 'Số tiền', dataIndex: 'amount', align: 'right', render: (v: number) => `${Number(v).toLocaleString('vi-VN')} đ` },
-                  { title: 'Số dư lũy kế', dataIndex: 'runningBalance', align: 'right', render: (v: number) => `${Number(v).toLocaleString('vi-VN')} đ` },
-                ]}
+              <CashFlowReportTab
+                dateRange={dateRange}
+                setDateRange={setDateRange}
+                profitLossData={profitLossData}
+                reportLoading={loading}
+                searchText={debouncedSearchText}
+                canManage={authUser.role === 'ROLE_ADMIN' || authUser.role === 'ROLE_MANAGER'}
+                onDataChanged={loadReport}
               />
             ),
           },
