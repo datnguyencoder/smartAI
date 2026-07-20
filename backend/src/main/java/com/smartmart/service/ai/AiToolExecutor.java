@@ -46,6 +46,8 @@ public class AiToolExecutor {
     private final CustomerRepository customerRepository;
     private final PromotionRepository promotionRepository;
     private final DiscountPlanService discountPlanService;
+    private final CategoryRepository categoryRepository;
+    private final AiActionService aiActionService;
     private final ObjectMapper objectMapper;
 
     public AiToolExecutor(
@@ -61,6 +63,8 @@ public class AiToolExecutor {
             CustomerRepository customerRepository,
             PromotionRepository promotionRepository,
             DiscountPlanService discountPlanService,
+            CategoryRepository categoryRepository,
+            AiActionService aiActionService,
             ObjectMapper objectMapper) {
         this.itemRepository = itemRepository;
         this.forecastResultRepository = forecastResultRepository;
@@ -74,6 +78,8 @@ public class AiToolExecutor {
         this.customerRepository = customerRepository;
         this.promotionRepository = promotionRepository;
         this.discountPlanService = discountPlanService;
+        this.categoryRepository = categoryRepository;
+        this.aiActionService = aiActionService;
         this.objectMapper = objectMapper;
     }
 
@@ -116,10 +122,42 @@ public class AiToolExecutor {
                 "Lấy danh sách gợi ý đặt hàng nhập kho từ AI forecast đang chờ xử lý, " +
                 "sắp theo số lượng đề xuất giảm dần."));
 
-        // ── Khuyến mãi ──────────────────────────────────────────────────────
+        // ── Khuyến mãi (đọc) ────────────────────────────────────────────────
         functions.add(declarationNoParams("get_active_promotions",
                 "Lấy danh sách mã khuyến mãi và kế hoạch giảm giá đang hoạt động hôm nay " +
                 "(discount plans theo SKU/danh mục và promotion codes đang chạy)."));
+
+        functions.add(declarationNoParams("list_categories",
+                "Liệt kê tất cả danh mục sản phẩm (id + tên). Gọi trước khi tạo chiến dịch KM " +
+                "theo danh mục để lấy đúng categoryId."));
+
+        // ── Khuyến mãi (hành động - GHI) ────────────────────────────────────
+        ObjectNode createCampaign = declarationTyped("create_discount_campaign",
+                "TẠO chiến dịch giảm giá tự động áp tại POS. Dùng cho: giảm % theo danh mục/sản phẩm, " +
+                "mua X tặng Y (BOGO), xả hàng cận date. Với danh mục cần categoryId (từ list_categories); " +
+                "với sản phẩm cần itemId (từ search_item). Loại BOGO cần buyQuantity + freeQuantity; " +
+                "loại PERCENTAGE cần discountPercent. Luôn xác nhận lại tham số với người dùng trước khi gọi, " +
+                "và báo rõ đã tạo gì sau khi thành công.");
+        addParam(createCampaign, "planName", "STRING", "Tên chiến dịch, ví dụ 'Xả hàng cận date sữa'", true);
+        addParam(createCampaign, "planType", "STRING", "CATEGORY (theo danh mục) hoặc SKU (theo 1 sản phẩm)", true);
+        addParam(createCampaign, "dealType", "STRING", "PERCENTAGE (giảm %) hoặc BOGO (mua X tặng Y)", true);
+        addParam(createCampaign, "categoryId", "INTEGER", "ID danh mục (bắt buộc nếu planType=CATEGORY)", false);
+        addParam(createCampaign, "itemId", "INTEGER", "ID sản phẩm (bắt buộc nếu planType=SKU)", false);
+        addParam(createCampaign, "discountPercent", "NUMBER", "% giảm 1-100 (bắt buộc nếu dealType=PERCENTAGE)", false);
+        addParam(createCampaign, "buyQuantity", "INTEGER", "Số lượng mua (bắt buộc nếu dealType=BOGO)", false);
+        addParam(createCampaign, "freeQuantity", "INTEGER", "Số lượng tặng (bắt buộc nếu dealType=BOGO)", false);
+        addParam(createCampaign, "durationDays", "INTEGER", "Số ngày hiệu lực tính từ hôm nay (mặc định 14)", false);
+        functions.add(createCampaign);
+
+        ObjectNode createCode = declarationTyped("create_promo_code",
+                "TẠO mã khuyến mãi (coupon) giảm % trên tổng đơn, khách nhập mã tại POS. " +
+                "Xác nhận tham số trước khi gọi và báo lại mã đã tạo.");
+        addParam(createCode, "name", "STRING", "Tên chương trình, ví dụ 'Giảm 10% cuối tuần'", true);
+        addParam(createCode, "discountPercent", "NUMBER", "% giảm 1-100 trên tổng đơn", true);
+        addParam(createCode, "code", "STRING", "Mã tùy chọn (bỏ trống để tự sinh)", false);
+        addParam(createCode, "minOrder", "NUMBER", "Giá trị đơn tối thiểu để áp mã (mặc định 0)", false);
+        addParam(createCode, "durationDays", "INTEGER", "Số ngày hiệu lực (mặc định 14)", false);
+        functions.add(createCode);
 
         // ── Khách hàng ──────────────────────────────────────────────────────
         functions.add(declaration("search_customers",
@@ -165,6 +203,29 @@ public class AiToolExecutor {
         return fn;
     }
 
+    /** Tạo declaration rỗng để bổ sung tham số có kiểu tường minh qua {@link #addParam}. */
+    private ObjectNode declarationTyped(String name, String description) {
+        ObjectNode fn = objectMapper.createObjectNode();
+        fn.put("name", name);
+        fn.put("description", description);
+        ObjectNode parameters = fn.putObject("parameters");
+        parameters.put("type", "OBJECT");
+        parameters.putObject("properties");
+        parameters.putArray("required");
+        return fn;
+    }
+
+    private void addParam(ObjectNode declaration, String name, String type, String description, boolean required) {
+        ObjectNode parameters = (ObjectNode) declaration.path("parameters");
+        ObjectNode properties = (ObjectNode) parameters.path("properties");
+        ObjectNode prop = properties.putObject(name);
+        prop.put("type", type);
+        prop.put("description", description);
+        if (required) {
+            ((ArrayNode) parameters.path("required")).add(name);
+        }
+    }
+
     public Object dispatch(String toolName, JsonNode args) {
         try {
             return switch (toolName) {
@@ -177,6 +238,9 @@ public class AiToolExecutor {
                 case "get_top_selling_items"    -> getTopSellingItems(args.path("days").asInt(7));
                 case "get_reorder_recommendations" -> getReorderRecommendations();
                 case "get_active_promotions"    -> getActivePromotions();
+                case "list_categories"          -> listCategories();
+                case "create_discount_campaign" -> createDiscountCampaign(args);
+                case "create_promo_code"        -> createPromoCode(args);
                 case "search_customers"         -> searchCustomers(args.path("query").asText(""));
                 case "search_store_policy"      -> searchStorePolicy(args.path("query").asText(""));
                 default -> Map.of("error", "Không hỗ trợ tool: " + toolName);
@@ -291,7 +355,12 @@ public class AiToolExecutor {
             m.put("planName", dp.getPlanName());
             m.put("planType", dp.getPlanType());
             m.put("target", dp.getItemName() != null ? dp.getItemName() : dp.getCategoryName());
-            m.put("discountPercent", dp.getDiscountPercent());
+            m.put("dealType", dp.getDealType());
+            if (dp.getDealType() != null && "BOGO".equals(dp.getDealType().name())) {
+                m.put("deal", "Mua " + dp.getBuyQuantity() + " tặng " + dp.getFreeQuantity());
+            } else {
+                m.put("deal", dp.getDiscountPercent() + "%");
+            }
             m.put("endDate", dp.getEndDate());
             return m;
         }).toList();
@@ -301,6 +370,43 @@ public class AiToolExecutor {
         result.put("discountPlans", plans);
         result.put("totalActive", codes.size() + plans.size());
         return result;
+    }
+
+    private List<Map<String, Object>> listCategories() {
+        return categoryRepository.findAll().stream().map(c -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("categoryId", c.getId());
+            m.put("categoryName", c.getCategoryName());
+            return m;
+        }).toList();
+    }
+
+    private Object createDiscountCampaign(JsonNode args) {
+        BigDecimal discountPercent = args.hasNonNull("discountPercent")
+                ? BigDecimal.valueOf(args.path("discountPercent").asDouble()) : null;
+        Long categoryId = args.hasNonNull("categoryId") ? args.path("categoryId").asLong() : null;
+        Long itemId = args.hasNonNull("itemId") ? args.path("itemId").asLong() : null;
+        Integer buyQuantity = args.hasNonNull("buyQuantity") ? args.path("buyQuantity").asInt() : null;
+        Integer freeQuantity = args.hasNonNull("freeQuantity") ? args.path("freeQuantity").asInt() : null;
+        Integer durationDays = args.hasNonNull("durationDays") ? args.path("durationDays").asInt() : null;
+        return aiActionService.createDiscountCampaign(
+                args.path("planName").asText(null),
+                args.path("planType").asText("CATEGORY"),
+                categoryId, itemId,
+                args.path("dealType").asText("PERCENTAGE"),
+                discountPercent, buyQuantity, freeQuantity, durationDays);
+    }
+
+    private Object createPromoCode(JsonNode args) {
+        BigDecimal discountPercent = args.hasNonNull("discountPercent")
+                ? BigDecimal.valueOf(args.path("discountPercent").asDouble()) : null;
+        BigDecimal minOrder = args.hasNonNull("minOrder")
+                ? BigDecimal.valueOf(args.path("minOrder").asDouble()) : null;
+        Integer durationDays = args.hasNonNull("durationDays") ? args.path("durationDays").asInt() : null;
+        return aiActionService.createPromoCode(
+                args.path("name").asText(null),
+                args.path("code").asText(null),
+                discountPercent, minOrder, durationDays);
     }
 
     private List<Map<String, Object>> searchCustomers(String query) {

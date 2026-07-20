@@ -1,9 +1,9 @@
 package com.smartmart.dto.request;
 
+import com.smartmart.enums.DiscountDealType;
 import com.smartmart.enums.DiscountPlanType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -22,9 +22,12 @@ public class CreateDiscountPlanRequest {
     private Long categoryId;
     private Long itemId;
 
-    @NotNull
-    @Positive
+    private DiscountDealType dealType;
+
     private BigDecimal discountPercent;
+
+    private Integer buyQuantity;
+    private Integer freeQuantity;
 
     private LocalDate startDate;
     private LocalDate endDate;

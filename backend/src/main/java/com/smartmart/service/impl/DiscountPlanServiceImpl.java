@@ -7,6 +7,7 @@ import com.smartmart.dto.response.DiscountPlanResponse;
 import com.smartmart.entity.Category;
 import com.smartmart.entity.DiscountPlan;
 import com.smartmart.entity.Item;
+import com.smartmart.enums.DiscountDealType;
 import com.smartmart.enums.DiscountPlanType;
 import com.smartmart.exception.BadRequestException;
 import com.smartmart.exception.NotFoundException;
@@ -42,12 +43,17 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
     @Override
     public DiscountPlanResponse create(CreateDiscountPlanRequest request) {
         validatePlanRequest(request.getPlanType(), request.getCategoryId(), request.getItemId());
+        DiscountDealType dealType = request.getDealType() != null ? request.getDealType() : DiscountDealType.PERCENTAGE;
+        validateDealRequest(dealType, request.getDiscountPercent(), request.getBuyQuantity(), request.getFreeQuantity());
         DiscountPlan plan = DiscountPlan.builder()
                 .planName(request.getPlanName().trim())
                 .planType(request.getPlanType())
                 .category(resolveCategory(request.getCategoryId()))
                 .item(resolveItem(request.getItemId()))
-                .discountPercent(request.getDiscountPercent())
+                .dealType(dealType)
+                .discountPercent(dealType == DiscountDealType.PERCENTAGE ? request.getDiscountPercent() : null)
+                .buyQuantity(dealType == DiscountDealType.BOGO ? request.getBuyQuantity() : null)
+                .freeQuantity(dealType == DiscountDealType.BOGO ? request.getFreeQuantity() : null)
                 .startDate(request.getStartDate())
                 .endDate(request.getEndDate())
                 .active(true)
@@ -61,7 +67,14 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
         if (request.getPlanName() != null && !request.getPlanName().isBlank()) {
             plan.setPlanName(request.getPlanName().trim());
         }
-        if (request.getDiscountPercent() != null) {
+        if (plan.getDealType() == DiscountDealType.BOGO) {
+            if (request.getBuyQuantity() != null) {
+                plan.setBuyQuantity(request.getBuyQuantity());
+            }
+            if (request.getFreeQuantity() != null) {
+                plan.setFreeQuantity(request.getFreeQuantity());
+            }
+        } else if (request.getDiscountPercent() != null) {
             plan.setDiscountPercent(request.getDiscountPercent());
         }
         if (request.getStartDate() != null) {
@@ -99,15 +112,7 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
                 .filter(p -> p.getItem() != null && p.getItem().getId().equals(itemId))
                 .toList();
         if (!skuPlans.isEmpty()) {
-            DiscountPlan best = skuPlans.stream()
-                    .max(Comparator.comparing(DiscountPlan::getDiscountPercent))
-                    .orElseThrow();
-            return DiscountApplyResponse.builder()
-                    .itemId(itemId)
-                    .discountPercent(best.getDiscountPercent())
-                    .planId(best.getId())
-                    .planName(best.getPlanName())
-                    .build();
+            return toApplyResponse(itemId, bestPlan(skuPlans));
         }
 
         if (item.getCategory() != null) {
@@ -117,21 +122,45 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
                             && p.getCategory().getId().equals(item.getCategory().getId()))
                     .toList();
             if (!categoryPlans.isEmpty()) {
-                DiscountPlan best = categoryPlans.stream()
-                        .max(Comparator.comparing(DiscountPlan::getDiscountPercent))
-                        .orElseThrow();
-                return DiscountApplyResponse.builder()
-                        .itemId(itemId)
-                        .discountPercent(best.getDiscountPercent())
-                        .planId(best.getId())
-                        .planName(best.getPlanName())
-                        .build();
+                return toApplyResponse(itemId, bestPlan(categoryPlans));
             }
         }
 
         return DiscountApplyResponse.builder()
                 .itemId(itemId)
+                .dealType(DiscountDealType.PERCENTAGE)
                 .discountPercent(BigDecimal.ZERO)
+                .build();
+    }
+
+    /** Ranks mixed PERCENTAGE/BOGO plans by an equivalent-percent heuristic (BOGO free/(buy+free)*100). */
+    private DiscountPlan bestPlan(List<DiscountPlan> plans) {
+        return plans.stream()
+                .max(Comparator.comparing(this::effectivePercent))
+                .orElseThrow();
+    }
+
+    private BigDecimal effectivePercent(DiscountPlan plan) {
+        if (plan.getDealType() == DiscountDealType.BOGO) {
+            int buy = plan.getBuyQuantity() != null ? plan.getBuyQuantity() : 0;
+            int free = plan.getFreeQuantity() != null ? plan.getFreeQuantity() : 0;
+            int group = buy + free;
+            if (group <= 0) return BigDecimal.ZERO;
+            return BigDecimal.valueOf(free).multiply(BigDecimal.valueOf(100))
+                    .divide(BigDecimal.valueOf(group), 4, java.math.RoundingMode.HALF_UP);
+        }
+        return plan.getDiscountPercent() != null ? plan.getDiscountPercent() : BigDecimal.ZERO;
+    }
+
+    private DiscountApplyResponse toApplyResponse(Long itemId, DiscountPlan best) {
+        return DiscountApplyResponse.builder()
+                .itemId(itemId)
+                .dealType(best.getDealType())
+                .discountPercent(best.getDiscountPercent())
+                .buyQuantity(best.getBuyQuantity())
+                .freeQuantity(best.getFreeQuantity())
+                .planId(best.getId())
+                .planName(best.getPlanName())
                 .build();
     }
 
@@ -141,6 +170,23 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
         }
         if (type == DiscountPlanType.SKU && itemId == null) {
             throw new BadRequestException("Cần chọn sản phẩm cho kế hoạch giảm giá theo SKU");
+        }
+    }
+
+    private void validateDealRequest(DiscountDealType dealType, BigDecimal discountPercent,
+            Integer buyQuantity, Integer freeQuantity) {
+        if (dealType == DiscountDealType.PERCENTAGE) {
+            if (discountPercent == null || discountPercent.compareTo(BigDecimal.ZERO) <= 0
+                    || discountPercent.compareTo(BigDecimal.valueOf(100)) > 0) {
+                throw new BadRequestException("Giảm % phải trong khoảng 0-100");
+            }
+        } else if (dealType == DiscountDealType.BOGO) {
+            if (buyQuantity == null || buyQuantity < 1) {
+                throw new BadRequestException("Số lượng mua (buyQuantity) phải >= 1");
+            }
+            if (freeQuantity == null || freeQuantity < 1) {
+                throw new BadRequestException("Số lượng tặng (freeQuantity) phải >= 1");
+            }
         }
     }
 
@@ -169,7 +215,10 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
                 .categoryName(plan.getCategory() != null ? plan.getCategory().getCategoryName() : null)
                 .itemId(plan.getItem() != null ? plan.getItem().getId() : null)
                 .itemName(plan.getItem() != null ? plan.getItem().getItemName() : null)
+                .dealType(plan.getDealType())
                 .discountPercent(plan.getDiscountPercent())
+                .buyQuantity(plan.getBuyQuantity())
+                .freeQuantity(plan.getFreeQuantity())
                 .startDate(plan.getStartDate())
                 .endDate(plan.getEndDate())
                 .active(plan.isActive())
