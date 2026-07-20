@@ -452,7 +452,7 @@ export default function PosPage({
   };
 
   const filteredProducts = React.useMemo(() => {
-    let result = localProducts;
+    let result = localProducts.filter((product) => product.stock > 0);
     if (selectedCategoryId !== 0) {
       result = result.filter((p) => p.categoryId === selectedCategoryId);
     }
@@ -732,8 +732,7 @@ export default function PosPage({
                 <button
                   className={cn(
                     'relative flex h-[284px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-emerald-400 hover:shadow-md',
-                    selectedQty > 0 && 'border-emerald-500 bg-emerald-50/20 ring-2 ring-emerald-100',
-                    product.stock === 0 && 'cursor-not-allowed bg-slate-100/50 opacity-60'
+                    selectedQty > 0 && 'border-emerald-500 bg-emerald-50/20 ring-2 ring-emerald-100'
                   )}
                   key={product.key}
                   onClick={() => handleAddToCart(product)}
@@ -772,6 +771,11 @@ export default function PosPage({
                 </button>
               );
             })}
+            {!loadingItems && filteredProducts.length === 0 && (
+              <div className="col-span-full rounded-xl border border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center text-sm font-semibold text-slate-500">
+                Không có sản phẩm còn hàng phù hợp.
+              </div>
+            )}
           </div>
         </div>
       </Card>
