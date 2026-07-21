@@ -89,6 +89,8 @@ export type OrderItemDto = {
   quantity: number;
   unitPrice: number;
   subtotal?: number;
+  discountAmount?: number;
+  discountReason?: string;
 };
 
 export type HeldOrderItemDto = {
@@ -250,6 +252,9 @@ export type OrderPrintDto = {
     quantity: number;
     unitPrice: number;
     lineTotal: number;
+    discountAmount?: number;
+    discountReason?: string;
+    netAmount?: number;
   }>;
 };
 

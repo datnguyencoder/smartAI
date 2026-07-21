@@ -48,6 +48,13 @@ public class OrderPrintResponse {
         private String itemName;
         private BigDecimal quantity;
         private BigDecimal unitPrice;
+        /** Thành tiền GỘP (unitPrice × quantity), chưa trừ giảm giá dòng — dùng để gạch ngang khi có KM. */
         private BigDecimal lineTotal;
+        /** Số tiền giảm riêng trên dòng này (BOGO / quà tặng kèm) — 0 nếu không có. */
+        private BigDecimal discountAmount;
+        /** Lý do giảm giá dòng này, vd "Mua 2 tặng 1", "Quà tặng kèm". Null nếu không có. */
+        private String discountReason;
+        /** Số tiền thực thu cho dòng này = lineTotal - discountAmount. */
+        private BigDecimal netAmount;
     }
 }

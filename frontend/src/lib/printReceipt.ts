@@ -56,17 +56,31 @@ export function buildPrintHtml(data: Awaited<ReturnType<typeof fetchOrderPrint>>
   const vat = data.vatAmount ?? 0;
   const itemCount = data.items.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
 
+  // Giảm giá per-line (BOGO/qua tang) da hien rieng o tung dong ben duoi, nen phan
+  // "Giam gia" tong o cuoi hoa don CHI con lai phan ma KM + diem doi (tranh tinh 2 lan).
+  const productDiscountTotal = data.items.reduce((s, i) => s + Number(i.discountAmount ?? 0), 0);
+  const otherDiscount = Math.max(0, discount - productDiscountTotal);
+
   const rows = data.items
-    .map(
-      (it) => `
+    .map((it) => {
+      const lineDiscount = Number(it.discountAmount ?? 0);
+      const netAmount = it.netAmount ?? it.lineTotal - lineDiscount;
+      const giftTag = lineDiscount > 0
+        ? `<div class="item-gift-tag">${clean(it.discountReason || 'Khuyen mai')}${netAmount <= 0 ? ' - MIEN PHI' : ''}</div>`
+        : '';
+      const amountCell = lineDiscount > 0
+        ? `<span class="item-amount-cell"><span class="item-strike">${fmt(it.lineTotal)}</span><strong>${fmt(netAmount)}</strong></span>`
+        : `<strong>${fmt(it.lineTotal)}</strong>`;
+      return `
       <div class="item">
         <div class="item-name">${clean(it.itemName)}</div>
         <div class="item-meta">
           <span>${clean(it.itemCode)} | ${it.quantity} x ${fmt(it.unitPrice)}</span>
-          <strong>${fmt(it.lineTotal)}</strong>
+          ${amountCell}
         </div>
-      </div>`,
-    )
+        ${giftTag}
+      </div>`;
+    })
     .join('');
 
   const loyaltySection =
@@ -74,10 +88,14 @@ export function buildPrintHtml(data: Awaited<ReturnType<typeof fetchOrderPrint>>
       ? `<div class="summary-row"><span>Diem da doi</span><span>-${data.loyaltyPointsRedeemed} diem</span></div>`
       : '';
 
+  const productDiscountSection = productDiscountTotal > 0
+    ? `<div class="summary-row"><span>Giam gia SP (BOGO/qua tang)</span><span>-${fmt(productDiscountTotal)}</span></div>`
+    : '';
+
   const promotionSection = data.promotionCode
-    ? `<div class="summary-row"><span>Giam gia (${clean(data.promotionCode)})</span><span>-${fmt(discount)}</span></div>`
-    : discount > 0
-    ? `<div class="summary-row"><span>Giam gia</span><span>-${fmt(discount)}</span></div>`
+    ? `<div class="summary-row"><span>Giam gia (${clean(data.promotionCode)})</span><span>-${fmt(otherDiscount)}</span></div>`
+    : otherDiscount > 0
+    ? `<div class="summary-row"><span>Giam gia</span><span>-${fmt(otherDiscount)}</span></div>`
     : '';
   const vatSection = vat > 0 ? `<div class="summary-row"><span>VAT</span><span>${fmt(vat)}</span></div>` : '';
   const shiftSection = data.shiftId
@@ -133,6 +151,9 @@ export function buildPrintHtml(data: Awaited<ReturnType<typeof fetchOrderPrint>>
     .item-name { font-weight: 700; overflow-wrap: anywhere; }
     .item-meta { margin-top: 2px; font-size: 11px; }
     .item-meta strong { font-size: 12px; white-space: nowrap; }
+    .item-amount-cell { white-space: nowrap; }
+    .item-meta .item-strike { font-size: 11px; color: #888; text-decoration: line-through; margin-right: 4px; }
+    .item-gift-tag { margin-top: 2px; font-size: 10.5px; font-weight: 700; color: #b45309; }
     .summary-row { margin: 3px 0; }
     .total {
       align-items: baseline;
@@ -185,6 +206,7 @@ export function buildPrintHtml(data: Awaited<ReturnType<typeof fetchOrderPrint>>
     <div class="summary">
       <div class="summary-row"><span>So luong</span><span>${itemCount}</span></div>
       <div class="summary-row"><span>Tam tinh</span><span>${fmt(subtotal)}</span></div>
+      ${productDiscountSection}
       ${promotionSection}
       ${loyaltySection}
       ${vatSection}

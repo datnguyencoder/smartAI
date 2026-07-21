@@ -43,6 +43,15 @@ public class OrderItem {
     @Column(nullable = false)
     private BigDecimal subtotal;
 
+    /** Số tiền giảm áp trên CHÍNH dòng này (BOGO tặng cùng SP, hoặc là SP quà tặng kèm). */
+    @Column(name = "discount_amount")
+    @Builder.Default
+    private BigDecimal discountAmount = BigDecimal.ZERO;
+
+    /** Lý do giảm giá dòng này, hiện lên hoá đơn — vd "Mua 2 tặng 1", "Quà tặng kèm". Null nếu không có. */
+    @Column(name = "discount_reason", length = 120)
+    private String discountReason;
+
     @Column(name = "category_id_at_sale")
     private Long categoryIdAtSale;
 

@@ -415,8 +415,12 @@ export default function PosPage({
   };
 
   const subtotal = posCart.reduce((sum, item) => sum + lineAmount(item), 0);
+  // Tổng gộp trước khi trừ quà tặng/BOGO — khớp với cách backend tính mã KM (áp trên tổng
+  // gộp trước, không phải trên subtotal đã trừ quà), để preview FE không lệch số tiền thật.
+  const grossSubtotal = posCart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const productDiscountTotal = Math.max(0, grossSubtotal - subtotal);
 
-  const validatePromoCode = async (code: string, amount = subtotal) => {
+  const validatePromoCode = async (code: string, amount = grossSubtotal) => {
     if (!code.trim()) {
       setPromoDiscount(0);
       setPromoMessage('');
@@ -441,12 +445,12 @@ export default function PosPage({
 
   React.useEffect(() => {
     if (promotionCode.trim()) {
-      const timer = setTimeout(() => validatePromoCode(promotionCode, subtotal), 400);
+      const timer = setTimeout(() => validatePromoCode(promotionCode, grossSubtotal), 400);
       return () => clearTimeout(timer);
     }
     setPromoDiscount(0);
     setPromoMessage('');
-  }, [promotionCode, subtotal]);
+  }, [promotionCode, grossSubtotal]);
 
   const total = Math.max(0, subtotal - promoDiscount - loyaltyRedeem);
   const cashChange = Math.max(0, cashReceived - total);
@@ -684,12 +688,25 @@ export default function PosPage({
         cashier: order.cashierName || 'Hệ thống',
         status: 'Đã thanh toán',
         time: new Date(order.orderDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-        items: posCart.map((item) => ({
-          name: item.product.name,
-          qty: item.quantity,
-          price: item.product.price,
-          itemId: Number(item.product.key),
-        })),
+        items: (order.items && order.items.length > 0
+          ? order.items.map((it) => ({
+              name: it.itemName,
+              qty: Number(it.quantity),
+              price: Number(it.unitPrice),
+              subtotal: Number(it.subtotal ?? Number(it.unitPrice) * Number(it.quantity)),
+              discountAmount: Number(it.discountAmount ?? 0),
+              discountReason: it.discountReason,
+              itemId: it.itemId,
+            }))
+          : posCart.map((item) => ({
+              name: item.product.name,
+              qty: item.quantity,
+              price: item.product.price,
+              subtotal: item.product.price * item.quantity,
+              discountAmount: 0,
+              discountReason: undefined,
+              itemId: Number(item.product.key),
+            }))),
         subtotal: Math.round(subtotal),
         discount: Math.round(discount),
         loyaltyRedeemed: Number(order.loyaltyPointsRedeemed || loyaltyRedeem || 0),
@@ -1046,8 +1063,14 @@ export default function PosPage({
             <div className="space-y-1.5 text-sm border-t border-dashed border-slate-200 pt-3">
               <div className="flex justify-between text-slate-500">
                 <span>Tạm tính</span>
-                <span>{money(subtotal)}</span>
+                <span>{money(grossSubtotal)}</span>
               </div>
+              {productDiscountTotal > 0 && (
+                <div className="flex justify-between text-pink-600 font-medium">
+                  <span>🎁 Giảm giá SP (BOGO/quà tặng)</span>
+                  <span>-{money(productDiscountTotal)}</span>
+                </div>
+              )}
               {promoDiscount > 0 && (
                 <div className="flex justify-between text-red-600 font-medium">
                   <span>Giảm giá KM</span>
@@ -1314,13 +1337,44 @@ export default function PosPage({
               )}
             </div>
             <div className="border-t border-b border-dashed border-slate-200 py-3 space-y-2">
-              {lastInvoice.items.map((it: { name: string; qty: number; price: number }) => (
-                <div className="flex justify-between text-slate-700" key={it.name}>
-                  <div className="pr-3 truncate w-[180px]">{it.name}</div>
-                  <div>{it.qty} x {money(it.price)}</div>
-                </div>
-              ))}
+              {lastInvoice.items.map((it: { name: string; qty: number; price: number; subtotal: number; discountAmount?: number; discountReason?: string; itemId?: number }, idx: number) => {
+                const hasDiscount = (it.discountAmount ?? 0) > 0;
+                const net = it.subtotal - (it.discountAmount ?? 0);
+                return (
+                  <div key={`${it.itemId ?? it.name}-${idx}`}>
+                    <div className="flex justify-between text-slate-700">
+                      <div className="pr-3 truncate w-[160px]">{it.name}</div>
+                      <div className="text-right">
+                        <div>{it.qty} x {money(it.price)}</div>
+                        {hasDiscount && (
+                          <div>
+                            <span className="text-slate-400 line-through mr-1">{money(it.subtotal)}</span>
+                            <span className="font-bold text-emerald-600">{money(net)}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {hasDiscount && (
+                      <div className="text-right text-[10px] font-bold text-amber-600">
+                        🎁 {it.discountReason || 'Khuyến mãi'}{net <= 0 ? ' — MIỄN PHÍ' : ''}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
+            {(() => {
+              const productDiscountTotal = lastInvoice.items.reduce(
+                (sum: number, it: { discountAmount?: number }) => sum + (it.discountAmount ?? 0),
+                0
+              );
+              return productDiscountTotal > 0 ? (
+                <div className="flex justify-between text-[11px] font-semibold text-amber-600">
+                  <span>Giảm giá SP (BOGO/quà tặng):</span>
+                  <span>-{money(productDiscountTotal)}</span>
+                </div>
+              ) : null;
+            })()}
             <div className="flex justify-between text-sm font-bold text-primary">
               <span>TỔNG:</span>
               <span>{money(lastInvoice.amount)}</span>

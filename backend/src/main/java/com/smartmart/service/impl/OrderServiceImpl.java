@@ -183,17 +183,26 @@ public class OrderServiceImpl implements OrderService {
         for (OrderLineRequest line : request.getItems()) {
             var apply = discountPlanService.applyForItem(line.getItemId());
             Item lineItem = itemService.findItem(line.getItemId());
+            BigDecimal lineDiscount = BigDecimal.ZERO;
+            String reason = null;
             if (apply.getDealType() == com.smartmart.enums.DiscountDealType.BOGO
                     && apply.getBuyQuantity() != null && apply.getFreeQuantity() != null) {
                 BigDecimal freeUnits = computeBogoFreeUnits(line.getQuantity(), apply.getBuyQuantity(), apply.getFreeQuantity());
-                planDiscountAmount = planDiscountAmount.add(lineItem.getSellingPrice().multiply(freeUnits));
+                if (freeUnits.compareTo(BigDecimal.ZERO) > 0) {
+                    lineDiscount = lineItem.getSellingPrice().multiply(freeUnits);
+                    reason = "Mua " + apply.getBuyQuantity() + " tặng " + apply.getFreeQuantity();
+                }
             } else if (apply.getDiscountPercent() != null && apply.getDiscountPercent().compareTo(BigDecimal.ZERO) > 0) {
                 BigDecimal lineSubtotal = lineItem.getSellingPrice().multiply(line.getQuantity());
-                planDiscountAmount = planDiscountAmount.add(
-                        lineSubtotal.multiply(apply.getDiscountPercent()).divide(BigDecimal.valueOf(100)));
+                lineDiscount = lineSubtotal.multiply(apply.getDiscountPercent()).divide(BigDecimal.valueOf(100));
+                reason = "KM " + apply.getDiscountPercent().stripTrailingZeros().toPlainString() + "%";
+            }
+            if (lineDiscount.compareTo(BigDecimal.ZERO) > 0) {
+                applyLineDiscount(orderItems, line.getItemId(), lineDiscount, reason);
+                planDiscountAmount = planDiscountAmount.add(lineDiscount);
             }
         }
-        planDiscountAmount = planDiscountAmount.add(resolveGiftWithPurchaseDiscount(request.getItems()));
+        planDiscountAmount = planDiscountAmount.add(resolveGiftWithPurchaseDiscount(request.getItems(), orderItems));
 
         BigDecimal discountAmount = planDiscountAmount;
         Promotion promotion = null;
@@ -369,13 +378,19 @@ public class OrderServiceImpl implements OrderService {
         }
 
         List<OrderPrintResponse.PrintLine> lines = order.getItems().stream()
-                .map(i -> OrderPrintResponse.PrintLine.builder()
-                        .itemCode(i.getItem().getItemCode())
-                        .itemName(i.getItem().getItemName())
-                        .quantity(i.getQuantity())
-                        .unitPrice(i.getUnitPrice())
-                        .lineTotal(i.getSubtotal())
-                        .build())
+                .map(i -> {
+                    BigDecimal lineDiscount = i.getDiscountAmount() != null ? i.getDiscountAmount() : BigDecimal.ZERO;
+                    return OrderPrintResponse.PrintLine.builder()
+                            .itemCode(i.getItem().getItemCode())
+                            .itemName(i.getItem().getItemName())
+                            .quantity(i.getQuantity())
+                            .unitPrice(i.getUnitPrice())
+                            .lineTotal(i.getSubtotal())
+                            .discountAmount(lineDiscount)
+                            .discountReason(i.getDiscountReason())
+                            .netAmount(i.getSubtotal().subtract(lineDiscount))
+                            .build();
+                })
                 .toList();
 
         List<OrderPrintResponse.PaymentLine> paymentLines = order.getPayments() != null
@@ -496,6 +511,8 @@ public class OrderServiceImpl implements OrderService {
                         .quantity(i.getQuantity())
                         .unitPrice(i.getUnitPrice())
                         .subtotal(i.getSubtotal())
+                        .discountAmount(i.getDiscountAmount() != null ? i.getDiscountAmount() : BigDecimal.ZERO)
+                        .discountReason(i.getDiscountReason())
                         .build())
                 .toList();
         String cashierName = "Hệ thống";
@@ -580,7 +597,7 @@ public class OrderServiceImpl implements OrderService {
      * trong giỏ hàng không (thu ngân phải tự quét/thêm quà vào giỏ — hệ thống không tự động thêm
      * dòng hàng mới mà chỉ định giá 0đ cho phần quà nếu điều kiện thoả).
      */
-    private BigDecimal resolveGiftWithPurchaseDiscount(List<OrderLineRequest> lines) {
+    private BigDecimal resolveGiftWithPurchaseDiscount(List<OrderLineRequest> lines, List<OrderItem> orderItems) {
         var giftPlans = discountPlanService.listActiveToday().stream()
                 .filter(p -> p.getDealType() == com.smartmart.enums.DiscountDealType.BOGO
                         && p.getGiftItemId() != null
@@ -623,8 +640,36 @@ public class OrderServiceImpl implements OrderService {
                 continue;
             }
             Item giftItem = itemCache.computeIfAbsent(plan.getGiftItemId(), itemService::findItem);
-            total = total.add(giftItem.getSellingPrice().multiply(actualFree));
+            BigDecimal giftDiscount = giftItem.getSellingPrice().multiply(actualFree);
+            applyLineDiscount(orderItems, plan.getGiftItemId(), giftDiscount, "Quà tặng: " + plan.getPlanName());
+            total = total.add(giftDiscount);
         }
         return total;
+    }
+
+    /**
+     * Phân bổ số tiền giảm của 1 "dòng logic" (theo itemId) vào các {@link OrderItem} thật tương ứng —
+     * có thể có NHIỀU dòng cho cùng itemId nếu FEFO phải tách theo nhiều lô. Chia theo tỉ lệ số lượng,
+     * dòng cuối nhận phần dư để tránh lệch do làm tròn.
+     */
+    private void applyLineDiscount(List<OrderItem> orderItems, Long itemId, BigDecimal totalDiscount, String reason) {
+        List<OrderItem> matching = orderItems.stream()
+                .filter(oi -> oi.getItem().getId().equals(itemId))
+                .toList();
+        BigDecimal totalQty = matching.stream().map(OrderItem::getQuantity).reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (matching.isEmpty() || totalQty.compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+        BigDecimal remaining = totalDiscount;
+        for (int i = 0; i < matching.size(); i++) {
+            OrderItem oi = matching.get(i);
+            BigDecimal share = (i == matching.size() - 1)
+                    ? remaining
+                    : totalDiscount.multiply(oi.getQuantity())
+                            .divide(totalQty, 2, java.math.RoundingMode.HALF_UP);
+            oi.setDiscountAmount(oi.getDiscountAmount().add(share));
+            oi.setDiscountReason(reason);
+            remaining = remaining.subtract(share);
+        }
     }
 }
