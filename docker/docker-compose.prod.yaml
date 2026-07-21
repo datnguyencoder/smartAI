@@ -156,13 +156,15 @@ services:
       timeout: 5s
       retries: 5
       start_period: 25s
-    # Memory limit phải > JAVA_OPTS -Xmx (768m) + chỗ cho metaspace/thread stack/native
-    # buffer, nếu không JVM chắc chắn bị OOM-kill khi heap chạm limit.
+    # Memory limit phải có đủ đệm ngoài JAVA_OPTS -Xmx: JVM còn cần metaspace, JIT code
+    # cache, thread stack (mỗi thread ~1MB, Tomcat pool có thể tới vài chục thread cùng
+    # lúc), direct buffer cho Kafka/Redis client... 1024M từng bị OOM-kill trên thực tế
+    # (backend DOWN) nên nâng lên 1536M để có biên an toàn rộng hơn nhiều.
     deploy:
       resources:
         limits:
           cpus: "1.0"
-          memory: 1024M
+          memory: 1536M
 
 volumes:
   postgres_data:
