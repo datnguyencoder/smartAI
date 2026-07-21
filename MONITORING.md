@@ -8,7 +8,8 @@ Hệ thống giám sát SmartMart dùng 2 công nghệ chính:
 |-----------|---------|------|
 | **Prometheus + Grafana** | Thu thập metrics → Visualize dashboard → Alert rules | Grafana: 3000, Prometheus: 9090 |
 | **Loki + Promtail** | Thu thập & xem log Backend/AI Service qua Grafana Explore | Loki: 3100 (nội bộ) |
-| **Uptime Kuma** | Uptime monitoring tất cả endpoint, alert Telegram/Email | 3001 |
+
+> Đã bỏ **Uptime Kuma** khỏi stack để giảm tải cho VPS (server cấu hình yếu). Việc theo dõi uptime endpoint có thể làm bằng **Grafana Alerting** (rule dựa trên `up{job=...}` từ Prometheus) thay thế, không cần chạy thêm container riêng.
 
 > **Lưu ý:** Frontend host trên Vercel (không chạy Docker trên VPS) nên **không có** trong Loki. Xem log frontend tại dashboard Vercel riêng (Project → Deployments → Runtime Logs).
 
@@ -35,8 +36,7 @@ VPS (160.191.242.125)
 ├── cadvisor (:8082)         ← Docker container stats
 │
 ├── prometheus (:9090)       ← Thu thập + lưu metrics 30d
-├── grafana (:3000)          ← Dashboard + Alert
-└── uptime-kuma (:3001)      ← Uptime + notifications
+└── grafana (:3000)          ← Dashboard + Alert
 ```
 
 ---
@@ -75,19 +75,7 @@ docker compose \
 2. Đổi password ngay
 3. Dashboard **SmartMart — System Overview** đã được auto-provision
 4. Vào **Alerting → Contact Points** → thêm Telegram/Email để nhận alert
-
-### Uptime Kuma (http://VPS_IP:3001)
-1. Tạo account admin lần đầu
-2. Thêm các monitor sau:
-
-| Tên | URL | Interval |
-|-----|-----|----------|
-| Backend Health | http://localhost:8080/actuator/health | 60s |
-| AI Service Health | http://localhost:8000/ai/health | 60s |
-| Frontend (Vercel) | https://smart-ai-five.vercel.app | 60s |
-| API Domain | https://api.datnguyencoder.asia/actuator/health | 60s |
-
-3. Vào **Settings → Notifications** → kết nối Telegram bot (khuyến nghị)
+5. Vào **Alerting → Alert rules** → tạo rule dựa trên metric `up{job="backend"}`, `up{job="ai-service"}`... để thay thế uptime-check của Uptime Kuma
 
 ---
 
@@ -242,7 +230,6 @@ http_requests_inprogress{handler,method}
 # Xem logs monitoring stack
 docker logs smartmart_prometheus --tail 50
 docker logs smartmart_grafana --tail 50
-docker logs smartmart_uptime_kuma --tail 50
 
 # Reload prometheus config (không cần restart)
 curl -X POST http://localhost:9090/-/reload
@@ -280,7 +267,7 @@ POSTGRES_DB=smartmart_db
 ## Bảo mật
 
 - Prometheus (`:9090`) và các exporter (`:9100`, `:9121`, `:9187`) chỉ bind `127.0.0.1` — không expose ra internet.
-- Grafana (`:3000`) và Uptime Kuma (`:3001`) expose ra internet để xem dashboard từ xa.
+- Grafana (`:3000`) expose ra internet để xem dashboard từ xa.
 - **Nên đặt sau Nginx** với basic auth hoặc IP whitelist nếu môi trường nhạy cảm.
 
 Nginx snippet bảo vệ Grafana:
@@ -302,4 +289,3 @@ location /grafana/ {
 | Grafana không thấy data | Prometheus Targets: http://localhost:9090/targets |
 | Node Exporter không có data | `curl http://localhost:9100/metrics \| grep node_cpu` |
 | Redis Exporter fail | `docker logs smartmart_redis_exporter` |
-| Uptime Kuma không ping được | Kiểm tra network `smartmart_network` có external: true |

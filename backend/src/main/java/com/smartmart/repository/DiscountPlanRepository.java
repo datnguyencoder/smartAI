@@ -12,6 +12,8 @@ import java.util.List;
 public interface DiscountPlanRepository extends JpaRepository<DiscountPlan, Long> {
     List<DiscountPlan> findByActiveTrueOrderByPlanNameAsc();
 
+    List<DiscountPlan> findAllByOrderByCreatedAtDesc();
+
     @Query("""
         SELECT dp FROM DiscountPlan dp
         WHERE dp.active = true

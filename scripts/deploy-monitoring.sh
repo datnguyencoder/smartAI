@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# SmartMart — Deploy Monitoring Stack (Prometheus + Grafana + Uptime Kuma)
+# SmartMart — Deploy Monitoring Stack (Prometheus + Grafana)
 # Chạy trên VPS với: bash deploy-monitoring.sh
 # =============================================================================
 set -euo pipefail
@@ -94,7 +94,7 @@ docker compose \
   --env-file "$ENV_FILE" \
   pull --quiet \
   node-exporter cadvisor postgres-exporter redis-exporter \
-  prometheus grafana uptime-kuma 2>&1 | tail -5
+  prometheus grafana 2>&1 | tail -5
 
 docker compose \
   -f "$COMPOSE_PROD" \
@@ -102,7 +102,7 @@ docker compose \
   --env-file "$ENV_FILE" \
   up -d \
   node-exporter cadvisor postgres-exporter redis-exporter \
-  prometheus grafana uptime-kuma
+  prometheus grafana
 
 log "Đang chờ services khởi động (30s)..."
 sleep 30
@@ -122,7 +122,6 @@ check_service() {
 
 check_service "Prometheus"     "http://localhost:9090/-/healthy"
 check_service "Grafana"        "http://localhost:3000/api/health"
-check_service "Uptime Kuma"    "http://localhost:3001"
 check_service "Node Exporter"  "http://localhost:9100/metrics"
 check_service "cAdvisor"       "http://localhost:8082/healthz"
 check_service "PG Exporter"    "http://localhost:9187/metrics"
@@ -142,24 +141,9 @@ for t in data.get('data',{}).get('activeTargets',[]):
     print(f'  {icon} {job}: {health}')
 " 2>/dev/null || warn "Prometheus targets chưa sẵn sàng, chờ thêm 30s..."
 
-# ── 8. Cấu hình Uptime Kuma auto-monitors (qua API) ──────────────────────────
-log "Cấu hình Uptime Kuma monitors..."
-sleep 10
-
 VPS_IP=$(curl -sf https://ipinfo.io/ip 2>/dev/null || echo "localhost")
 
-# Tạo admin account Uptime Kuma
-UK_SETUP=$(curl -sf -X POST "http://localhost:3001/api/v1/setup" \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"SmartMart@Kuma2026!"}' 2>/dev/null || echo "already_setup")
-
-if echo "$UK_SETUP" | grep -q "already_setup\|exists"; then
-  warn "Uptime Kuma đã có account, bỏ qua setup."
-else
-  log "Đã tạo Uptime Kuma admin / SmartMart@Kuma2026!"
-fi
-
-# ── 9. Tổng kết ──────────────────────────────────────────────────────────────
+# ── 8. Tổng kết ──────────────────────────────────────────────────────────────
 echo ""
 echo -e "${GREEN}═══════════════════════════════════════════════════${NC}"
 echo -e "${GREEN}  Deploy Hoàn Thành!${NC}"
@@ -169,17 +153,13 @@ echo -e "  📊 Grafana:      ${YELLOW}http://$VPS_IP:3000${NC}"
 echo -e "     Login:        admin / SmartMart@Grafana2026!"
 echo -e "     Dashboard:    SmartMart > System Overview (auto-loaded)"
 echo ""
-echo -e "  🟢 Uptime Kuma:  ${YELLOW}http://$VPS_IP:3001${NC}"
-echo -e "     Login:        admin / SmartMart@Kuma2026!"
-echo ""
 echo -e "  🔥 Prometheus:   ${YELLOW}http://localhost:9090${NC} (nội bộ)"
 echo ""
 echo -e "  📋 Xem tất cả containers:"
 echo -e "     docker ps --format 'table {{.Names}}\t{{.Status}}'"
 echo ""
 echo -e "${YELLOW}  ⚠️  Việc cần làm thủ công:${NC}"
-echo -e "  1. Uptime Kuma: thêm monitors cho backend/AI/Vercel endpoint"
-echo -e "  2. Grafana: Alerting > Contact Points > thêm Telegram/Email"
-echo -e "  3. Điền GEMINI_API_KEY + CEREBRAS_API_KEY vào $ENV_FILE"
+echo -e "  1. Grafana: Alerting > Contact Points > thêm Telegram/Email"
+echo -e "  2. Điền GEMINI_API_KEY + CEREBRAS_API_KEY vào $ENV_FILE"
 echo -e "     rồi: docker compose -f $COMPOSE_PROD --env-file $ENV_FILE up -d backend"
 echo ""
