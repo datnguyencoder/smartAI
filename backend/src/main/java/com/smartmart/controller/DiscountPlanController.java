@@ -29,8 +29,11 @@ public class DiscountPlanController {
         this.discountPlanService = discountPlanService;
     }
 
+    // STAFF cần đọc danh sách này ở POS để tự tính giá BOGO/quà tặng khi bán hàng —
+    // trước đây chỉ ADMIN/MANAGER được gọi nên POS của thu ngân (STAFF) luôn nhận 403,
+    // lỗi bị nuốt âm thầm ở FE khiến toàn bộ khuyến mãi "biến mất" không rõ lý do.
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF','WAREHOUSE')")
     @Operation(summary = "Danh sách kế hoạch giảm giá")
     public ResponseEntity<ApiResponse<List<DiscountPlanResponse>>> list() {
         return ResponseEntity.ok(ApiResponse.success(discountPlanService.listAll()));
@@ -61,8 +64,16 @@ public class DiscountPlanController {
         return ResponseEntity.ok(ApiResponse.success("Cập nhật thành công", discountPlanService.update(id, request)));
     }
 
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @Operation(summary = "Xoá chiến dịch khuyến mãi")
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
+        discountPlanService.delete(id);
+        return ResponseEntity.ok(ApiResponse.success("Đã xoá chiến dịch", null));
+    }
+
     @GetMapping("/apply/{itemId}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','CASHIER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF','WAREHOUSE')")
     @Operation(summary = "Áp dụng quy tắc giảm giá cho sản phẩm")
     public ResponseEntity<ApiResponse<DiscountApplyResponse>> apply(@PathVariable Long itemId) {
         return ResponseEntity.ok(ApiResponse.success(discountPlanService.applyForItem(itemId)));

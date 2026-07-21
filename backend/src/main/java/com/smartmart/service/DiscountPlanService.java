@@ -12,6 +12,8 @@ public interface DiscountPlanService {
 
     DiscountPlanResponse update(Long id, UpdateDiscountPlanRequest request);
 
+    void delete(Long id);
+
     DiscountPlanResponse getById(Long id);
 
     /** Toàn bộ kế hoạch (mọi trạng thái) — dùng cho trang quản lý. */

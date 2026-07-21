@@ -13,6 +13,7 @@ import com.smartmart.exception.BadRequestException;
 import com.smartmart.exception.NotFoundException;
 import com.smartmart.repository.CategoryRepository;
 import com.smartmart.repository.DiscountPlanRepository;
+import com.smartmart.service.AuditLogService;
 import com.smartmart.service.DiscountPlanService;
 import com.smartmart.service.ItemService;
 import org.springframework.stereotype.Service;
@@ -30,14 +31,17 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
     private final DiscountPlanRepository discountPlanRepository;
     private final ItemService itemService;
     private final CategoryRepository categoryRepository;
+    private final AuditLogService auditLogService;
 
     public DiscountPlanServiceImpl(
             DiscountPlanRepository discountPlanRepository,
             ItemService itemService,
-            CategoryRepository categoryRepository) {
+            CategoryRepository categoryRepository,
+            AuditLogService auditLogService) {
         this.discountPlanRepository = discountPlanRepository;
         this.itemService = itemService;
         this.categoryRepository = categoryRepository;
+        this.auditLogService = auditLogService;
     }
 
     @Override
@@ -120,6 +124,15 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
     @Transactional(readOnly = true)
     public DiscountPlanResponse getById(Long id) {
         return toResponse(findById(id));
+    }
+
+    @Override
+    public void delete(Long id) {
+        DiscountPlan plan = findById(id);
+        String planName = plan.getPlanName();
+        discountPlanRepository.delete(plan);
+        auditLogService.log("DISCOUNT_PLAN_DELETE", "DISCOUNT_PLAN", id.toString(),
+                "Xóa chiến dịch khuyến mãi: " + planName, null, null);
     }
 
     @Override

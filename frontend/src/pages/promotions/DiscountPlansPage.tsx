@@ -1,9 +1,9 @@
 import * as React from 'react';
-import { Button, DatePicker, Form, Input, InputNumber, Modal, Segmented, Switch, Table, Tabs, Tag, message } from 'antd';
+import { Button, DatePicker, Form, Input, InputNumber, Modal, Popconfirm, Segmented, Switch, Table, Tabs, Tag, message } from 'antd';
 import dayjs from 'dayjs';
-import { Gift, Plus, Tag as TagIcon } from 'lucide-react';
+import { Gift, Plus, Tag as TagIcon, Trash2 } from 'lucide-react';
 import { Card, CardHeader, Select } from '@/components/ui';
-import { createDiscountPlan, fetchCategories, fetchDiscountPlans, fetchNearExpiry, updateDiscountPlan } from '@/services/wmsApi';
+import { createDiscountPlan, deleteDiscountPlan, fetchCategories, fetchDiscountPlans, fetchNearExpiry, updateDiscountPlan } from '@/services/wmsApi';
 import type { DiscountPlanDto, CategoryDto, InventoryItemDto } from '@/types/api';
 import type { Product } from '@/lib/itemMapper';
 
@@ -149,6 +149,16 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
     }
   };
 
+  const handleDelete = async (id: number) => {
+    try {
+      await deleteDiscountPlan(id);
+      message.success('Đã xoá chiến dịch');
+      load();
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : 'Không xoá được chiến dịch');
+    }
+  };
+
   const dealLabel = (r: DiscountPlanDto) => {
     if (r.dealType !== 'BOGO') return `${r.discountPercent}%`;
     return r.giftItemId
@@ -276,7 +286,24 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
                         return <Tag color={meta.color}>{meta.label}</Tag>;
                       },
                     },
-                    { title: '', render: (_: unknown, r: DiscountPlanDto) => <Button type="link" onClick={() => openEdit(r)}>Sửa</Button> },
+                    {
+                      title: '',
+                      render: (_: unknown, r: DiscountPlanDto) => (
+                        <div className="flex items-center gap-1">
+                          <Button type="link" onClick={() => openEdit(r)}>Sửa</Button>
+                          <Popconfirm
+                            title="Xoá chiến dịch này?"
+                            description="Không thể hoàn tác. Đơn hàng cũ đã áp dụng chiến dịch này vẫn giữ nguyên."
+                            okText="Xoá"
+                            okButtonProps={{ danger: true }}
+                            cancelText="Huỷ"
+                            onConfirm={() => handleDelete(r.id)}
+                          >
+                            <Button type="link" danger icon={<Trash2 size={14} />} />
+                          </Popconfirm>
+                        </div>
+                      ),
+                    },
                   ]}
                 />
               </>

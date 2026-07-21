@@ -44,3 +44,7 @@ export function updateDiscountPlan(id: number, payload: {
     body: JSON.stringify(payload),
   });
 }
+
+export function deleteDiscountPlan(id: number) {
+  return apiRequest<void>(`/api/v1/discount-plans/${id}`, { method: 'DELETE' });
+}
