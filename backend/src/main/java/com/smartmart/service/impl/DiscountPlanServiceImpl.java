@@ -209,10 +209,10 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
 
     private void validatePlanRequest(DiscountPlanType type, Long categoryId, Long itemId) {
         if (type == DiscountPlanType.CATEGORY && categoryId == null) {
-            throw new BadRequestException("Cần chọn danh mục cho kế hoạch giảm giá theo danh mục");
+            throw new BadRequestException("Cần chọn danh mục cho chiến dịch khuyến mãi theo danh mục");
         }
         if (type == DiscountPlanType.SKU && itemId == null) {
-            throw new BadRequestException("Cần chọn sản phẩm cho kế hoạch giảm giá theo SKU");
+            throw new BadRequestException("Cần chọn sản phẩm cho chiến dịch khuyến mãi theo SKU");
         }
     }
 
@@ -246,7 +246,7 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
 
     private DiscountPlan findById(Long id) {
         return discountPlanRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy kế hoạch giảm giá: " + id));
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy chiến dịch khuyến mãi: " + id));
     }
 
     private DiscountPlanResponse toResponse(DiscountPlan plan) {

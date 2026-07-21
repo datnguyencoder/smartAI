@@ -116,7 +116,7 @@ export const navGroups: NavGroup[] = [
       { key: 'expiry-risk', label: 'Rủi ro HSD', icon: CalendarClock },
       { key: 'promotions', label: 'Đề xuất KM', icon: antdNavIcon(GiftOutlined) },
       { key: 'promotion-manage', label: 'Mã KM', icon: BadgePercent },
-      { key: 'discount-plans', label: 'Kế hoạch giảm giá', icon: BadgePercent },
+      { key: 'discount-plans', label: 'Chiến dịch khuyến mãi', icon: BadgePercent },
       { key: 'ai-assistant', label: 'Trợ lý AI', icon: antdNavIcon(CommentOutlined) },
       { key: 'reports', label: 'Báo cáo', icon: BarChart3, section: 'Báo cáo' },
     ],

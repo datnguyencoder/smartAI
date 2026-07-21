@@ -36,7 +36,7 @@ const pageTitles: Record<PageKey, { title: string }> = {
   'expiry-risk': { title: 'Rủi ro hết hạn' },
   promotions: { title: 'Đề xuất KM (AI)' },
   'promotion-manage': { title: 'Quản lý mã KM' },
-  'discount-plans': { title: 'Kế hoạch giảm giá' },
+  'discount-plans': { title: 'Chiến dịch khuyến mãi' },
   'ai-assistant': { title: 'Trợ lý AI' },
   reports: { title: 'Báo cáo hệ thống' },
   finance: { title: 'Báo cáo dòng tiền' },

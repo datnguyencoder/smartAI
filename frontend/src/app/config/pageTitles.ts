@@ -29,7 +29,7 @@ export const pageTitles: Record<PageKey, { title: string; description: string }>
   'expiry-risk': { title: 'Rủi ro hết hạn', description: 'Theo dõi lô hàng gần hết hạn và đề xuất xử lý.' },
   promotions: { title: 'Đề xuất KM (AI)', description: 'Gemini đề xuất giảm giá — Manager duyệt → mã KM dùng tại POS.' },
   'promotion-manage': { title: 'Quản lý mã KM', description: 'Tạo mã giảm giá, thời hạn áp dụng và dùng ngay tại POS.' },
-  'discount-plans': { title: 'Kế hoạch giảm giá', description: 'Quy tắc giảm giá theo danh mục, sản phẩm hoặc toàn cửa hàng.' },
+  'discount-plans': { title: 'Chiến dịch khuyến mãi', description: 'Quy tắc giảm giá theo danh mục, sản phẩm hoặc toàn cửa hàng.' },
   'ai-assistant': { title: 'Trợ lý AI', description: 'Hỏi đáp nghiệp vụ, phân tích bán hàng và tạo tác vụ nhanh.' },
   reports: { title: 'Báo cáo hệ thống', description: 'Doanh thu, dòng tiền, tồn kho, công nợ và hiệu quả cửa hàng.' },
   finance: { title: 'Báo cáo hệ thống', description: 'Doanh thu, dòng tiền, tồn kho, công nợ và hiệu quả cửa hàng.' },

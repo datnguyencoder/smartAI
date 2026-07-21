@@ -43,7 +43,7 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
       setRows(plans ?? []);
       setCategories(cats ?? []);
     } catch (e) {
-      message.error(e instanceof Error ? e.message : 'Không tải kế hoạch giảm giá');
+      message.error(e instanceof Error ? e.message : 'Không tải chiến dịch khuyến mãi');
     } finally {
       setLoading(false);
     }
@@ -140,7 +140,7 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
         message.success('Cập nhật thành công');
       } else {
         await createDiscountPlan(payload);
-        message.success('Tạo kế hoạch thành công');
+        message.success('Tạo chiến dịch thành công');
       }
       setModalOpen(false);
       load();
@@ -194,18 +194,40 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
     return null;
   }, [planType, categoryId, itemId, dealType, discountPercent, buyQuantity, freeQuantity, giftMode, giftItemId, categories, productsList]);
 
+  // ── Chỉ cho chọn sản phẩm còn hàng khi tạo/sửa chiến dịch, tránh rối vì danh sách
+  // dài lẫn lộn cả hàng hết hàng. Vẫn giữ lại sản phẩm đang được chọn (khi sửa) dù
+  // hết hàng, để không hiện ô trống gây hiểu nhầm là mất dữ liệu.
+  const inStockProducts = React.useMemo(() => productsList.filter((p) => p.stock > 0), [productsList]);
+
+  const itemOptions = React.useMemo(() => {
+    if (itemId && !inStockProducts.some((p) => Number(p.key) === itemId)) {
+      const current = productsList.find((p) => Number(p.key) === itemId);
+      if (current) return [...inStockProducts, current];
+    }
+    return inStockProducts;
+  }, [inStockProducts, productsList, itemId]);
+
+  const giftItemOptions = React.useMemo(() => {
+    let list = inStockProducts.filter((p) => Number(p.key) !== itemId);
+    if (giftItemId && !list.some((p) => Number(p.key) === giftItemId)) {
+      const current = productsList.find((p) => Number(p.key) === giftItemId);
+      if (current) list = [...list, current];
+    }
+    return list;
+  }, [inStockProducts, productsList, itemId, giftItemId]);
+
   return (
     <Card>
       <CardHeader
-        title="Khuyến mãi & Kế hoạch giảm giá"
+        title="Chiến dịch khuyến mãi"
         description="Giảm giá theo danh mục/sản phẩm, chương trình mua tặng (cùng SP hoặc SP khác), và xả hàng cận date."
-        action={<Button type="primary" icon={<Plus size={16} />} onClick={openCreate}>Tạo kế hoạch</Button>}
+        action={<Button type="primary" icon={<Plus size={16} />} onClick={openCreate}>Tạo chiến dịch</Button>}
       />
       <Tabs
         items={[
           {
             key: 'plans',
-            label: `Kế hoạch giảm giá${rows.length ? ` (${rows.length})` : ''}`,
+            label: `Chiến dịch khuyến mãi${rows.length ? ` (${rows.length})` : ''}`,
             children: (
               <>
                 <div className="mb-3 flex justify-end">
@@ -293,10 +315,10 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
           },
         ]}
       />
-      <Modal open={modalOpen} title={editing ? 'Sửa kế hoạch' : 'Tạo kế hoạch giảm giá'} onCancel={() => setModalOpen(false)} onOk={handleSave} width={560}>
+      <Modal open={modalOpen} title={editing ? 'Sửa chiến dịch' : 'Tạo chiến dịch khuyến mãi'} onCancel={() => setModalOpen(false)} onOk={handleSave} width={560}>
         <Form form={form} layout="vertical">
-          <Form.Item name="planName" label="Tên kế hoạch" rules={[{ required: true }]}><Input placeholder="VD: Mua 1 tặng 1 Coca-Cola" /></Form.Item>
-          <Form.Item name="planType" label="Áp dụng theo" rules={[{ required: true }]} extra={editing ? 'Không thể đổi sau khi tạo — tạo kế hoạch mới nếu cần đổi đối tượng.' : undefined}>
+          <Form.Item name="planName" label="Tên chiến dịch" rules={[{ required: true }]}><Input placeholder="VD: Mua 1 tặng 1 Coca-Cola" /></Form.Item>
+          <Form.Item name="planType" label="Áp dụng theo" rules={[{ required: true }]} extra={editing ? 'Không thể đổi sau khi tạo — tạo chiến dịch mới nếu cần đổi đối tượng.' : undefined}>
             <Select disabled={!!editing} options={[
               { value: 'CATEGORY', label: 'Theo danh mục' },
               { value: 'SKU', label: 'Theo sản phẩm' },
@@ -308,12 +330,13 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
             </Form.Item>
           )}
           {planType === 'SKU' && (
-            <Form.Item name="itemId" label="Sản phẩm cần mua" rules={[{ required: true }]}>
+            <Form.Item name="itemId" label="Sản phẩm cần mua" rules={[{ required: true }]} extra="Chỉ hiện sản phẩm còn hàng.">
               <Select
                 disabled={!!editing}
                 showSearch
                 optionFilterProp="label"
-                options={productsList.map((p) => ({ value: Number(p.key), label: `${p.sku} · ${p.name}` }))}
+                notFoundContent="Không có sản phẩm còn hàng phù hợp"
+                options={itemOptions.map((p) => ({ value: Number(p.key), label: `${p.sku} · ${p.name}` }))}
               />
             </Form.Item>
           )}
@@ -348,15 +371,14 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
                   name="giftItemId"
                   label="Sản phẩm dùng làm quà tặng"
                   rules={[{ required: true, message: 'Chọn sản phẩm quà tặng' }]}
-                  extra="Nhân viên POS phải quét CẢ sản phẩm khách mua VÀ sản phẩm quà vào giỏ — hệ thống sẽ tự miễn phí phần quà."
+                  extra="Chỉ hiện sản phẩm còn hàng. Nhân viên POS phải quét CẢ sản phẩm khách mua VÀ sản phẩm quà vào giỏ — hệ thống sẽ tự miễn phí phần quà."
                 >
                   <Select
                     showSearch
                     optionFilterProp="label"
                     placeholder="VD: Móc khóa, ly giữ nhiệt..."
-                    options={productsList
-                      .filter((p) => Number(p.key) !== itemId)
-                      .map((p) => ({ value: Number(p.key), label: `${p.sku} · ${p.name}` }))}
+                    notFoundContent="Không có sản phẩm còn hàng phù hợp"
+                    options={giftItemOptions.map((p) => ({ value: Number(p.key), label: `${p.sku} · ${p.name}` }))}
                   />
                 </Form.Item>
               )}

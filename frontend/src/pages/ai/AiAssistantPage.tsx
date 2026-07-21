@@ -89,7 +89,7 @@ const SUGGESTED_PROMPTS: PromptItem[] = [
   {
     title: 'Khuyến mãi',
     hint: 'KM đang chạy',
-    prompt: 'Liệt kê tất cả mã khuyến mãi và kế hoạch giảm giá đang hoạt động hôm nay.',
+    prompt: 'Liệt kê tất cả mã khuyến mãi và chiến dịch khuyến mãi đang hoạt động hôm nay.',
     icon: Tag,
     tone: 'bg-purple-50 text-purple-700 ring-purple-100',
   },
