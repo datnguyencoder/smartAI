@@ -1191,7 +1191,7 @@ export default function PosPage({
 
             <div className="flex gap-2">
               <UiButton
-                className="flex-1 border border-[#2563EB] bg-[#2563EB] text-white hover:border-[#1D4ED8] hover:bg-[#1D4ED8] focus:ring-blue-500/40"
+                className="flex-1 border border-[#D97706] bg-[#F59E0B] text-white hover:border-[#B45309] hover:bg-[#D97706] focus:ring-amber-500/40"
                 variant="primary"
                 onClick={handleParkOrder}
                 disabled={posCart.length === 0}
