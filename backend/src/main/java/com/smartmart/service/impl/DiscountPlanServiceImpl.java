@@ -45,6 +45,10 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
         validatePlanRequest(request.getPlanType(), request.getCategoryId(), request.getItemId());
         DiscountDealType dealType = request.getDealType() != null ? request.getDealType() : DiscountDealType.PERCENTAGE;
         validateDealRequest(dealType, request.getDiscountPercent(), request.getBuyQuantity(), request.getFreeQuantity());
+        if (request.getStartDate() != null && request.getEndDate() != null
+                && request.getEndDate().isBefore(request.getStartDate())) {
+            throw new BadRequestException("Ngày kết thúc phải sau ngày bắt đầu");
+        }
         DiscountPlan plan = DiscountPlan.builder()
                 .planName(request.getPlanName().trim())
                 .planType(request.getPlanType())
@@ -68,14 +72,21 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
             plan.setPlanName(request.getPlanName().trim());
         }
         if (plan.getDealType() == DiscountDealType.BOGO) {
-            if (request.getBuyQuantity() != null) {
-                plan.setBuyQuantity(request.getBuyQuantity());
-            }
-            if (request.getFreeQuantity() != null) {
-                plan.setFreeQuantity(request.getFreeQuantity());
+            Integer buyQty = request.getBuyQuantity() != null ? request.getBuyQuantity() : plan.getBuyQuantity();
+            Integer freeQty = request.getFreeQuantity() != null ? request.getFreeQuantity() : plan.getFreeQuantity();
+            if (request.getBuyQuantity() != null || request.getFreeQuantity() != null) {
+                validateDealRequest(DiscountDealType.BOGO, null, buyQty, freeQty);
+                plan.setBuyQuantity(buyQty);
+                plan.setFreeQuantity(freeQty);
             }
         } else if (request.getDiscountPercent() != null) {
+            validateDealRequest(DiscountDealType.PERCENTAGE, request.getDiscountPercent(), null, null);
             plan.setDiscountPercent(request.getDiscountPercent());
+        }
+        LocalDate effectiveStart = request.getStartDate() != null ? request.getStartDate() : plan.getStartDate();
+        LocalDate effectiveEnd = request.getEndDate() != null ? request.getEndDate() : plan.getEndDate();
+        if (effectiveStart != null && effectiveEnd != null && effectiveEnd.isBefore(effectiveStart)) {
+            throw new BadRequestException("Ngày kết thúc phải sau ngày bắt đầu");
         }
         if (request.getStartDate() != null) {
             plan.setStartDate(request.getStartDate());
@@ -98,6 +109,13 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
     @Override
     @Transactional(readOnly = true)
     public List<DiscountPlanResponse> listAll() {
+        return discountPlanRepository.findAllByOrderByCreatedAtDesc().stream()
+                .map(this::toResponse).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DiscountPlanResponse> listActiveToday() {
         return discountPlanRepository.findAllActiveToday(LocalDate.now()).stream()
                 .map(this::toResponse).toList();
     }
@@ -222,7 +240,16 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
                 .startDate(plan.getStartDate())
                 .endDate(plan.getEndDate())
                 .active(plan.isActive())
+                .status(computeStatus(plan))
                 .createdAt(plan.getCreatedAt())
                 .build();
+    }
+
+    private String computeStatus(DiscountPlan plan) {
+        if (!plan.isActive()) return "DISABLED";
+        LocalDate today = LocalDate.now();
+        if (plan.getStartDate() != null && plan.getStartDate().isAfter(today)) return "SCHEDULED";
+        if (plan.getEndDate() != null && plan.getEndDate().isBefore(today)) return "EXPIRED";
+        return "RUNNING";
     }
 }

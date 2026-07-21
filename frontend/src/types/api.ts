@@ -985,6 +985,7 @@ export type DiscountPlanDto = {
   startDate?: string;
   endDate?: string;
   active: boolean;
+  status?: 'SCHEDULED' | 'RUNNING' | 'EXPIRED' | 'DISABLED' | string;
   createdAt?: string;
 };
 

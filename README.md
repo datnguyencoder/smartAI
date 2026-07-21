@@ -2,7 +2,7 @@
 
 **SmartMart AI** là nền tảng quản lý vận hành thế hệ mới cho siêu thị mini, tích hợp **Machine Learning** và **AI** để tối ưu hóa tồn kho, dự báo nhu cầu bán, và tối đa hóa hiệu quả kinh doanh.
 
-> 🚀 **Status:** Production-ready | 📊 **Monitoring:** Prometheus + Grafana + Uptime Kuma | 🔄 **CI/CD:** GitHub Actions → VPS
+> 🚀 **Status:** Production-ready | 📊 **Monitoring:** Prometheus + Grafana | 🔄 **CI/CD:** GitHub Actions → VPS
 
 ---
 
@@ -65,7 +65,7 @@
 | **Database** | PostgreSQL 16 + UUID/JSONB |
 | **Cache** | Redis 7 |
 | **Message Broker** | Apache Kafka 3.7 (KRaft) |
-| **Monitoring** | Prometheus + Grafana 11 + Uptime Kuma |
+| **Monitoring** | Prometheus + Grafana 11 |
 | **CI/CD** | GitHub Actions → Docker → VPS (SSH deploy) |
 
 ---
@@ -99,7 +99,7 @@
 
 ┌─────────────────────────────────────────────────────────┐
 │         Monitoring & Observability                       │
-│  Prometheus :9090 → Grafana :3000 + Uptime Kuma :3001  │
+│  Prometheus :9090 → Grafana :3000                        │
 │  (Node Exporter, PostgreSQL Exporter, Redis Exporter)   │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -164,7 +164,7 @@ smartAi/
 ├── docker/                           # Docker & Infrastructure
 │   ├── docker-compose.yaml           # Local dev (5173, 8080, 8000, 5432, 6379, 9092)
 │   ├── docker-compose.prod.yaml      # Production (no ports exposed)
-│   ├── docker-compose.monitoring.yaml # Prometheus, Grafana, Uptime Kuma
+│   ├── docker-compose.monitoring.yaml # Prometheus, Grafana
 │   ├── .env.example                  # Environment template
 │   ├── nginx/
 │   │   ├── Dockerfile
@@ -173,11 +173,9 @@ smartAi/
 │   │   ├── prometheus/
 │   │   │   ├── prometheus.yml        # Scrape configs
 │   │   │   └── alert-rules.yml       # Alert rules
-│   │   ├── grafana/
-│   │   │   ├── Dockerfile
-│   │   │   └── dashboards/           # Provisioned dashboards
-│   │   └── uptime-kuma/
-│   │       └── kuma.db               # SQLite database
+│   │   └── grafana/
+│   │       ├── Dockerfile
+│   │       └── dashboards/           # Provisioned dashboards
 │   └── scripts/
 │       ├── init-db.sh
 │       └── backup-db.sh
@@ -397,11 +395,7 @@ docker compose \
 1. Login: `admin` / password từ `.env`
 2. Add Telegram/Email notifications
 3. Dashboard **SmartMart — System Overview** auto-provisioned
-
-**Uptime Kuma (http://YOUR_VPS_IP:3001)**
-1. Setup first-time account
-2. Add monitors cho backend, AI, frontend, DB, Redis
-3. Configure Telegram notifications
+4. Tạo Alert rule dựa trên `up{job=...}` để theo dõi uptime backend/AI/DB/Redis (thay thế Uptime Kuma đã gỡ bỏ để giảm tải VPS)
 
 Xem chi tiết tại [`MONITORING.md`](MONITORING.md).
 
@@ -488,8 +482,7 @@ GITHUB_TOKEN=*** (auto, for GHCR)
 
 ### Stack
 - **Prometheus** (:9090) — metrics collection
-- **Grafana** (:3000) — dashboards + alert rules
-- **Uptime Kuma** (:3001) — uptime monitoring + Telegram notifications
+- **Grafana** (:3000) — dashboards + alert rules + Telegram notifications
 
 ### Key Alerts
 
@@ -638,19 +631,6 @@ docker compose up -d postgres
 docker compose up -d
 ```
 
-#### 🔴 **Uptime Kuma showing all red**
-
-```bash
-# Uptime Kuma uses container DNS names, not localhost
-# Update monitors to use Docker aliases:
-# - backend:8080/actuator/health (not localhost:8080)
-# - ai-service:8000/ai/health (not localhost:8000)
-# - postgres:5432 (not localhost:5432)
-
-# Then restart Uptime Kuma
-docker restart smartmart_uptime_kuma
-```
-
 #### 🔴 **GitHub Actions deploy fails**
 
 ```bash
@@ -714,7 +694,7 @@ docker system prune -a
 
 | Document | Purpose |
 |----------|---------|
-| [`MONITORING.md`](MONITORING.md) | Prometheus + Grafana + Uptime Kuma setup |
+| [`MONITORING.md`](MONITORING.md) | Prometheus + Grafana setup |
 | [`docs/01-overview.md`](docs/01-overview.md) | Project vision & scope |
 | [`docs/02-business-rule.md`](docs/02-business-rule.md) | Business processes & workflows |
 | [`docs/03-database-design.md`](docs/03-database-design.md) | ER diagram & schema |

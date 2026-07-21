@@ -350,7 +350,7 @@ public class AiToolExecutor {
                     return m;
                 }).toList();
 
-        List<Map<String, Object>> plans = discountPlanService.listAll().stream().map(dp -> {
+        List<Map<String, Object>> plans = discountPlanService.listActiveToday().stream().map(dp -> {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("planName", dp.getPlanName());
             m.put("planType", dp.getPlanType());

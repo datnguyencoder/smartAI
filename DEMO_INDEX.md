@@ -19,10 +19,10 @@ Tổng hợp tất cả tài liệu demo, hướng dẫn, và kỹ thuật cho d
      - Troubleshooting
 
 ### 2. **[DEMO_PLAN.md](DEMO_PLAN.md)** 🎯 FULL DEMO
-   - **Nội dung:** Kế hoạch demo toàn diện từ POS → CI/CD (40-60 phút)
+   - **Nội dung:** Kế hoạch demo toàn diện từ POS → CI/CD (35-55 phút)
    - **Đối tượng:** Demo organizers, presenters
    - **Bao gồm:**
-     - 10 demos chi tiết (POS, Backend, Kafka, Redis, AI, Prometheus, Grafana, Uptime Kuma, CI/CD, Failure)
+     - 9 demos chi tiết (POS, Backend, Kafka, Redis, AI, Prometheus/Grafana, CI/CD, E2E, Failure)
      - Data flow diagram
      - Step-by-step instructions
      - Expected outputs
@@ -34,7 +34,7 @@ Tổng hợp tất cả tài liệu demo, hướng dẫn, và kỹ thuật cho d
    - **Nội dung:** Chi tiết technical cho mỗi tech component
    - **Đối tượng:** Developers, technical leads
    - **Bao gồm:**
-     - 10 technologies (React, Spring Boot, FastAPI, PostgreSQL, Redis, Kafka, Prometheus, Grafana, Uptime Kuma, GitHub Actions)
+     - 9 technologies (React, Spring Boot, FastAPI, PostgreSQL, Redis, Kafka, Prometheus, Grafana, GitHub Actions)
      - Ports, versions, dependencies
      - Test commands (curl, CLI)
      - Expected outputs
@@ -42,7 +42,7 @@ Tổng hợp tất cả tài liệu demo, hướng dẫn, và kỹ thuật cho d
      - Verification checklist
 
 ### 4. **[MONITORING.md](MONITORING.md)** 📊 MONITORING SETUP
-   - **Nội dung:** Prometheus + Grafana + Uptime Kuma detailed setup
+   - **Nội dung:** Prometheus + Grafana detailed setup
    - **Đối tượng:** DevOps, monitoring engineers
    - **Bao gồm:**
      - Architecture diagram
@@ -60,7 +60,7 @@ smartAi/
 ├── README.md                  ⭐ START HERE - Overview + Quick Start
 ├── DEMO_PLAN.md              🎯 Full demo walkthrough (40-60 min)
 ├── TECH_STACK_DEMO.md        🔧 Technical deep-dive per technology
-├── MONITORING.md             📊 Prometheus/Grafana/Uptime Kuma
+├── MONITORING.md             📊 Prometheus/Grafana
 │
 ├── docs/                      📚 Detailed business & architecture
 │   ├── 01-overview.md
@@ -95,11 +95,11 @@ smartAi/
 
 ---
 
-## 🎯 Demo Flow (40-60 minutes)
+## 🎯 Demo Flow (35-55 minutes)
 
 ### Pre-Demo (10 min)
 1. Run [`demo_runner.sh`](demo_runner.sh) to verify all services
-2. Open 6 browser tabs (Frontend, Backend, AI, Prometheus, Grafana, Uptime Kuma)
+2. Open 5 browser tabs (Frontend, Backend, AI, Prometheus, Grafana)
 3. Setup 6 terminal windows (logs, Kafka, Redis, watch, etc.)
 
 ### Demo 1-2 (5 min) — POS & Backend
@@ -120,20 +120,20 @@ smartAi/
 - **Actions:** Call /ai/forecast endpoint
 - **Verify:** [TECH_STACK_DEMO.md § AI Service](TECH_STACK_DEMO.md#3️⃣-ai-service-fastapi--python)
 
-### Demo 6-7 (5 min) — Monitoring
-- **[DEMO_PLAN.md § Demo 6-7](DEMO_PLAN.md#-demo-6-prometheus--grafana-metrics)**
-- **Tech:** Prometheus, Grafana, Uptime Kuma
+### Demo 6 (5 min) — Monitoring
+- **[DEMO_PLAN.md § Demo 6](DEMO_PLAN.md#-demo-6-prometheus--grafana-metrics)**
+- **Tech:** Prometheus, Grafana
 - **Actions:** Query metrics → View dashboards
-- **Verify:** [TECH_STACK_DEMO.md § Prometheus, Grafana, Uptime Kuma](TECH_STACK_DEMO.md#7️⃣-prometheus-metrics-collection)
+- **Verify:** [TECH_STACK_DEMO.md § Prometheus, Grafana](TECH_STACK_DEMO.md#7️⃣-prometheus-metrics-collection)
 
-### Demo 8 (5 min) — CI/CD
-- **[DEMO_PLAN.md § Demo 8](DEMO_PLAN.md#-demo-8-github-actions-cicd)**
+### Demo 7 (5 min) — CI/CD
+- **[DEMO_PLAN.md § Demo 7](DEMO_PLAN.md#-demo-7-github-actions-cicd)**
 - **Tech:** GitHub Actions, GHCR, Docker
 - **Actions:** Show workflow run → Telegram notification
-- **Verify:** [TECH_STACK_DEMO.md § GitHub Actions](TECH_STACK_DEMO.md#🔟-github-actions-cicd-pipeline)
+- **Verify:** [TECH_STACK_DEMO.md § GitHub Actions](TECH_STACK_DEMO.md#9️⃣-github-actions-cicd-pipeline)
 
-### Demo 9-10 (10 min) — E2E & Failure
-- **[DEMO_PLAN.md § Demo 9-10](DEMO_PLAN.md#-demo-9-e2e-flow-complete-journey)**
+### Demo 8-9 (10 min) — E2E & Failure
+- **[DEMO_PLAN.md § Demo 8-9](DEMO_PLAN.md#-demo-8-e2e-flow-complete-journey)**
 - **Tech:** All components integrated
 - **Actions:** Complete flow + simulate service down
 - **Verify:** Performance baseline, alerts, recovery
@@ -170,8 +170,7 @@ docker compose -f docker/docker-compose.yaml up -d --build
 | **Message Broker** | Kafka 3.7 | 9092 | [TECH_STACK_DEMO.md §6](TECH_STACK_DEMO.md#6️⃣-kafka-message-broker) |
 | **Metrics** | Prometheus 2.47 | 9090 | [TECH_STACK_DEMO.md §7](TECH_STACK_DEMO.md#7️⃣-prometheus-metrics-collection) |
 | **Dashboard** | Grafana 11 | 3000 | [TECH_STACK_DEMO.md §8](TECH_STACK_DEMO.md#8️⃣-grafana-dashboard--alerting) |
-| **Monitoring** | Uptime Kuma | 3001 | [TECH_STACK_DEMO.md §9](TECH_STACK_DEMO.md#9️⃣-uptime-kuma-availability-monitoring) |
-| **CI/CD** | GitHub Actions | — | [TECH_STACK_DEMO.md §10](TECH_STACK_DEMO.md#🔟-github-actions-cicd-pipeline) |
+| **CI/CD** | GitHub Actions | — | [TECH_STACK_DEMO.md §9](TECH_STACK_DEMO.md#9️⃣-github-actions-cicd-pipeline) |
 
 ---
 

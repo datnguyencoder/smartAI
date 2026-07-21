@@ -15,10 +15,9 @@ Kế hoạch demo toàn diện từ **POS bán hàng → Backend → Kafka → R
 - [Demo 4: Redis Cache](#-demo-4-redis-cache)
 - [Demo 5: AI Forecasting](#-demo-5-ai-forecasting)
 - [Demo 6: Prometheus & Grafana Metrics](#-demo-6-prometheus--grafana-metrics)
-- [Demo 7: Uptime Kuma Monitoring](#-demo-7-uptime-kuma-monitoring)
-- [Demo 8: GitHub Actions CI/CD](#-demo-8-github-actions-cicd)
-- [Demo 9: E2E Flow](#-demo-9-e2e-flow)
-- [Demo 10: Ngừng Service & Recovery](#-demo-10-ngừng-service--recovery)
+- [Demo 7: GitHub Actions CI/CD](#-demo-7-github-actions-cicd)
+- [Demo 8: E2E Flow](#-demo-8-e2e-flow)
+- [Demo 9: Ngừng Service & Recovery](#-demo-9-ngừng-service--recovery)
 
 ---
 
@@ -31,14 +30,13 @@ Kế hoạch demo toàn diện từ **POS bán hàng → Backend → Kafka → R
 **📍 Bước 3:** Redis cache doanh số ngày  
 **📍 Bước 4:** AI Service nhận event → train model → forecast 7 ngày tới  
 **📍 Bước 5:** Prometheus scrape metrics → Grafana hiện dashboard real-time  
-**📍 Bước 6:** Uptime Kuma monitor tất cả services → alert nếu down  
-**📍 Bước 7:** Push code thay đổi → GitHub Actions → Build & Deploy → Telegram notify  
-**📍 Bước 8:** Simulate service down → alert fire → recovery  
+**📍 Bước 6:** Push code thay đổi → GitHub Actions → Build & Deploy → Telegram notify  
+**📍 Bước 7:** Simulate service down → alert fire → recovery  
 
 ### Thời Gian
 
 - **Chuẩn Bị:** 10 phút
-- **Demo tổng thể:** 30-40 phút
+- **Demo tổng thể:** 25-35 phút
 - **Mỗi demo con:** 3-5 phút
 - **Break/Q&A:** 5-10 phút
 
@@ -94,15 +92,6 @@ Kế hoạch demo toàn diện từ **POS bán hàng → Backend → Kafka → R
 └──────────────────┘        └──────────────────┘
        │
        ↓
-┌──────────────────┐
-│ Uptime Kuma      │
-│ :3001            │
-│ ✓ Monitor health │
-│ ✓ Ping endpoints │
-│ ✓ Alert Telegram │
-└──────────────────┘
-       │
-       ↓
 ┌──────────────────────────┐
 │ GitHub Actions           │
 │ ✓ Webhook trigger        │
@@ -135,7 +124,7 @@ docker compose ps
 
 ### 2️⃣ Open Dashboard Tabs
 
-Open browser with 6 tabs:
+Open browser with 5 tabs:
 
 | Tab | URL | Purpose |
 |-----|-----|---------|
@@ -144,7 +133,6 @@ Open browser with 6 tabs:
 | 3 | http://localhost:8000/docs | AI Service Docs |
 | 4 | http://localhost:9090 | Prometheus |
 | 5 | http://localhost:3000 | Grafana (admin/admin) |
-| 6 | http://localhost:3001 | Uptime Kuma |
 
 ### 3️⃣ Terminal Setup
 
@@ -529,76 +517,7 @@ hikaricp_connections_active
 
 ---
 
-## 🔔 Demo 7: Uptime Kuma Monitoring
-
-**Mục đích:** Hiển thị real-time uptime monitoring & Telegram alerts
-
-### Steps
-
-```bash
-# 1. Mở Tab 6: Uptime Kuma
-# URL: http://localhost:3001
-
-# 2. Login (setup lần đầu hoặc use existing)
-
-# 3. Xem dashboard:
-#   ✓ 6 monitors visible
-#   ✓ All showing GREEN = UP
-
-# Monitors:
-# 1. Backend API — http://backend:8080/actuator/health
-# 2. AI Service — http://ai-service:8000/ai/health
-# 3. PostgreSQL — backend:5432
-# 4. Redis — backend:6379
-# 5. Frontend (Vercel) — https://smart-ai-five.vercel.app
-# 6. Grafana — http://backend:3000/api/health
-
-# 4. Click on "Backend API" monitor
-
-# 5. Xem stats:
-#   - Status: UP (xanh)
-#   - Uptime: 99.99%
-#   - Response time: 45ms avg
-#   - Last check: 10 seconds ago
-
-# 6. View graph:
-#   - Response time trend
-#   - Uptime percentage
-#   - Downtime incidents (nếu có)
-
-# 7. Check notifications:
-# Click Settings → Notifications
-# Should see: Telegram integration
-# Status: Connected ✓
-
-# 8. View recent incidents log:
-# None (all services healthy)
-
-# 9. (Optional) Simulate down service:
-docker stop smartmart_redis
-
-# 10. Watch Uptime Kuma:
-# Redis monitor → RED (within 30 seconds)
-# Telegram notification: "🚨 Redis DOWN"
-
-# 11. Restart service:
-docker start smartmart_redis
-
-# 12. Watch recovery:
-# Redis monitor → GREEN (within 1 minute)
-# Telegram notification: "✅ Redis recovered"
-```
-
-**Kết quả mong đợi:**
-- ✅ All 6 monitors showing GREEN
-- ✅ Uptime 99%+
-- ✅ Response time < 100ms
-- ✅ Telegram notifications working
-- ✅ Down/recovery alerts instant
-
----
-
-## 🚀 Demo 8: GitHub Actions CI/CD
+## 🚀 Demo 7: GitHub Actions CI/CD
 
 **Mục đích:** Hiển thị automated build → push Docker → deploy VPS → Telegram notify
 
@@ -692,19 +611,19 @@ docker start smartmart_redis
 
 ---
 
-## 🔄 Demo 9: E2E Flow (Complete Journey)
+## 🔄 Demo 8: E2E Flow (Complete Journey)
 
 **Mục đích:** Hiển thị complete data flow từ POS → Backend → Kafka → AI → Prometheus → Grafana
 
-### Steps (Chạy tất cả demo từ 1-8 liên tiếp)
+### Steps (Chạy tất cả demo từ 1-7 liên tiếp)
 
 ```bash
-# Timeline: 30-40 phút
+# Timeline: 25-35 phút
 
 # T=0 min: Chuẩn bị
 echo "Demo Start — Verify all services healthy"
 docker compose ps | grep -c healthy
-# Expected: 12 (tất cả 12 containers healthy)
+# Expected: 11 (tất cả 11 containers healthy)
 
 # T=2 min: POS Transaction
 echo "Step 1: Customer buys 5 items at POS"
@@ -734,15 +653,11 @@ echo "Step 6: Metrics scraped by Prometheus"
 echo "Step 7: Grafana shows real-time metrics"
 # Demo 6: Grafana panels update live
 
-# T=30 min: Uptime Kuma
-echo "Step 8: Uptime Kuma confirms all services UP"
-# Demo 7: All 6 monitors green
+# T=30 min: GitHub Actions (if push made)
+echo "Step 8: GitHub Actions deployed latest code"
+# Demo 7: Workflow run successful
 
-# T=35 min: GitHub Actions (if push made)
-echo "Step 9: GitHub Actions deployed latest code"
-# Demo 8: Workflow run successful
-
-# T=40 min: Summary
+# T=35 min: Summary
 echo "✅ Complete E2E Flow demonstrated!"
 ```
 
@@ -792,7 +707,7 @@ Overall:
 
 ---
 
-## 💥 Demo 10: Ngừng Service & Recovery
+## 💥 Demo 9: Ngừng Service & Recovery
 
 **Mục đích:** Hiển thị monitoring & recovery khi service down
 
@@ -800,13 +715,13 @@ Overall:
 
 ```bash
 # T=0: Redis is healthy
-# Dashboard: Redis monitor GREEN
+# Grafana: redis_up = 1
 
 # T=1: Stop Redis
 docker stop smartmart_redis
 
-# T=2-5: Wait for Uptime Kuma detection (usually 30-60s)
-# Dashboard: Redis monitor → RED
+# T=2-5: Prometheus phát hiện qua redis-exporter (scrape interval ~15-30s)
+# Grafana: redis_up → 0, alert rule fires
 # Telegram: 🚨 Redis DOWN — service unavailable
 
 # T=6-10: Impact visible in:
@@ -818,8 +733,7 @@ docker stop smartmart_redis
 docker start smartmart_redis
 
 # T=12-30: Recovery visible in:
-# - Uptime Kuma: Waiting for re-check (60s cycle)
-# - Grafana: Metrics resume
+# - Grafana: redis_up → 1, metrics resume
 # - Telegram: ✅ Redis recovered
 
 # T=31: Full recovery
@@ -830,13 +744,12 @@ docker start smartmart_redis
 
 ```bash
 # T=0: Backend is healthy
-# Dashboard: Backend monitor GREEN
+# Grafana: up{job="backend"} = 1
 
 # T=1: Stop Backend
 docker stop smartmart_backend
 
-# T=2: Uptime Kuma re-check interval ~60s
-# But health check fails immediately
+# T=2: Prometheus scrape thất bại ngay ở lần kế tiếp (~15-30s)
 # Telegram alert sent (⚠️ depends on retry config)
 
 # T=3-5: Grafana impact:
@@ -950,7 +863,6 @@ docker exec smartmart_redis redis-cli FLUSHDB
 # - AI: http://localhost:8000/docs
 # - Prometheus: http://localhost:9090
 # - Grafana: http://localhost:3000
-# - Uptime Kuma: http://localhost:3001
 
 # ✓ Terminals ready
 # - Terminal 2: docker compose logs -f backend
@@ -965,10 +877,10 @@ docker exec smartmart_redis redis-cli FLUSHDB
 # ✓ GitHub Actions workflow visible
 # Have browser ready to show Actions tab
 
-# ✓ Time estimate: 40 minutes total
-# - Demo 1-7: 25 min
-# - Demo 8: 5 min
-# - Demo 9-10: 10 min
+# ✓ Time estimate: 35 minutes total
+# - Demo 1-6: 20 min
+# - Demo 7: 5 min
+# - Demo 8-9: 10 min
 
 echo "✅ Pre-Demo Checklist Complete!"
 ```
@@ -993,17 +905,17 @@ echo "✅ Pre-Demo Checklist Complete!"
 
 > "The AI Service immediately receives the event and feeds it into our XGBoost model. This generates a 7-day demand forecast with confidence intervals — helping us decide how much stock to order."
 
-### Demo 6-7 (5 min)
+### Demo 6 (5 min)
 
-> "Prometheus scrapes metrics every 15 seconds from all services: request rates, latency, JVM memory, database connections. Grafana visualizes this in real-time dashboards with intelligent alerts."
+> "Prometheus scrapes metrics every 15 seconds from all services: request rates, latency, JVM memory, database connections. Grafana visualizes this in real-time dashboards with intelligent alerts — including uptime alerting based on the `up` metric, no separate uptime-monitoring service needed."
 
-### Demo 8 (3 min)
+### Demo 7 (3 min)
 
 > "Every push to main triggers GitHub Actions. We build Docker images, push to GitHub Container Registry, then SSH deploy to production VPS — all automated with Telegram notifications."
 
-### Demo 9-10 (5 min)
+### Demo 8-9 (5 min)
 
-> "If a service fails, Uptime Kuma detects it within 60 seconds and sends an alert. I'll simulate Redis going down... (stop container) ...see the alert, then recover it. The system automatically restarts and resumes normal operation."
+> "If a service fails, Prometheus detects it within one scrape interval and Grafana fires an alert. I'll simulate Redis going down... (stop container) ...see the alert, then recover it. The system automatically restarts and resumes normal operation."
 
 ### Conclusion (2 min)
 
@@ -1013,7 +925,7 @@ echo "✅ Pre-Demo Checklist Complete!"
 
 ## 🎯 Demo Success Criteria
 
-After all 10 demos, verify:
+After all 9 demos, verify:
 
 - ✅ POS order created successfully
 - ✅ Order in PostgreSQL database
@@ -1022,7 +934,6 @@ After all 10 demos, verify:
 - ✅ Forecast generated by AI
 - ✅ Metrics in Prometheus
 - ✅ Dashboard in Grafana live
-- ✅ Monitors in Uptime Kuma all green
 - ✅ GitHub Actions workflow passed
 - ✅ Alerts trigger on service down
 - ✅ Recovery automatic & complete
@@ -1051,12 +962,12 @@ After all 10 demos, verify:
 | Demo 1-2 (POS + DB) | 5 min | Order creation, database query |
 | Demo 3-4 (Kafka + Redis) | 3 min | Event streaming, cache update |
 | Demo 5 (AI) | 3 min | Forecast generation |
-| Demo 6-7 (Monitoring) | 5 min | Prometheus, Grafana, Uptime Kuma |
-| Demo 8 (CI/CD) | 5 min | GitHub Actions workflow |
-| Demo 9 (E2E) | 8 min | Complete journey summary |
-| Demo 10 (Failure) | 5 min | Service down & recovery |
+| Demo 6 (Monitoring) | 5 min | Prometheus, Grafana |
+| Demo 7 (CI/CD) | 5 min | GitHub Actions workflow |
+| Demo 8 (E2E) | 8 min | Complete journey summary |
+| Demo 9 (Failure) | 5 min | Service down & recovery |
 | Q&A | 10 min | Questions from audience |
-| **Total** | **~60 min** | Full comprehensive demo |
+| **Total** | **~55 min** | Full comprehensive demo |
 
 ---
 
@@ -1078,4 +989,4 @@ docker compose ps
 **Created:** 2026-07-17  
 **Demo Duration:** 40-60 minutes  
 **Audience:** Tech leads, developers, stakeholders  
-**Tech Coverage:** 100% of stack (React, Spring Boot, FastAPI, PostgreSQL, Redis, Kafka, Prometheus, Grafana, Uptime Kuma, GitHub Actions)
+**Tech Coverage:** 100% of stack (React, Spring Boot, FastAPI, PostgreSQL, Redis, Kafka, Prometheus, Grafana, GitHub Actions)

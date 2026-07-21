@@ -5,7 +5,6 @@
 # Truy cập:
 #   Grafana    → http://VPS_IP:3000   (admin / admin đổi ngay lần đầu)
 #   Prometheus → http://VPS_IP:9090   (chặn Nginx ngoài prod, chỉ nội bộ)
-#   Uptime Kuma→ http://VPS_IP:3001   (tạo account lần đầu)
 #
 # Logs (Loki + Promtail):
 #   Xem logs Backend/AI Service tại Grafana → Explore → chọn datasource "Loki"
@@ -153,24 +152,10 @@ services:
     depends_on:
       - loki
 
-  # ── Uptime Kuma (uptime monitoring + alerts) ───────────────────────────────
-  uptime-kuma:
-    image: louislam/uptime-kuma:1
-    container_name: smartmart_uptime_kuma
-    restart: unless-stopped
-    ports:
-      - "3001:3001"
-    volumes:
-      - uptime_kuma_data:/app/data
-    networks:
-      - smartmart_network
-
 volumes:
   prometheus_data:
     driver: local
   grafana_data:
-    driver: local
-  uptime_kuma_data:
     driver: local
   loki_data:
     driver: local

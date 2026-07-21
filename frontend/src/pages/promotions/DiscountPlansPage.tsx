@@ -131,6 +131,19 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
   const dealLabel = (r: DiscountPlanDto) =>
     r.dealType === 'BOGO' ? `Mua ${r.buyQuantity} tặng ${r.freeQuantity}` : `${r.discountPercent}%`;
 
+  const statusMeta: Record<string, { color: string; label: string }> = {
+    RUNNING: { color: 'green', label: 'Đang chạy' },
+    SCHEDULED: { color: 'blue', label: 'Sắp diễn ra' },
+    EXPIRED: { color: 'default', label: 'Đã hết hạn' },
+    DISABLED: { color: 'red', label: 'Đã tắt' },
+  };
+
+  const [statusFilter, setStatusFilter] = React.useState<string>('ALL');
+  const filteredRows = React.useMemo(
+    () => (statusFilter === 'ALL' ? rows : rows.filter((r) => (r.status ?? 'RUNNING') === statusFilter)),
+    [rows, statusFilter]
+  );
+
   return (
     <Card>
       <CardHeader
@@ -142,31 +155,54 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
         items={[
           {
             key: 'plans',
-            label: 'Kế hoạch giảm giá',
+            label: `Kế hoạch giảm giá${rows.length ? ` (${rows.length})` : ''}`,
             children: (
-              <Table
-                rowKey="id"
-                loading={loading}
-                dataSource={rows}
-                columns={[
-                  { title: 'Tên', dataIndex: 'planName' },
-                  { title: 'Loại', dataIndex: 'planType', render: (v: string) => (v === 'CATEGORY' ? 'Danh mục' : 'Sản phẩm') },
-                  { title: 'Đối tượng', render: (_: unknown, r: DiscountPlanDto) => r.itemName || r.categoryName || 'Toàn cửa hàng' },
-                  {
-                    title: 'Ưu đãi',
-                    render: (_: unknown, r: DiscountPlanDto) => (
-                      <Tag color={r.dealType === 'BOGO' ? 'purple' : 'blue'}>{dealLabel(r)}</Tag>
-                    ),
-                  },
-                  {
-                    title: 'Hiệu lực',
-                    render: (_: unknown, r: DiscountPlanDto) =>
-                      `${r.startDate ? dayjs(r.startDate).format('DD/MM/YY') : '—'} → ${r.endDate ? dayjs(r.endDate).format('DD/MM/YY') : '—'}`,
-                  },
-                  { title: 'Trạng thái', dataIndex: 'active', render: (v: boolean) => <Tag color={v ? 'green' : 'default'}>{v ? 'Bật' : 'Tắt'}</Tag> },
-                  { title: '', render: (_: unknown, r: DiscountPlanDto) => <Button type="link" onClick={() => openEdit(r)}>Sửa</Button> },
-                ]}
-              />
+              <>
+                <div className="mb-3 flex justify-end">
+                  <Select
+                    className="w-48"
+                    value={statusFilter}
+                    onChange={(v: any) => setStatusFilter(v)}
+                    options={[
+                      { value: 'ALL', label: 'Tất cả trạng thái' },
+                      { value: 'RUNNING', label: 'Đang chạy' },
+                      { value: 'SCHEDULED', label: 'Sắp diễn ra' },
+                      { value: 'EXPIRED', label: 'Đã hết hạn' },
+                      { value: 'DISABLED', label: 'Đã tắt' },
+                    ]}
+                  />
+                </div>
+                <Table
+                  rowKey="id"
+                  loading={loading}
+                  dataSource={filteredRows}
+                  columns={[
+                    { title: 'Tên', dataIndex: 'planName' },
+                    { title: 'Loại', dataIndex: 'planType', render: (v: string) => (v === 'CATEGORY' ? 'Danh mục' : 'Sản phẩm') },
+                    { title: 'Đối tượng', render: (_: unknown, r: DiscountPlanDto) => r.itemName || r.categoryName || 'Toàn cửa hàng' },
+                    {
+                      title: 'Ưu đãi',
+                      render: (_: unknown, r: DiscountPlanDto) => (
+                        <Tag color={r.dealType === 'BOGO' ? 'purple' : 'blue'}>{dealLabel(r)}</Tag>
+                      ),
+                    },
+                    {
+                      title: 'Hiệu lực',
+                      render: (_: unknown, r: DiscountPlanDto) =>
+                        `${r.startDate ? dayjs(r.startDate).format('DD/MM/YY') : '—'} → ${r.endDate ? dayjs(r.endDate).format('DD/MM/YY') : '—'}`,
+                    },
+                    {
+                      title: 'Trạng thái',
+                      dataIndex: 'status',
+                      render: (v: string) => {
+                        const meta = statusMeta[v] ?? statusMeta.RUNNING;
+                        return <Tag color={meta.color}>{meta.label}</Tag>;
+                      },
+                    },
+                    { title: '', render: (_: unknown, r: DiscountPlanDto) => <Button type="link" onClick={() => openEdit(r)}>Sửa</Button> },
+                  ]}
+                />
+              </>
             ),
           },
           {
@@ -205,28 +241,29 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
       <Modal open={modalOpen} title={editing ? 'Sửa kế hoạch' : 'Tạo kế hoạch giảm giá'} onCancel={() => setModalOpen(false)} onOk={handleSave} width={520}>
         <Form form={form} layout="vertical">
           <Form.Item name="planName" label="Tên kế hoạch" rules={[{ required: true }]}><Input /></Form.Item>
-          <Form.Item name="planType" label="Áp dụng theo" rules={[{ required: true }]}>
-            <Select options={[
+          <Form.Item name="planType" label="Áp dụng theo" rules={[{ required: true }]} extra={editing ? 'Không thể đổi sau khi tạo — tạo kế hoạch mới nếu cần đổi đối tượng.' : undefined}>
+            <Select disabled={!!editing} options={[
               { value: 'CATEGORY', label: 'Theo danh mục' },
               { value: 'SKU', label: 'Theo sản phẩm' },
             ]} />
           </Form.Item>
           {planType === 'CATEGORY' && (
             <Form.Item name="categoryId" label="Danh mục" rules={[{ required: true }]}>
-              <Select options={categories.map((c) => ({ value: c.id, label: c.categoryName }))} />
+              <Select disabled={!!editing} options={categories.map((c) => ({ value: c.id, label: c.categoryName }))} />
             </Form.Item>
           )}
           {planType === 'SKU' && (
             <Form.Item name="itemId" label="Sản phẩm" rules={[{ required: true }]}>
               <Select
+                disabled={!!editing}
                 showSearch
                 optionFilterProp="label"
                 options={productsList.map((p) => ({ value: Number(p.key), label: `${p.sku} · ${p.name}` }))}
               />
             </Form.Item>
           )}
-          <Form.Item name="dealType" label="Loại ưu đãi" rules={[{ required: true }]}>
-            <Select options={[
+          <Form.Item name="dealType" label="Loại ưu đãi" rules={[{ required: true }]} extra={editing ? 'Không thể đổi loại ưu đãi sau khi tạo.' : undefined}>
+            <Select disabled={!!editing} options={[
               { value: 'PERCENTAGE', label: 'Giảm giá %' },
               { value: 'BOGO', label: 'Mua X tặng Y' },
             ]} />
