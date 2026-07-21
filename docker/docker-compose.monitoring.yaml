@@ -21,7 +21,7 @@ services:
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
-      - --storage.tsdb.retention.time=30d
+      - --storage.tsdb.retention.time=15d
       - --web.enable-lifecycle
     ports:
       - "127.0.0.1:9090:9090"   # chỉ expose nội bộ, dùng qua Nginx nếu cần
@@ -34,6 +34,11 @@ services:
     depends_on:
       - node-exporter
       - cadvisor
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 384M
 
   # ── Grafana ────────────────────────────────────────────────────────────────
   grafana:
@@ -57,6 +62,11 @@ services:
       - smartmart_network
     depends_on:
       - prometheus
+    deploy:
+      resources:
+        limits:
+          cpus: "0.4"
+          memory: 256M
 
   # ── Node Exporter (VPS system metrics) ────────────────────────────────────
   node-exporter:
@@ -76,13 +86,25 @@ services:
       - /:/rootfs:ro
     networks:
       - smartmart_network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.15"
+          memory: 64M
 
   # ── cAdvisor (Docker container metrics) ───────────────────────────────────
+  # housekeeping_interval mặc định 10s là nguyên nhân phổ biến khiến cAdvisor
+  # tự ngốn nhiều CPU trên VPS yếu (nó tự scan cgroup của MỌI container mỗi
+  # 10s). Giãn ra 30s + docker_only để bớt quét cgroup hệ thống không liên quan.
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.49.1
     container_name: smartmart_cadvisor
     restart: unless-stopped
     privileged: true
+    command:
+      - --housekeeping_interval=30s
+      - --docker_only=true
+      - --disable_metrics=disk,tcp,udp,percpu,sched,process,hugetlb,referenced_memory
     ports:
       - "127.0.0.1:8082:8080"
     devices:
@@ -94,6 +116,11 @@ services:
       - /var/lib/docker:/var/lib/docker:ro
     networks:
       - smartmart_network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.3"
+          memory: 192M
 
   # ── PostgreSQL Exporter ────────────────────────────────────────────────────
   postgres-exporter:
@@ -108,6 +135,11 @@ services:
       - smartmart_network
     depends_on:
       - postgres
+    deploy:
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: 64M
 
   # ── Redis Exporter ─────────────────────────────────────────────────────────
   redis-exporter:
@@ -122,6 +154,11 @@ services:
       - smartmart_network
     depends_on:
       - redis
+    deploy:
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: 64M
 
   # ── Loki (log storage/query) ──────────────────────────────────────────────
   loki:
@@ -136,6 +173,11 @@ services:
       - loki_data:/loki
     networks:
       - smartmart_network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.3"
+          memory: 256M
 
   # ── Promtail (thu thập log container Docker, đẩy vào Loki) ────────────────
   promtail:
@@ -151,6 +193,11 @@ services:
       - smartmart_network
     depends_on:
       - loki
+    deploy:
+      resources:
+        limits:
+          cpus: "0.15"
+          memory: 96M
 
 volumes:
   prometheus_data:

@@ -38,7 +38,7 @@ EXPOSE 8080
 
 # Environment variables with sensible defaults for containerized execution
 ENV SPRING_PROFILES_ACTIVE=prod \
-    JAVA_OPTS="-XX:+UseG1GC -XX:+UseStringDeduplication -Xmx1024m -Duser.timezone=Asia/Ho_Chi_Minh"
+    JAVA_OPTS="-XX:+UseG1GC -XX:+UseStringDeduplication -Xmx768m -XX:MaxMetaspaceSize=192m -Duser.timezone=Asia/Ho_Chi_Minh"
 
 # Execute the application
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

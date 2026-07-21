@@ -17,6 +17,11 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
 
   redis:
     image: redis:7-alpine
@@ -31,6 +36,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "0.4"
+          memory: 192M
 
   kafka:
     image: apache/kafka:3.7.0
@@ -50,6 +60,9 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      # Không đặt limit thì JVM tự ước lượng heap theo RAM host thấy được (không phải
+      # RAM cgroup của container) — trên VPS yếu dễ gây heap quá lớn → GC liên tục → CPU cao.
+      KAFKA_HEAP_OPTS: "-Xmx512m -Xms256m"
     networks:
       - smartmart_network
     healthcheck:
@@ -58,6 +71,11 @@ services:
       timeout: 10s
       retries: 8
       start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
 
   ai-service:
     image: ${IMAGE_AI:-ghcr.io/datnguyencoder/smartai-ai-service:latest}
@@ -84,6 +102,11 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.75"
+          memory: 512M
 
   backend:
     image: ${IMAGE_BACKEND:-ghcr.io/datnguyencoder/smartai-backend:latest}
@@ -133,6 +156,13 @@ services:
       timeout: 5s
       retries: 5
       start_period: 25s
+    # Memory limit phải > JAVA_OPTS -Xmx (768m) + chỗ cho metaspace/thread stack/native
+    # buffer, nếu không JVM chắc chắn bị OOM-kill khi heap chạm limit.
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
 
 volumes:
   postgres_data:
