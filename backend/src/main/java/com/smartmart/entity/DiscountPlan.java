@@ -47,6 +47,11 @@ public class DiscountPlan extends LongAuditableEntity {
     @Column(name = "free_quantity")
     private Integer freeQuantity;
 
+    /** Sản phẩm được TẶNG khi BOGO — null nghĩa là tặng chính sản phẩm/danh mục đang mua. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "gift_item_id")
+    private Item giftItem;
+
     @Column(name = "start_date")
     private LocalDate startDate;
 

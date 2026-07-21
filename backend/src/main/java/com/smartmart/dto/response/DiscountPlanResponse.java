@@ -23,6 +23,8 @@ public class DiscountPlanResponse {
     private BigDecimal discountPercent;
     private Integer buyQuantity;
     private Integer freeQuantity;
+    private Long giftItemId;
+    private String giftItemName;
     private LocalDate startDate;
     private LocalDate endDate;
     private boolean active;

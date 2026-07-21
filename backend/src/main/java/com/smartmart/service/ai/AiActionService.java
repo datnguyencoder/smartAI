@@ -56,7 +56,7 @@ public class AiActionService {
     public Map<String, Object> createDiscountCampaign(
             String planName, String planType, Long categoryId, Long itemId,
             String dealType, BigDecimal discountPercent, Integer buyQuantity, Integer freeQuantity,
-            Integer durationDays) {
+            Long giftItemId, Integer durationDays) {
         try {
             CreateDiscountPlanRequest req = new CreateDiscountPlanRequest();
             req.setPlanName(planName != null && !planName.isBlank() ? planName.trim() : "Chiến dịch KM (AI)");
@@ -69,6 +69,7 @@ public class AiActionService {
             req.setDiscountPercent(discountPercent);
             req.setBuyQuantity(buyQuantity);
             req.setFreeQuantity(freeQuantity);
+            req.setGiftItemId(giftItemId);
             req.setStartDate(LocalDate.now());
             req.setEndDate(LocalDate.now().plusDays(durationDays != null && durationDays > 0 ? durationDays : 14));
 
@@ -87,6 +88,7 @@ public class AiActionService {
             result.put("discountPercent", created.getDiscountPercent());
             result.put("buyQuantity", created.getBuyQuantity());
             result.put("freeQuantity", created.getFreeQuantity());
+            result.put("giftItemName", created.getGiftItemName());
             result.put("startDate", created.getStartDate());
             result.put("endDate", created.getEndDate());
             return result;

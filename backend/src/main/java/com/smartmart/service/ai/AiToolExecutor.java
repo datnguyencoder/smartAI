@@ -133,11 +133,14 @@ public class AiToolExecutor {
 
         // ── Khuyến mãi (hành động - GHI) ────────────────────────────────────
         ObjectNode createCampaign = declarationTyped("create_discount_campaign",
-                "TẠO chiến dịch giảm giá tự động áp tại POS. Dùng cho: giảm % theo danh mục/sản phẩm, " +
-                "mua X tặng Y (BOGO), xả hàng cận date. Với danh mục cần categoryId (từ list_categories); " +
-                "với sản phẩm cần itemId (từ search_item). Loại BOGO cần buyQuantity + freeQuantity; " +
-                "loại PERCENTAGE cần discountPercent. Luôn xác nhận lại tham số với người dùng trước khi gọi, " +
-                "và báo rõ đã tạo gì sau khi thành công.");
+                "TẠO chiến dịch giảm giá tự động áp tại POS. 3 kiểu: (1) giảm % theo danh mục/sản phẩm — " +
+                "dealType=PERCENTAGE; (2) mua X tặng thêm CHÍNH sản phẩm đó (vd mua 2 chai tặng 1 chai cùng loại) " +
+                "— dealType=BOGO, không set giftItemId; (3) mua X tặng kèm sản phẩm KHÁC (vd mua nước tăng lực " +
+                "tặng móc khóa) — dealType=BOGO, set giftItemId = itemId của sản phẩm dùng làm quà (tra bằng " +
+                "search_item). Với danh mục cần categoryId (từ list_categories); với sản phẩm cần itemId (từ " +
+                "search_item). Luôn xác nhận lại tham số với người dùng trước khi gọi, và báo rõ đã tạo gì sau " +
+                "khi thành công — nếu là loại (3), nhắc rõ nhân viên phải quét CẢ sản phẩm mua VÀ sản phẩm quà " +
+                "vào giỏ hàng ở POS thì hệ thống mới tự miễn phí phần quà.");
         addParam(createCampaign, "planName", "STRING", "Tên chiến dịch, ví dụ 'Xả hàng cận date sữa'", true);
         addParam(createCampaign, "planType", "STRING", "CATEGORY (theo danh mục) hoặc SKU (theo 1 sản phẩm)", true);
         addParam(createCampaign, "dealType", "STRING", "PERCENTAGE (giảm %) hoặc BOGO (mua X tặng Y)", true);
@@ -146,6 +149,8 @@ public class AiToolExecutor {
         addParam(createCampaign, "discountPercent", "NUMBER", "% giảm 1-100 (bắt buộc nếu dealType=PERCENTAGE)", false);
         addParam(createCampaign, "buyQuantity", "INTEGER", "Số lượng mua (bắt buộc nếu dealType=BOGO)", false);
         addParam(createCampaign, "freeQuantity", "INTEGER", "Số lượng tặng (bắt buộc nếu dealType=BOGO)", false);
+        addParam(createCampaign, "giftItemId", "INTEGER",
+                "ID sản phẩm dùng làm QUÀ TẶNG KHÁC (bỏ trống nếu tặng thêm chính sản phẩm đang mua)", false);
         addParam(createCampaign, "durationDays", "INTEGER", "Số ngày hiệu lực tính từ hôm nay (mặc định 14)", false);
         functions.add(createCampaign);
 
@@ -388,13 +393,14 @@ public class AiToolExecutor {
         Long itemId = args.hasNonNull("itemId") ? args.path("itemId").asLong() : null;
         Integer buyQuantity = args.hasNonNull("buyQuantity") ? args.path("buyQuantity").asInt() : null;
         Integer freeQuantity = args.hasNonNull("freeQuantity") ? args.path("freeQuantity").asInt() : null;
+        Long giftItemId = args.hasNonNull("giftItemId") ? args.path("giftItemId").asLong() : null;
         Integer durationDays = args.hasNonNull("durationDays") ? args.path("durationDays").asInt() : null;
         return aiActionService.createDiscountCampaign(
                 args.path("planName").asText(null),
                 args.path("planType").asText("CATEGORY"),
                 categoryId, itemId,
                 args.path("dealType").asText("PERCENTAGE"),
-                discountPercent, buyQuantity, freeQuantity, durationDays);
+                discountPercent, buyQuantity, freeQuantity, giftItemId, durationDays);
     }
 
     private Object createPromoCode(JsonNode args) {

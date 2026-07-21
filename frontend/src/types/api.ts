@@ -982,6 +982,8 @@ export type DiscountPlanDto = {
   discountPercent?: number;
   buyQuantity?: number;
   freeQuantity?: number;
+  giftItemId?: number;
+  giftItemName?: string;
   startDate?: string;
   endDate?: string;
   active: boolean;

@@ -29,6 +29,9 @@ public class CreateDiscountPlanRequest {
     private Integer buyQuantity;
     private Integer freeQuantity;
 
+    /** Sản phẩm được tặng — để trống nghĩa là tặng chính sản phẩm/danh mục đang mua. */
+    private Long giftItemId;
+
     private LocalDate startDate;
     private LocalDate endDate;
 }

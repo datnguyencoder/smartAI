@@ -101,13 +101,19 @@ export function computeBogoFreeUnits(qty: number, buyQuantity: number, freeQuant
   return free;
 }
 
+/** Plan BOGO có giftItemId (tặng sản phẩm KHÁC) không giảm giá per-item — nó cần tính theo
+ * cả giỏ hàng (xem resolveGiftEntitlements), nên bị loại khỏi applyBestDiscount ở đây. */
+function isSameItemDeal(plan: DiscountPlanDto) {
+  return plan.dealType !== 'BOGO' || !plan.giftItemId;
+}
+
 function applyBestDiscount(product: Product, plans: DiscountPlanDto[]): Product {
   const itemId = Number(product.key);
   const skuPlans = plans.filter(
-    (p) => p.planType === 'SKU' && p.itemId === itemId && isPlanActiveToday(p)
+    (p) => p.planType === 'SKU' && p.itemId === itemId && isPlanActiveToday(p) && isSameItemDeal(p)
   );
   const categoryPlans = plans.filter(
-    (p) => p.planType === 'CATEGORY' && p.categoryId === product.categoryId && isPlanActiveToday(p)
+    (p) => p.planType === 'CATEGORY' && p.categoryId === product.categoryId && isPlanActiveToday(p) && isSameItemDeal(p)
   );
   const candidates = skuPlans.length > 0 ? skuPlans : categoryPlans;
   if (candidates.length === 0) return product;
@@ -126,6 +132,60 @@ function applyBestDiscount(product: Product, plans: DiscountPlanDto[]): Product 
   const percent = best.discountPercent ?? 0;
   const discounted = Math.round(product.price * (1 - percent / 100));
   return { ...product, price: discounted, originalPrice: product.price, discountPercent: percent };
+}
+
+/**
+ * Tính số lượng miễn phí cho các plan BOGO "tặng sản phẩm KHÁC" dựa trên TOÀN BỘ giỏ hàng
+ * (mirror logic thật ở OrderServiceImpl.resolveGiftWithPurchaseDiscount — chỉ để hiển thị
+ * trước cho thu ngân, số tiền thật vẫn do backend tính lúc thanh toán).
+ * Trả về Map<giftItemId, số lượng miễn phí>.
+ */
+function resolveGiftEntitlements(
+  cart: Array<{ product: Product; quantity: number }>,
+  plans: DiscountPlanDto[]
+): Map<number, number> {
+  const result = new Map<number, number>();
+  const giftPlans = plans.filter((p) => p.dealType === 'BOGO' && p.giftItemId && isPlanActiveToday(p));
+  if (giftPlans.length === 0) return result;
+
+  const qtyByItem = new Map<number, number>();
+  cart.forEach((line) => {
+    const id = Number(line.product.key);
+    qtyByItem.set(id, (qtyByItem.get(id) ?? 0) + line.quantity);
+  });
+
+  giftPlans.forEach((plan) => {
+    let triggerQty = 0;
+    cart.forEach((line) => {
+      const matches =
+        plan.planType === 'SKU'
+          ? plan.itemId === Number(line.product.key)
+          : plan.categoryId === line.product.categoryId;
+      if (matches) triggerQty += line.quantity;
+    });
+    if (triggerQty <= 0 || !plan.buyQuantity || !plan.freeQuantity || !plan.giftItemId) return;
+    const giftQtyInCart = qtyByItem.get(plan.giftItemId) ?? 0;
+    if (giftQtyInCart <= 0) return;
+    const earnedFree = Math.floor(triggerQty / plan.buyQuantity) * plan.freeQuantity;
+    const actualFree = Math.min(earnedFree, giftQtyInCart);
+    if (actualFree <= 0) return;
+    result.set(plan.giftItemId, (result.get(plan.giftItemId) ?? 0) + actualFree);
+  });
+  return result;
+}
+
+/** Sản phẩm này có phải điều kiện kích hoạt 1 quà tặng SP khác không? Chỉ để hiện badge gợi ý
+ * trên lưới catalog — không phụ thuộc số lượng đang có trong giỏ. */
+function findGiftTrigger(product: Product, plans: DiscountPlanDto[]) {
+  const itemId = Number(product.key);
+  return plans.find(
+    (p) =>
+      p.dealType === 'BOGO' &&
+      p.giftItemId &&
+      p.buyQuantity &&
+      isPlanActiveToday(p) &&
+      (p.planType === 'SKU' ? p.itemId === itemId : p.categoryId === product.categoryId)
+  );
 }
 
 function applySellableStock(product: Product, stock?: number) {
@@ -327,13 +387,22 @@ export default function PosPage({
     return result;
   }, [posCart]);
 
+  const giftEntitlements = React.useMemo(
+    () => resolveGiftEntitlements(posCart, discountPlans),
+    [posCart, discountPlans]
+  );
+
   const lineAmount = (item: { product: Product; quantity: number }) => {
     const { product, quantity } = item;
+    let payableQty = quantity;
     if (product.bogoBuyQuantity && product.bogoFreeQuantity) {
-      const freeUnits = computeBogoFreeUnits(quantity, product.bogoBuyQuantity, product.bogoFreeQuantity);
-      return product.price * (quantity - freeUnits);
+      payableQty -= computeBogoFreeUnits(quantity, product.bogoBuyQuantity, product.bogoFreeQuantity);
     }
-    return product.price * quantity;
+    const giftFree = giftEntitlements.get(Number(product.key)) ?? 0;
+    if (giftFree > 0) {
+      payableQty -= Math.min(giftFree, payableQty);
+    }
+    return product.price * Math.max(0, payableQty);
   };
 
   const subtotal = posCart.reduce((sum, item) => sum + lineAmount(item), 0);
@@ -806,11 +875,18 @@ export default function PosPage({
                       <span className="rounded-full bg-purple-100 px-2 py-1 text-xs font-bold text-purple-600">
                         Mua {product.bogoBuyQuantity} tặng {product.bogoFreeQuantity}
                       </span>
-                    ) : (
-                      <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-500">
-                        Tồn {product.stock}
-                      </span>
-                    )}
+                    ) : (() => {
+                        const giftTrigger = findGiftTrigger(product, discountPlans);
+                        return giftTrigger ? (
+                          <span className="rounded-full bg-pink-100 px-2 py-1 text-xs font-bold text-pink-600">
+                            🎁 Mua {giftTrigger.buyQuantity} tặng {giftTrigger.giftItemName}
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-500">
+                            Tồn {product.stock}
+                          </span>
+                        );
+                      })()}
                   </div>
                 </div>
                 </button>
@@ -840,6 +916,11 @@ export default function PosPage({
                     {item.product.bogoBuyQuantity && item.product.bogoFreeQuantity ? (
                       <span className="ml-1.5 rounded bg-purple-100 px-1.5 py-0.5 text-[10px] font-bold text-purple-600">
                         Mua {item.product.bogoBuyQuantity} tặng {item.product.bogoFreeQuantity}
+                      </span>
+                    ) : null}
+                    {giftEntitlements.get(Number(item.product.key)) ? (
+                      <span className="ml-1.5 rounded bg-pink-100 px-1.5 py-0.5 text-[10px] font-bold text-pink-600">
+                        🎁 Quà tặng — miễn phí {giftEntitlements.get(Number(item.product.key))}
                       </span>
                     ) : null}
                   </p>

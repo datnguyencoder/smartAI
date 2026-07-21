@@ -193,6 +193,7 @@ public class OrderServiceImpl implements OrderService {
                         lineSubtotal.multiply(apply.getDiscountPercent()).divide(BigDecimal.valueOf(100)));
             }
         }
+        planDiscountAmount = planDiscountAmount.add(resolveGiftWithPurchaseDiscount(request.getItems()));
 
         BigDecimal discountAmount = planDiscountAmount;
         Promotion promotion = null;
@@ -570,5 +571,60 @@ public class OrderServiceImpl implements OrderService {
             free += remainder - buyQuantity;
         }
         return BigDecimal.valueOf(free);
+    }
+
+    /**
+     * Tính tiền giảm cho các plan BOGO "tặng sản phẩm KHÁC" (vd: mua nước tăng lực tặng móc khóa).
+     * Khác với BOGO tặng chính sản phẩm (tính per-line ở trên), loại này cần đối chiếu TOÀN BỘ giỏ:
+     * đã mua đủ số lượng sản phẩm/danh mục kích hoạt (trigger) chưa, VÀ quà tặng có thực sự nằm
+     * trong giỏ hàng không (thu ngân phải tự quét/thêm quà vào giỏ — hệ thống không tự động thêm
+     * dòng hàng mới mà chỉ định giá 0đ cho phần quà nếu điều kiện thoả).
+     */
+    private BigDecimal resolveGiftWithPurchaseDiscount(List<OrderLineRequest> lines) {
+        var giftPlans = discountPlanService.listActiveToday().stream()
+                .filter(p -> p.getDealType() == com.smartmart.enums.DiscountDealType.BOGO
+                        && p.getGiftItemId() != null
+                        && p.getBuyQuantity() != null && p.getFreeQuantity() != null)
+                .toList();
+        if (giftPlans.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        java.util.Map<Long, Item> itemCache = new java.util.HashMap<>();
+        java.util.Map<Long, BigDecimal> qtyByItem = new java.util.HashMap<>();
+        for (OrderLineRequest line : lines) {
+            qtyByItem.merge(line.getItemId(), line.getQuantity(), BigDecimal::add);
+        }
+
+        BigDecimal total = BigDecimal.ZERO;
+        for (var plan : giftPlans) {
+            BigDecimal triggerQty = BigDecimal.ZERO;
+            for (var entry : qtyByItem.entrySet()) {
+                Item item = itemCache.computeIfAbsent(entry.getKey(), itemService::findItem);
+                boolean matches = plan.getPlanType() == com.smartmart.enums.DiscountPlanType.SKU
+                        ? plan.getItemId() != null && plan.getItemId().equals(item.getId())
+                        : plan.getCategoryId() != null && item.getCategory() != null
+                                && plan.getCategoryId().equals(item.getCategory().getId());
+                if (matches) {
+                    triggerQty = triggerQty.add(entry.getValue());
+                }
+            }
+            if (triggerQty.compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
+            BigDecimal giftQtyInCart = qtyByItem.getOrDefault(plan.getGiftItemId(), BigDecimal.ZERO);
+            if (giftQtyInCart.compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
+            long groups = triggerQty.longValue() / plan.getBuyQuantity();
+            BigDecimal earnedFree = BigDecimal.valueOf(groups * plan.getFreeQuantity());
+            BigDecimal actualFree = earnedFree.min(giftQtyInCart);
+            if (actualFree.compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
+            Item giftItem = itemCache.computeIfAbsent(plan.getGiftItemId(), itemService::findItem);
+            total = total.add(giftItem.getSellingPrice().multiply(actualFree));
+        }
+        return total;
     }
 }

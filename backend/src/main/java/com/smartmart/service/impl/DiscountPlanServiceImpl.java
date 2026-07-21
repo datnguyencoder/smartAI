@@ -49,6 +49,12 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
                 && request.getEndDate().isBefore(request.getStartDate())) {
             throw new BadRequestException("Ngày kết thúc phải sau ngày bắt đầu");
         }
+        Item giftItem = dealType == DiscountDealType.BOGO ? resolveItem(request.getGiftItemId()) : null;
+        if (giftItem != null && request.getPlanType() == DiscountPlanType.SKU
+                && request.getItemId() != null && giftItem.getId().equals(request.getItemId())) {
+            throw new BadRequestException(
+                    "Sản phẩm tặng không được trùng sản phẩm đang mua — để trống nếu muốn tặng thêm chính sản phẩm này");
+        }
         DiscountPlan plan = DiscountPlan.builder()
                 .planName(request.getPlanName().trim())
                 .planType(request.getPlanType())
@@ -58,6 +64,7 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
                 .discountPercent(dealType == DiscountDealType.PERCENTAGE ? request.getDiscountPercent() : null)
                 .buyQuantity(dealType == DiscountDealType.BOGO ? request.getBuyQuantity() : null)
                 .freeQuantity(dealType == DiscountDealType.BOGO ? request.getFreeQuantity() : null)
+                .giftItem(giftItem)
                 .startDate(request.getStartDate())
                 .endDate(request.getEndDate())
                 .active(true)
@@ -78,6 +85,15 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
                 validateDealRequest(DiscountDealType.BOGO, null, buyQty, freeQty);
                 plan.setBuyQuantity(buyQty);
                 plan.setFreeQuantity(freeQty);
+            }
+            if (request.getGiftItemId() != null) {
+                Item newGift = request.getGiftItemId() == 0 ? null : resolveItem(request.getGiftItemId());
+                if (newGift != null && plan.getPlanType() == DiscountPlanType.SKU
+                        && plan.getItem() != null && newGift.getId().equals(plan.getItem().getId())) {
+                    throw new BadRequestException(
+                            "Sản phẩm tặng không được trùng sản phẩm đang mua — gửi giftItemId=0 nếu muốn tặng thêm chính sản phẩm này");
+                }
+                plan.setGiftItem(newGift);
             }
         } else if (request.getDiscountPercent() != null) {
             validateDealRequest(DiscountDealType.PERCENTAGE, request.getDiscountPercent(), null, null);
@@ -126,8 +142,12 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
         Item item = itemService.findItem(itemId);
         LocalDate today = LocalDate.now();
 
+        // Plan BOGO có giftItem (tặng sản phẩm KHÁC) không tự giảm giá sản phẩm đang xét —
+        // nó cần đối chiếu cả giỏ hàng (đã mua đủ trigger + có mặt hàng quà trong giỏ chưa),
+        // nên được resolve riêng ở OrderServiceImpl.resolveGiftWithPurchase, loại khỏi đây.
         List<DiscountPlan> skuPlans = discountPlanRepository.findActiveByType(DiscountPlanType.SKU, today).stream()
                 .filter(p -> p.getItem() != null && p.getItem().getId().equals(itemId))
+                .filter(this::isSameItemDeal)
                 .toList();
         if (!skuPlans.isEmpty()) {
             return toApplyResponse(itemId, bestPlan(skuPlans));
@@ -138,6 +158,7 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
                     .findActiveByType(DiscountPlanType.CATEGORY, today).stream()
                     .filter(p -> p.getCategory() != null
                             && p.getCategory().getId().equals(item.getCategory().getId()))
+                    .filter(this::isSameItemDeal)
                     .toList();
             if (!categoryPlans.isEmpty()) {
                 return toApplyResponse(itemId, bestPlan(categoryPlans));
@@ -149,6 +170,10 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
                 .dealType(DiscountDealType.PERCENTAGE)
                 .discountPercent(BigDecimal.ZERO)
                 .build();
+    }
+
+    private boolean isSameItemDeal(DiscountPlan plan) {
+        return plan.getDealType() != DiscountDealType.BOGO || plan.getGiftItem() == null;
     }
 
     /** Ranks mixed PERCENTAGE/BOGO plans by an equivalent-percent heuristic (BOGO free/(buy+free)*100). */
@@ -237,6 +262,8 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
                 .discountPercent(plan.getDiscountPercent())
                 .buyQuantity(plan.getBuyQuantity())
                 .freeQuantity(plan.getFreeQuantity())
+                .giftItemId(plan.getGiftItem() != null ? plan.getGiftItem().getId() : null)
+                .giftItemName(plan.getGiftItem() != null ? plan.getGiftItem().getItemName() : null)
                 .startDate(plan.getStartDate())
                 .endDate(plan.getEndDate())
                 .active(plan.isActive())

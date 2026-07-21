@@ -13,6 +13,8 @@ public class UpdateDiscountPlanRequest {
     private BigDecimal discountPercent;
     private Integer buyQuantity;
     private Integer freeQuantity;
+    /** Đổi sản phẩm tặng. Gửi 0 để xoá về mặc định (tặng chính sản phẩm/danh mục đang mua). */
+    private Long giftItemId;
     private LocalDate startDate;
     private LocalDate endDate;
     private Boolean active;

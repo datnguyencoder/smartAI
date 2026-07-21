@@ -1,7 +1,7 @@
 import * as React from 'react';
-import { Button, DatePicker, Form, Input, InputNumber, Modal, Switch, Table, Tabs, Tag, message } from 'antd';
+import { Button, DatePicker, Form, Input, InputNumber, Modal, Segmented, Switch, Table, Tabs, Tag, message } from 'antd';
 import dayjs from 'dayjs';
-import { Plus } from 'lucide-react';
+import { Gift, Plus, Tag as TagIcon } from 'lucide-react';
 import { Card, CardHeader, Select } from '@/components/ui';
 import { createDiscountPlan, fetchCategories, fetchDiscountPlans, fetchNearExpiry, updateDiscountPlan } from '@/services/wmsApi';
 import type { DiscountPlanDto, CategoryDto, InventoryItemDto } from '@/types/api';
@@ -28,6 +28,13 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
   const [form] = Form.useForm();
   const planType = Form.useWatch('planType', form);
   const dealType = Form.useWatch('dealType', form);
+  const giftMode = Form.useWatch('giftMode', form);
+  const categoryId = Form.useWatch('categoryId', form);
+  const itemId = Form.useWatch('itemId', form);
+  const discountPercent = Form.useWatch('discountPercent', form);
+  const buyQuantity = Form.useWatch('buyQuantity', form);
+  const freeQuantity = Form.useWatch('freeQuantity', form);
+  const giftItemId = Form.useWatch('giftItemId', form);
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -58,21 +65,25 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
   const openCreate = () => {
     setEditing(null);
     form.resetFields();
-    form.setFieldsValue({ planType: 'CATEGORY', dealType: 'PERCENTAGE', discountPercent: 5, buyQuantity: 2, freeQuantity: 1 });
+    form.setFieldsValue({
+      planType: 'CATEGORY', dealType: 'PERCENTAGE', discountPercent: 5,
+      buyQuantity: 2, freeQuantity: 1, giftMode: 'SAME',
+    });
     setModalOpen(true);
   };
 
-  const openCreateForItem = (itemId: number, itemName: string, daysLeft?: number) => {
+  const openCreateForItem = (itemIdArg: number, itemName: string, daysLeft?: number) => {
     setEditing(null);
     form.resetFields();
     form.setFieldsValue({
       planName: `Xả hàng cận date - ${itemName}`,
       planType: 'SKU',
-      itemId,
+      itemId: itemIdArg,
       dealType: 'PERCENTAGE',
       discountPercent: suggestPercentByDaysLeft(daysLeft),
       buyQuantity: 2,
       freeQuantity: 1,
+      giftMode: 'SAME',
       startDate: dayjs(),
       endDate: dayjs().add(14, 'day'),
     });
@@ -90,6 +101,8 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
       discountPercent: row.discountPercent,
       buyQuantity: row.buyQuantity ?? 2,
       freeQuantity: row.freeQuantity ?? 1,
+      giftMode: row.giftItemId ? 'OTHER' : 'SAME',
+      giftItemId: row.giftItemId,
       startDate: row.startDate ? dayjs(row.startDate) : undefined,
       endDate: row.endDate ? dayjs(row.endDate) : undefined,
       active: row.active,
@@ -100,6 +113,11 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
   const handleSave = async () => {
     const values = await form.validateFields();
     const isBogo = values.dealType === 'BOGO';
+    const isGiftOther = isBogo && values.giftMode === 'OTHER';
+    if (isGiftOther && !values.giftItemId) {
+      message.error('Chọn sản phẩm dùng làm quà tặng');
+      return;
+    }
     const payload = {
       planName: values.planName,
       planType: values.planType,
@@ -109,6 +127,9 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
       discountPercent: isBogo ? undefined : Number(values.discountPercent),
       buyQuantity: isBogo ? Number(values.buyQuantity) : undefined,
       freeQuantity: isBogo ? Number(values.freeQuantity) : undefined,
+      giftItemId: editing
+        ? (isGiftOther ? Number(values.giftItemId) : 0) // 0 = xoá về mặc định khi sửa
+        : (isGiftOther ? Number(values.giftItemId) : undefined),
       startDate: values.startDate?.format('YYYY-MM-DD'),
       endDate: values.endDate?.format('YYYY-MM-DD'),
       active: values.active,
@@ -128,8 +149,12 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
     }
   };
 
-  const dealLabel = (r: DiscountPlanDto) =>
-    r.dealType === 'BOGO' ? `Mua ${r.buyQuantity} tặng ${r.freeQuantity}` : `${r.discountPercent}%`;
+  const dealLabel = (r: DiscountPlanDto) => {
+    if (r.dealType !== 'BOGO') return `${r.discountPercent}%`;
+    return r.giftItemId
+      ? `Mua ${r.buyQuantity} tặng ${r.freeQuantity} × ${r.giftItemName}`
+      : `Mua ${r.buyQuantity} tặng ${r.freeQuantity}`;
+  };
 
   const statusMeta: Record<string, { color: string; label: string }> = {
     RUNNING: { color: 'green', label: 'Đang chạy' },
@@ -144,11 +169,36 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
     [rows, statusFilter]
   );
 
+  // ── Xem trước trực quan trong modal — giúp người tạo thấy ngay ưu đãi trông
+  // như thế nào trước khi lưu, tránh nhầm lẫn giữa "tặng cùng SP" và "tặng SP khác".
+  const previewText = React.useMemo(() => {
+    const targetName =
+      planType === 'CATEGORY'
+        ? categories.find((c) => c.id === categoryId)?.categoryName
+        : productsList.find((p) => Number(p.key) === itemId)?.name;
+    if (!targetName) return null;
+
+    if (dealType === 'PERCENTAGE') {
+      if (!discountPercent) return null;
+      return { icon: TagIcon, text: `Mua "${targetName}" → giảm ${discountPercent}%` };
+    }
+    if (dealType === 'BOGO') {
+      if (!buyQuantity || !freeQuantity) return null;
+      if (giftMode === 'OTHER') {
+        const giftName = productsList.find((p) => Number(p.key) === giftItemId)?.name;
+        if (!giftName) return { icon: Gift, text: `Mua ${buyQuantity} "${targetName}" → chọn sản phẩm quà tặng bên dưới` };
+        return { icon: Gift, text: `Mua ${buyQuantity} "${targetName}" → TẶNG ${freeQuantity} "${giftName}" (miễn phí)` };
+      }
+      return { icon: Gift, text: `Mua ${buyQuantity} "${targetName}" → TẶNG THÊM ${freeQuantity} "${targetName}" (cùng loại, miễn phí)` };
+    }
+    return null;
+  }, [planType, categoryId, itemId, dealType, discountPercent, buyQuantity, freeQuantity, giftMode, giftItemId, categories, productsList]);
+
   return (
     <Card>
       <CardHeader
         title="Khuyến mãi & Kế hoạch giảm giá"
-        description="Giảm giá theo danh mục/sản phẩm, chương trình mua tặng, và xả hàng cận date."
+        description="Giảm giá theo danh mục/sản phẩm, chương trình mua tặng (cùng SP hoặc SP khác), và xả hàng cận date."
         action={<Button type="primary" icon={<Plus size={16} />} onClick={openCreate}>Tạo kế hoạch</Button>}
       />
       <Tabs
@@ -183,7 +233,12 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
                     {
                       title: 'Ưu đãi',
                       render: (_: unknown, r: DiscountPlanDto) => (
-                        <Tag color={r.dealType === 'BOGO' ? 'purple' : 'blue'}>{dealLabel(r)}</Tag>
+                        <Tag
+                          icon={r.dealType === 'BOGO' ? <Gift size={12} className="mr-1 inline align-text-bottom" /> : undefined}
+                          color={r.dealType === 'BOGO' ? (r.giftItemId ? 'magenta' : 'purple') : 'blue'}
+                        >
+                          {dealLabel(r)}
+                        </Tag>
                       ),
                     },
                     {
@@ -238,9 +293,9 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
           },
         ]}
       />
-      <Modal open={modalOpen} title={editing ? 'Sửa kế hoạch' : 'Tạo kế hoạch giảm giá'} onCancel={() => setModalOpen(false)} onOk={handleSave} width={520}>
+      <Modal open={modalOpen} title={editing ? 'Sửa kế hoạch' : 'Tạo kế hoạch giảm giá'} onCancel={() => setModalOpen(false)} onOk={handleSave} width={560}>
         <Form form={form} layout="vertical">
-          <Form.Item name="planName" label="Tên kế hoạch" rules={[{ required: true }]}><Input /></Form.Item>
+          <Form.Item name="planName" label="Tên kế hoạch" rules={[{ required: true }]}><Input placeholder="VD: Mua 1 tặng 1 Coca-Cola" /></Form.Item>
           <Form.Item name="planType" label="Áp dụng theo" rules={[{ required: true }]} extra={editing ? 'Không thể đổi sau khi tạo — tạo kế hoạch mới nếu cần đổi đối tượng.' : undefined}>
             <Select disabled={!!editing} options={[
               { value: 'CATEGORY', label: 'Theo danh mục' },
@@ -248,12 +303,12 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
             ]} />
           </Form.Item>
           {planType === 'CATEGORY' && (
-            <Form.Item name="categoryId" label="Danh mục" rules={[{ required: true }]}>
+            <Form.Item name="categoryId" label="Danh mục cần mua" rules={[{ required: true }]}>
               <Select disabled={!!editing} options={categories.map((c) => ({ value: c.id, label: c.categoryName }))} />
             </Form.Item>
           )}
           {planType === 'SKU' && (
-            <Form.Item name="itemId" label="Sản phẩm" rules={[{ required: true }]}>
+            <Form.Item name="itemId" label="Sản phẩm cần mua" rules={[{ required: true }]}>
               <Select
                 disabled={!!editing}
                 showSearch
@@ -265,21 +320,58 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
           <Form.Item name="dealType" label="Loại ưu đãi" rules={[{ required: true }]} extra={editing ? 'Không thể đổi loại ưu đãi sau khi tạo.' : undefined}>
             <Select disabled={!!editing} options={[
               { value: 'PERCENTAGE', label: 'Giảm giá %' },
-              { value: 'BOGO', label: 'Mua X tặng Y' },
+              { value: 'BOGO', label: 'Mua tặng (mua X tặng Y)' },
             ]} />
           </Form.Item>
+
           {dealType === 'BOGO' ? (
-            <div className="grid grid-cols-2 gap-3">
-              <Form.Item name="buyQuantity" label="Mua (số lượng)" rules={[{ required: true }]}>
-                <InputNumber className="w-full" min={1} />
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <Form.Item name="buyQuantity" label="Mua (số lượng)" rules={[{ required: true }]}>
+                  <InputNumber className="w-full" min={1} />
+                </Form.Item>
+                <Form.Item name="freeQuantity" label="Tặng (số lượng)" rules={[{ required: true }]}>
+                  <InputNumber className="w-full" min={1} />
+                </Form.Item>
+              </div>
+              <Form.Item name="giftMode" label="Quà tặng là gì?">
+                <Segmented
+                  block
+                  options={[
+                    { label: 'Tặng thêm chính SP đang mua', value: 'SAME' },
+                    { label: 'Tặng SP khác (mua 1 tặng kèm quà)', value: 'OTHER' },
+                  ]}
+                />
               </Form.Item>
-              <Form.Item name="freeQuantity" label="Tặng (số lượng)" rules={[{ required: true }]}>
-                <InputNumber className="w-full" min={1} />
-              </Form.Item>
-            </div>
+              {giftMode === 'OTHER' && (
+                <Form.Item
+                  name="giftItemId"
+                  label="Sản phẩm dùng làm quà tặng"
+                  rules={[{ required: true, message: 'Chọn sản phẩm quà tặng' }]}
+                  extra="Nhân viên POS phải quét CẢ sản phẩm khách mua VÀ sản phẩm quà vào giỏ — hệ thống sẽ tự miễn phí phần quà."
+                >
+                  <Select
+                    showSearch
+                    optionFilterProp="label"
+                    placeholder="VD: Móc khóa, ly giữ nhiệt..."
+                    options={productsList
+                      .filter((p) => Number(p.key) !== itemId)
+                      .map((p) => ({ value: Number(p.key), label: `${p.sku} · ${p.name}` }))}
+                  />
+                </Form.Item>
+              )}
+            </>
           ) : (
             <Form.Item name="discountPercent" label="Giảm (%)" rules={[{ required: true }]}><InputNumber className="w-full" min={0.01} max={100} /></Form.Item>
           )}
+
+          {previewText && (
+            <div className="mb-4 flex items-center gap-2 rounded-lg border border-dashed border-emerald-300 bg-emerald-50 px-3 py-2.5 text-sm font-semibold text-emerald-700">
+              <previewText.icon size={16} className="shrink-0" />
+              <span>{previewText.text}</span>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <Form.Item name="startDate" label="Từ ngày"><DatePicker className="w-full" /></Form.Item>
             <Form.Item name="endDate" label="Đến ngày"><DatePicker className="w-full" /></Form.Item>
