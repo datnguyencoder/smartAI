@@ -188,8 +188,13 @@ function findGiftTrigger(product: Product, plans: DiscountPlanDto[]) {
   );
 }
 
-function applySellableStock(product: Product, stock?: number) {
-  if (stock === undefined) return product;
+/**
+ * POS chỉ được bán từ tồn kho tại "Kho bán" (khớp với vị trí backend trừ kho lúc thanh toán).
+ * `stock` truyền vào LUÔN là số đã lọc theo Kho bán (0 nếu sản phẩm chưa có dòng tồn nào ở đó) —
+ * KHÔNG được coi undefined là "giữ nguyên tồn tổng mọi kho", nếu không catalog sẽ hiện nhầm hàng
+ * có ở kho khác là "còn hàng" tại POS, tới lúc thanh toán mới báo "không đủ tồn kho".
+ */
+function applySellableStock(product: Product, stock: number) {
   const next = { ...product, stock: Math.max(0, Math.round(stock)) };
   if (next.stock === 0) next.status = 'Hết hàng';
   else if (next.stock <= next.minimumStock) next.status = 'Sắp hết';
@@ -252,6 +257,9 @@ export default function PosPage({
 
   const [localProducts, setLocalProducts] = React.useState<Product[]>([]);
   const [loadingItems, setLoadingItems] = React.useState(false);
+  // Cùng bảng tồn kho theo Kho bán (đã tính trong loadItems) để dùng lại khi quét mã vạch /
+  // tìm bằng Enter ra sản phẩm không có trong localProducts (đã bị lọc vì 0 tồn ở Kho bán).
+  const stockMapRef = React.useRef<Record<number, number>>({});
   const [discountPlans, setDiscountPlans] = React.useState<DiscountPlanDto[]>([]);
   const [customerOptions, setCustomerOptions] = React.useState<{ value: string; label: string }[]>([]);
   const [customerInput, setCustomerInput] = React.useState('');
@@ -307,10 +315,11 @@ export default function PosPage({
           fetchInventory().catch(() => []),
         ]);
         const stockMap = stockBySellingLocation(inventory as any[]);
+        stockMapRef.current = stockMap;
         if (active) {
           setLocalProducts(
             items.map((item) =>
-              applyBestDiscount(applySellableStock(itemToProduct(item), stockMap[Number(item.id)]), discountPlans)
+              applyBestDiscount(applySellableStock(itemToProduct(item), stockMap[Number(item.id)] ?? 0), discountPlans)
             )
           );
         }
@@ -555,7 +564,7 @@ export default function PosPage({
     }
     try {
       const item = await fetchItemByBarcode(q);
-      handleAddToCart(itemToProduct(item));
+      handleAddToCart(applySellableStock(itemToProduct(item), stockMapRef.current[Number(item.id)] ?? 0));
     } catch {
       antdMessage.warning(`Không tìm thấy sản phẩm: ${q}`);
     }
@@ -749,7 +758,7 @@ export default function PosPage({
               }
               try {
                 const item = await fetchItemByBarcode(q);
-                handleAddToCart(itemToProduct(item));
+                handleAddToCart(applySellableStock(itemToProduct(item), stockMapRef.current[Number(item.id)] ?? 0));
                 setSearchQuery('');
               } catch {
                 antdMessage.warning(`Không tìm thấy sản phẩm với mã: ${q}`);
@@ -880,6 +889,10 @@ export default function PosPage({
                         return giftTrigger ? (
                           <span className="rounded-full bg-pink-100 px-2 py-1 text-xs font-bold text-pink-600">
                             🎁 Mua {giftTrigger.buyQuantity} tặng {giftTrigger.giftItemName}
+                          </span>
+                        ) : product.status === 'Sắp hết' ? (
+                          <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-600">
+                            Sắp hết · {product.stock}
                           </span>
                         ) : (
                           <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-500">
