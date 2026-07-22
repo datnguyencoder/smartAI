@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Button, DatePicker, Form, Input, InputNumber, Modal, Popconfirm, Segmented, Switch, Table, Tabs, Tag, TimePicker, message } from 'antd';
+import { Button, DatePicker, Form, Input, InputNumber, Modal, Popconfirm, Segmented, Switch, Table, Tabs, Tag, TimePicker, Tooltip, message } from 'antd';
 import dayjs from 'dayjs';
 import { Gift, Package, Plus, Tag as TagIcon, Trash2 } from 'lucide-react';
 import { Card, CardHeader, Select } from '@/components/ui';
@@ -293,6 +293,17 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
   // hết hàng, để không hiện ô trống gây hiểu nhầm là mất dữ liệu.
   const inStockProducts = React.useMemo(() => productsList.filter((p) => p.stock > 0), [productsList]);
 
+  // Cảnh báo SP hết hàng cho chiến dịch ĐÃ TẠO (tồn kho có thể đã hết sau khi tạo chiến dịch,
+  // khác với lúc chọn SP trong form — nơi chỉ hiện SP còn hàng để chọn từ đầu).
+  const isItemOutOfStock = React.useCallback(
+    (itemId?: number | null) => {
+      if (!itemId) return false;
+      const product = productsList.find((p) => Number(p.key) === itemId);
+      return !!product && product.stock <= 0;
+    },
+    [productsList]
+  );
+
   const itemOptions = React.useMemo(() => {
     if (itemId && !inStockProducts.some((p) => Number(p.key) === itemId)) {
       const current = productsList.find((p) => Number(p.key) === itemId);
@@ -351,10 +362,32 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
                     },
                     {
                       title: 'Đối tượng',
-                      render: (_: unknown, r: DiscountPlanDto) =>
-                        r.planType === 'BUNDLE'
-                          ? `${r.bundleItems?.length ?? 0} sản phẩm`
-                          : r.itemName || r.categoryName || 'Toàn cửa hàng',
+                      render: (_: unknown, r: DiscountPlanDto) => {
+                        if (r.planType === 'BUNDLE') {
+                          const outCount = r.bundleItems?.filter((bi) => isItemOutOfStock(bi.itemId)).length ?? 0;
+                          return (
+                            <span className="flex items-center gap-1.5">
+                              {r.bundleItems?.length ?? 0} sản phẩm
+                              {outCount > 0 && (
+                                <Tooltip title={`${outCount} SP trong combo đã hết hàng — combo không áp dụng được cho tới khi nhập lại`}>
+                                  <Tag color="red">{outCount} hết hàng</Tag>
+                                </Tooltip>
+                              )}
+                            </span>
+                          );
+                        }
+                        const label = r.itemName || r.categoryName || 'Toàn cửa hàng';
+                        return (
+                          <span className="flex items-center gap-1.5">
+                            {label}
+                            {isItemOutOfStock(r.itemId) && (
+                              <Tooltip title="Sản phẩm này hiện đã hết hàng — chiến dịch sẽ không áp dụng được cho tới khi nhập thêm">
+                                <Tag color="red">Hết hàng</Tag>
+                              </Tooltip>
+                            )}
+                          </span>
+                        );
+                      },
                     },
                     {
                       title: 'Ưu đãi',
@@ -393,6 +426,11 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
                             <Tag color={r.customerSegment === 'VIP' ? 'gold' : 'geekblue'} className="w-fit">
                               {r.customerSegment === 'VIP' ? 'Chỉ khách VIP' : 'Chỉ khách thành viên'}
                             </Tag>
+                          )}
+                          {r.dealType === 'BOGO' && r.giftItemId && isItemOutOfStock(r.giftItemId) && (
+                            <Tooltip title="Sản phẩm dùng làm quà tặng đã hết hàng — không thể tự động tặng cho khách tới khi nhập thêm">
+                              <Tag color="red" className="w-fit">🎁 Quà tặng hết hàng</Tag>
+                            </Tooltip>
                           )}
                         </div>
                       ),

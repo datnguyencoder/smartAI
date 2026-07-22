@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, Input, Tag, Modal, message as antdMessage, InputNumber, Popconfirm } from 'antd';
+import { Alert, Button, Input, Tag, Modal, message as antdMessage, InputNumber, Popconfirm } from 'antd';
 import type { InputRef } from 'antd';
 import {
   Banknote,
@@ -135,24 +135,19 @@ function applyBestDiscount(product: Product, plans: DiscountPlanDto[]): Product 
 }
 
 /**
- * Tính số lượng miễn phí cho các plan BOGO "tặng sản phẩm KHÁC" dựa trên TOÀN BỘ giỏ hàng
- * (mirror logic thật ở OrderServiceImpl.resolveGiftWithPurchaseDiscount — chỉ để hiển thị
- * trước cho thu ngân, số tiền thật vẫn do backend tính lúc thanh toán).
- * Trả về Map<giftItemId, số lượng miễn phí>.
+ * Số lượng quà tặng THỰC SỰ kiếm được theo TOÀN BỘ giỏ hàng, KHÔNG giới hạn bởi việc sản phẩm
+ * quà đã có trong giỏ hay chưa — dùng để tự động thêm quà vào Order List (xem effect auto-add
+ * trong component chính). Trả về Map<giftItemId, { qty, planName }>.
  */
-function resolveGiftEntitlements(
+function computeGiftEarnedRaw(
   cart: Array<{ product: Product; quantity: number }>,
   plans: DiscountPlanDto[]
-): Map<number, number> {
-  const result = new Map<number, number>();
-  const giftPlans = plans.filter((p) => p.dealType === 'BOGO' && p.giftItemId && isPlanActiveToday(p));
+): Map<number, { qty: number; planName: string }> {
+  const result = new Map<number, { qty: number; planName: string }>();
+  const giftPlans = plans.filter(
+    (p) => p.dealType === 'BOGO' && p.giftItemId && p.buyQuantity && p.freeQuantity && isPlanActiveToday(p)
+  );
   if (giftPlans.length === 0) return result;
-
-  const qtyByItem = new Map<number, number>();
-  cart.forEach((line) => {
-    const id = Number(line.product.key);
-    qtyByItem.set(id, (qtyByItem.get(id) ?? 0) + line.quantity);
-  });
 
   giftPlans.forEach((plan) => {
     let triggerQty = 0;
@@ -164,12 +159,37 @@ function resolveGiftEntitlements(
       if (matches) triggerQty += line.quantity;
     });
     if (triggerQty <= 0 || !plan.buyQuantity || !plan.freeQuantity || !plan.giftItemId) return;
-    const giftQtyInCart = qtyByItem.get(plan.giftItemId) ?? 0;
-    if (giftQtyInCart <= 0) return;
     const earnedFree = Math.floor(triggerQty / plan.buyQuantity) * plan.freeQuantity;
-    const actualFree = Math.min(earnedFree, giftQtyInCart);
-    if (actualFree <= 0) return;
-    result.set(plan.giftItemId, (result.get(plan.giftItemId) ?? 0) + actualFree);
+    if (earnedFree <= 0) return;
+    const prev = result.get(plan.giftItemId);
+    result.set(plan.giftItemId, { qty: (prev?.qty ?? 0) + earnedFree, planName: plan.planName });
+  });
+  return result;
+}
+
+/**
+ * Số lượng quà tặng ĐANG thực sự miễn phí để tính tiền — giới hạn bởi số lượng SP quà thật sự
+ * có trong giỏ (khớp logic backend OrderServiceImpl.resolveGiftWithPurchaseDiscount, số tiền
+ * thật vẫn do backend tính lúc thanh toán). Trả về Map<giftItemId, số lượng miễn phí>.
+ */
+function resolveGiftEntitlements(
+  cart: Array<{ product: Product; quantity: number }>,
+  plans: DiscountPlanDto[]
+): Map<number, number> {
+  const raw = computeGiftEarnedRaw(cart, plans);
+  const result = new Map<number, number>();
+  if (raw.size === 0) return result;
+
+  const qtyByItem = new Map<number, number>();
+  cart.forEach((line) => {
+    const id = Number(line.product.key);
+    qtyByItem.set(id, (qtyByItem.get(id) ?? 0) + line.quantity);
+  });
+
+  raw.forEach((entry, giftItemId) => {
+    const giftQtyInCart = qtyByItem.get(giftItemId) ?? 0;
+    const actualFree = Math.min(entry.qty, giftQtyInCart);
+    if (actualFree > 0) result.set(giftItemId, actualFree);
   });
   return result;
 }
@@ -400,6 +420,99 @@ export default function PosPage({
     () => resolveGiftEntitlements(posCart, discountPlans),
     [posCart, discountPlans]
   );
+
+  // ── Tự động thêm quà tặng "SP khác" vào Order List khi khách mua đủ điều kiện, thay vì bắt
+  // thu ngân phải tự quét thêm quà. giftEarnedRaw không phụ thuộc việc quà đã có trong giỏ chưa.
+  const giftEarnedRaw = React.useMemo(
+    () => computeGiftEarnedRaw(posCart, discountPlans),
+    [posCart, discountPlans]
+  );
+
+  const [giftProductCache, setGiftProductCache] = React.useState<Record<number, Product>>({});
+
+  const resolveGiftProduct = React.useCallback(
+    (giftItemId: number): Product | undefined =>
+      localProducts.find((p) => Number(p.key) === giftItemId) ?? giftProductCache[giftItemId],
+    [localProducts, giftProductCache]
+  );
+
+  // Nạp thông tin SP quà tặng khi nó không nằm trong danh sách đang lọc/tìm kiếm hiện tại.
+  React.useEffect(() => {
+    const missingIds = Array.from(giftEarnedRaw.keys()).filter(
+      (id) => !localProducts.some((p) => Number(p.key) === id) && !giftProductCache[id]
+    );
+    if (missingIds.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const fetched = await Promise.all(
+        missingIds.map(async (id) => {
+          try {
+            const item = await fetchItemById(id);
+            return [id, applySellableStock(itemToProduct(item), stockMapRef.current[id] ?? 0)] as const;
+          } catch {
+            return null;
+          }
+        })
+      );
+      if (cancelled) return;
+      const additions = fetched.filter((e): e is readonly [number, Product] => e !== null);
+      if (additions.length === 0) return;
+      setGiftProductCache((prev) => {
+        const next = { ...prev };
+        additions.forEach(([id, product]) => { next[id] = product; });
+        return next;
+      });
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [giftEarnedRaw, localProducts]);
+
+  // Tự động bơm/tăng số lượng dòng quà tặng trong giỏ cho khớp số đã kiếm được, giới hạn bởi
+  // tồn kho thật — không bao giờ giảm số lượng khách đã tự thêm (có thể họ mua thêm bản trả tiền).
+  React.useEffect(() => {
+    if (giftEarnedRaw.size === 0) return;
+    setPosCart((prevCart) => {
+      let changed = false;
+      let nextCart = prevCart;
+      giftEarnedRaw.forEach((entry, giftItemId) => {
+        const product = resolveGiftProduct(giftItemId);
+        if (!product) return;
+        const stock = stockMapRef.current[giftItemId] ?? product.stock ?? 0;
+        const desiredQty = Math.min(entry.qty, stock);
+        if (desiredQty <= 0) return;
+        const idx = nextCart.findIndex((line) => Number(line.product.key) === giftItemId);
+        if (idx === -1) {
+          if (!changed) nextCart = [...nextCart];
+          nextCart.push({ product: { ...product, stock }, quantity: desiredQty });
+          changed = true;
+        } else if (nextCart[idx].quantity < desiredQty) {
+          if (!changed) nextCart = [...nextCart];
+          nextCart[idx] = { ...nextCart[idx], quantity: desiredQty };
+          changed = true;
+        }
+      });
+      return changed ? nextCart : prevCart;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [giftEarnedRaw, resolveGiftProduct]);
+
+  // Cảnh báo khi SP quà tặng hết hàng hoặc không đủ số lượng để tặng hết phần khách đã kiếm được.
+  const giftStockWarnings = React.useMemo(() => {
+    const warnings: string[] = [];
+    giftEarnedRaw.forEach((entry, giftItemId) => {
+      const product = resolveGiftProduct(giftItemId);
+      const stock = stockMapRef.current[giftItemId] ?? product?.stock ?? 0;
+      if (stock < entry.qty) {
+        const name = product?.name ?? `SP #${giftItemId}`;
+        warnings.push(
+          stock <= 0
+            ? `${name}: đã HẾT HÀNG, không thể tự thêm quà tặng theo chương trình "${entry.planName}"`
+            : `${name}: chỉ còn ${stock}/${entry.qty} để tặng theo chương trình "${entry.planName}"`
+        );
+      }
+    });
+    return warnings;
+  }, [giftEarnedRaw, resolveGiftProduct]);
 
   const lineAmount = (item: { product: Product; quantity: number }) => {
     const { product, quantity } = item;
@@ -935,6 +1048,20 @@ export default function PosPage({
       <aside ref={cartPanelRef} className="min-h-0 overflow-hidden border-l border-slate-200 bg-[#e9eef3] p-4">
         <Card className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl">
           <CardHeader title="Order List" action={<Tag color="blue" className="font-bold">#{posCart.length} item</Tag>} />
+          {giftStockWarnings.length > 0 && (
+            <div className="px-5 pt-2">
+              <Alert
+                type="warning"
+                showIcon
+                message="Không đủ hàng để tự tặng"
+                description={
+                  <ul className="list-disc space-y-0.5 pl-4 text-xs">
+                    {giftStockWarnings.map((w) => <li key={w}>{w}</li>)}
+                  </ul>
+                }
+              />
+            </div>
+          )}
           <div className="min-h-[180px] flex-[1.05] space-y-3 overflow-y-auto px-5 pb-4 scrollbar-thin">
             {posCart.map((item) => (
               <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3" key={item.product.key}>
