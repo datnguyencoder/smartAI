@@ -1,0 +1,4 @@
+ALTER TABLE discount_plans ADD COLUMN IF NOT EXISTS start_time TIME;
+ALTER TABLE discount_plans ADD COLUMN IF NOT EXISTS end_time TIME;
+ALTER TABLE discount_plans ADD COLUMN IF NOT EXISTS max_usage INT;
+ALTER TABLE discount_plans ADD COLUMN IF NOT EXISTS usage_count INT NOT NULL DEFAULT 0;

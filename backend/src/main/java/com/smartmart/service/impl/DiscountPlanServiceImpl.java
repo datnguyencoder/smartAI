@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Comparator;
 import java.util.List;
 
@@ -58,6 +59,7 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
         if (minQuantity < 1) {
             throw new BadRequestException("Số lượng tối thiểu phải >= 1");
         }
+        validateTimeWindow(request.getStartTime(), request.getEndTime());
         Item giftItem = dealType == DiscountDealType.BOGO ? resolveItem(request.getGiftItemId()) : null;
         if (giftItem != null && request.getPlanType() == DiscountPlanType.SKU
                 && request.getItemId() != null && giftItem.getId().equals(request.getItemId())) {
@@ -80,6 +82,10 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
                 .active(true)
                 .priority(request.getPriority() != null ? request.getPriority() : 0)
                 .minQuantity(minQuantity)
+                .startTime(request.getStartTime())
+                .endTime(request.getEndTime())
+                .maxUsage(request.getMaxUsage())
+                .usageCount(0)
                 .build();
         return toResponse(discountPlanRepository.save(plan));
     }
@@ -139,6 +145,19 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
             }
             plan.setMinQuantity(request.getMinQuantity());
         }
+        if (Boolean.TRUE.equals(request.getClearTimeWindow())) {
+            plan.setStartTime(null);
+            plan.setEndTime(null);
+        } else if (request.getStartTime() != null || request.getEndTime() != null) {
+            LocalTime effectiveStartTime = request.getStartTime() != null ? request.getStartTime() : plan.getStartTime();
+            LocalTime effectiveEndTime = request.getEndTime() != null ? request.getEndTime() : plan.getEndTime();
+            validateTimeWindow(effectiveStartTime, effectiveEndTime);
+            plan.setStartTime(effectiveStartTime);
+            plan.setEndTime(effectiveEndTime);
+        }
+        if (request.getMaxUsage() != null) {
+            plan.setMaxUsage(request.getMaxUsage() == -1 ? null : request.getMaxUsage());
+        }
         return toResponse(discountPlanRepository.save(plan));
     }
 
@@ -183,6 +202,8 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
         List<DiscountPlan> skuPlans = discountPlanRepository.findActiveByType(DiscountPlanType.SKU, today).stream()
                 .filter(p -> p.getItem() != null && p.getItem().getId().equals(itemId))
                 .filter(this::isSameItemDeal)
+                .filter(this::isWithinTimeWindow)
+                .filter(this::hasUsageLeft)
                 .toList();
         if (!skuPlans.isEmpty()) {
             return toApplyResponse(itemId, bestPlan(skuPlans));
@@ -194,6 +215,8 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
                     .filter(p -> p.getCategory() != null
                             && p.getCategory().getId().equals(item.getCategory().getId()))
                     .filter(this::isSameItemDeal)
+                    .filter(this::isWithinTimeWindow)
+                    .filter(this::hasUsageLeft)
                     .toList();
             if (!categoryPlans.isEmpty()) {
                 return toApplyResponse(itemId, bestPlan(categoryPlans));
@@ -246,6 +269,38 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
                 .planId(best.getId())
                 .planName(best.getPlanName())
                 .build();
+    }
+
+    @Override
+    public void recordUsage(Long planId) {
+        if (planId == null) return;
+        DiscountPlan plan = findById(planId);
+        plan.setUsageCount((plan.getUsageCount() != null ? plan.getUsageCount() : 0) + 1);
+        discountPlanRepository.save(plan);
+    }
+
+    private void validateTimeWindow(LocalTime startTime, LocalTime endTime) {
+        if ((startTime == null) != (endTime == null)) {
+            throw new BadRequestException("Cần nhập cả giờ bắt đầu và giờ kết thúc cho Flash Sale");
+        }
+        if (startTime != null && !startTime.isBefore(endTime)) {
+            throw new BadRequestException("Giờ kết thúc phải sau giờ bắt đầu");
+        }
+    }
+
+    /** Flash Sale: plan chỉ áp dụng trong khung giờ [startTime, endTime) mỗi ngày nếu được cấu hình. */
+    private boolean isWithinTimeWindow(DiscountPlan plan) {
+        if (plan.getStartTime() == null || plan.getEndTime() == null) {
+            return true;
+        }
+        LocalTime now = LocalTime.now();
+        return !now.isBefore(plan.getStartTime()) && now.isBefore(plan.getEndTime());
+    }
+
+    private boolean hasUsageLeft(DiscountPlan plan) {
+        return plan.getMaxUsage() == null
+                || plan.getUsageCount() == null
+                || plan.getUsageCount() < plan.getMaxUsage();
     }
 
     private void validatePlanRequest(DiscountPlanType type, Long categoryId, Long itemId) {
@@ -315,6 +370,10 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
                 .priority(plan.getPriority())
                 .minQuantity(plan.getMinQuantity())
                 .fixedAmount(plan.getFixedAmount())
+                .startTime(plan.getStartTime())
+                .endTime(plan.getEndTime())
+                .maxUsage(plan.getMaxUsage())
+                .usageCount(plan.getUsageCount())
                 .status(computeStatus(plan))
                 .createdAt(plan.getCreatedAt())
                 .build();

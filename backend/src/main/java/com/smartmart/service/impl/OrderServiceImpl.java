@@ -180,6 +180,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         BigDecimal planDiscountAmount = BigDecimal.ZERO;
+        java.util.Set<Long> usedPlanIds = new java.util.HashSet<>();
         for (OrderLineRequest line : request.getItems()) {
             var apply = discountPlanService.applyForItem(line.getItemId());
             Item lineItem = itemService.findItem(line.getItemId());
@@ -210,9 +211,13 @@ public class OrderServiceImpl implements OrderService {
             if (lineDiscount.compareTo(BigDecimal.ZERO) > 0) {
                 applyLineDiscount(orderItems, line.getItemId(), lineDiscount, reason);
                 planDiscountAmount = planDiscountAmount.add(lineDiscount);
+                if (apply.getPlanId() != null) {
+                    usedPlanIds.add(apply.getPlanId());
+                }
             }
         }
-        planDiscountAmount = planDiscountAmount.add(resolveGiftWithPurchaseDiscount(request.getItems(), orderItems));
+        planDiscountAmount = planDiscountAmount.add(
+                resolveGiftWithPurchaseDiscount(request.getItems(), orderItems, usedPlanIds));
 
         BigDecimal discountAmount = planDiscountAmount;
         Promotion promotion = null;
@@ -276,6 +281,7 @@ public class OrderServiceImpl implements OrderService {
         if (promotion != null) {
             promotionService.recordUsage(promotion, customer, saved);
         }
+        usedPlanIds.forEach(discountPlanService::recordUsage);
 
         if (request.getPaymentMethod() == PaymentMethod.PAY_LATER && customer != null) {
             customerDebtService.createFromOrder(saved, customer);
@@ -616,11 +622,17 @@ public class OrderServiceImpl implements OrderService {
      * trong giỏ hàng không (thu ngân phải tự quét/thêm quà vào giỏ — hệ thống không tự động thêm
      * dòng hàng mới mà chỉ định giá 0đ cho phần quà nếu điều kiện thoả).
      */
-    private BigDecimal resolveGiftWithPurchaseDiscount(List<OrderLineRequest> lines, List<OrderItem> orderItems) {
+    private BigDecimal resolveGiftWithPurchaseDiscount(
+            List<OrderLineRequest> lines, List<OrderItem> orderItems, java.util.Set<Long> usedPlanIds) {
+        java.time.LocalTime nowTime = java.time.LocalTime.now();
         var giftPlans = discountPlanService.listActiveToday().stream()
                 .filter(p -> p.getDealType() == com.smartmart.enums.DiscountDealType.BOGO
                         && p.getGiftItemId() != null
                         && p.getBuyQuantity() != null && p.getFreeQuantity() != null)
+                .filter(p -> p.getStartTime() == null || p.getEndTime() == null
+                        || (!nowTime.isBefore(p.getStartTime()) && nowTime.isBefore(p.getEndTime())))
+                .filter(p -> p.getMaxUsage() == null || p.getUsageCount() == null
+                        || p.getUsageCount() < p.getMaxUsage())
                 .toList();
         if (giftPlans.isEmpty()) {
             return BigDecimal.ZERO;
@@ -662,6 +674,9 @@ public class OrderServiceImpl implements OrderService {
             BigDecimal giftDiscount = giftItem.getSellingPrice().multiply(actualFree);
             applyLineDiscount(orderItems, plan.getGiftItemId(), giftDiscount, "Quà tặng: " + plan.getPlanName());
             total = total.add(giftDiscount);
+            if (plan.getId() != null) {
+                usedPlanIds.add(plan.getId());
+            }
         }
         return total;
     }

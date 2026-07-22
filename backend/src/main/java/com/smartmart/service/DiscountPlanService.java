@@ -23,4 +23,7 @@ public interface DiscountPlanService {
     List<DiscountPlanResponse> listActiveToday();
 
     DiscountApplyResponse applyForItem(Long itemId);
+
+    /** Ghi nhận 1 lần plan được áp dụng thành công trên đơn hàng — tăng usageCount. */
+    void recordUsage(Long planId);
 }

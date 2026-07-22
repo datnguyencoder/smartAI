@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Button, DatePicker, Form, Input, InputNumber, Modal, Popconfirm, Segmented, Switch, Table, Tabs, Tag, message } from 'antd';
+import { Button, DatePicker, Form, Input, InputNumber, Modal, Popconfirm, Segmented, Switch, Table, Tabs, Tag, TimePicker, message } from 'antd';
 import dayjs from 'dayjs';
 import { Gift, Plus, Tag as TagIcon, Trash2 } from 'lucide-react';
 import { Card, CardHeader, Select } from '@/components/ui';
@@ -37,6 +37,7 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
   const giftItemId = Form.useWatch('giftItemId', form);
   const fixedAmount = Form.useWatch('fixedAmount', form);
   const minQuantity = Form.useWatch('minQuantity', form);
+  const isFlashSale = Form.useWatch('isFlashSale', form);
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -111,6 +112,11 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
       endDate: row.endDate ? dayjs(row.endDate) : undefined,
       active: row.active,
       priority: row.priority ?? 0,
+      isFlashSale: !!(row.startTime && row.endTime),
+      timeRange: row.startTime && row.endTime
+        ? [dayjs(row.startTime, 'HH:mm:ss'), dayjs(row.endTime, 'HH:mm:ss')]
+        : undefined,
+      maxUsage: row.maxUsage ?? undefined,
     });
     setModalOpen(true);
   };
@@ -142,10 +148,17 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
       endDate: values.endDate?.format('YYYY-MM-DD'),
       active: values.active,
       priority: values.priority !== undefined ? Number(values.priority) : undefined,
+      startTime: values.isFlashSale && values.timeRange?.[0] ? values.timeRange[0].format('HH:mm:ss') : undefined,
+      endTime: values.isFlashSale && values.timeRange?.[1] ? values.timeRange[1].format('HH:mm:ss') : undefined,
+      maxUsage: values.maxUsage !== undefined && values.maxUsage !== null ? Number(values.maxUsage) : undefined,
     };
     try {
       if (editing) {
-        await updateDiscountPlan(editing.id, payload);
+        await updateDiscountPlan(editing.id, {
+          ...payload,
+          clearTimeWindow: !values.isFlashSale,
+          maxUsage: values.maxUsage === undefined || values.maxUsage === null ? -1 : Number(values.maxUsage),
+        });
         message.success('Cập nhật thành công');
       } else {
         await createDiscountPlan(payload);
@@ -291,6 +304,14 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
                           </Tag>
                           {!!r.minQuantity && r.minQuantity > 1 && (
                             <span className="text-xs text-slate-500">Từ {r.minQuantity} sản phẩm</span>
+                          )}
+                          {r.startTime && r.endTime && (
+                            <Tag color="orange" className="w-fit">⚡ {r.startTime.slice(0, 5)}–{r.endTime.slice(0, 5)}</Tag>
+                          )}
+                          {!!r.maxUsage && (
+                            <span className="text-xs text-slate-500">
+                              Đã dùng {r.usageCount ?? 0}/{r.maxUsage}
+                            </span>
                           )}
                         </div>
                       ),
@@ -462,6 +483,29 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
             <Form.Item name="startDate" label="Từ ngày"><DatePicker className="w-full" /></Form.Item>
             <Form.Item name="endDate" label="Đến ngày"><DatePicker className="w-full" /></Form.Item>
           </div>
+          <Form.Item
+            name="isFlashSale"
+            label="Flash Sale — chỉ áp dụng trong khung giờ cố định mỗi ngày"
+            valuePropName="checked"
+          >
+            <Switch />
+          </Form.Item>
+          {isFlashSale && (
+            <Form.Item
+              name="timeRange"
+              label="Khung giờ áp dụng"
+              rules={[{ required: true, message: 'Chọn khung giờ Flash Sale' }]}
+            >
+              <TimePicker.RangePicker className="w-full" format="HH:mm" />
+            </Form.Item>
+          )}
+          <Form.Item
+            name="maxUsage"
+            label="Giới hạn tổng số lần áp dụng"
+            tooltip="Để trống = không giới hạn số lần chiến dịch được áp dụng"
+          >
+            <InputNumber className="w-full" min={1} placeholder="Không giới hạn" />
+          </Form.Item>
           <Form.Item
             name="priority"
             label="Độ ưu tiên"

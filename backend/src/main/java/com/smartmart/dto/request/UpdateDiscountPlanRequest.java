@@ -5,6 +5,7 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalTime;
 
 @Getter
 @Setter
@@ -21,4 +22,10 @@ public class UpdateDiscountPlanRequest {
     private Integer priority;
     private Integer minQuantity;
     private BigDecimal fixedAmount;
+    private LocalTime startTime;
+    private LocalTime endTime;
+    /** null = giữ nguyên; -1 = xoá giới hạn; số dương = đặt giới hạn mới. */
+    private Integer maxUsage;
+    /** true = xoá khung giờ Flash Sale, quay lại áp dụng cả ngày. */
+    private Boolean clearTimeWindow;
 }

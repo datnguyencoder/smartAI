@@ -8,6 +8,7 @@ import lombok.Getter;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Getter
 @Builder
@@ -31,6 +32,10 @@ public class DiscountPlanResponse {
     private Integer priority;
     private Integer minQuantity;
     private BigDecimal fixedAmount;
+    private LocalTime startTime;
+    private LocalTime endTime;
+    private Integer maxUsage;
+    private Integer usageCount;
     /** SCHEDULED (chưa tới ngày bắt đầu) | RUNNING (đang chạy) | EXPIRED (đã qua endDate) | DISABLED (active=false). */
     private String status;
     private LocalDateTime createdAt;

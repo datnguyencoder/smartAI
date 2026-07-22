@@ -993,6 +993,10 @@ export type DiscountPlanDto = {
   freeQuantity?: number;
   fixedAmount?: number;
   minQuantity?: number;
+  startTime?: string;
+  endTime?: string;
+  maxUsage?: number | null;
+  usageCount?: number;
   giftItemId?: number;
   giftItemName?: string;
   startDate?: string;

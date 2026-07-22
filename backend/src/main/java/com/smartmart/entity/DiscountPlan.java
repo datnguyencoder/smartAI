@@ -8,6 +8,7 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalTime;
 
 @Entity
 @Table(name = "discount_plans")
@@ -75,4 +76,19 @@ public class DiscountPlan extends LongAuditableEntity {
     /** Số tiền giảm cố định — dùng khi dealType = FIXED_AMOUNT. */
     @Column(name = "fixed_amount")
     private BigDecimal fixedAmount;
+
+    /** Flash Sale — chỉ áp dụng trong khung giờ này mỗi ngày. Cả hai null = áp dụng cả ngày. */
+    @Column(name = "start_time")
+    private LocalTime startTime;
+
+    @Column(name = "end_time")
+    private LocalTime endTime;
+
+    /** Tổng số lần được áp dụng — null = không giới hạn. */
+    @Column(name = "max_usage")
+    private Integer maxUsage;
+
+    @Column(name = "usage_count", nullable = false)
+    @Builder.Default
+    private Integer usageCount = 0;
 }

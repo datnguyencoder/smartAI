@@ -20,6 +20,9 @@ export function createDiscountPlan(payload: {
   freeQuantity?: number;
   fixedAmount?: number;
   minQuantity?: number;
+  startTime?: string;
+  endTime?: string;
+  maxUsage?: number;
   giftItemId?: number;
   startDate?: string;
   endDate?: string;
@@ -38,6 +41,10 @@ export function updateDiscountPlan(id: number, payload: {
   freeQuantity?: number;
   fixedAmount?: number;
   minQuantity?: number;
+  startTime?: string;
+  endTime?: string;
+  maxUsage?: number;
+  clearTimeWindow?: boolean;
   /** 0 = xoá về mặc định (tặng chính sản phẩm đang mua) */
   giftItemId?: number;
   startDate?: string;

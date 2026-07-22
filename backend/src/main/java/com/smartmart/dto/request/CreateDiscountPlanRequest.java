@@ -9,6 +9,7 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalTime;
 
 @Getter
 @Setter
@@ -43,4 +44,11 @@ public class CreateDiscountPlanRequest {
 
     /** Số tiền giảm cố định — bắt buộc khi dealType = FIXED_AMOUNT. */
     private BigDecimal fixedAmount;
+
+    /** Flash Sale — chỉ áp dụng trong khung giờ này mỗi ngày. Để trống = áp dụng cả ngày. */
+    private LocalTime startTime;
+    private LocalTime endTime;
+
+    /** Tổng số lần được áp dụng — để trống = không giới hạn. */
+    private Integer maxUsage;
 }
