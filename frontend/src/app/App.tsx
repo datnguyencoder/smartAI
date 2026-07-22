@@ -74,6 +74,11 @@ function App() {
   const [pendingPurchaseSuggestionItems, setPendingPurchaseSuggestionItems] = React.useState<
     PurchaseSuggestionPrefillItem[]
   >([]);
+  // Ref ổn định — tránh tạo hàm mới mỗi lần App re-render, vốn khiến effect prefill ở
+  // ImportCreatePage (phụ thuộc clearPrefillItems) chạy lại không cần thiết.
+  const clearPendingPurchaseSuggestionItems = React.useCallback(() => {
+    setPendingPurchaseSuggestionItems([]);
+  }, []);
   const pageContentRef = React.useRef<HTMLDivElement>(null);
   const mainScrollRef = React.useRef<HTMLDivElement>(null);
   const cartPanelRef = React.useRef<HTMLDivElement>(null);
@@ -168,6 +173,7 @@ function App() {
       catalogLoading={catalogLoading}
       pendingPurchaseSuggestionItems={pendingPurchaseSuggestionItems}
       setPendingPurchaseSuggestionItems={setPendingPurchaseSuggestionItems}
+      clearPendingPurchaseSuggestionItems={clearPendingPurchaseSuggestionItems}
     />
   );
 

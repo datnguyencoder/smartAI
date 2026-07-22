@@ -62,6 +62,7 @@ export function PageRenderer({
   catalogLoading,
   pendingPurchaseSuggestionItems,
   setPendingPurchaseSuggestionItems,
+  clearPendingPurchaseSuggestionItems,
 }: {
   page: PageKey;
   authUser: UserDto;
@@ -85,6 +86,7 @@ export function PageRenderer({
   catalogLoading: boolean;
   pendingPurchaseSuggestionItems: PurchaseSuggestionPrefillItem[];
   setPendingPurchaseSuggestionItems: React.Dispatch<React.SetStateAction<PurchaseSuggestionPrefillItem[]>>;
+  clearPendingPurchaseSuggestionItems: () => void;
 }) {
   if (!canAccessPage(authUser.role, page)) {
     return (
@@ -154,7 +156,7 @@ export function PageRenderer({
         reloadCatalog={reloadCatalog}
         catalogLoading={catalogLoading}
         prefillItems={pendingPurchaseSuggestionItems}
-        clearPrefillItems={() => setPendingPurchaseSuggestionItems([])}
+        clearPrefillItems={clearPendingPurchaseSuggestionItems}
       />
     );
   }

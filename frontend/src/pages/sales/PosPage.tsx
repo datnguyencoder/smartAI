@@ -379,9 +379,16 @@ export default function PosPage({
     loadHeldOrders();
   }, [loadHeldOrders]);
 
-  React.useEffect(() => {
-    fetchDiscountPlans().then(setDiscountPlans).catch(() => setDiscountPlans([]));
+  // Refetch sau mỗi lần thanh toán thành công (xem handleCheckout) — nếu không, usageCount của
+  // chiến dịch bị "đứng hình" ở giá trị lúc mở màn hình POS, khiến sản phẩm vẫn hiện giá giảm dù
+  // chiến dịch đã hết lượt áp dụng ở backend.
+  const loadDiscountPlans = React.useCallback(() => {
+    return fetchDiscountPlans().then(setDiscountPlans).catch(() => setDiscountPlans([]));
   }, []);
+
+  React.useEffect(() => {
+    loadDiscountPlans();
+  }, [loadDiscountPlans]);
 
   React.useEffect(() => {
     const pendingCode = sessionStorage.getItem('smartmart_pending_promo_code');
@@ -867,6 +874,7 @@ export default function PosPage({
         })),
       });
       await reloadCatalog();
+      await loadDiscountPlans();
       const discount = Number(order.discountAmount || promoDiscount || 0);
       const loyaltyPointsEarned = Number(order.loyaltyPointsEarned || 0);
       const customerLoyaltyPoints = order.customerLoyaltyPoints;

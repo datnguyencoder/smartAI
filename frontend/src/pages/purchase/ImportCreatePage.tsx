@@ -147,9 +147,17 @@ export default function ImportCreatePage({
   }, [selectedSupplierId, supplierItems.length, loadingSupplierItems]);
 
   const handleSupplierChange = async (supplierId: number) => {
+    // BUG: trước đây luôn reset items về 1 dòng trống khi đổi NCC — điều này xoá sạch dữ liệu
+    // đã tự điền từ gợi ý nhập hàng AI mỗi khi người dùng phải TỰ chọn NCC (trường hợp SP chưa
+    // từng nhập nên không xác định được NCC mặc định — antdMessage bên dưới hướng dẫn y hệt vậy).
+    // Giờ chỉ reset về dòng trống khi form CHƯA có sản phẩm thật nào (luồng tạo phiếu thủ công
+    // từ đầu); nếu đã có itemId thật (từ prefill AI hoặc người dùng tự thêm) thì giữ nguyên toàn
+    // bộ số lượng/giá đã điền — chỉ đổi NCC và load lại danh sách SP hợp lệ theo NCC mới.
+    const currentItems = form.getFieldValue('items');
+    const hasRealItems = Array.isArray(currentItems) && currentItems.some((i: any) => i?.itemId);
     form.setFieldsValue({
       supplierId,
-      items: [{ itemId: '', inputMode: 'purchase', quantity: 50, price: 0 }],
+      ...(hasRealItems ? {} : { items: [{ itemId: '', inputMode: 'purchase', quantity: 50, price: 0 }] }),
     });
 
     setSupplierItems([]);
