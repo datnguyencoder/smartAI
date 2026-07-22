@@ -427,7 +427,7 @@ export default function PosPage({
       return;
     }
     try {
-      const res = await validatePromotion(code.trim().toUpperCase(), amount);
+      const res = await validatePromotion(code.trim().toUpperCase(), amount, loyaltyCustomer?.id);
       if (res.valid) {
         setPromoDiscount(Number(res.discountAmount));
         setPromoMessage(res.promotionName || 'Áp dụng thành công');

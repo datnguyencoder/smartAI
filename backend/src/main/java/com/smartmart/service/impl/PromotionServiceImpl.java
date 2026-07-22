@@ -5,10 +5,14 @@ import com.smartmart.dto.request.CreatePromotionRequest;
 import com.smartmart.dto.request.UpdatePromotionRequest;
 import com.smartmart.dto.response.PromotionResponse;
 import com.smartmart.dto.response.PromotionValidateResponse;
+import com.smartmart.entity.Customer;
+import com.smartmart.entity.Order;
 import com.smartmart.entity.Promotion;
+import com.smartmart.entity.PromotionUsage;
 import com.smartmart.exception.BadRequestException;
 import com.smartmart.exception.NotFoundException;
 import com.smartmart.repository.PromotionRepository;
+import com.smartmart.repository.PromotionUsageRepository;
 import com.smartmart.service.AuditLogService;
 import com.smartmart.service.PromotionService;
 import com.smartmart.util.AuditData;
@@ -25,10 +29,15 @@ import java.util.List;
 public class PromotionServiceImpl implements PromotionService {
 
     private final PromotionRepository promotionRepository;
+    private final PromotionUsageRepository promotionUsageRepository;
     private final AuditLogService auditLogService;
 
-    public PromotionServiceImpl(PromotionRepository promotionRepository, AuditLogService auditLogService) {
+    public PromotionServiceImpl(
+            PromotionRepository promotionRepository,
+            PromotionUsageRepository promotionUsageRepository,
+            AuditLogService auditLogService) {
         this.promotionRepository = promotionRepository;
+        this.promotionUsageRepository = promotionUsageRepository;
         this.auditLogService = auditLogService;
     }
 
@@ -70,6 +79,9 @@ public class PromotionServiceImpl implements PromotionService {
                 .startDate(request.getStartDate() != null ? request.getStartDate() : LocalDate.now())
                 .endDate(request.getEndDate() != null ? request.getEndDate() : LocalDate.now().plusMonths(3))
                 .active(request.getActive() == null || request.getActive())
+                .maxUsage(request.getMaxUsage())
+                .maxPerCustomer(request.getMaxPerCustomer())
+                .usageCount(0)
                 .build());
         auditLogService.log(
                 AuditAction.PROMOTION_CREATE,
@@ -101,6 +113,12 @@ public class PromotionServiceImpl implements PromotionService {
         if (request.getStartDate() != null) promotion.setStartDate(request.getStartDate());
         if (request.getEndDate() != null) promotion.setEndDate(request.getEndDate());
         if (request.getActive() != null) promotion.setActive(request.getActive());
+        if (request.getMaxUsage() != null) {
+            promotion.setMaxUsage(request.getMaxUsage() == -1 ? null : request.getMaxUsage());
+        }
+        if (request.getMaxPerCustomer() != null) {
+            promotion.setMaxPerCustomer(request.getMaxPerCustomer() == -1 ? null : request.getMaxPerCustomer());
+        }
         Promotion saved = promotionRepository.save(promotion);
         auditLogService.log(
                 AuditAction.PROMOTION_UPDATE,
@@ -132,9 +150,9 @@ public class PromotionServiceImpl implements PromotionService {
 
     @Transactional(readOnly = true)
     @Override
-    public PromotionValidateResponse validateCode(String code, BigDecimal orderSubtotal) {
+    public PromotionValidateResponse validateCode(String code, BigDecimal orderSubtotal, Long customerId) {
         try {
-            Promotion promotion = resolvePromotion(code, orderSubtotal);
+            Promotion promotion = resolvePromotion(code, orderSubtotal, customerId);
             BigDecimal discount = calculateDiscountAmount(promotion, orderSubtotal);
             return PromotionValidateResponse.builder()
                     .valid(true)
@@ -155,8 +173,8 @@ public class PromotionServiceImpl implements PromotionService {
 
     @Transactional(readOnly = true)
     @Override
-    public Promotion applyCode(String code, BigDecimal orderSubtotal) {
-        return resolvePromotion(code, orderSubtotal);
+    public Promotion applyCode(String code, BigDecimal orderSubtotal, Long customerId) {
+        return resolvePromotion(code, orderSubtotal, customerId);
     }
 
     @Transactional(readOnly = true)
@@ -165,7 +183,19 @@ public class PromotionServiceImpl implements PromotionService {
         return calculateDiscountAmount(promotion, orderSubtotal);
     }
 
-    private Promotion resolvePromotion(String code, BigDecimal orderSubtotal) {
+    @Override
+    public void recordUsage(Promotion promotion, Customer customer, Order order) {
+        if (promotion == null) return;
+        promotion.setUsageCount((promotion.getUsageCount() != null ? promotion.getUsageCount() : 0) + 1);
+        promotionRepository.save(promotion);
+        promotionUsageRepository.save(PromotionUsage.builder()
+                .promotion(promotion)
+                .customer(customer)
+                .order(order)
+                .build());
+    }
+
+    private Promotion resolvePromotion(String code, BigDecimal orderSubtotal, Long customerId) {
         if (code == null || code.isBlank()) {
             throw new BadRequestException("Mã khuyến mãi không hợp lệ");
         }
@@ -184,6 +214,17 @@ public class PromotionServiceImpl implements PromotionService {
         BigDecimal subtotal = orderSubtotal != null ? orderSubtotal : BigDecimal.ZERO;
         if (subtotal.compareTo(promotion.getMinOrder()) < 0) {
             throw new BadRequestException("Đơn hàng chưa đạt giá trị tối thiểu " + promotion.getMinOrder());
+        }
+        if (promotion.getMaxUsage() != null
+                && promotion.getUsageCount() != null
+                && promotion.getUsageCount() >= promotion.getMaxUsage()) {
+            throw new BadRequestException("Mã khuyến mãi đã hết lượt sử dụng");
+        }
+        if (promotion.getMaxPerCustomer() != null && customerId != null) {
+            long usedByCustomer = promotionUsageRepository.countByPromotionIdAndCustomerId(promotion.getId(), customerId);
+            if (usedByCustomer >= promotion.getMaxPerCustomer()) {
+                throw new BadRequestException("Bạn đã dùng hết lượt cho mã khuyến mãi này");
+            }
         }
         return promotion;
     }
@@ -213,6 +254,9 @@ public class PromotionServiceImpl implements PromotionService {
                 .startDate(promotion.getStartDate())
                 .endDate(promotion.getEndDate())
                 .active(promotion.isActive())
+                .maxUsage(promotion.getMaxUsage())
+                .usageCount(promotion.getUsageCount())
+                .maxPerCustomer(promotion.getMaxPerCustomer())
                 .createdAt(promotion.getCreatedAt())
                 .build();
     }
@@ -226,7 +270,9 @@ public class PromotionServiceImpl implements PromotionService {
                 "minOrder", promotion.getMinOrder(),
                 "startDate", promotion.getStartDate(),
                 "endDate", promotion.getEndDate(),
-                "active", promotion.isActive()
+                "active", promotion.isActive(),
+                "maxUsage", promotion.getMaxUsage(),
+                "maxPerCustomer", promotion.getMaxPerCustomer()
         );
     }
 }

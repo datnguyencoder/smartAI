@@ -207,7 +207,8 @@ public class OrderServiceImpl implements OrderService {
         BigDecimal discountAmount = planDiscountAmount;
         Promotion promotion = null;
         if (request.getPromotionCode() != null && !request.getPromotionCode().isBlank()) {
-            promotion = promotionService.applyCode(request.getPromotionCode(), total);
+            promotion = promotionService.applyCode(
+                    request.getPromotionCode(), total, customer != null ? customer.getId() : null);
             discountAmount = discountAmount.add(promotionService.calculateDiscount(promotion, total));
         }
 
@@ -257,6 +258,10 @@ public class OrderServiceImpl implements OrderService {
 
         LocalDateTime movementStart = LocalDateTime.now().minusSeconds(5);
         Order saved = orderRepository.save(order);
+
+        if (promotion != null) {
+            promotionService.recordUsage(promotion, customer, saved);
+        }
 
         if (request.getPaymentMethod() == PaymentMethod.PAY_LATER && customer != null) {
             customerDebtService.createFromOrder(saved, customer);

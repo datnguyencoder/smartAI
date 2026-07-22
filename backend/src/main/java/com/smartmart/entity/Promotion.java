@@ -39,4 +39,16 @@ public class Promotion extends LongAuditableEntity {
 
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
+
+    /** Tổng số lần được dùng — null = không giới hạn. */
+    @Column(name = "max_usage")
+    private Integer maxUsage;
+
+    @Column(name = "usage_count", nullable = false)
+    @Builder.Default
+    private Integer usageCount = 0;
+
+    /** Số lần tối đa mỗi khách được dùng mã này — null = không giới hạn. */
+    @Column(name = "max_per_customer")
+    private Integer maxPerCustomer;
 }

@@ -80,6 +80,6 @@ public class PromotionController {
             @Valid @RequestBody ValidatePromotionRequest request
     ) {
         return ResponseEntity.ok(ApiResponse.success(
-                promotionService.validateCode(request.getCode(), request.getOrderSubtotal())));
+                promotionService.validateCode(request.getCode(), request.getOrderSubtotal(), request.getCustomerId())));
     }
 }

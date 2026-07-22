@@ -15,6 +15,8 @@ export function createPromotion(payload: {
   startDate?: string;
   endDate?: string;
   active?: boolean;
+  maxUsage?: number | null;
+  maxPerCustomer?: number | null;
 }) {
   return apiRequest<PromotionDto>('/api/v1/promotions', {
     method: 'POST',
@@ -33,10 +35,10 @@ export function deletePromotion(id: number) {
   return apiRequest<void>(`/api/v1/promotions/${id}`, { method: 'DELETE' });
 }
 
-export function validatePromotion(code: string, orderSubtotal: number) {
+export function validatePromotion(code: string, orderSubtotal: number, customerId?: number) {
   return apiRequest<PromotionValidateDto>('/api/v1/promotions/validate', {
     method: 'POST',
-    body: JSON.stringify({ code, orderSubtotal }),
+    body: JSON.stringify({ code, orderSubtotal, customerId }),
   });
 }
 

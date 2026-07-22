@@ -31,4 +31,10 @@ public class CreatePromotionRequest {
     private LocalDate endDate;
 
     private Boolean active;
+
+    /** Tổng số lần được dùng — null = không giới hạn. */
+    private Integer maxUsage;
+
+    /** Số lần tối đa mỗi khách được dùng — null = không giới hạn. */
+    private Integer maxPerCustomer;
 }

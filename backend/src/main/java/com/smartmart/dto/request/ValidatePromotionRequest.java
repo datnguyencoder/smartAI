@@ -16,4 +16,6 @@ public class ValidatePromotionRequest {
 
     @NotNull
     private BigDecimal orderSubtotal;
+
+    private Long customerId;
 }

@@ -19,5 +19,8 @@ public class PromotionResponse {
     private LocalDate startDate;
     private LocalDate endDate;
     private boolean active;
+    private Integer maxUsage;
+    private Integer usageCount;
+    private Integer maxPerCustomer;
     private LocalDateTime createdAt;
 }

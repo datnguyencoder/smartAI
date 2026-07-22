@@ -185,6 +185,9 @@ export type PromotionDto = {
   startDate?: string;
   endDate?: string;
   active: boolean;
+  maxUsage?: number | null;
+  usageCount?: number;
+  maxPerCustomer?: number | null;
   createdAt?: string;
 };
 

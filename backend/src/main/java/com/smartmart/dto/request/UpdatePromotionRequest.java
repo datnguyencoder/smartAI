@@ -17,4 +17,10 @@ public class UpdatePromotionRequest {
     private LocalDate startDate;
     private LocalDate endDate;
     private Boolean active;
+
+    /** null = giữ nguyên; -1 = xoá giới hạn (không giới hạn); số dương = đặt giới hạn mới. */
+    private Integer maxUsage;
+
+    /** null = giữ nguyên; -1 = xoá giới hạn; số dương = đặt giới hạn mới. */
+    private Integer maxPerCustomer;
 }

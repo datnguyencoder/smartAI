@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, Form, Input, InputNumber, Modal, Switch, Table, Tag, message as antdMessage } from 'antd';
+import { Button, Form, Input, InputNumber, Modal, Progress, Switch, Table, Tag, Tooltip, message as antdMessage } from 'antd';
 import { Plus, WandSparkles } from 'lucide-react';
 import { Card, CardHeader , Select } from '@/components/ui';
 import { createPromotion, deletePromotion, fetchPromotions, updatePromotion } from '@/services/wmsApi';
@@ -43,6 +43,8 @@ export default function PromotionsManagePage() {
       startDate: p.startDate,
       endDate: p.endDate,
       active: p.active,
+      maxUsage: p.maxUsage ?? undefined,
+      maxPerCustomer: p.maxPerCustomer ?? undefined,
     });
     setModalOpen(true);
   };
@@ -51,7 +53,13 @@ export default function PromotionsManagePage() {
     const values = await form.validateFields();
     try {
       if (editing) {
-        await updatePromotion(editing.id, values);
+        // -1 báo cho backend biết "xoá giới hạn" (undefined nghĩa là giữ nguyên)
+        await updatePromotion(editing.id, {
+          ...values,
+          maxUsage: values.maxUsage === undefined || values.maxUsage === null ? -1 : values.maxUsage,
+          maxPerCustomer:
+            values.maxPerCustomer === undefined || values.maxPerCustomer === null ? -1 : values.maxPerCustomer,
+        });
         antdMessage.success('Cập nhật khuyến mãi thành công');
       } else {
         await createPromotion(values);
@@ -98,10 +106,38 @@ export default function PromotionsManagePage() {
               { title: 'Giá trị', dataIndex: 'value', key: 'value' },
               { title: 'Đơn tối thiểu', dataIndex: 'minOrder', key: 'minOrder' },
               {
+                title: 'Lượt dùng',
+                key: 'usage',
+                render: (_: unknown, record: PromotionDto) => {
+                  const used = record.usageCount ?? 0;
+                  if (!record.maxUsage) {
+                    return <span className="text-slate-500">{used} / Không giới hạn</span>;
+                  }
+                  const percent = Math.min(100, Math.round((used / record.maxUsage) * 100));
+                  const exhausted = used >= record.maxUsage;
+                  return (
+                    <Tooltip title={`Đã dùng ${used} / ${record.maxUsage} lượt`}>
+                      <div style={{ minWidth: 110 }}>
+                        <Progress
+                          percent={percent}
+                          size="small"
+                          status={exhausted ? 'exception' : 'active'}
+                          format={() => `${used}/${record.maxUsage}`}
+                        />
+                      </div>
+                    </Tooltip>
+                  );
+                },
+              },
+              {
                 title: 'Trạng thái',
                 dataIndex: 'active',
                 key: 'active',
-                render: (v: boolean) => <Tag color={v ? 'green' : 'red'}>{v ? 'Đang áp dụng' : 'Tắt'}</Tag>,
+                render: (v: boolean, record: PromotionDto) => {
+                  const exhausted = !!record.maxUsage && (record.usageCount ?? 0) >= record.maxUsage;
+                  if (exhausted) return <Tag color="orange">Hết lượt</Tag>;
+                  return <Tag color={v ? 'green' : 'red'}>{v ? 'Đang áp dụng' : 'Tắt'}</Tag>;
+                },
               },
               {
                 title: '',
@@ -149,6 +185,20 @@ export default function PromotionsManagePage() {
           </Form.Item>
           <Form.Item name="endDate" label="Ngày kết thúc">
             <Input type="date" />
+          </Form.Item>
+          <Form.Item
+            name="maxUsage"
+            label="Giới hạn tổng lượt dùng"
+            tooltip="Để trống = không giới hạn số lần mã này được sử dụng"
+          >
+            <InputNumber className="w-full" min={1} placeholder="Không giới hạn" />
+          </Form.Item>
+          <Form.Item
+            name="maxPerCustomer"
+            label="Giới hạn lượt dùng / khách"
+            tooltip="Để trống = mỗi khách được dùng không giới hạn số lần"
+          >
+            <InputNumber className="w-full" min={1} placeholder="Không giới hạn" />
           </Form.Item>
           <Form.Item name="active" label="Kích hoạt" valuePropName="checked">
             <Switch />
