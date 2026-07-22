@@ -72,6 +72,13 @@ public class DiscountPlanController {
         return ResponseEntity.ok(ApiResponse.success("Đã xoá chiến dịch", null));
     }
 
+    @GetMapping("/analytics")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @Operation(summary = "Thống kê hiệu quả chiến dịch khuyến mãi")
+    public ResponseEntity<ApiResponse<List<com.smartmart.dto.response.DiscountPlanAnalyticsResponse>>> analytics() {
+        return ResponseEntity.ok(ApiResponse.success(discountPlanService.getAnalytics()));
+    }
+
     @GetMapping("/apply/{itemId}")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF','WAREHOUSE')")
     @Operation(summary = "Áp dụng quy tắc giảm giá cho sản phẩm")

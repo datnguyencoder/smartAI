@@ -1,5 +1,9 @@
 import { apiRequest } from '@/services/apiClient';
-import type { DiscountPlanDto } from '@/types/api';
+import type { DiscountPlanAnalyticsDto, DiscountPlanDto } from '@/types/api';
+
+export function fetchDiscountPlanAnalytics() {
+  return apiRequest<DiscountPlanAnalyticsDto[]>('/api/v1/discount-plans/analytics');
+}
 
 export function fetchDiscountPlans() {
   return apiRequest<DiscountPlanDto[]>('/api/v1/discount-plans');

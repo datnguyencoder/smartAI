@@ -3,6 +3,7 @@ package com.smartmart.service.impl;
 import com.smartmart.dto.request.CreateDiscountPlanRequest;
 import com.smartmart.dto.request.UpdateDiscountPlanRequest;
 import com.smartmart.dto.response.DiscountApplyResponse;
+import com.smartmart.dto.response.DiscountPlanAnalyticsResponse;
 import com.smartmart.dto.response.DiscountPlanResponse;
 import com.smartmart.entity.Category;
 import com.smartmart.entity.DiscountPlan;
@@ -13,6 +14,7 @@ import com.smartmart.exception.BadRequestException;
 import com.smartmart.exception.NotFoundException;
 import com.smartmart.repository.CategoryRepository;
 import com.smartmart.repository.DiscountPlanRepository;
+import com.smartmart.repository.OrderItemRepository;
 import com.smartmart.service.AuditLogService;
 import com.smartmart.service.DiscountPlanService;
 import com.smartmart.service.ItemService;
@@ -33,16 +35,19 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
     private final ItemService itemService;
     private final CategoryRepository categoryRepository;
     private final AuditLogService auditLogService;
+    private final OrderItemRepository orderItemRepository;
 
     public DiscountPlanServiceImpl(
             DiscountPlanRepository discountPlanRepository,
             ItemService itemService,
             CategoryRepository categoryRepository,
-            AuditLogService auditLogService) {
+            AuditLogService auditLogService,
+            OrderItemRepository orderItemRepository) {
         this.discountPlanRepository = discountPlanRepository;
         this.itemService = itemService;
         this.categoryRepository = categoryRepository;
         this.auditLogService = auditLogService;
+        this.orderItemRepository = orderItemRepository;
     }
 
     @Override
@@ -269,6 +274,31 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
                 .planId(best.getId())
                 .planName(best.getPlanName())
                 .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DiscountPlanAnalyticsResponse> getAnalytics() {
+        java.util.Map<Long, BigDecimal> discountByPlan = new java.util.HashMap<>();
+        java.util.Map<Long, Long> ordersByPlan = new java.util.HashMap<>();
+        for (Object[] row : orderItemRepository.aggregateDiscountByPlan()) {
+            Long planId = (Long) row[0];
+            discountByPlan.put(planId, (BigDecimal) row[1]);
+            ordersByPlan.put(planId, (Long) row[2]);
+        }
+        return discountPlanRepository.findAllByOrderByCreatedAtDesc().stream()
+                .map(p -> DiscountPlanAnalyticsResponse.builder()
+                        .planId(p.getId())
+                        .planName(p.getPlanName())
+                        .dealType(p.getDealType() != null ? p.getDealType().name() : null)
+                        .active(p.isActive())
+                        .ordersCount(ordersByPlan.getOrDefault(p.getId(), 0L))
+                        .totalDiscountGiven(discountByPlan.getOrDefault(p.getId(), BigDecimal.ZERO))
+                        .maxUsage(p.getMaxUsage())
+                        .usageCount(p.getUsageCount())
+                        .build())
+                .sorted(Comparator.comparing(DiscountPlanAnalyticsResponse::getTotalDiscountGiven).reversed())
+                .toList();
     }
 
     @Override

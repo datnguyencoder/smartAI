@@ -200,6 +200,27 @@ export type PromotionValidateDto = {
   message?: string;
 };
 
+export type PromotionAnalyticsDto = {
+  promotionId: number;
+  name: string;
+  code: string;
+  active: boolean;
+  usageCount: number;
+  totalDiscountGiven: number;
+  maxUsage?: number | null;
+};
+
+export type DiscountPlanAnalyticsDto = {
+  planId: number;
+  planName: string;
+  dealType: string;
+  active: boolean;
+  ordersCount: number;
+  totalDiscountGiven: number;
+  maxUsage?: number | null;
+  usageCount?: number;
+};
+
 export type SettingDto = {
   id: number;
   key: string;

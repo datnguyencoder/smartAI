@@ -3,8 +3,9 @@ import { Button, DatePicker, Form, Input, InputNumber, Modal, Popconfirm, Segmen
 import dayjs from 'dayjs';
 import { Gift, Plus, Tag as TagIcon, Trash2 } from 'lucide-react';
 import { Card, CardHeader, Select } from '@/components/ui';
-import { createDiscountPlan, deleteDiscountPlan, fetchCategories, fetchDiscountPlans, fetchNearExpiry, updateDiscountPlan } from '@/services/wmsApi';
-import type { DiscountPlanDto, CategoryDto, InventoryItemDto } from '@/types/api';
+import { createDiscountPlan, deleteDiscountPlan, fetchCategories, fetchDiscountPlanAnalytics, fetchDiscountPlans, fetchNearExpiry, updateDiscountPlan } from '@/services/wmsApi';
+import type { DiscountPlanAnalyticsDto, DiscountPlanDto, CategoryDto, InventoryItemDto } from '@/types/api';
+import { BarChart3 } from 'lucide-react';
 import type { Product } from '@/lib/itemMapper';
 
 type Props = { productsList?: Product[] };
@@ -21,6 +22,8 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
   const [rows, setRows] = React.useState<DiscountPlanDto[]>([]);
   const [categories, setCategories] = React.useState<CategoryDto[]>([]);
   const [nearExpiry, setNearExpiry] = React.useState<InventoryItemDto[]>([]);
+  const [analytics, setAnalytics] = React.useState<DiscountPlanAnalyticsDto[]>([]);
+  const [analyticsLoading, setAnalyticsLoading] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [expiryLoading, setExpiryLoading] = React.useState(false);
   const [modalOpen, setModalOpen] = React.useState(false);
@@ -63,7 +66,18 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
     }
   }, []);
 
-  React.useEffect(() => { load(); loadNearExpiry(); }, [load, loadNearExpiry]);
+  const loadAnalytics = React.useCallback(async () => {
+    setAnalyticsLoading(true);
+    try {
+      setAnalytics(await fetchDiscountPlanAnalytics());
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : 'Không tải được thống kê hiệu quả chiến dịch');
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => { load(); loadNearExpiry(); loadAnalytics(); }, [load, loadNearExpiry, loadAnalytics]);
 
   const openCreate = () => {
     setEditing(null);
@@ -378,6 +392,59 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
                         Tạo KM
                       </Button>
                     ),
+                  },
+                ]}
+              />
+            ),
+          },
+          {
+            key: 'analytics',
+            label: (
+              <span className="inline-flex items-center gap-1.5">
+                <BarChart3 size={14} /> Hiệu quả chiến dịch
+              </span>
+            ),
+            children: (
+              <Table
+                rowKey="planId"
+                loading={analyticsLoading}
+                dataSource={analytics}
+                pagination={{ pageSize: 10 }}
+                columns={[
+                  { title: 'Chiến dịch', dataIndex: 'planName' },
+                  {
+                    title: 'Loại',
+                    dataIndex: 'dealType',
+                    render: (v: string) => (
+                      <Tag color={v === 'BOGO' ? 'purple' : v === 'FIXED_AMOUNT' ? 'gold' : 'blue'}>
+                        {v === 'BOGO' ? 'Mua tặng' : v === 'FIXED_AMOUNT' ? 'Giảm tiền' : 'Giảm %'}
+                      </Tag>
+                    ),
+                  },
+                  {
+                    title: 'Số đơn đã dùng',
+                    dataIndex: 'ordersCount',
+                    sorter: (a: DiscountPlanAnalyticsDto, b: DiscountPlanAnalyticsDto) => a.ordersCount - b.ordersCount,
+                  },
+                  {
+                    title: 'Tổng tiền đã giảm',
+                    dataIndex: 'totalDiscountGiven',
+                    defaultSortOrder: 'descend' as const,
+                    sorter: (a: DiscountPlanAnalyticsDto, b: DiscountPlanAnalyticsDto) =>
+                      a.totalDiscountGiven - b.totalDiscountGiven,
+                    render: (v: number) => (
+                      <span className="font-semibold text-emerald-600">{v.toLocaleString('vi-VN')}đ</span>
+                    ),
+                  },
+                  {
+                    title: 'Lượt dùng / giới hạn',
+                    render: (_: unknown, r: DiscountPlanAnalyticsDto) =>
+                      r.maxUsage ? `${r.usageCount ?? 0} / ${r.maxUsage}` : `${r.usageCount ?? 0} / Không giới hạn`,
+                  },
+                  {
+                    title: 'Trạng thái',
+                    dataIndex: 'active',
+                    render: (v: boolean) => <Tag color={v ? 'green' : 'red'}>{v ? 'Đang chạy' : 'Tắt'}</Tag>,
                   },
                 ]}
               />

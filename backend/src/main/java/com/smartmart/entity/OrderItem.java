@@ -52,6 +52,10 @@ public class OrderItem {
     @Column(name = "discount_reason", length = 120)
     private String discountReason;
 
+    /** Chiến dịch khuyến mãi (discount_plans.id) đã áp cho dòng này — dùng cho phân tích hiệu quả. */
+    @Column(name = "discount_plan_id")
+    private Long discountPlanId;
+
     @Column(name = "category_id_at_sale")
     private Long categoryIdAtSale;
 

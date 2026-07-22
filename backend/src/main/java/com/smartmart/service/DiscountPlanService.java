@@ -3,6 +3,7 @@ package com.smartmart.service;
 import com.smartmart.dto.request.CreateDiscountPlanRequest;
 import com.smartmart.dto.request.UpdateDiscountPlanRequest;
 import com.smartmart.dto.response.DiscountApplyResponse;
+import com.smartmart.dto.response.DiscountPlanAnalyticsResponse;
 import com.smartmart.dto.response.DiscountPlanResponse;
 
 import java.util.List;
@@ -26,4 +27,7 @@ public interface DiscountPlanService {
 
     /** Ghi nhận 1 lần plan được áp dụng thành công trên đơn hàng — tăng usageCount. */
     void recordUsage(Long planId);
+
+    /** Thống kê hiệu quả từng chiến dịch: số đơn dùng, tổng tiền đã giảm. */
+    List<DiscountPlanAnalyticsResponse> getAnalytics();
 }

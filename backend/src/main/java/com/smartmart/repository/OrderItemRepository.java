@@ -42,4 +42,12 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
             GROUP BY sub.item_id
             """, nativeQuery = true)
     List<Object[]> maxDailySalesByItemSince(LocalDateTime since);
+
+    @Query("""
+            SELECT oi.discountPlanId, COALESCE(SUM(oi.discountAmount), 0), COUNT(DISTINCT oi.order.id)
+            FROM OrderItem oi
+            WHERE oi.discountPlanId IS NOT NULL
+            GROUP BY oi.discountPlanId
+            """)
+    List<Object[]> aggregateDiscountByPlan();
 }

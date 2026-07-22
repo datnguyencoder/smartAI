@@ -1,5 +1,9 @@
 import { apiRequest } from '@/services/apiClient';
-import type { PromotionDto, PromotionRecommendationDto, PromotionValidateDto } from '@/types/api';
+import type { PromotionAnalyticsDto, PromotionDto, PromotionRecommendationDto, PromotionValidateDto } from '@/types/api';
+
+export function fetchPromotionAnalytics() {
+  return apiRequest<PromotionAnalyticsDto[]>('/api/v1/promotions/analytics');
+}
 
 export function fetchPromotions(activeOnly = false) {
   const qs = activeOnly ? '?activeOnly=true' : '';

@@ -2,6 +2,7 @@ package com.smartmart.service;
 
 import com.smartmart.dto.request.CreatePromotionRequest;
 import com.smartmart.dto.request.UpdatePromotionRequest;
+import com.smartmart.dto.response.PromotionAnalyticsResponse;
 import com.smartmart.dto.response.PromotionResponse;
 import com.smartmart.dto.response.PromotionValidateResponse;
 import com.smartmart.entity.Customer;
@@ -32,5 +33,8 @@ public interface PromotionService {
     BigDecimal calculateDiscount(Promotion promotion, BigDecimal orderSubtotal);
 
     /** Ghi nhận 1 lần dùng mã KM sau khi order đã lưu thành công — tăng usageCount và lưu lịch sử theo khách. */
-    void recordUsage(Promotion promotion, Customer customer, Order order);
+    void recordUsage(Promotion promotion, Customer customer, Order order, BigDecimal discountAmount);
+
+    /** Thống kê hiệu quả từng mã KM: tổng lượt dùng, tổng tiền đã giảm. */
+    List<PromotionAnalyticsResponse> getAnalytics();
 }

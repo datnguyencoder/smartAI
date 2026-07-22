@@ -4,6 +4,8 @@ import com.smartmart.common.base.LongAuditableEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
+
 @Entity
 @Table(name = "promotion_usages")
 @Getter
@@ -24,4 +26,8 @@ public class PromotionUsage extends LongAuditableEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id", nullable = false)
     private Order order;
+
+    @Column(name = "discount_amount", nullable = false)
+    @Builder.Default
+    private BigDecimal discountAmount = BigDecimal.ZERO;
 }

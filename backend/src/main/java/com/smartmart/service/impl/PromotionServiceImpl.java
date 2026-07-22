@@ -3,6 +3,7 @@ package com.smartmart.service.impl;
 import com.smartmart.constant.AuditAction;
 import com.smartmart.dto.request.CreatePromotionRequest;
 import com.smartmart.dto.request.UpdatePromotionRequest;
+import com.smartmart.dto.response.PromotionAnalyticsResponse;
 import com.smartmart.dto.response.PromotionResponse;
 import com.smartmart.dto.response.PromotionValidateResponse;
 import com.smartmart.entity.Customer;
@@ -22,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -188,7 +190,7 @@ public class PromotionServiceImpl implements PromotionService {
     }
 
     @Override
-    public void recordUsage(Promotion promotion, Customer customer, Order order) {
+    public void recordUsage(Promotion promotion, Customer customer, Order order, BigDecimal discountAmount) {
         if (promotion == null) return;
         promotion.setUsageCount((promotion.getUsageCount() != null ? promotion.getUsageCount() : 0) + 1);
         promotionRepository.save(promotion);
@@ -196,7 +198,29 @@ public class PromotionServiceImpl implements PromotionService {
                 .promotion(promotion)
                 .customer(customer)
                 .order(order)
+                .discountAmount(discountAmount != null ? discountAmount : BigDecimal.ZERO)
                 .build());
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public List<PromotionAnalyticsResponse> getAnalytics() {
+        java.util.Map<Long, BigDecimal> discountByPromotion = new java.util.HashMap<>();
+        for (Object[] row : promotionUsageRepository.aggregateDiscountByPromotion()) {
+            discountByPromotion.put((Long) row[0], (BigDecimal) row[1]);
+        }
+        return promotionRepository.findAll().stream()
+                .map(p -> PromotionAnalyticsResponse.builder()
+                        .promotionId(p.getId())
+                        .name(p.getName())
+                        .code(p.getCode())
+                        .active(p.isActive())
+                        .usageCount(p.getUsageCount() != null ? p.getUsageCount() : 0)
+                        .totalDiscountGiven(discountByPromotion.getOrDefault(p.getId(), BigDecimal.ZERO))
+                        .maxUsage(p.getMaxUsage())
+                        .build())
+                .sorted(Comparator.comparing(PromotionAnalyticsResponse::getTotalDiscountGiven).reversed())
+                .toList();
     }
 
     private Promotion resolvePromotion(String code, BigDecimal orderSubtotal, Long customerId) {

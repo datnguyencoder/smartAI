@@ -1,12 +1,13 @@
 import React from 'react';
-import { Button, Form, Input, InputNumber, Modal, Progress, Switch, Table, Tag, Tooltip, message as antdMessage } from 'antd';
+import { Button, Form, Input, InputNumber, Modal, Progress, Statistic, Switch, Table, Tag, Tooltip, message as antdMessage } from 'antd';
 import { Plus, WandSparkles } from 'lucide-react';
 import { Card, CardHeader , Select } from '@/components/ui';
-import { createPromotion, deletePromotion, fetchPromotions, updatePromotion } from '@/services/wmsApi';
-import type { PromotionDto } from '@/types/api';
+import { createPromotion, deletePromotion, fetchPromotionAnalytics, fetchPromotions, updatePromotion } from '@/services/wmsApi';
+import type { PromotionAnalyticsDto, PromotionDto } from '@/types/api';
 
 export default function PromotionsManagePage() {
   const [promotions, setPromotions] = React.useState<PromotionDto[]>([]);
+  const [analytics, setAnalytics] = React.useState<PromotionAnalyticsDto[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [modalOpen, setModalOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<PromotionDto | null>(null);
@@ -23,7 +24,19 @@ export default function PromotionsManagePage() {
     }
   }, []);
 
-  React.useEffect(() => { load(); }, [load]);
+  const loadAnalytics = React.useCallback(async () => {
+    try {
+      setAnalytics(await fetchPromotionAnalytics());
+    } catch {
+      setAnalytics([]);
+    }
+  }, []);
+
+  React.useEffect(() => { load(); loadAnalytics(); }, [load, loadAnalytics]);
+
+  const totalDiscountGiven = analytics.reduce((sum, a) => sum + a.totalDiscountGiven, 0);
+  const totalUsage = analytics.reduce((sum, a) => sum + a.usageCount, 0);
+  const topPromotion = [...analytics].sort((a, b) => b.totalDiscountGiven - a.totalDiscountGiven)[0];
 
   const openCreate = () => {
     setEditing(null);
@@ -86,6 +99,40 @@ export default function PromotionsManagePage() {
 
   return (
     <div className="space-y-4">
+      {analytics.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <Card>
+            <div className="p-4">
+              <Statistic
+                title="Tổng tiền đã giảm qua mã KM"
+                value={totalDiscountGiven}
+                precision={0}
+                suffix="đ"
+                valueStyle={{ color: '#059669' }}
+              />
+            </div>
+          </Card>
+          <Card>
+            <div className="p-4">
+              <Statistic title="Tổng lượt dùng mã KM" value={totalUsage} />
+            </div>
+          </Card>
+          <Card>
+            <div className="p-4">
+              <Statistic
+                title="Mã hiệu quả nhất"
+                value={topPromotion?.code ?? '—'}
+                valueStyle={{ fontSize: 20 }}
+              />
+              {topPromotion && (
+                <div className="mt-1 text-xs text-slate-500">
+                  {topPromotion.totalDiscountGiven.toLocaleString('vi-VN')}đ · {topPromotion.usageCount} lượt dùng
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
+      )}
       <Card>
         <CardHeader
           title="Quản lý khuyến mãi"

@@ -73,6 +73,13 @@ public class PromotionController {
         return ResponseEntity.ok(ApiResponse.success("Xóa khuyến mãi thành công", null));
     }
 
+    @GetMapping("/analytics")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @Operation(summary = "Thống kê hiệu quả mã khuyến mãi")
+    public ResponseEntity<ApiResponse<List<com.smartmart.dto.response.PromotionAnalyticsResponse>>> analytics() {
+        return ResponseEntity.ok(ApiResponse.success(promotionService.getAnalytics()));
+    }
+
     @PostMapping("/validate")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF')")
     @Operation(summary = "Kiểm tra mã khuyến mãi")

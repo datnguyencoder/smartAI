@@ -209,7 +209,7 @@ public class OrderServiceImpl implements OrderService {
                 reason = "KM " + apply.getDiscountPercent().stripTrailingZeros().toPlainString() + "%";
             }
             if (lineDiscount.compareTo(BigDecimal.ZERO) > 0) {
-                applyLineDiscount(orderItems, line.getItemId(), lineDiscount, reason);
+                applyLineDiscount(orderItems, line.getItemId(), lineDiscount, reason, apply.getPlanId());
                 planDiscountAmount = planDiscountAmount.add(lineDiscount);
                 if (apply.getPlanId() != null) {
                     usedPlanIds.add(apply.getPlanId());
@@ -221,6 +221,7 @@ public class OrderServiceImpl implements OrderService {
 
         BigDecimal discountAmount = planDiscountAmount;
         Promotion promotion = null;
+        BigDecimal promotionDiscountAmount = BigDecimal.ZERO;
         if (request.getPromotionCode() != null && !request.getPromotionCode().isBlank()) {
             promotion = promotionService.applyCode(
                     request.getPromotionCode(), total, customer != null ? customer.getId() : null);
@@ -228,7 +229,8 @@ public class OrderServiceImpl implements OrderService {
                 throw new BadRequestException(
                         "Mã " + promotion.getCode() + " không thể dùng cùng lúc với khuyến mãi tự động đang áp dụng cho đơn hàng này");
             }
-            discountAmount = discountAmount.add(promotionService.calculateDiscount(promotion, total));
+            promotionDiscountAmount = promotionService.calculateDiscount(promotion, total);
+            discountAmount = discountAmount.add(promotionDiscountAmount);
         }
 
         int loyaltyRedeemed = request.getLoyaltyPointsRedeemed() != null ? request.getLoyaltyPointsRedeemed() : 0;
@@ -279,7 +281,7 @@ public class OrderServiceImpl implements OrderService {
         Order saved = orderRepository.save(order);
 
         if (promotion != null) {
-            promotionService.recordUsage(promotion, customer, saved);
+            promotionService.recordUsage(promotion, customer, saved, promotionDiscountAmount);
         }
         usedPlanIds.forEach(discountPlanService::recordUsage);
 
@@ -672,7 +674,7 @@ public class OrderServiceImpl implements OrderService {
             }
             Item giftItem = itemCache.computeIfAbsent(plan.getGiftItemId(), itemService::findItem);
             BigDecimal giftDiscount = giftItem.getSellingPrice().multiply(actualFree);
-            applyLineDiscount(orderItems, plan.getGiftItemId(), giftDiscount, "Quà tặng: " + plan.getPlanName());
+            applyLineDiscount(orderItems, plan.getGiftItemId(), giftDiscount, "Quà tặng: " + plan.getPlanName(), plan.getId());
             total = total.add(giftDiscount);
             if (plan.getId() != null) {
                 usedPlanIds.add(plan.getId());
@@ -687,6 +689,10 @@ public class OrderServiceImpl implements OrderService {
      * dòng cuối nhận phần dư để tránh lệch do làm tròn.
      */
     private void applyLineDiscount(List<OrderItem> orderItems, Long itemId, BigDecimal totalDiscount, String reason) {
+        applyLineDiscount(orderItems, itemId, totalDiscount, reason, null);
+    }
+
+    private void applyLineDiscount(List<OrderItem> orderItems, Long itemId, BigDecimal totalDiscount, String reason, Long planId) {
         List<OrderItem> matching = orderItems.stream()
                 .filter(oi -> oi.getItem().getId().equals(itemId))
                 .toList();
@@ -703,6 +709,9 @@ public class OrderServiceImpl implements OrderService {
                             .divide(totalQty, 2, java.math.RoundingMode.HALF_UP);
             oi.setDiscountAmount(oi.getDiscountAmount().add(share));
             oi.setDiscountReason(reason);
+            if (planId != null) {
+                oi.setDiscountPlanId(planId);
+            }
             remaining = remaining.subtract(share);
         }
     }
