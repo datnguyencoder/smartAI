@@ -48,10 +48,15 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
     public DiscountPlanResponse create(CreateDiscountPlanRequest request) {
         validatePlanRequest(request.getPlanType(), request.getCategoryId(), request.getItemId());
         DiscountDealType dealType = request.getDealType() != null ? request.getDealType() : DiscountDealType.PERCENTAGE;
-        validateDealRequest(dealType, request.getDiscountPercent(), request.getBuyQuantity(), request.getFreeQuantity());
+        validateDealRequest(dealType, request.getDiscountPercent(), request.getBuyQuantity(),
+                request.getFreeQuantity(), request.getFixedAmount());
         if (request.getStartDate() != null && request.getEndDate() != null
                 && request.getEndDate().isBefore(request.getStartDate())) {
             throw new BadRequestException("Ngày kết thúc phải sau ngày bắt đầu");
+        }
+        Integer minQuantity = request.getMinQuantity() != null ? request.getMinQuantity() : 1;
+        if (minQuantity < 1) {
+            throw new BadRequestException("Số lượng tối thiểu phải >= 1");
         }
         Item giftItem = dealType == DiscountDealType.BOGO ? resolveItem(request.getGiftItemId()) : null;
         if (giftItem != null && request.getPlanType() == DiscountPlanType.SKU
@@ -68,11 +73,13 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
                 .discountPercent(dealType == DiscountDealType.PERCENTAGE ? request.getDiscountPercent() : null)
                 .buyQuantity(dealType == DiscountDealType.BOGO ? request.getBuyQuantity() : null)
                 .freeQuantity(dealType == DiscountDealType.BOGO ? request.getFreeQuantity() : null)
+                .fixedAmount(dealType == DiscountDealType.FIXED_AMOUNT ? request.getFixedAmount() : null)
                 .giftItem(giftItem)
                 .startDate(request.getStartDate())
                 .endDate(request.getEndDate())
                 .active(true)
                 .priority(request.getPriority() != null ? request.getPriority() : 0)
+                .minQuantity(minQuantity)
                 .build();
         return toResponse(discountPlanRepository.save(plan));
     }
@@ -87,7 +94,7 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
             Integer buyQty = request.getBuyQuantity() != null ? request.getBuyQuantity() : plan.getBuyQuantity();
             Integer freeQty = request.getFreeQuantity() != null ? request.getFreeQuantity() : plan.getFreeQuantity();
             if (request.getBuyQuantity() != null || request.getFreeQuantity() != null) {
-                validateDealRequest(DiscountDealType.BOGO, null, buyQty, freeQty);
+                validateDealRequest(DiscountDealType.BOGO, null, buyQty, freeQty, null);
                 plan.setBuyQuantity(buyQty);
                 plan.setFreeQuantity(freeQty);
             }
@@ -100,8 +107,13 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
                 }
                 plan.setGiftItem(newGift);
             }
+        } else if (plan.getDealType() == DiscountDealType.FIXED_AMOUNT) {
+            if (request.getFixedAmount() != null) {
+                validateDealRequest(DiscountDealType.FIXED_AMOUNT, null, null, null, request.getFixedAmount());
+                plan.setFixedAmount(request.getFixedAmount());
+            }
         } else if (request.getDiscountPercent() != null) {
-            validateDealRequest(DiscountDealType.PERCENTAGE, request.getDiscountPercent(), null, null);
+            validateDealRequest(DiscountDealType.PERCENTAGE, request.getDiscountPercent(), null, null, null);
             plan.setDiscountPercent(request.getDiscountPercent());
         }
         LocalDate effectiveStart = request.getStartDate() != null ? request.getStartDate() : plan.getStartDate();
@@ -120,6 +132,12 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
         }
         if (request.getPriority() != null) {
             plan.setPriority(request.getPriority());
+        }
+        if (request.getMinQuantity() != null) {
+            if (request.getMinQuantity() < 1) {
+                throw new BadRequestException("Số lượng tối thiểu phải >= 1");
+            }
+            plan.setMinQuantity(request.getMinQuantity());
         }
         return toResponse(discountPlanRepository.save(plan));
     }
@@ -223,6 +241,8 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
                 .discountPercent(best.getDiscountPercent())
                 .buyQuantity(best.getBuyQuantity())
                 .freeQuantity(best.getFreeQuantity())
+                .fixedAmount(best.getFixedAmount())
+                .minQuantity(best.getMinQuantity() != null ? best.getMinQuantity() : 1)
                 .planId(best.getId())
                 .planName(best.getPlanName())
                 .build();
@@ -238,7 +258,7 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
     }
 
     private void validateDealRequest(DiscountDealType dealType, BigDecimal discountPercent,
-            Integer buyQuantity, Integer freeQuantity) {
+            Integer buyQuantity, Integer freeQuantity, BigDecimal fixedAmount) {
         if (dealType == DiscountDealType.PERCENTAGE) {
             if (discountPercent == null || discountPercent.compareTo(BigDecimal.ZERO) <= 0
                     || discountPercent.compareTo(BigDecimal.valueOf(100)) > 0) {
@@ -250,6 +270,10 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
             }
             if (freeQuantity == null || freeQuantity < 1) {
                 throw new BadRequestException("Số lượng tặng (freeQuantity) phải >= 1");
+            }
+        } else if (dealType == DiscountDealType.FIXED_AMOUNT) {
+            if (fixedAmount == null || fixedAmount.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new BadRequestException("Số tiền giảm (fixedAmount) phải > 0");
             }
         }
     }
@@ -289,6 +313,8 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
                 .endDate(plan.getEndDate())
                 .active(plan.isActive())
                 .priority(plan.getPriority())
+                .minQuantity(plan.getMinQuantity())
+                .fixedAmount(plan.getFixedAmount())
                 .status(computeStatus(plan))
                 .createdAt(plan.getCreatedAt())
                 .build();

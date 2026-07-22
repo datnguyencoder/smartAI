@@ -29,6 +29,8 @@ public class DiscountPlanResponse {
     private LocalDate endDate;
     private boolean active;
     private Integer priority;
+    private Integer minQuantity;
+    private BigDecimal fixedAmount;
     /** SCHEDULED (chưa tới ngày bắt đầu) | RUNNING (đang chạy) | EXPIRED (đã qua endDate) | DISABLED (active=false). */
     private String status;
     private LocalDateTime createdAt;

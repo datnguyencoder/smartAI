@@ -66,4 +66,13 @@ public class DiscountPlan extends LongAuditableEntity {
     @Column(name = "priority", nullable = false)
     @Builder.Default
     private Integer priority = 0;
+
+    /** Số lượng tối thiểu phải mua thì plan mới áp dụng. Mặc định 1 = luôn áp dụng. */
+    @Column(name = "min_quantity", nullable = false)
+    @Builder.Default
+    private Integer minQuantity = 1;
+
+    /** Số tiền giảm cố định — dùng khi dealType = FIXED_AMOUNT. */
+    @Column(name = "fixed_amount")
+    private BigDecimal fixedAmount;
 }

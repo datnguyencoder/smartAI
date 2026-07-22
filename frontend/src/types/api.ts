@@ -987,10 +987,12 @@ export type DiscountPlanDto = {
   categoryName?: string;
   itemId?: number;
   itemName?: string;
-  dealType: 'PERCENTAGE' | 'BOGO' | string;
+  dealType: 'PERCENTAGE' | 'BOGO' | 'FIXED_AMOUNT' | string;
   discountPercent?: number;
   buyQuantity?: number;
   freeQuantity?: number;
+  fixedAmount?: number;
+  minQuantity?: number;
   giftItemId?: number;
   giftItemName?: string;
   startDate?: string;

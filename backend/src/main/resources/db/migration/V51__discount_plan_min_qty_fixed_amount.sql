@@ -1,0 +1,2 @@
+ALTER TABLE discount_plans ADD COLUMN IF NOT EXISTS min_quantity INT NOT NULL DEFAULT 1;
+ALTER TABLE discount_plans ADD COLUMN IF NOT EXISTS fixed_amount NUMERIC(19, 2);

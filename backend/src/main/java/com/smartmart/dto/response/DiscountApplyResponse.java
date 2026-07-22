@@ -14,6 +14,8 @@ public class DiscountApplyResponse {
     private BigDecimal discountPercent;
     private Integer buyQuantity;
     private Integer freeQuantity;
+    private BigDecimal fixedAmount;
+    private Integer minQuantity;
     private Long planId;
     private String planName;
 }

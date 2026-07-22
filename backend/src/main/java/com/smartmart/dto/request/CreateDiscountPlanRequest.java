@@ -37,4 +37,10 @@ public class CreateDiscountPlanRequest {
 
     /** Ưu tiên khi nhiều plan cùng khớp 1 sản phẩm — cao hơn thắng. Mặc định 0. */
     private Integer priority;
+
+    /** Số lượng tối thiểu phải mua thì plan mới áp dụng. Mặc định 1. */
+    private Integer minQuantity;
+
+    /** Số tiền giảm cố định — bắt buộc khi dealType = FIXED_AMOUNT. */
+    private BigDecimal fixedAmount;
 }

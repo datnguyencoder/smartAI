@@ -2,5 +2,6 @@ package com.smartmart.enums;
 
 public enum DiscountDealType {
     PERCENTAGE,
-    BOGO
+    BOGO,
+    FIXED_AMOUNT
 }

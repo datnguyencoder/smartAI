@@ -35,6 +35,8 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
   const buyQuantity = Form.useWatch('buyQuantity', form);
   const freeQuantity = Form.useWatch('freeQuantity', form);
   const giftItemId = Form.useWatch('giftItemId', form);
+  const fixedAmount = Form.useWatch('fixedAmount', form);
+  const minQuantity = Form.useWatch('minQuantity', form);
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -103,6 +105,8 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
       freeQuantity: row.freeQuantity ?? 1,
       giftMode: row.giftItemId ? 'OTHER' : 'SAME',
       giftItemId: row.giftItemId,
+      fixedAmount: row.fixedAmount,
+      minQuantity: row.minQuantity ?? 1,
       startDate: row.startDate ? dayjs(row.startDate) : undefined,
       endDate: row.endDate ? dayjs(row.endDate) : undefined,
       active: row.active,
@@ -114,6 +118,7 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
   const handleSave = async () => {
     const values = await form.validateFields();
     const isBogo = values.dealType === 'BOGO';
+    const isFixedAmount = values.dealType === 'FIXED_AMOUNT';
     const isGiftOther = isBogo && values.giftMode === 'OTHER';
     if (isGiftOther && !values.giftItemId) {
       message.error('Chọn sản phẩm dùng làm quà tặng');
@@ -125,9 +130,11 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
       categoryId: values.categoryId,
       itemId: values.itemId,
       dealType: values.dealType,
-      discountPercent: isBogo ? undefined : Number(values.discountPercent),
+      discountPercent: isBogo || isFixedAmount ? undefined : Number(values.discountPercent),
       buyQuantity: isBogo ? Number(values.buyQuantity) : undefined,
       freeQuantity: isBogo ? Number(values.freeQuantity) : undefined,
+      fixedAmount: isFixedAmount ? Number(values.fixedAmount) : undefined,
+      minQuantity: isBogo ? undefined : Number(values.minQuantity ?? 1),
       giftItemId: editing
         ? (isGiftOther ? Number(values.giftItemId) : 0) // 0 = xoá về mặc định khi sửa
         : (isGiftOther ? Number(values.giftItemId) : undefined),
@@ -162,6 +169,9 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
   };
 
   const dealLabel = (r: DiscountPlanDto) => {
+    if (r.dealType === 'FIXED_AMOUNT') {
+      return `Giảm ${(r.fixedAmount ?? 0).toLocaleString('vi-VN')}đ`;
+    }
     if (r.dealType !== 'BOGO') return `${r.discountPercent}%`;
     return r.giftItemId
       ? `Mua ${r.buyQuantity} tặng ${r.freeQuantity} × ${r.giftItemName}`
@@ -190,9 +200,14 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
         : productsList.find((p) => Number(p.key) === itemId)?.name;
     if (!targetName) return null;
 
+    const minQtyPrefix = minQuantity && minQuantity > 1 ? `Mua từ ${minQuantity} "${targetName}" trở lên` : `Mua "${targetName}"`;
     if (dealType === 'PERCENTAGE') {
       if (!discountPercent) return null;
-      return { icon: TagIcon, text: `Mua "${targetName}" → giảm ${discountPercent}%` };
+      return { icon: TagIcon, text: `${minQtyPrefix} → giảm ${discountPercent}%` };
+    }
+    if (dealType === 'FIXED_AMOUNT') {
+      if (!fixedAmount) return null;
+      return { icon: TagIcon, text: `${minQtyPrefix} → giảm ${Number(fixedAmount).toLocaleString('vi-VN')}đ` };
     }
     if (dealType === 'BOGO') {
       if (!buyQuantity || !freeQuantity) return null;
@@ -204,7 +219,7 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
       return { icon: Gift, text: `Mua ${buyQuantity} "${targetName}" → TẶNG THÊM ${freeQuantity} "${targetName}" (cùng loại, miễn phí)` };
     }
     return null;
-  }, [planType, categoryId, itemId, dealType, discountPercent, buyQuantity, freeQuantity, giftMode, giftItemId, categories, productsList]);
+  }, [planType, categoryId, itemId, dealType, discountPercent, fixedAmount, minQuantity, buyQuantity, freeQuantity, giftMode, giftItemId, categories, productsList]);
 
   // ── Chỉ cho chọn sản phẩm còn hàng khi tạo/sửa chiến dịch, tránh rối vì danh sách
   // dài lẫn lộn cả hàng hết hàng. Vẫn giữ lại sản phẩm đang được chọn (khi sửa) dù
@@ -267,12 +282,17 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
                     {
                       title: 'Ưu đãi',
                       render: (_: unknown, r: DiscountPlanDto) => (
-                        <Tag
-                          icon={r.dealType === 'BOGO' ? <Gift size={12} className="mr-1 inline align-text-bottom" /> : undefined}
-                          color={r.dealType === 'BOGO' ? (r.giftItemId ? 'magenta' : 'purple') : 'blue'}
-                        >
-                          {dealLabel(r)}
-                        </Tag>
+                        <div className="flex flex-col gap-1">
+                          <Tag
+                            icon={r.dealType === 'BOGO' ? <Gift size={12} className="mr-1 inline align-text-bottom" /> : undefined}
+                            color={r.dealType === 'BOGO' ? (r.giftItemId ? 'magenta' : 'purple') : r.dealType === 'FIXED_AMOUNT' ? 'gold' : 'blue'}
+                          >
+                            {dealLabel(r)}
+                          </Tag>
+                          {!!r.minQuantity && r.minQuantity > 1 && (
+                            <span className="text-xs text-slate-500">Từ {r.minQuantity} sản phẩm</span>
+                          )}
+                        </div>
                       ),
                     },
                     {
@@ -373,6 +393,7 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
             <Select disabled={!!editing} options={[
               { value: 'PERCENTAGE', label: 'Giảm giá %' },
               { value: 'BOGO', label: 'Mua tặng (mua X tặng Y)' },
+              { value: 'FIXED_AMOUNT', label: 'Giảm số tiền cố định (VND)' },
             ]} />
           </Form.Item>
 
@@ -412,8 +433,22 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
                 </Form.Item>
               )}
             </>
+          ) : dealType === 'FIXED_AMOUNT' ? (
+            <Form.Item name="fixedAmount" label="Số tiền giảm (VND)" rules={[{ required: true }]}>
+              <InputNumber className="w-full" min={1000} step={1000} />
+            </Form.Item>
           ) : (
             <Form.Item name="discountPercent" label="Giảm (%)" rules={[{ required: true }]}><InputNumber className="w-full" min={0.01} max={100} /></Form.Item>
+          )}
+          {dealType !== 'BOGO' && (
+            <Form.Item
+              name="minQuantity"
+              label="Số lượng mua tối thiểu để được áp dụng"
+              tooltip="VD: mua từ 3 sản phẩm trở lên mới được giảm. Mặc định 1 = luôn áp dụng."
+              initialValue={1}
+            >
+              <InputNumber className="w-full" min={1} />
+            </Form.Item>
           )}
 
           {previewText && (

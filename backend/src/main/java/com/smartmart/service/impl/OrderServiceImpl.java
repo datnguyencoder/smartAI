@@ -185,6 +185,9 @@ public class OrderServiceImpl implements OrderService {
             Item lineItem = itemService.findItem(line.getItemId());
             BigDecimal lineDiscount = BigDecimal.ZERO;
             String reason = null;
+            // minQuantity chỉ chặn giảm giá kiểu %/tiền cố định — BOGO tự có ngưỡng riêng qua buyQuantity.
+            boolean meetsMinQuantity = apply.getMinQuantity() == null
+                    || line.getQuantity().compareTo(BigDecimal.valueOf(apply.getMinQuantity())) >= 0;
             if (apply.getDealType() == com.smartmart.enums.DiscountDealType.BOGO
                     && apply.getBuyQuantity() != null && apply.getFreeQuantity() != null) {
                 BigDecimal freeUnits = computeBogoFreeUnits(line.getQuantity(), apply.getBuyQuantity(), apply.getFreeQuantity());
@@ -192,7 +195,14 @@ public class OrderServiceImpl implements OrderService {
                     lineDiscount = lineItem.getSellingPrice().multiply(freeUnits);
                     reason = "Mua " + apply.getBuyQuantity() + " tặng " + apply.getFreeQuantity();
                 }
-            } else if (apply.getDiscountPercent() != null && apply.getDiscountPercent().compareTo(BigDecimal.ZERO) > 0) {
+            } else if (apply.getDealType() == com.smartmart.enums.DiscountDealType.FIXED_AMOUNT
+                    && meetsMinQuantity && apply.getFixedAmount() != null
+                    && apply.getFixedAmount().compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal lineSubtotal = lineItem.getSellingPrice().multiply(line.getQuantity());
+                lineDiscount = apply.getFixedAmount().min(lineSubtotal);
+                reason = "Giảm " + apply.getFixedAmount().stripTrailingZeros().toPlainString() + "đ";
+            } else if (meetsMinQuantity
+                    && apply.getDiscountPercent() != null && apply.getDiscountPercent().compareTo(BigDecimal.ZERO) > 0) {
                 BigDecimal lineSubtotal = lineItem.getSellingPrice().multiply(line.getQuantity());
                 lineDiscount = lineSubtotal.multiply(apply.getDiscountPercent()).divide(BigDecimal.valueOf(100));
                 reason = "KM " + apply.getDiscountPercent().stripTrailingZeros().toPlainString() + "%";
