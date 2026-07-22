@@ -218,6 +218,8 @@ public class OrderServiceImpl implements OrderService {
         }
         planDiscountAmount = planDiscountAmount.add(
                 resolveGiftWithPurchaseDiscount(request.getItems(), orderItems, usedPlanIds));
+        planDiscountAmount = planDiscountAmount.add(
+                resolveBundleDiscount(request.getItems(), orderItems, usedPlanIds));
 
         BigDecimal discountAmount = planDiscountAmount;
         Promotion promotion = null;
@@ -676,6 +678,81 @@ public class OrderServiceImpl implements OrderService {
             BigDecimal giftDiscount = giftItem.getSellingPrice().multiply(actualFree);
             applyLineDiscount(orderItems, plan.getGiftItemId(), giftDiscount, "Quà tặng: " + plan.getPlanName(), plan.getId());
             total = total.add(giftDiscount);
+            if (plan.getId() != null) {
+                usedPlanIds.add(plan.getId());
+            }
+        }
+        return total;
+    }
+
+    /**
+     * Combo (mua đủ nhiều SP khác nhau cùng lúc mới giảm): với mỗi plan BUNDLE đang hiệu lực,
+     * tính số "bộ combo" hoàn chỉnh khách đã mua đủ (giới hạn bởi SP có số lượng ít nhất so với
+     * yêu cầu), rồi giảm % hoặc số tiền cố định trên tổng giá trị các bộ đó, phân bổ theo tỷ lệ
+     * đóng góp giá trị của từng SP trong combo.
+     */
+    private BigDecimal resolveBundleDiscount(
+            List<OrderLineRequest> lines, List<OrderItem> orderItems, java.util.Set<Long> usedPlanIds) {
+        java.time.LocalTime nowTime = java.time.LocalTime.now();
+        var bundlePlans = discountPlanService.listActiveToday().stream()
+                .filter(p -> p.getPlanType() == com.smartmart.enums.DiscountPlanType.BUNDLE
+                        && p.getBundleItems() != null && p.getBundleItems().size() >= 2)
+                .filter(p -> p.getStartTime() == null || p.getEndTime() == null
+                        || (!nowTime.isBefore(p.getStartTime()) && nowTime.isBefore(p.getEndTime())))
+                .filter(p -> p.getMaxUsage() == null || p.getUsageCount() == null
+                        || p.getUsageCount() < p.getMaxUsage())
+                .toList();
+        if (bundlePlans.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        java.util.Map<Long, Item> itemCache = new java.util.HashMap<>();
+        java.util.Map<Long, BigDecimal> qtyByItem = new java.util.HashMap<>();
+        for (OrderLineRequest line : lines) {
+            qtyByItem.merge(line.getItemId(), line.getQuantity(), BigDecimal::add);
+        }
+
+        BigDecimal total = BigDecimal.ZERO;
+        for (var plan : bundlePlans) {
+            long sets = Long.MAX_VALUE;
+            for (var bi : plan.getBundleItems()) {
+                BigDecimal have = qtyByItem.getOrDefault(bi.getItemId(), BigDecimal.ZERO);
+                long possible = bi.getRequiredQty() > 0 ? have.longValue() / bi.getRequiredQty() : 0;
+                sets = Math.min(sets, possible);
+            }
+            if (sets <= 0) {
+                continue;
+            }
+            BigDecimal bundleSubtotal = BigDecimal.ZERO;
+            java.util.Map<Long, BigDecimal> contributionByItem = new java.util.HashMap<>();
+            for (var bi : plan.getBundleItems()) {
+                Item item = itemCache.computeIfAbsent(bi.getItemId(), itemService::findItem);
+                BigDecimal contribution = item.getSellingPrice()
+                        .multiply(BigDecimal.valueOf(bi.getRequiredQty()))
+                        .multiply(BigDecimal.valueOf(sets));
+                contributionByItem.put(bi.getItemId(), contribution);
+                bundleSubtotal = bundleSubtotal.add(contribution);
+            }
+            if (bundleSubtotal.compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
+            BigDecimal planDiscount;
+            if (plan.getDealType() == com.smartmart.enums.DiscountDealType.FIXED_AMOUNT && plan.getFixedAmount() != null) {
+                planDiscount = plan.getFixedAmount().multiply(BigDecimal.valueOf(sets)).min(bundleSubtotal);
+            } else if (plan.getDiscountPercent() != null) {
+                planDiscount = bundleSubtotal.multiply(plan.getDiscountPercent()).divide(BigDecimal.valueOf(100));
+            } else {
+                continue;
+            }
+            if (planDiscount.compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
+            for (var entry : contributionByItem.entrySet()) {
+                BigDecimal share = planDiscount.multiply(entry.getValue())
+                        .divide(bundleSubtotal, 2, java.math.RoundingMode.HALF_UP);
+                applyLineDiscount(orderItems, entry.getKey(), share, "Combo: " + plan.getPlanName(), plan.getId());
+            }
+            total = total.add(planDiscount);
             if (plan.getId() != null) {
                 usedPlanIds.add(plan.getId());
             }

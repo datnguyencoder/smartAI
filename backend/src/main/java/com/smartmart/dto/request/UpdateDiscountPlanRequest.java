@@ -6,6 +6,7 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -28,4 +29,7 @@ public class UpdateDiscountPlanRequest {
     private Integer maxUsage;
     /** true = xoá khung giờ Flash Sale, quay lại áp dụng cả ngày. */
     private Boolean clearTimeWindow;
+
+    /** Nếu gửi kèm, thay thế toàn bộ danh sách sản phẩm combo hiện tại. */
+    private List<BundleItemRequest> bundleItems;
 }

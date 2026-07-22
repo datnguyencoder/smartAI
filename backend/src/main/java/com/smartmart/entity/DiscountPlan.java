@@ -9,6 +9,8 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "discount_plans")
@@ -91,4 +93,9 @@ public class DiscountPlan extends LongAuditableEntity {
     @Column(name = "usage_count", nullable = false)
     @Builder.Default
     private Integer usageCount = 0;
+
+    /** Danh sách sản phẩm bắt buộc trong combo — chỉ dùng khi planType = BUNDLE. */
+    @OneToMany(mappedBy = "plan", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<DiscountPlanBundleItem> bundleItems = new ArrayList<>();
 }

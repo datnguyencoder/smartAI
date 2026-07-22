@@ -1003,12 +1003,13 @@ export type AccountTransferDto = {
 export type DiscountPlanDto = {
   id: number;
   planName: string;
-  planType: 'CATEGORY' | 'SKU' | string;
+  planType: 'CATEGORY' | 'SKU' | 'BUNDLE' | string;
   categoryId?: number;
   categoryName?: string;
   itemId?: number;
   itemName?: string;
   dealType: 'PERCENTAGE' | 'BOGO' | 'FIXED_AMOUNT' | string;
+  bundleItems?: { itemId: number; itemName: string; requiredQty: number }[];
   discountPercent?: number;
   buyQuantity?: number;
   freeQuantity?: number;

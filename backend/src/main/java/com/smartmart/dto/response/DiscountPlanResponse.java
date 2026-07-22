@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.List;
 
 @Getter
 @Builder
@@ -36,6 +37,7 @@ public class DiscountPlanResponse {
     private LocalTime endTime;
     private Integer maxUsage;
     private Integer usageCount;
+    private List<BundleItemResponse> bundleItems;
     /** SCHEDULED (chưa tới ngày bắt đầu) | RUNNING (đang chạy) | EXPIRED (đã qua endDate) | DISABLED (active=false). */
     private String status;
     private LocalDateTime createdAt;

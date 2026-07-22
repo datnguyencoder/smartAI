@@ -7,6 +7,7 @@ import com.smartmart.dto.response.DiscountPlanAnalyticsResponse;
 import com.smartmart.dto.response.DiscountPlanResponse;
 import com.smartmart.entity.Category;
 import com.smartmart.entity.DiscountPlan;
+import com.smartmart.entity.DiscountPlanBundleItem;
 import com.smartmart.entity.Item;
 import com.smartmart.enums.DiscountDealType;
 import com.smartmart.enums.DiscountPlanType;
@@ -54,8 +55,15 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
     public DiscountPlanResponse create(CreateDiscountPlanRequest request) {
         validatePlanRequest(request.getPlanType(), request.getCategoryId(), request.getItemId());
         DiscountDealType dealType = request.getDealType() != null ? request.getDealType() : DiscountDealType.PERCENTAGE;
+        if (request.getPlanType() == DiscountPlanType.BUNDLE && dealType == DiscountDealType.BOGO) {
+            throw new BadRequestException("Combo không hỗ trợ kiểu Mua tặng — chọn Giảm % hoặc Giảm số tiền cố định");
+        }
         validateDealRequest(dealType, request.getDiscountPercent(), request.getBuyQuantity(),
                 request.getFreeQuantity(), request.getFixedAmount());
+        List<DiscountPlanBundleItem> bundleItems = new java.util.ArrayList<>();
+        if (request.getPlanType() == DiscountPlanType.BUNDLE) {
+            bundleItems = buildBundleItems(request.getBundleItems());
+        }
         if (request.getStartDate() != null && request.getEndDate() != null
                 && request.getEndDate().isBefore(request.getStartDate())) {
             throw new BadRequestException("Ngày kết thúc phải sau ngày bắt đầu");
@@ -92,6 +100,10 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
                 .maxUsage(request.getMaxUsage())
                 .usageCount(0)
                 .build();
+        for (DiscountPlanBundleItem bi : bundleItems) {
+            bi.setPlan(plan);
+            plan.getBundleItems().add(bi);
+        }
         return toResponse(discountPlanRepository.save(plan));
     }
 
@@ -163,7 +175,37 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
         if (request.getMaxUsage() != null) {
             plan.setMaxUsage(request.getMaxUsage() == -1 ? null : request.getMaxUsage());
         }
+        if (plan.getPlanType() == DiscountPlanType.BUNDLE && request.getBundleItems() != null) {
+            List<DiscountPlanBundleItem> newItems = buildBundleItems(request.getBundleItems());
+            plan.getBundleItems().clear();
+            for (DiscountPlanBundleItem bi : newItems) {
+                bi.setPlan(plan);
+                plan.getBundleItems().add(bi);
+            }
+        }
         return toResponse(discountPlanRepository.save(plan));
+    }
+
+    private List<DiscountPlanBundleItem> buildBundleItems(List<com.smartmart.dto.request.BundleItemRequest> requests) {
+        if (requests == null || requests.size() < 2) {
+            throw new BadRequestException("Combo cần chọn ít nhất 2 sản phẩm khác nhau");
+        }
+        java.util.Set<Long> seen = new java.util.HashSet<>();
+        List<DiscountPlanBundleItem> result = new java.util.ArrayList<>();
+        for (var req : requests) {
+            if (req.getItemId() == null || !seen.add(req.getItemId())) {
+                throw new BadRequestException("Combo có sản phẩm bị trùng hoặc thiếu itemId");
+            }
+            Integer qty = req.getRequiredQty() != null ? req.getRequiredQty() : 1;
+            if (qty < 1) {
+                throw new BadRequestException("Số lượng yêu cầu trong combo phải >= 1");
+            }
+            result.add(DiscountPlanBundleItem.builder()
+                    .item(resolveItem(req.getItemId()))
+                    .requiredQty(qty)
+                    .build());
+        }
+        return result;
     }
 
     @Override
@@ -404,6 +446,14 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
                 .endTime(plan.getEndTime())
                 .maxUsage(plan.getMaxUsage())
                 .usageCount(plan.getUsageCount())
+                .bundleItems(plan.getBundleItems() == null || plan.getBundleItems().isEmpty() ? null
+                        : plan.getBundleItems().stream()
+                                .map(bi -> com.smartmart.dto.response.BundleItemResponse.builder()
+                                        .itemId(bi.getItem().getId())
+                                        .itemName(bi.getItem().getItemName())
+                                        .requiredQty(bi.getRequiredQty())
+                                        .build())
+                                .toList())
                 .status(computeStatus(plan))
                 .createdAt(plan.getCreatedAt())
                 .build();

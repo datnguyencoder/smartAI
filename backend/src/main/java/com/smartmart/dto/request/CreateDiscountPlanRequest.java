@@ -10,6 +10,7 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -51,4 +52,7 @@ public class CreateDiscountPlanRequest {
 
     /** Tổng số lần được áp dụng — để trống = không giới hạn. */
     private Integer maxUsage;
+
+    /** Danh sách sản phẩm bắt buộc trong combo — bắt buộc khi planType = BUNDLE, cần >= 2 sản phẩm. */
+    private List<BundleItemRequest> bundleItems;
 }

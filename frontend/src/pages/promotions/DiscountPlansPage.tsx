@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Button, DatePicker, Form, Input, InputNumber, Modal, Popconfirm, Segmented, Switch, Table, Tabs, Tag, TimePicker, message } from 'antd';
 import dayjs from 'dayjs';
-import { Gift, Plus, Tag as TagIcon, Trash2 } from 'lucide-react';
+import { Gift, Package, Plus, Tag as TagIcon, Trash2 } from 'lucide-react';
 import { Card, CardHeader, Select } from '@/components/ui';
 import { createDiscountPlan, deleteDiscountPlan, fetchCategories, fetchDiscountPlanAnalytics, fetchDiscountPlans, fetchNearExpiry, updateDiscountPlan } from '@/services/wmsApi';
 import type { DiscountPlanAnalyticsDto, DiscountPlanDto, CategoryDto, InventoryItemDto } from '@/types/api';
@@ -79,6 +79,15 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
 
   React.useEffect(() => { load(); loadNearExpiry(); loadAnalytics(); }, [load, loadNearExpiry, loadAnalytics]);
 
+  React.useEffect(() => {
+    if (planType === 'BUNDLE' && modalOpen) {
+      const current = form.getFieldValue('bundleItems');
+      if (!current || current.length === 0) {
+        form.setFieldsValue({ bundleItems: [{ requiredQty: 1 }, { requiredQty: 1 }] });
+      }
+    }
+  }, [planType, modalOpen, form]);
+
   const openCreate = () => {
     setEditing(null);
     form.resetFields();
@@ -131,6 +140,7 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
         ? [dayjs(row.startTime, 'HH:mm:ss'), dayjs(row.endTime, 'HH:mm:ss')]
         : undefined,
       maxUsage: row.maxUsage ?? undefined,
+      bundleItems: row.bundleItems?.map((bi) => ({ itemId: bi.itemId, requiredQty: bi.requiredQty })),
     });
     setModalOpen(true);
   };
@@ -139,22 +149,35 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
     const values = await form.validateFields();
     const isBogo = values.dealType === 'BOGO';
     const isFixedAmount = values.dealType === 'FIXED_AMOUNT';
+    const isBundle = values.planType === 'BUNDLE';
     const isGiftOther = isBogo && values.giftMode === 'OTHER';
     if (isGiftOther && !values.giftItemId) {
       message.error('Chọn sản phẩm dùng làm quà tặng');
       return;
     }
+    if (isBundle) {
+      const bundleItems = (values.bundleItems ?? []).filter((b: { itemId?: number }) => b?.itemId != null);
+      const itemIds = bundleItems.map((b: { itemId: number }) => b.itemId);
+      if (bundleItems.length < 2) {
+        message.error('Combo cần chọn ít nhất 2 sản phẩm khác nhau');
+        return;
+      }
+      if (new Set(itemIds).size !== itemIds.length) {
+        message.error('Combo có sản phẩm bị chọn trùng lặp');
+        return;
+      }
+    }
     const payload = {
       planName: values.planName,
       planType: values.planType,
-      categoryId: values.categoryId,
-      itemId: values.itemId,
+      categoryId: isBundle ? undefined : values.categoryId,
+      itemId: isBundle ? undefined : values.itemId,
       dealType: values.dealType,
       discountPercent: isBogo || isFixedAmount ? undefined : Number(values.discountPercent),
       buyQuantity: isBogo ? Number(values.buyQuantity) : undefined,
       freeQuantity: isBogo ? Number(values.freeQuantity) : undefined,
       fixedAmount: isFixedAmount ? Number(values.fixedAmount) : undefined,
-      minQuantity: isBogo ? undefined : Number(values.minQuantity ?? 1),
+      minQuantity: isBogo || isBundle ? undefined : Number(values.minQuantity ?? 1),
       giftItemId: editing
         ? (isGiftOther ? Number(values.giftItemId) : 0) // 0 = xoá về mặc định khi sửa
         : (isGiftOther ? Number(values.giftItemId) : undefined),
@@ -165,6 +188,14 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
       startTime: values.isFlashSale && values.timeRange?.[0] ? values.timeRange[0].format('HH:mm:ss') : undefined,
       endTime: values.isFlashSale && values.timeRange?.[1] ? values.timeRange[1].format('HH:mm:ss') : undefined,
       maxUsage: values.maxUsage !== undefined && values.maxUsage !== null ? Number(values.maxUsage) : undefined,
+      bundleItems: isBundle
+        ? (values.bundleItems ?? [])
+            .filter((b: { itemId?: number }) => b?.itemId != null)
+            .map((b: { itemId: number; requiredQty?: number }) => ({
+              itemId: Number(b.itemId),
+              requiredQty: Number(b.requiredQty ?? 1),
+            }))
+        : undefined,
     };
     try {
       if (editing) {
@@ -196,6 +227,13 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
   };
 
   const dealLabel = (r: DiscountPlanDto) => {
+    if (r.planType === 'BUNDLE') {
+      const combo = r.bundleItems?.map((bi) => `${bi.requiredQty}× ${bi.itemName}`).join(' + ') || 'Combo';
+      const off = r.dealType === 'FIXED_AMOUNT'
+        ? `giảm ${(r.fixedAmount ?? 0).toLocaleString('vi-VN')}đ`
+        : `giảm ${r.discountPercent}%`;
+      return `${combo} → ${off}`;
+    }
     if (r.dealType === 'FIXED_AMOUNT') {
       return `Giảm ${(r.fixedAmount ?? 0).toLocaleString('vi-VN')}đ`;
     }
@@ -304,15 +342,37 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
                   dataSource={filteredRows}
                   columns={[
                     { title: 'Tên', dataIndex: 'planName' },
-                    { title: 'Loại', dataIndex: 'planType', render: (v: string) => (v === 'CATEGORY' ? 'Danh mục' : 'Sản phẩm') },
-                    { title: 'Đối tượng', render: (_: unknown, r: DiscountPlanDto) => r.itemName || r.categoryName || 'Toàn cửa hàng' },
+                    {
+                      title: 'Loại',
+                      dataIndex: 'planType',
+                      render: (v: string) => (v === 'CATEGORY' ? 'Danh mục' : v === 'BUNDLE' ? 'Combo' : 'Sản phẩm'),
+                    },
+                    {
+                      title: 'Đối tượng',
+                      render: (_: unknown, r: DiscountPlanDto) =>
+                        r.planType === 'BUNDLE'
+                          ? `${r.bundleItems?.length ?? 0} sản phẩm`
+                          : r.itemName || r.categoryName || 'Toàn cửa hàng',
+                    },
                     {
                       title: 'Ưu đãi',
                       render: (_: unknown, r: DiscountPlanDto) => (
                         <div className="flex flex-col gap-1">
                           <Tag
-                            icon={r.dealType === 'BOGO' ? <Gift size={12} className="mr-1 inline align-text-bottom" /> : undefined}
-                            color={r.dealType === 'BOGO' ? (r.giftItemId ? 'magenta' : 'purple') : r.dealType === 'FIXED_AMOUNT' ? 'gold' : 'blue'}
+                            icon={
+                              r.planType === 'BUNDLE'
+                                ? <Package size={12} className="mr-1 inline align-text-bottom" />
+                                : r.dealType === 'BOGO'
+                                  ? <Gift size={12} className="mr-1 inline align-text-bottom" />
+                                  : undefined
+                            }
+                            color={
+                              r.planType === 'BUNDLE'
+                                ? 'cyan'
+                                : r.dealType === 'BOGO'
+                                  ? (r.giftItemId ? 'magenta' : 'purple')
+                                  : r.dealType === 'FIXED_AMOUNT' ? 'gold' : 'blue'
+                            }
                           >
                             {dealLabel(r)}
                           </Tag>
@@ -459,6 +519,7 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
             <Select disabled={!!editing} options={[
               { value: 'CATEGORY', label: 'Theo danh mục' },
               { value: 'SKU', label: 'Theo sản phẩm' },
+              { value: 'BUNDLE', label: 'Combo (mua nhiều SP khác nhau)' },
             ]} />
           </Form.Item>
           {planType === 'CATEGORY' && (
@@ -477,10 +538,59 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
               />
             </Form.Item>
           )}
+          {planType === 'BUNDLE' && (
+            <Form.Item
+              label="Sản phẩm trong combo"
+              required
+              extra="Cần chọn ít nhất 2 sản phẩm khác nhau. Khách phải mua đủ số lượng của TẤT CẢ sản phẩm mới được giảm."
+            >
+              <Form.List name="bundleItems">
+                {(fields, { add, remove }) => (
+                  <div className="flex flex-col gap-2">
+                    {fields.map((field) => (
+                      <div key={field.key} className="flex items-center gap-2">
+                        <Form.Item
+                          name={[field.name, 'itemId']}
+                          rules={[{ required: true, message: 'Chọn sản phẩm' }]}
+                          className="mb-0 flex-1"
+                        >
+                          <Select
+                            showSearch
+                            optionFilterProp="label"
+                            placeholder="Chọn sản phẩm"
+                            notFoundContent="Không có sản phẩm còn hàng phù hợp"
+                            options={itemOptions.map((p) => ({ value: Number(p.key), label: `${p.sku} · ${p.name}` }))}
+                          />
+                        </Form.Item>
+                        <Form.Item
+                          name={[field.name, 'requiredQty']}
+                          initialValue={1}
+                          rules={[{ required: true, message: 'SL' }]}
+                          className="mb-0"
+                        >
+                          <InputNumber min={1} placeholder="SL" className="w-20" />
+                        </Form.Item>
+                        <Button
+                          type="text"
+                          danger
+                          disabled={fields.length <= 2}
+                          icon={<Trash2 size={14} />}
+                          onClick={() => remove(field.name)}
+                        />
+                      </div>
+                    ))}
+                    <Button type="dashed" onClick={() => add()} icon={<Plus size={14} />}>
+                      Thêm sản phẩm vào combo
+                    </Button>
+                  </div>
+                )}
+              </Form.List>
+            </Form.Item>
+          )}
           <Form.Item name="dealType" label="Loại ưu đãi" rules={[{ required: true }]} extra={editing ? 'Không thể đổi loại ưu đãi sau khi tạo.' : undefined}>
             <Select disabled={!!editing} options={[
               { value: 'PERCENTAGE', label: 'Giảm giá %' },
-              { value: 'BOGO', label: 'Mua tặng (mua X tặng Y)' },
+              ...(planType === 'BUNDLE' ? [] : [{ value: 'BOGO', label: 'Mua tặng (mua X tặng Y)' }]),
               { value: 'FIXED_AMOUNT', label: 'Giảm số tiền cố định (VND)' },
             ]} />
           </Form.Item>
@@ -528,7 +638,7 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
           ) : (
             <Form.Item name="discountPercent" label="Giảm (%)" rules={[{ required: true }]}><InputNumber className="w-full" min={0.01} max={100} /></Form.Item>
           )}
-          {dealType !== 'BOGO' && (
+          {dealType !== 'BOGO' && planType !== 'BUNDLE' && (
             <Form.Item
               name="minQuantity"
               label="Số lượng mua tối thiểu để được áp dụng"
