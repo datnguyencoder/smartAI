@@ -82,7 +82,9 @@ public class DiscountPlanController {
     @GetMapping("/apply/{itemId}")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF','WAREHOUSE')")
     @Operation(summary = "Áp dụng quy tắc giảm giá cho sản phẩm")
-    public ResponseEntity<ApiResponse<DiscountApplyResponse>> apply(@PathVariable Long itemId) {
-        return ResponseEntity.ok(ApiResponse.success(discountPlanService.applyForItem(itemId)));
+    public ResponseEntity<ApiResponse<DiscountApplyResponse>> apply(
+            @PathVariable Long itemId,
+            @RequestParam(required = false) String customerTier) {
+        return ResponseEntity.ok(ApiResponse.success(discountPlanService.applyForItem(itemId, customerTier)));
     }
 }

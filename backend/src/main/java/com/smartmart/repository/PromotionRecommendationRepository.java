@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface PromotionRecommendationRepository extends JpaRepository<PromotionRecommendation, Long> {
     List<PromotionRecommendation> findByStatus(String status);
+
+    boolean existsByItemIdAndStatus(Long itemId, String status);
 }

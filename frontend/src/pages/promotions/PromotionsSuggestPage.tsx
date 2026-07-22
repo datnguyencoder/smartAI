@@ -1,10 +1,11 @@
 import React from 'react';
-import { Alert, Button, Table, Tag, message as antdMessage } from 'antd';
-import { Sparkles, WandSparkles } from 'lucide-react';
+import { Alert, Button, Table, Tag, Tooltip, message as antdMessage } from 'antd';
+import { Radar, Sparkles, WandSparkles } from 'lucide-react';
 import { Card, CardHeader , Select } from '@/components/ui';
 import {
   aiSuggestPromotion,
   approvePromotionRecommendation,
+  autoSuggestPromotions,
   fetchItems,
   fetchNearExpiry,
   fetchPromotionRecommendations,
@@ -21,6 +22,7 @@ export default function PromotionsSuggestPage({ setPage }: Props) {
   const [rows, setRows] = React.useState<PromotionRecommendationDto[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [generating, setGenerating] = React.useState(false);
+  const [autoScanning, setAutoScanning] = React.useState(false);
   const [nearExpiry, setNearExpiry] = React.useState<{ itemId: number; itemName: string }[]>([]);
   const [selectedItemId, setSelectedItemId] = React.useState<number | null>(null);
 
@@ -71,6 +73,23 @@ export default function PromotionsSuggestPage({ setPage }: Props) {
       antdMessage.error(e instanceof Error ? e.message : 'Không tạo được đề xuất');
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const handleAutoScan = async () => {
+    setAutoScanning(true);
+    try {
+      const res = await autoSuggestPromotions();
+      if (res.created > 0) {
+        antdMessage.success(`AI đã quét dự báo tồn kho và tạo ${res.created} đề xuất KM mới`);
+      } else {
+        antdMessage.info('Chưa có sản phẩm nào đang có nguy cơ ứ đọng theo dự báo hiện tại');
+      }
+      await load();
+    } catch (e) {
+      antdMessage.error(e instanceof Error ? e.message : 'Quét tự động thất bại');
+    } finally {
+      setAutoScanning(false);
     }
   };
 
@@ -163,6 +182,17 @@ export default function PromotionsSuggestPage({ setPage }: Props) {
         <CardHeader
           title="Đề xuất khuyến mãi (AI)"
           description="Gemini phân tích tồn kho & dự báo → Manager duyệt → mã KM tự động dùng tại POS"
+          action={
+            <Tooltip title="Quét dự báo bán 7 ngày tới của mọi SP: nếu dự báo bán thấp hơn nhiều so với tồn kho hiện tại (nguy cơ ứ đọng), tự động tạo đề xuất KM">
+              <Button
+                icon={<Radar size={16} />}
+                loading={autoScanning}
+                onClick={handleAutoScan}
+              >
+                AI tự quét & đề xuất
+              </Button>
+            </Tooltip>
+          }
         />
         <div className="px-5 pb-5 space-y-4">
           <div className="flex flex-wrap gap-2 items-center">

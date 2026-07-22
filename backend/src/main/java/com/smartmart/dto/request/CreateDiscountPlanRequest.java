@@ -55,4 +55,7 @@ public class CreateDiscountPlanRequest {
 
     /** Danh sách sản phẩm bắt buộc trong combo — bắt buộc khi planType = BUNDLE, cần >= 2 sản phẩm. */
     private List<BundleItemRequest> bundleItems;
+
+    /** ALL | MEMBER | VIP — để trống = ALL (mọi khách). */
+    private String customerSegment;
 }

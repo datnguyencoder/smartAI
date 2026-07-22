@@ -32,4 +32,6 @@ public class UpdateDiscountPlanRequest {
 
     /** Nếu gửi kèm, thay thế toàn bộ danh sách sản phẩm combo hiện tại. */
     private List<BundleItemRequest> bundleItems;
+
+    private String customerSegment;
 }

@@ -73,6 +73,7 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
             throw new BadRequestException("Số lượng tối thiểu phải >= 1");
         }
         validateTimeWindow(request.getStartTime(), request.getEndTime());
+        String customerSegment = validateSegment(request.getCustomerSegment());
         Item giftItem = dealType == DiscountDealType.BOGO ? resolveItem(request.getGiftItemId()) : null;
         if (giftItem != null && request.getPlanType() == DiscountPlanType.SKU
                 && request.getItemId() != null && giftItem.getId().equals(request.getItemId())) {
@@ -99,6 +100,7 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
                 .endTime(request.getEndTime())
                 .maxUsage(request.getMaxUsage())
                 .usageCount(0)
+                .customerSegment(customerSegment)
                 .build();
         for (DiscountPlanBundleItem bi : bundleItems) {
             bi.setPlan(plan);
@@ -183,6 +185,9 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
                 plan.getBundleItems().add(bi);
             }
         }
+        if (request.getCustomerSegment() != null) {
+            plan.setCustomerSegment(validateSegment(request.getCustomerSegment()));
+        }
         return toResponse(discountPlanRepository.save(plan));
     }
 
@@ -239,7 +244,7 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
 
     @Override
     @Transactional(readOnly = true)
-    public DiscountApplyResponse applyForItem(Long itemId) {
+    public DiscountApplyResponse applyForItem(Long itemId, String customerTier) {
         Item item = itemService.findItem(itemId);
         LocalDate today = LocalDate.now();
 
@@ -251,6 +256,7 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
                 .filter(this::isSameItemDeal)
                 .filter(this::isWithinTimeWindow)
                 .filter(this::hasUsageLeft)
+                .filter(p -> matchesSegment(p, customerTier))
                 .toList();
         if (!skuPlans.isEmpty()) {
             return toApplyResponse(itemId, bestPlan(skuPlans));
@@ -264,6 +270,7 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
                     .filter(this::isSameItemDeal)
                     .filter(this::isWithinTimeWindow)
                     .filter(this::hasUsageLeft)
+                    .filter(p -> matchesSegment(p, customerTier))
                     .toList();
             if (!categoryPlans.isEmpty()) {
                 return toApplyResponse(itemId, bestPlan(categoryPlans));
@@ -369,6 +376,32 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
         return !now.isBefore(plan.getStartTime()) && now.isBefore(plan.getEndTime());
     }
 
+    /**
+     * ALL = mọi khách kể cả khách lẻ; MEMBER = khách đã có tài khoản (bất kỳ hạng nào);
+     * VIP = khách hạng SILVER/GOLD trở lên (REGULAR chưa đủ điều kiện).
+     */
+    private static final java.util.Set<String> VALID_SEGMENTS = java.util.Set.of("ALL", "MEMBER", "VIP");
+
+    private String validateSegment(String segment) {
+        if (segment == null || segment.isBlank()) {
+            return "ALL";
+        }
+        String normalized = segment.trim().toUpperCase();
+        if (!VALID_SEGMENTS.contains(normalized)) {
+            throw new BadRequestException("customerSegment phải là ALL, MEMBER hoặc VIP");
+        }
+        return normalized;
+    }
+
+    private boolean matchesSegment(DiscountPlan plan, String customerTier) {
+        String segment = plan.getCustomerSegment() != null ? plan.getCustomerSegment() : "ALL";
+        return switch (segment) {
+            case "MEMBER" -> customerTier != null;
+            case "VIP" -> customerTier != null && !"REGULAR".equalsIgnoreCase(customerTier);
+            default -> true;
+        };
+    }
+
     private boolean hasUsageLeft(DiscountPlan plan) {
         return plan.getMaxUsage() == null
                 || plan.getUsageCount() == null
@@ -454,6 +487,7 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
                                         .requiredQty(bi.getRequiredQty())
                                         .build())
                                 .toList())
+                .customerSegment(plan.getCustomerSegment())
                 .status(computeStatus(plan))
                 .createdAt(plan.getCreatedAt())
                 .build();

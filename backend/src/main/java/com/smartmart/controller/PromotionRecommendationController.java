@@ -36,6 +36,16 @@ public class PromotionRecommendationController {
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
+    @PostMapping("/auto-suggest")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @Operation(summary = "Quét dự báo tồn kho, tự động tạo đề xuất KM cho SP có nguy cơ ứ đọng")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Integer>>> autoSuggest() {
+        int created = promotionRecommendationService.autoSuggestFromForecast();
+        return ResponseEntity.ok(ApiResponse.success(
+                created > 0 ? "Đã tạo " + created + " đề xuất KM mới" : "Không có SP nào cần đề xuất KM lúc này",
+                java.util.Map.of("created", created)));
+    }
+
     @PostMapping("/{id}/approve")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     @Operation(summary = "Phê duyệt đề xuất KM — tạo mã giảm giá tự động")

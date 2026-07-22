@@ -23,7 +23,8 @@ public interface DiscountPlanService {
     /** Chỉ kế hoạch đang có hiệu lực hôm nay — dùng khi áp giá tại POS / AI tra cứu. */
     List<DiscountPlanResponse> listActiveToday();
 
-    DiscountApplyResponse applyForItem(Long itemId);
+    /** @param customerTier tier của khách ("REGULAR"/"SILVER"/"GOLD") — null nếu khách lẻ chưa có tài khoản. */
+    DiscountApplyResponse applyForItem(Long itemId, String customerTier);
 
     /** Ghi nhận 1 lần plan được áp dụng thành công trên đơn hàng — tăng usageCount. */
     void recordUsage(Long planId);

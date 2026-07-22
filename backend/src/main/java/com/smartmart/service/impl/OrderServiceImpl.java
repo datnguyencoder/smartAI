@@ -182,7 +182,7 @@ public class OrderServiceImpl implements OrderService {
         BigDecimal planDiscountAmount = BigDecimal.ZERO;
         java.util.Set<Long> usedPlanIds = new java.util.HashSet<>();
         for (OrderLineRequest line : request.getItems()) {
-            var apply = discountPlanService.applyForItem(line.getItemId());
+            var apply = discountPlanService.applyForItem(line.getItemId(), customer != null ? customer.getTier() : null);
             Item lineItem = itemService.findItem(line.getItemId());
             BigDecimal lineDiscount = BigDecimal.ZERO;
             String reason = null;
@@ -216,10 +216,11 @@ public class OrderServiceImpl implements OrderService {
                 }
             }
         }
+        String customerTier = customer != null ? customer.getTier() : null;
         planDiscountAmount = planDiscountAmount.add(
-                resolveGiftWithPurchaseDiscount(request.getItems(), orderItems, usedPlanIds));
+                resolveGiftWithPurchaseDiscount(request.getItems(), orderItems, usedPlanIds, customerTier));
         planDiscountAmount = planDiscountAmount.add(
-                resolveBundleDiscount(request.getItems(), orderItems, usedPlanIds));
+                resolveBundleDiscount(request.getItems(), orderItems, usedPlanIds, customerTier));
 
         BigDecimal discountAmount = planDiscountAmount;
         Promotion promotion = null;
@@ -603,6 +604,16 @@ public class OrderServiceImpl implements OrderService {
         return orderRepository.suggestCustomerNames(keyword.trim());
     }
 
+    /** ALL = mọi khách; MEMBER = có tài khoản; VIP = hạng khác REGULAR (SILVER/GOLD). */
+    private boolean matchesCustomerSegment(String segment, String customerTier) {
+        String s = segment != null ? segment : "ALL";
+        return switch (s) {
+            case "MEMBER" -> customerTier != null;
+            case "VIP" -> customerTier != null && !"REGULAR".equalsIgnoreCase(customerTier);
+            default -> true;
+        };
+    }
+
     /** For a BOGO plan (buy N get M free), returns how many units in {@code quantity} are free. */
     private BigDecimal computeBogoFreeUnits(BigDecimal quantity, int buyQuantity, int freeQuantity) {
         long qty = quantity.longValue();
@@ -627,7 +638,7 @@ public class OrderServiceImpl implements OrderService {
      * dòng hàng mới mà chỉ định giá 0đ cho phần quà nếu điều kiện thoả).
      */
     private BigDecimal resolveGiftWithPurchaseDiscount(
-            List<OrderLineRequest> lines, List<OrderItem> orderItems, java.util.Set<Long> usedPlanIds) {
+            List<OrderLineRequest> lines, List<OrderItem> orderItems, java.util.Set<Long> usedPlanIds, String customerTier) {
         java.time.LocalTime nowTime = java.time.LocalTime.now();
         var giftPlans = discountPlanService.listActiveToday().stream()
                 .filter(p -> p.getDealType() == com.smartmart.enums.DiscountDealType.BOGO
@@ -637,6 +648,7 @@ public class OrderServiceImpl implements OrderService {
                         || (!nowTime.isBefore(p.getStartTime()) && nowTime.isBefore(p.getEndTime())))
                 .filter(p -> p.getMaxUsage() == null || p.getUsageCount() == null
                         || p.getUsageCount() < p.getMaxUsage())
+                .filter(p -> matchesCustomerSegment(p.getCustomerSegment(), customerTier))
                 .toList();
         if (giftPlans.isEmpty()) {
             return BigDecimal.ZERO;
@@ -692,7 +704,7 @@ public class OrderServiceImpl implements OrderService {
      * đóng góp giá trị của từng SP trong combo.
      */
     private BigDecimal resolveBundleDiscount(
-            List<OrderLineRequest> lines, List<OrderItem> orderItems, java.util.Set<Long> usedPlanIds) {
+            List<OrderLineRequest> lines, List<OrderItem> orderItems, java.util.Set<Long> usedPlanIds, String customerTier) {
         java.time.LocalTime nowTime = java.time.LocalTime.now();
         var bundlePlans = discountPlanService.listActiveToday().stream()
                 .filter(p -> p.getPlanType() == com.smartmart.enums.DiscountPlanType.BUNDLE
@@ -701,6 +713,7 @@ public class OrderServiceImpl implements OrderService {
                         || (!nowTime.isBefore(p.getStartTime()) && nowTime.isBefore(p.getEndTime())))
                 .filter(p -> p.getMaxUsage() == null || p.getUsageCount() == null
                         || p.getUsageCount() < p.getMaxUsage())
+                .filter(p -> matchesCustomerSegment(p.getCustomerSegment(), customerTier))
                 .toList();
         if (bundlePlans.isEmpty()) {
             return BigDecimal.ZERO;

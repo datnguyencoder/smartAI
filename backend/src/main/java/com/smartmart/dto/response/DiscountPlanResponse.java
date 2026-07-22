@@ -38,6 +38,7 @@ public class DiscountPlanResponse {
     private Integer maxUsage;
     private Integer usageCount;
     private List<BundleItemResponse> bundleItems;
+    private String customerSegment;
     /** SCHEDULED (chưa tới ngày bắt đầu) | RUNNING (đang chạy) | EXPIRED (đã qua endDate) | DISABLED (active=false). */
     private String status;
     private LocalDateTime createdAt;

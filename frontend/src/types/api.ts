@@ -1010,6 +1010,7 @@ export type DiscountPlanDto = {
   itemName?: string;
   dealType: 'PERCENTAGE' | 'BOGO' | 'FIXED_AMOUNT' | string;
   bundleItems?: { itemId: number; itemName: string; requiredQty: number }[];
+  customerSegment?: 'ALL' | 'MEMBER' | 'VIP' | string;
   discountPercent?: number;
   buyQuantity?: number;
   freeQuantity?: number;

@@ -94,6 +94,11 @@ public class DiscountPlan extends LongAuditableEntity {
     @Builder.Default
     private Integer usageCount = 0;
 
+    /** Nhắm đối tượng khách: ALL (mọi khách kể cả khách lẻ) | MEMBER (khách có tài khoản) | VIP (SILVER/GOLD). */
+    @Column(name = "customer_segment", nullable = false, length = 20)
+    @Builder.Default
+    private String customerSegment = "ALL";
+
     /** Danh sách sản phẩm bắt buộc trong combo — chỉ dùng khi planType = BUNDLE. */
     @OneToMany(mappedBy = "plan", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default

@@ -4,11 +4,14 @@ import com.smartmart.dto.request.CreatePromotionRequest;
 import com.smartmart.dto.response.PromotionRecommendationResponse;
 import com.smartmart.dto.response.PromotionResponse;
 import com.smartmart.dto.response.PromotionSuggestionResponse;
+import com.smartmart.entity.ForecastResult;
 import com.smartmart.entity.Item;
 import com.smartmart.entity.PromotionRecommendation;
 import com.smartmart.enums.AlertType;
 import com.smartmart.exception.BadRequestException;
 import com.smartmart.exception.NotFoundException;
+import com.smartmart.repository.CurrentInventoryRepository;
+import com.smartmart.repository.ForecastResultRepository;
 import com.smartmart.repository.InventoryAlertRepository;
 import com.smartmart.repository.ItemRepository;
 import com.smartmart.repository.PromotionRecommendationRepository;
@@ -23,7 +26,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -38,12 +43,17 @@ public class PromotionRecommendationServiceImpl implements PromotionRecommendati
             "Ưu tiên áp dụng khi sản phẩm cận hạn, tồn lâu hoặc tốc độ bán thấp; " +
             "không áp dụng cho SKU đang LOW_STOCK/HIGH_RISK.";
 
+    /** pred7d < currentStock × ngưỡng này → coi là nguy cơ ứ đọng, đáng đề xuất KM. */
+    private static final BigDecimal OVERSTOCK_THRESHOLD = BigDecimal.valueOf(0.4);
+
     private final PromotionRecommendationRepository promotionRepository;
     private final ItemRepository itemRepository;
     private final InventoryAlertRepository inventoryAlertRepository;
     private final AuditLogService auditLogService;
     private final PromotionService promotionService;
     private final GeminiInsightService geminiInsightService;
+    private final ForecastResultRepository forecastResultRepository;
+    private final CurrentInventoryRepository currentInventoryRepository;
 
     public PromotionRecommendationServiceImpl(
             PromotionRecommendationRepository promotionRepository,
@@ -51,7 +61,9 @@ public class PromotionRecommendationServiceImpl implements PromotionRecommendati
             InventoryAlertRepository inventoryAlertRepository,
             AuditLogService auditLogService,
             PromotionService promotionService,
-            GeminiInsightService geminiInsightService
+            GeminiInsightService geminiInsightService,
+            ForecastResultRepository forecastResultRepository,
+            CurrentInventoryRepository currentInventoryRepository
     ) {
         this.promotionRepository = promotionRepository;
         this.itemRepository = itemRepository;
@@ -59,6 +71,8 @@ public class PromotionRecommendationServiceImpl implements PromotionRecommendati
         this.auditLogService = auditLogService;
         this.promotionService = promotionService;
         this.geminiInsightService = geminiInsightService;
+        this.forecastResultRepository = forecastResultRepository;
+        this.currentInventoryRepository = currentInventoryRepository;
     }
 
     @Override
@@ -223,5 +237,50 @@ public class PromotionRecommendationServiceImpl implements PromotionRecommendati
             }
         }
         return BigDecimal.valueOf(15);
+    }
+
+    @Override
+    public int autoSuggestFromForecast() {
+        // Lấy forecast mới nhất của mỗi SP — findTop100 đã ORDER BY forecastDate DESC nên bản ghi
+        // đầu tiên gặp cho mỗi itemId chính là forecast gần nhất, không cần query N+1 theo từng SP.
+        Map<Long, ForecastResult> latestByItem = new LinkedHashMap<>();
+        for (ForecastResult fr : forecastResultRepository.findTop100ByOrderByForecastDateDesc()) {
+            latestByItem.putIfAbsent(fr.getItem().getId(), fr);
+        }
+
+        int created = 0;
+        for (ForecastResult forecast : latestByItem.values()) {
+            Long itemId = forecast.getItem().getId();
+            BigDecimal pred7d = forecast.getPredictedQty7d();
+            if (pred7d == null) {
+                continue;
+            }
+            BigDecimal currentStock = currentInventoryRepository.sumAvailableByItemId(itemId).orElse(BigDecimal.ZERO);
+            if (currentStock.compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
+            boolean overstockRisk = pred7d.compareTo(currentStock.multiply(OVERSTOCK_THRESHOLD)) < 0;
+            if (!overstockRisk) {
+                continue;
+            }
+            boolean hasStockAlert = inventoryAlertRepository.existsByItemIdAndAlertTypeInAndResolvedFalse(
+                    itemId, List.of(AlertType.LOW_STOCK.name(), AlertType.HIGH_RISK.name()));
+            if (hasStockAlert) {
+                continue;
+            }
+            if (promotionRepository.existsByItemIdAndStatus(itemId, "PENDING")) {
+                continue;
+            }
+            try {
+                suggestWithFallback(itemId);
+                created++;
+            } catch (Exception ex) {
+                log.warn("Auto-suggest KM thất bại cho itemId={}: {}", itemId, ex.getMessage());
+            }
+        }
+        if (created > 0) {
+            auditLogService.log("PROMO_AUTO_SUGGEST", "AI tự động tạo " + created + " đề xuất KM từ dự báo tồn kho");
+        }
+        return created;
     }
 }

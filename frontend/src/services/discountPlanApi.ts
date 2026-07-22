@@ -32,6 +32,7 @@ export function createDiscountPlan(payload: {
   endDate?: string;
   priority?: number;
   bundleItems?: { itemId: number; requiredQty: number }[];
+  customerSegment?: string;
 }) {
   return apiRequest<DiscountPlanDto>('/api/v1/discount-plans', {
     method: 'POST',
@@ -57,6 +58,7 @@ export function updateDiscountPlan(id: number, payload: {
   active?: boolean;
   priority?: number;
   bundleItems?: { itemId: number; requiredQty: number }[];
+  customerSegment?: string;
 }) {
   return apiRequest<DiscountPlanDto>(`/api/v1/discount-plans/${id}`, {
     method: 'PUT',

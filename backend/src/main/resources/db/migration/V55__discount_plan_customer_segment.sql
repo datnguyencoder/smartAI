@@ -1,0 +1,1 @@
+ALTER TABLE discount_plans ADD COLUMN IF NOT EXISTS customer_segment VARCHAR(20) NOT NULL DEFAULT 'ALL';

@@ -59,3 +59,7 @@ export function approvePromotionRecommendation(id: number) {
 export function rejectPromotionRecommendation(id: number) {
   return apiRequest<PromotionRecommendationDto>(`/api/v1/promotions/recommendations/${id}/reject`, { method: 'POST' });
 }
+
+export function autoSuggestPromotions() {
+  return apiRequest<{ created: number }>('/api/v1/promotions/recommendations/auto-suggest', { method: 'POST' });
+}

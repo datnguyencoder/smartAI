@@ -141,6 +141,7 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
         : undefined,
       maxUsage: row.maxUsage ?? undefined,
       bundleItems: row.bundleItems?.map((bi) => ({ itemId: bi.itemId, requiredQty: bi.requiredQty })),
+      customerSegment: row.customerSegment ?? 'ALL',
     });
     setModalOpen(true);
   };
@@ -196,6 +197,7 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
               requiredQty: Number(b.requiredQty ?? 1),
             }))
         : undefined,
+      customerSegment: values.customerSegment ?? 'ALL',
     };
     try {
       if (editing) {
@@ -386,6 +388,11 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
                             <span className="text-xs text-slate-500">
                               Đã dùng {r.usageCount ?? 0}/{r.maxUsage}
                             </span>
+                          )}
+                          {r.customerSegment && r.customerSegment !== 'ALL' && (
+                            <Tag color={r.customerSegment === 'VIP' ? 'gold' : 'geekblue'} className="w-fit">
+                              {r.customerSegment === 'VIP' ? 'Chỉ khách VIP' : 'Chỉ khách thành viên'}
+                            </Tag>
                           )}
                         </div>
                       ),
@@ -690,6 +697,21 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
             initialValue={0}
           >
             <InputNumber className="w-full" min={0} max={100} />
+          </Form.Item>
+          <Form.Item
+            name="customerSegment"
+            label="Đối tượng khách áp dụng"
+            initialValue="ALL"
+            tooltip="MEMBER: chỉ khách có tài khoản (đã lưu SĐT). VIP: khách hạng SILVER/GOLD trở lên."
+          >
+            <Segmented
+              block
+              options={[
+                { label: 'Tất cả khách', value: 'ALL' },
+                { label: 'Khách thành viên', value: 'MEMBER' },
+                { label: 'Khách VIP', value: 'VIP' },
+              ]}
+            />
           </Form.Item>
           {editing && <Form.Item name="active" label="Kích hoạt" valuePropName="checked"><Switch /></Form.Item>}
         </Form>
