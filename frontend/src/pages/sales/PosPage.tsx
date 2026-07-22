@@ -72,11 +72,31 @@ function stockBySellingLocation(rows: any[]) {
   }, {});
 }
 
-function isPlanActiveToday(plan: DiscountPlanDto) {
+/**
+ * Mirror đầy đủ điều kiện áp dụng thật ở backend (DiscountPlanServiceImpl.applyForItem +
+ * isWithinTimeWindow/hasUsageLeft/matchesSegment) — thiếu bất kỳ điều kiện nào ở đây sẽ khiến
+ * POS hiện giá khuyến mãi cho khách nhưng lúc thanh toán backend từ chối áp, giá bị lệch.
+ */
+function isPlanActiveToday(plan: DiscountPlanDto, customerTier?: string | null) {
   if (!plan.active) return false;
   const today = new Date().toISOString().slice(0, 10);
   if (plan.startDate && plan.startDate > today) return false;
   if (plan.endDate && plan.endDate < today) return false;
+
+  // Flash Sale: chỉ áp dụng trong khung giờ [startTime, endTime) mỗi ngày nếu có cấu hình.
+  if (plan.startTime && plan.endTime) {
+    const now = new Date().toTimeString().slice(0, 8);
+    if (now < plan.startTime || now >= plan.endTime) return false;
+  }
+
+  // Đã hết lượt áp dụng.
+  if (plan.maxUsage != null && (plan.usageCount ?? 0) >= plan.maxUsage) return false;
+
+  // Đối tượng khách: ALL luôn qua; MEMBER cần khách có tài khoản; VIP cần hạng khác REGULAR.
+  const segment = plan.customerSegment ?? 'ALL';
+  if (segment === 'MEMBER' && !customerTier) return false;
+  if (segment === 'VIP' && (!customerTier || customerTier === 'REGULAR')) return false;
+
   return true;
 }
 
@@ -88,6 +108,17 @@ function planEffectivePercent(plan: DiscountPlanDto) {
     return group > 0 ? (free / group) * 100 : 0;
   }
   return plan.discountPercent ?? 0;
+}
+
+/** Chọn plan thắng khi nhiều plan cùng khớp — ưu tiên priority cao hơn trước, mirror
+ * DiscountPlanServiceImpl.bestPlan() ở backend, rồi mới so effectivePercent khi priority bằng nhau. */
+function pickBestPlan(candidates: DiscountPlanDto[]): DiscountPlanDto {
+  return candidates.reduce((a, b) => {
+    const pa = a.priority ?? 0;
+    const pb = b.priority ?? 0;
+    if (pb !== pa) return pb > pa ? b : a;
+    return planEffectivePercent(b) > planEffectivePercent(a) ? b : a;
+  });
 }
 
 /** For a BOGO deal (buy N get M free), how many units within `qty` are free. */
@@ -107,18 +138,18 @@ function isSameItemDeal(plan: DiscountPlanDto) {
   return plan.dealType !== 'BOGO' || !plan.giftItemId;
 }
 
-function applyBestDiscount(product: Product, plans: DiscountPlanDto[]): Product {
+function applyBestDiscount(product: Product, plans: DiscountPlanDto[], customerTier?: string | null): Product {
   const itemId = Number(product.key);
   const skuPlans = plans.filter(
-    (p) => p.planType === 'SKU' && p.itemId === itemId && isPlanActiveToday(p) && isSameItemDeal(p)
+    (p) => p.planType === 'SKU' && p.itemId === itemId && isPlanActiveToday(p, customerTier) && isSameItemDeal(p)
   );
   const categoryPlans = plans.filter(
-    (p) => p.planType === 'CATEGORY' && p.categoryId === product.categoryId && isPlanActiveToday(p) && isSameItemDeal(p)
+    (p) => p.planType === 'CATEGORY' && p.categoryId === product.categoryId && isPlanActiveToday(p, customerTier) && isSameItemDeal(p)
   );
   const candidates = skuPlans.length > 0 ? skuPlans : categoryPlans;
   if (candidates.length === 0) return product;
 
-  const best = candidates.reduce((a, b) => (planEffectivePercent(b) > planEffectivePercent(a) ? b : a));
+  const best = pickBestPlan(candidates);
 
   if (best.dealType === 'BOGO' && best.buyQuantity && best.freeQuantity) {
     return {
@@ -127,6 +158,36 @@ function applyBestDiscount(product: Product, plans: DiscountPlanDto[]): Product 
       bogoFreeQuantity: best.freeQuantity,
       bogoPlanName: best.planName,
     };
+  }
+
+  // minQuantity > 1: giá chỉ được xác định sau khi biết số lượng thực trong giỏ — không bake
+  // sẵn vào giá catalog (nếu không giỏ hàng < ngưỡng vẫn hiện giá đã giảm, sai khi thanh toán).
+  const minQty = best.minQuantity ?? 1;
+  if (minQty > 1) {
+    if (best.dealType === 'FIXED_AMOUNT' && best.fixedAmount) {
+      return {
+        ...product,
+        deferredDiscountType: 'FIXED_AMOUNT',
+        deferredDiscountValue: best.fixedAmount,
+        deferredDiscountMinQty: minQty,
+        deferredDiscountPlanName: best.planName,
+      };
+    }
+    if (best.discountPercent) {
+      return {
+        ...product,
+        deferredDiscountType: 'PERCENTAGE',
+        deferredDiscountValue: best.discountPercent,
+        deferredDiscountMinQty: minQty,
+        deferredDiscountPlanName: best.planName,
+      };
+    }
+    return product;
+  }
+
+  if (best.dealType === 'FIXED_AMOUNT' && best.fixedAmount) {
+    const discounted = Math.max(0, Math.round(product.price - best.fixedAmount));
+    return { ...product, price: discounted, originalPrice: product.price, fixedAmountOff: best.fixedAmount };
   }
 
   const percent = best.discountPercent ?? 0;
@@ -141,11 +202,12 @@ function applyBestDiscount(product: Product, plans: DiscountPlanDto[]): Product 
  */
 function computeGiftEarnedRaw(
   cart: Array<{ product: Product; quantity: number }>,
-  plans: DiscountPlanDto[]
+  plans: DiscountPlanDto[],
+  customerTier?: string | null
 ): Map<number, { qty: number; planName: string }> {
   const result = new Map<number, { qty: number; planName: string }>();
   const giftPlans = plans.filter(
-    (p) => p.dealType === 'BOGO' && p.giftItemId && p.buyQuantity && p.freeQuantity && isPlanActiveToday(p)
+    (p) => p.dealType === 'BOGO' && p.giftItemId && p.buyQuantity && p.freeQuantity && isPlanActiveToday(p, customerTier)
   );
   if (giftPlans.length === 0) return result;
 
@@ -174,9 +236,10 @@ function computeGiftEarnedRaw(
  */
 function resolveGiftEntitlements(
   cart: Array<{ product: Product; quantity: number }>,
-  plans: DiscountPlanDto[]
+  plans: DiscountPlanDto[],
+  customerTier?: string | null
 ): Map<number, number> {
-  const raw = computeGiftEarnedRaw(cart, plans);
+  const raw = computeGiftEarnedRaw(cart, plans, customerTier);
   const result = new Map<number, number>();
   if (raw.size === 0) return result;
 
@@ -196,14 +259,14 @@ function resolveGiftEntitlements(
 
 /** Sản phẩm này có phải điều kiện kích hoạt 1 quà tặng SP khác không? Chỉ để hiện badge gợi ý
  * trên lưới catalog — không phụ thuộc số lượng đang có trong giỏ. */
-function findGiftTrigger(product: Product, plans: DiscountPlanDto[]) {
+function findGiftTrigger(product: Product, plans: DiscountPlanDto[], customerTier?: string | null) {
   const itemId = Number(product.key);
   return plans.find(
     (p) =>
       p.dealType === 'BOGO' &&
       p.giftItemId &&
       p.buyQuantity &&
-      isPlanActiveToday(p) &&
+      isPlanActiveToday(p, customerTier) &&
       (p.planType === 'SKU' ? p.itemId === itemId : p.categoryId === product.categoryId)
   );
 }
@@ -254,6 +317,9 @@ export default function PosPage({
   const [selectedCustomer, setSelectedCustomer] = React.useState('Khách lẻ');
   const [customerPhone, setCustomerPhone] = React.useState('');
   const [loyaltyCustomer, setLoyaltyCustomer] = React.useState<CustomerDto | null>(null);
+  // Hạng khách hiện tại — dùng để lọc chiến dịch theo customerSegment (ALL/MEMBER/VIP) khớp
+  // logic backend DiscountPlanServiceImpl.matchesSegment(). null = khách lẻ chưa xác định.
+  const customerTier = loyaltyCustomer?.tier ?? null;
   const [promotionCode, setPromotionCode] = React.useState('');
   const [promoDiscount, setPromoDiscount] = React.useState(0);
   const [promoMessage, setPromoMessage] = React.useState('');
@@ -339,7 +405,7 @@ export default function PosPage({
         if (active) {
           setLocalProducts(
             items.map((item) =>
-              applyBestDiscount(applySellableStock(itemToProduct(item), stockMap[Number(item.id)] ?? 0), discountPlans)
+              applyBestDiscount(applySellableStock(itemToProduct(item), stockMap[Number(item.id)] ?? 0), discountPlans, customerTier)
             )
           );
         }
@@ -351,7 +417,8 @@ export default function PosPage({
     };
     const timer = setTimeout(loadItems, 300);
     return () => { active = false; clearTimeout(timer); };
-  }, [searchQuery, selectedCategoryId, discountPlans]);
+    // customerTier đổi khi tra cứu SĐT khách (VIP/thành viên) — cần tính lại giá KM theo đối tượng.
+  }, [searchQuery, selectedCategoryId, discountPlans, customerTier]);
 
   React.useEffect(() => {
     let active = true;
@@ -417,15 +484,15 @@ export default function PosPage({
   }, [posCart]);
 
   const giftEntitlements = React.useMemo(
-    () => resolveGiftEntitlements(posCart, discountPlans),
-    [posCart, discountPlans]
+    () => resolveGiftEntitlements(posCart, discountPlans, customerTier),
+    [posCart, discountPlans, customerTier]
   );
 
   // ── Tự động thêm quà tặng "SP khác" vào Order List khi khách mua đủ điều kiện, thay vì bắt
   // thu ngân phải tự quét thêm quà. giftEarnedRaw không phụ thuộc việc quà đã có trong giỏ chưa.
   const giftEarnedRaw = React.useMemo(
-    () => computeGiftEarnedRaw(posCart, discountPlans),
-    [posCart, discountPlans]
+    () => computeGiftEarnedRaw(posCart, discountPlans, customerTier),
+    [posCart, discountPlans, customerTier]
   );
 
   const [giftProductCache, setGiftProductCache] = React.useState<Record<number, Product>>({});
@@ -524,7 +591,18 @@ export default function PosPage({
     if (giftFree > 0) {
       payableQty -= Math.min(giftFree, payableQty);
     }
-    return product.price * Math.max(0, payableQty);
+    let amount = product.price * Math.max(0, payableQty);
+
+    // Giảm % / tiền cố định cần mua đủ số lượng tối thiểu — chỉ áp khi số lượng THỰC trong giỏ
+    // đạt ngưỡng, khớp OrderServiceImpl (meetsMinQuantity) để không lệch giá lúc thanh toán.
+    if (product.deferredDiscountType && quantity >= (product.deferredDiscountMinQty ?? 1)) {
+      if (product.deferredDiscountType === 'FIXED_AMOUNT' && product.deferredDiscountValue) {
+        amount = Math.max(0, amount - Math.min(product.deferredDiscountValue, amount));
+      } else if (product.deferredDiscountType === 'PERCENTAGE' && product.deferredDiscountValue) {
+        amount = Math.round(amount * (1 - product.deferredDiscountValue / 100));
+      }
+    }
+    return amount;
   };
 
   const subtotal = posCart.reduce((sum, item) => sum + lineAmount(item), 0);
@@ -1002,7 +1080,7 @@ export default function PosPage({
                   <div className="flex items-center justify-between gap-2">
                     <span className="flex items-baseline gap-1.5">
                       <span className="text-lg font-black text-[#0f1f46]">{money(product.price)}</span>
-                      {product.discountPercent ? (
+                      {product.discountPercent || product.fixedAmountOff ? (
                         <span className="text-xs font-semibold text-slate-400 line-through">{money(product.originalPrice ?? 0)}</span>
                       ) : null}
                     </span>
@@ -1010,12 +1088,23 @@ export default function PosPage({
                       <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-bold text-red-600">
                         -{product.discountPercent}%
                       </span>
+                    ) : product.fixedAmountOff ? (
+                      <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-bold text-red-600">
+                        -{money(product.fixedAmountOff)}
+                      </span>
                     ) : product.bogoBuyQuantity && product.bogoFreeQuantity ? (
                       <span className="rounded-full bg-purple-100 px-2 py-1 text-xs font-bold text-purple-600">
                         Mua {product.bogoBuyQuantity} tặng {product.bogoFreeQuantity}
                       </span>
+                    ) : product.deferredDiscountType ? (
+                      <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-700">
+                        {product.deferredDiscountType === 'FIXED_AMOUNT'
+                          ? `-${money(product.deferredDiscountValue ?? 0)}`
+                          : `-${product.deferredDiscountValue}%`}{' '}
+                        khi mua ≥{product.deferredDiscountMinQty}
+                      </span>
                     ) : (() => {
-                        const giftTrigger = findGiftTrigger(product, discountPlans);
+                        const giftTrigger = findGiftTrigger(product, discountPlans, customerTier);
                         return giftTrigger ? (
                           <span className="rounded-full bg-pink-100 px-2 py-1 text-xs font-bold text-pink-600">
                             🎁 Mua {giftTrigger.buyQuantity} tặng {giftTrigger.giftItemName}
@@ -1078,6 +1167,22 @@ export default function PosPage({
                     {giftEntitlements.get(Number(item.product.key)) ? (
                       <span className="ml-1.5 rounded bg-pink-100 px-1.5 py-0.5 text-[10px] font-bold text-pink-600">
                         🎁 Quà tặng — miễn phí {giftEntitlements.get(Number(item.product.key))}
+                      </span>
+                    ) : null}
+                    {item.product.deferredDiscountType ? (
+                      <span
+                        className={cn(
+                          'ml-1.5 rounded px-1.5 py-0.5 text-[10px] font-bold',
+                          item.quantity >= (item.product.deferredDiscountMinQty ?? 1)
+                            ? 'bg-amber-100 text-amber-700'
+                            : 'bg-slate-200 text-slate-500'
+                        )}
+                      >
+                        {item.quantity >= (item.product.deferredDiscountMinQty ?? 1)
+                          ? `Đã áp dụng: ${item.product.deferredDiscountType === 'FIXED_AMOUNT'
+                              ? `-${money(item.product.deferredDiscountValue ?? 0)}`
+                              : `-${item.product.deferredDiscountValue}%`}`
+                          : `Mua thêm ${(item.product.deferredDiscountMinQty ?? 1) - item.quantity} để được giảm`}
                       </span>
                     ) : null}
                   </p>

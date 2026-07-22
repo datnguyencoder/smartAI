@@ -20,9 +20,17 @@ export type Product = {
   purchaseUomName?: string;
   originalPrice?: number;
   discountPercent?: number;
+  /** Giá đã bị trừ 1 số tiền cố định (đã bake vào price) — dùng để hiện badge riêng, khác badge % ở trên. */
+  fixedAmountOff?: number;
   bogoBuyQuantity?: number;
   bogoFreeQuantity?: number;
   bogoPlanName?: string;
+  /** Giảm % hoặc số tiền cố định CẦN đủ số lượng tối thiểu mới áp dụng — tính động theo số
+   * lượng thực tế trong giỏ (khác với discountPercent ở trên vốn áp dụng ngay từ 1 sản phẩm). */
+  deferredDiscountType?: 'PERCENTAGE' | 'FIXED_AMOUNT';
+  deferredDiscountValue?: number;
+  deferredDiscountMinQty?: number;
+  deferredDiscountPlanName?: string;
 };
 
 function defaultProductImageUrl(itemCode?: string | null) {
