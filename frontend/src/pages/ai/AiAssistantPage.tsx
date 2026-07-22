@@ -225,45 +225,41 @@ function buildFollowUpSuggestions(topic: string): ChatSuggestion[] {
   }
 }
 
-function normalizeAiResponse(rawText: string, userQuestion: string) {
+/**
+ * Trước đây hàm này TỰ CHÈN thêm khối "## Đề xuất tiếp theo" vào NỘI DUNG tin nhắn — trùng lặp
+ * hoàn toàn với `suggestions` (các nút gợi ý bấm nhanh) đã hiển thị riêng bên dưới tin nhắn,
+ * khiến người dùng thấy y hệt 1 danh sách gợi ý xuất hiện 2 lần liền nhau. Giờ hàm chỉ còn lo
+ * phần trình bày lại câu trả lời (không tự đưa ra gợi ý), suggestions vẫn do buildFollowUpSuggestions
+ * đảm nhiệm như cũ ở handleSendMessage.
+ */
+function normalizeAiResponse(rawText: string) {
   const text = rawText.trim();
   if (!text) {
-    return '## Tóm tắt\nChưa có nội dung phản hồi từ AI.\n\n## Đề xuất tiếp theo\n- Thử hỏi lại ngắn gọn hơn.\n- Kiểm tra kết nối AI hoặc quyền truy cập.';
+    return 'Chưa có nội dung phản hồi từ AI. Thử hỏi lại ngắn gọn hơn hoặc kiểm tra kết nối/quyền truy cập.';
   }
 
-  const hasMarkdownStructure = /(^|\n)\s{0,3}(#{1,3}\s|[-*]\s|\d+\.\s)/.test(text);
-  const hasSuggestionSection = /đề xuất|gợi ý|hành động|next/i.test(text);
-  const topic = topicFrom(`${userQuestion}\n${text}`);
-  const suggestionLines = buildFollowUpSuggestions(topic)
-    .slice(0, 3)
-    .map((item) => `- ${item.label}${item.prompt ? `: ${item.prompt}` : ''}`)
-    .join('\n');
-
+  // Bao gồm cả cú pháp bảng "| a | b |" — nếu không, câu trả lời dạng bảng sẽ bị coi là văn
+  // xuôi và đi qua bước tách câu bên dưới, phá vỡ hoàn toàn cấu trúc bảng.
+  const hasMarkdownStructure = /(^|\n)\s{0,3}(#{1,3}\s|[-*]\s|\d+\.\s|\|.*\|)/.test(text);
   if (hasMarkdownStructure) {
-    return hasSuggestionSection ? text : `${text}\n\n## Đề xuất tiếp theo\n${suggestionLines}`;
+    return text;
   }
 
+  // Tách câu để trình bày dễ đọc hơn 1 khối văn bản dài. Lookbehind yêu cầu ký tự NGAY TRƯỚC
+  // dấu câu không phải chữ số — tránh cắt nhầm số thập phân kiểu "giảm 12.5% so với tháng trước"
+  // thành 2 câu đứt quãng vô nghĩa ("giảm 12." + "5% so với...").
   const sentences = text
     .replace(/\s+/g, ' ')
-    .split(/(?<=[.!?。])\s+/)
+    .split(/(?<=[^\d][.!?。])\s+/)
     .map((part) => part.trim())
     .filter(Boolean);
 
   if (sentences.length <= 2) {
-    return `## Tóm tắt\n${text}\n\n## Đề xuất tiếp theo\n${suggestionLines}`;
+    return text;
   }
 
   const [summary, ...details] = sentences;
-  return [
-    '## Tóm tắt',
-    summary,
-    '',
-    '## Chi tiết',
-    ...details.slice(0, 6).map((line) => `- ${line}`),
-    '',
-    '## Đề xuất tiếp theo',
-    suggestionLines,
-  ].join('\n');
+  return [`**${summary}**`, '', ...details.slice(0, 8).map((line) => `- ${line}`)].join('\n');
 }
 
 function PromptCard({
@@ -356,7 +352,7 @@ export default function AiAssistantPage({
         const action = buildActionForTopic(topic);
         appendMessage({
           sender: 'ai',
-          text: normalizeAiResponse(aiText, text),
+          text: normalizeAiResponse(aiText),
           action,
           suggestions: buildFollowUpSuggestions(topic),
         });
@@ -364,8 +360,7 @@ export default function AiAssistantPage({
         appendMessage({
           sender: 'ai',
           text: normalizeAiResponse(
-            'Không kết nối được trung tâm hỗ trợ vận hành. Vui lòng thử lại hoặc kiểm tra quyền ADMIN/MANAGER.',
-            text
+            'Không kết nối được trung tâm hỗ trợ vận hành. Vui lòng thử lại hoặc kiểm tra quyền ADMIN/MANAGER.'
           ),
           suggestions: buildFollowUpSuggestions('general'),
         });

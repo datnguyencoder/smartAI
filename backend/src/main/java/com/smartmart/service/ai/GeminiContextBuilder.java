@@ -125,7 +125,7 @@ public class GeminiContextBuilder {
                 ctx.get("sellingPrice"),
                 ctx.get("expiryDate"),
                 ctx.get("predicted7d"),
-                AiTextSanitizer.STYLE_RULES
+                AiTextSanitizer.PLAIN_TEXT_STYLE_RULES
         );
     }
 }

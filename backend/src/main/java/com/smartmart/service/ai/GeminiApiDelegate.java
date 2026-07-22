@@ -30,6 +30,10 @@ public class GeminiApiDelegate {
         this.webClient = webClientBuilder.build();
     }
 
+    // Agent chat gọi call() tới 6 lần liên tiếp trong 1 request (mỗi vòng tool-calling) — với
+    // timeout 90s cũ, trường hợp xấu nhất (Gemini chậm/treo ở nhiều vòng) có thể khiến 1 câu hỏi
+    // của người dùng bị treo hàng chục phút trước khi trả lỗi. 45s vẫn rất rộng rãi cho
+    // gemini-2.5-flash với thinkingBudget đã giới hạn, giảm một nửa trần thời gian chờ xấu nhất.
     @Retryable(
             retryFor = {WebClientRequestException.class, IOException.class},
             noRetryFor = {WebClientResponseException.class},
@@ -44,7 +48,7 @@ public class GeminiApiDelegate {
                 .bodyValue(requestBody)
                 .retrieve()
                 .bodyToMono(JsonNode.class)
-                .block(Duration.ofSeconds(90));
+                .block(Duration.ofSeconds(45));
     }
 
     @Recover
