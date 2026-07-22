@@ -17,6 +17,7 @@ export function createPromotion(payload: {
   active?: boolean;
   maxUsage?: number | null;
   maxPerCustomer?: number | null;
+  stackable?: boolean;
 }) {
   return apiRequest<PromotionDto>('/api/v1/promotions', {
     method: 'POST',

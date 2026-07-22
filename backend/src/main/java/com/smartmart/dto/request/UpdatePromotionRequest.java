@@ -23,4 +23,6 @@ public class UpdatePromotionRequest {
 
     /** null = giữ nguyên; -1 = xoá giới hạn; số dương = đặt giới hạn mới. */
     private Integer maxPerCustomer;
+
+    private Boolean stackable;
 }

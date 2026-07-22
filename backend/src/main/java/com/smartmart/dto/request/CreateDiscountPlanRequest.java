@@ -34,4 +34,7 @@ public class CreateDiscountPlanRequest {
 
     private LocalDate startDate;
     private LocalDate endDate;
+
+    /** Ưu tiên khi nhiều plan cùng khớp 1 sản phẩm — cao hơn thắng. Mặc định 0. */
+    private Integer priority;
 }

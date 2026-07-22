@@ -188,6 +188,7 @@ export type PromotionDto = {
   maxUsage?: number | null;
   usageCount?: number;
   maxPerCustomer?: number | null;
+  stackable?: boolean;
   createdAt?: string;
 };
 
@@ -995,6 +996,7 @@ export type DiscountPlanDto = {
   startDate?: string;
   endDate?: string;
   active: boolean;
+  priority?: number;
   status?: 'SCHEDULED' | 'RUNNING' | 'EXPIRED' | 'DISABLED' | string;
   createdAt?: string;
 };

@@ -51,4 +51,9 @@ public class Promotion extends LongAuditableEntity {
     /** Số lần tối đa mỗi khách được dùng mã này — null = không giới hạn. */
     @Column(name = "max_per_customer")
     private Integer maxPerCustomer;
+
+    /** false = không cho cộng dồn với discount_plan tự động đang áp dụng trên đơn. */
+    @Column(name = "stackable", nullable = false)
+    @Builder.Default
+    private boolean stackable = true;
 }

@@ -61,4 +61,9 @@ public class DiscountPlan extends LongAuditableEntity {
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private boolean active = true;
+
+    /** Ưu tiên khi nhiều plan cùng khớp 1 sản phẩm (SKU vs CATEGORY) — cao hơn thắng. */
+    @Column(name = "priority", nullable = false)
+    @Builder.Default
+    private Integer priority = 0;
 }

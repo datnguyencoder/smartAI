@@ -22,5 +22,6 @@ public class PromotionResponse {
     private Integer maxUsage;
     private Integer usageCount;
     private Integer maxPerCustomer;
+    private boolean stackable;
     private LocalDateTime createdAt;
 }

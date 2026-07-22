@@ -72,6 +72,7 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
                 .startDate(request.getStartDate())
                 .endDate(request.getEndDate())
                 .active(true)
+                .priority(request.getPriority() != null ? request.getPriority() : 0)
                 .build();
         return toResponse(discountPlanRepository.save(plan));
     }
@@ -116,6 +117,9 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
         }
         if (request.getActive() != null) {
             plan.setActive(request.getActive());
+        }
+        if (request.getPriority() != null) {
+            plan.setPriority(request.getPriority());
         }
         return toResponse(discountPlanRepository.save(plan));
     }
@@ -189,10 +193,14 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
         return plan.getDealType() != DiscountDealType.BOGO || plan.getGiftItem() == null;
     }
 
-    /** Ranks mixed PERCENTAGE/BOGO plans by an equivalent-percent heuristic (BOGO free/(buy+free)*100). */
+    /**
+     * Chọn plan thắng khi nhiều plan cùng khớp 1 sản phẩm: ưu tiên priority cao hơn trước,
+     * priority bằng nhau mới so effectivePercent (heuristic BOGO free/(buy+free)*100).
+     */
     private DiscountPlan bestPlan(List<DiscountPlan> plans) {
         return plans.stream()
-                .max(Comparator.comparing(this::effectivePercent))
+                .max(Comparator.comparing((DiscountPlan p) -> p.getPriority() != null ? p.getPriority() : 0)
+                        .thenComparing(this::effectivePercent))
                 .orElseThrow();
     }
 
@@ -280,6 +288,7 @@ public class DiscountPlanServiceImpl implements DiscountPlanService {
                 .startDate(plan.getStartDate())
                 .endDate(plan.getEndDate())
                 .active(plan.isActive())
+                .priority(plan.getPriority())
                 .status(computeStatus(plan))
                 .createdAt(plan.getCreatedAt())
                 .build();

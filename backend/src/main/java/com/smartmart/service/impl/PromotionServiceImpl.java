@@ -82,6 +82,7 @@ public class PromotionServiceImpl implements PromotionService {
                 .maxUsage(request.getMaxUsage())
                 .maxPerCustomer(request.getMaxPerCustomer())
                 .usageCount(0)
+                .stackable(request.getStackable() == null || request.getStackable())
                 .build());
         auditLogService.log(
                 AuditAction.PROMOTION_CREATE,
@@ -118,6 +119,9 @@ public class PromotionServiceImpl implements PromotionService {
         }
         if (request.getMaxPerCustomer() != null) {
             promotion.setMaxPerCustomer(request.getMaxPerCustomer() == -1 ? null : request.getMaxPerCustomer());
+        }
+        if (request.getStackable() != null) {
+            promotion.setStackable(request.getStackable());
         }
         Promotion saved = promotionRepository.save(promotion);
         auditLogService.log(
@@ -257,6 +261,7 @@ public class PromotionServiceImpl implements PromotionService {
                 .maxUsage(promotion.getMaxUsage())
                 .usageCount(promotion.getUsageCount())
                 .maxPerCustomer(promotion.getMaxPerCustomer())
+                .stackable(promotion.isStackable())
                 .createdAt(promotion.getCreatedAt())
                 .build();
     }
@@ -272,7 +277,8 @@ public class PromotionServiceImpl implements PromotionService {
                 "endDate", promotion.getEndDate(),
                 "active", promotion.isActive(),
                 "maxUsage", promotion.getMaxUsage(),
-                "maxPerCustomer", promotion.getMaxPerCustomer()
+                "maxPerCustomer", promotion.getMaxPerCustomer(),
+                "stackable", promotion.isStackable()
         );
     }
 }

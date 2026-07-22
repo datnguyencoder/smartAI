@@ -106,6 +106,7 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
       startDate: row.startDate ? dayjs(row.startDate) : undefined,
       endDate: row.endDate ? dayjs(row.endDate) : undefined,
       active: row.active,
+      priority: row.priority ?? 0,
     });
     setModalOpen(true);
   };
@@ -133,6 +134,7 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
       startDate: values.startDate?.format('YYYY-MM-DD'),
       endDate: values.endDate?.format('YYYY-MM-DD'),
       active: values.active,
+      priority: values.priority !== undefined ? Number(values.priority) : undefined,
     };
     try {
       if (editing) {
@@ -425,6 +427,14 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
             <Form.Item name="startDate" label="Từ ngày"><DatePicker className="w-full" /></Form.Item>
             <Form.Item name="endDate" label="Đến ngày"><DatePicker className="w-full" /></Form.Item>
           </div>
+          <Form.Item
+            name="priority"
+            label="Độ ưu tiên"
+            tooltip="Khi 1 sản phẩm khớp nhiều chiến dịch cùng lúc, chiến dịch có độ ưu tiên cao hơn sẽ thắng. Để mặc định 0 nếu không có xung đột."
+            initialValue={0}
+          >
+            <InputNumber className="w-full" min={0} max={100} />
+          </Form.Item>
           {editing && <Form.Item name="active" label="Kích hoạt" valuePropName="checked"><Switch /></Form.Item>}
         </Form>
       </Modal>

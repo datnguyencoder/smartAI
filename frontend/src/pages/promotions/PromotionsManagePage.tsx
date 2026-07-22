@@ -28,7 +28,7 @@ export default function PromotionsManagePage() {
   const openCreate = () => {
     setEditing(null);
     form.resetFields();
-    form.setFieldsValue({ type: 'PERCENTAGE', active: true, minOrder: 0 });
+    form.setFieldsValue({ type: 'PERCENTAGE', active: true, minOrder: 0, stackable: true });
     setModalOpen(true);
   };
 
@@ -45,6 +45,7 @@ export default function PromotionsManagePage() {
       active: p.active,
       maxUsage: p.maxUsage ?? undefined,
       maxPerCustomer: p.maxPerCustomer ?? undefined,
+      stackable: p.stackable ?? true,
     });
     setModalOpen(true);
   };
@@ -130,6 +131,16 @@ export default function PromotionsManagePage() {
                 },
               },
               {
+                title: 'Cộng dồn',
+                dataIndex: 'stackable',
+                key: 'stackable',
+                render: (v: boolean | undefined) => (
+                  <Tooltip title={v === false ? 'Không dùng chung được với khuyến mãi tự động khác' : 'Có thể cộng dồn với khuyến mãi tự động'}>
+                    <Tag color={v === false ? 'volcano' : 'default'}>{v === false ? 'Không' : 'Có'}</Tag>
+                  </Tooltip>
+                ),
+              },
+              {
                 title: 'Trạng thái',
                 dataIndex: 'active',
                 key: 'active',
@@ -199,6 +210,14 @@ export default function PromotionsManagePage() {
             tooltip="Để trống = mỗi khách được dùng không giới hạn số lần"
           >
             <InputNumber className="w-full" min={1} placeholder="Không giới hạn" />
+          </Form.Item>
+          <Form.Item
+            name="stackable"
+            label="Cho phép cộng dồn với khuyến mãi tự động"
+            valuePropName="checked"
+            tooltip="Tắt nếu mã này không được dùng chung với chiến dịch khuyến mãi (BOGO/giảm %) đang áp dụng sẵn cho sản phẩm"
+          >
+            <Switch />
           </Form.Item>
           <Form.Item name="active" label="Kích hoạt" valuePropName="checked">
             <Switch />

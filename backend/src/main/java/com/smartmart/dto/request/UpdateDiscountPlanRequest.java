@@ -18,4 +18,5 @@ public class UpdateDiscountPlanRequest {
     private LocalDate startDate;
     private LocalDate endDate;
     private Boolean active;
+    private Integer priority;
 }

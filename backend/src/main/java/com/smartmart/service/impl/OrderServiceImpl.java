@@ -209,6 +209,10 @@ public class OrderServiceImpl implements OrderService {
         if (request.getPromotionCode() != null && !request.getPromotionCode().isBlank()) {
             promotion = promotionService.applyCode(
                     request.getPromotionCode(), total, customer != null ? customer.getId() : null);
+            if (!promotion.isStackable() && planDiscountAmount.compareTo(BigDecimal.ZERO) > 0) {
+                throw new BadRequestException(
+                        "Mã " + promotion.getCode() + " không thể dùng cùng lúc với khuyến mãi tự động đang áp dụng cho đơn hàng này");
+            }
             discountAmount = discountAmount.add(promotionService.calculateDiscount(promotion, total));
         }
 

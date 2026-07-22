@@ -21,6 +21,7 @@ export function createDiscountPlan(payload: {
   giftItemId?: number;
   startDate?: string;
   endDate?: string;
+  priority?: number;
 }) {
   return apiRequest<DiscountPlanDto>('/api/v1/discount-plans', {
     method: 'POST',
@@ -38,6 +39,7 @@ export function updateDiscountPlan(id: number, payload: {
   startDate?: string;
   endDate?: string;
   active?: boolean;
+  priority?: number;
 }) {
   return apiRequest<DiscountPlanDto>(`/api/v1/discount-plans/${id}`, {
     method: 'PUT',

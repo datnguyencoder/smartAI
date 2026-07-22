@@ -37,4 +37,7 @@ public class CreatePromotionRequest {
 
     /** Số lần tối đa mỗi khách được dùng — null = không giới hạn. */
     private Integer maxPerCustomer;
+
+    /** false = không cho cộng dồn với khuyến mãi tự động (discount plan) đang áp dụng. Mặc định true. */
+    private Boolean stackable;
 }
