@@ -501,6 +501,8 @@ export type PurchaseOrderDto = {
   purchaseDate: string;
   completedAt?: string;
   totalAmount: number;
+  shortShipped?: boolean;
+  shortReason?: string;
   items: PurchaseOrderItemDto[];
 };
 

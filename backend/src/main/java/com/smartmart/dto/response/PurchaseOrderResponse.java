@@ -22,5 +22,7 @@ public class PurchaseOrderResponse implements Serializable {
     private LocalDateTime purchaseDate;
     private LocalDateTime completedAt;
     private BigDecimal totalAmount;
+    private boolean shortShipped;
+    private String shortReason;
     private List<PurchaseOrderItemResponse> items;
 }

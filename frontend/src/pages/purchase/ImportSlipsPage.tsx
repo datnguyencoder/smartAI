@@ -4,7 +4,7 @@ import { Search, RotateCcw } from 'lucide-react';
 import { Card , Select } from '@/components/ui';
 import { StatusChip } from '@/components/ui';
 import { receivePurchaseOrder, cancelPurchaseOrder, createPurchaseReturn, fetchPurchaseOrderById, fetchPurchaseOrdersPaged, fetchSuppliers, fetchLocations } from '@/services/wmsApi';
-import { receivePurchaseOrderPartial } from '@/services/purchaseApi';
+import { finalizeShortPurchaseOrder, receivePurchaseOrderPartial } from '@/services/purchaseApi';
 import type { SupplierDto, LocationDto } from '@/types/api';
 import { purchaseToSlip, type ImportSlipRow } from '@/lib/purchaseMapper';
 import { formatMoney as money } from '@/lib/itemMapper';
@@ -33,6 +33,7 @@ export default function ImportSlipsPage({
   const [loading, setLoading] = React.useState(false);
 
   const [receiveLoading, setReceiveLoading] = React.useState(false);
+  const [finalizeShortLoading, setFinalizeShortLoading] = React.useState(false);
   const [canceling, setCanceling] = React.useState<ImportSlipRow | null>(null);
   const [cancelLoading, setCancelLoading] = React.useState(false);
   const [viewingDetails, setViewingDetails] = React.useState<ImportSlipRow | null>(null);
@@ -81,6 +82,20 @@ export default function ImportSlipsPage({
       antdMessage.error(e instanceof Error ? e.message : 'Nhận hàng thất bại');
     } finally {
       setReceiveLoading(false);
+    }
+  };
+
+  const handleFinalizeShort = async (slip: ImportSlipRow, reason: string) => {
+    setFinalizeShortLoading(true);
+    try {
+      await finalizeShortPurchaseOrder(slip.id, reason);
+      await fetchData();
+      antdMessage.success('Đã đóng phiếu — công nợ tính theo đúng số lượng đã nhận thực tế');
+      setViewingDetails(null);
+    } catch (e) {
+      antdMessage.error(e instanceof Error ? e.message : 'Đóng phiếu thất bại');
+    } finally {
+      setFinalizeShortLoading(false);
     }
   };
 
@@ -248,6 +263,8 @@ export default function ImportSlipsPage({
         onClose={() => setViewingDetails(null)}
         onReceive={handleReceive}
         onCancel={(order) => setCanceling(order)}
+        onFinalizeShort={handleFinalizeShort}
+        finalizeShortLoading={finalizeShortLoading}
       />
       <Modal
         open={Boolean(canceling)}

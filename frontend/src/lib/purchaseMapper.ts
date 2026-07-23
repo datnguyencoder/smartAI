@@ -19,6 +19,8 @@ export type ImportSlipRow = {
   items: PurchaseOrderDto['items'];
   canReceive: boolean;
   completedAt?: string;
+  shortShipped?: boolean;
+  shortReason?: string;
 };
 
 export function purchaseToSlip(po: PurchaseOrderDto): ImportSlipRow {
@@ -36,5 +38,7 @@ export function purchaseToSlip(po: PurchaseOrderDto): ImportSlipRow {
     items: po.items ?? [],
     canReceive,
     completedAt: po.completedAt,
+    shortShipped: po.shortShipped,
+    shortReason: po.shortReason,
   };
 }

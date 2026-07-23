@@ -17,6 +17,13 @@ public interface PurchaseOrderService {
 
     PurchaseOrderResponse receivePartial(Long purchaseId, com.smartmart.dto.request.PartialReceivePurchaseRequest request);
 
+    /**
+     * Đóng vĩnh viễn 1 phiếu đang PARTIALLY_RECEIVED khi NCC xác nhận không giao thêm phần còn
+     * thiếu — chuyển sang COMPLETED, tính lại totalAmount theo đúng số lượng ĐÃ NHẬN THỰC TẾ
+     * (không phải số lượng đặt ban đầu) để công nợ không bị tính thừa cho hàng chưa từng về kho.
+     */
+    PurchaseOrderResponse finalizeShortShipment(Long purchaseId, String reason);
+
     Page<PurchaseOrderResponse> list(Long supplierId, Long locationId, String search, PurchaseStatus status,
             LocalDate fromDate, LocalDate toDate, Pageable pageable);
 

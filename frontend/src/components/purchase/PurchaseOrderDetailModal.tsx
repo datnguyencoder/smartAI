@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { Modal, Button, Table, Progress, InputNumber, Tooltip, Input } from 'antd';
-import { Check, X, Search, HelpCircle } from 'lucide-react';
+import { Modal, Button, Table, Progress, InputNumber, Tooltip, Input, Tag } from 'antd';
+import { Check, X, Search, HelpCircle, PackageX } from 'lucide-react';
 import { StatusChip } from '@/components/ui';
 import { formatMoney as money } from '@/lib/itemMapper';
 
@@ -19,6 +19,8 @@ export type PurchaseOrderDetailModalProps = {
     completedAt?: string;
     totalAmount?: number;
     amount?: number;
+    shortShipped?: boolean;
+    shortReason?: string;
     items: Array<{
       id: number;
       itemName: string;
@@ -34,6 +36,8 @@ export type PurchaseOrderDetailModalProps = {
   onClose: () => void;
   onReceive?: (order: any, items: Array<{ purchaseOrderItemId: number; quantity: number }>) => void;
   onCancel?: (order: any) => void;
+  onFinalizeShort?: (order: any, reason: string) => void;
+  finalizeShortLoading?: boolean;
 };
 
 export default function PurchaseOrderDetailModal({
@@ -42,9 +46,13 @@ export default function PurchaseOrderDetailModal({
   onClose,
   onReceive,
   onCancel,
+  onFinalizeShort,
+  finalizeShortLoading,
 }: PurchaseOrderDetailModalProps) {
   const [receiveLines, setReceiveLines] = React.useState<Record<number, number>>({});
   const [searchText, setSearchText] = React.useState('');
+  const [shortReasonOpen, setShortReasonOpen] = React.useState(false);
+  const [shortReason, setShortReason] = React.useState('');
 
   React.useEffect(() => {
     if (order) {
@@ -57,6 +65,8 @@ export default function PurchaseOrderDetailModal({
       setReceiveLines({});
       setSearchText('');
     }
+    setShortReasonOpen(false);
+    setShortReason('');
   }, [order]);
 
   if (!order) return null;
@@ -138,15 +148,20 @@ export default function PurchaseOrderDetailModal({
             }>
               {displayStatus}
             </StatusChip>
+            {order.shortShipped && (
+              <Tooltip title={order.shortReason || 'NCC xác nhận không giao thêm phần còn thiếu'}>
+                <Tag color="volcano">Giao thiếu — đã đóng</Tag>
+              </Tooltip>
+            )}
           </div>
           
           {/* Action buttons display only if handlers are provided and status is PENDING */}
-          {canReceive && (onReceive || onCancel) && (
+          {canReceive && (onReceive || onCancel || onFinalizeShort) && (
             <div className="flex gap-2">
               {onReceive && (
-                <Button 
-                  size="small" 
-                  type="primary" 
+                <Button
+                  size="small"
+                  type="primary"
                   className="!bg-[#006c49] hover:!bg-[#005237] border-none flex items-center gap-1.5 font-medium"
                   onClick={() => {
                     if (onReceive) {
@@ -161,10 +176,23 @@ export default function PurchaseOrderDetailModal({
                   <Check size={14} /> Nhận hàng
                 </Button>
               )}
-              {onCancel && (
-                <Button 
-                  size="small" 
-                  danger 
+              {/* Chỉ phiếu ĐANG NHẬN THIẾU mới đóng được kiểu này — phiếu PENDING (chưa nhận gì)
+                  dùng "Hủy phiếu" bên dưới thay vì đóng thiếu. */}
+              {onFinalizeShort && displayStatusRaw === 'PARTIALLY_RECEIVED' && (
+                <Tooltip title="Dùng khi NCC xác nhận sẽ KHÔNG giao thêm phần còn thiếu — đóng phiếu vĩnh viễn, công nợ (nếu ghi nợ) chỉ tính theo số lượng đã nhận thực tế">
+                  <Button
+                    size="small"
+                    className="flex items-center gap-1.5 font-medium border-amber-300 text-amber-700 hover:!border-amber-400 hover:!text-amber-800"
+                    onClick={() => setShortReasonOpen(true)}
+                  >
+                    <PackageX size={14} /> Đóng phiếu — giao thiếu
+                  </Button>
+                </Tooltip>
+              )}
+              {onCancel && displayStatusRaw === 'PENDING' && (
+                <Button
+                  size="small"
+                  danger
                   className="flex items-center gap-1.5 font-medium"
                   onClick={() => onCancel(order)}
                 >
@@ -431,6 +459,30 @@ export default function PurchaseOrderDetailModal({
           />
         </div>
       </div>
+      <Modal
+        open={shortReasonOpen}
+        title="Đóng phiếu — giao thiếu"
+        onCancel={() => setShortReasonOpen(false)}
+        okText="Xác nhận đóng phiếu"
+        okButtonProps={{ danger: true, loading: finalizeShortLoading }}
+        onOk={() => {
+          onFinalizeShort?.(order, shortReason);
+          setShortReasonOpen(false);
+        }}
+      >
+        <p className="mb-2 text-sm text-slate-600">
+          Phiếu sẽ chuyển sang <strong>Đã nhận</strong> vĩnh viễn, không thể nhận thêm phần còn
+          thiếu ({totalMissing.toLocaleString('vi-VN')} SP / {money(totalAmountMissing)}) nữa.
+          {order.shortShipped ? null : ' Nếu phiếu ghi nợ NCC, công nợ sẽ chỉ tính theo số lượng đã nhận thực tế.'}
+        </p>
+        <p className="mb-1 text-xs font-semibold text-slate-500">Lý do (tuỳ chọn) — lưu vào lịch sử phiếu:</p>
+        <Input.TextArea
+          rows={2}
+          value={shortReason}
+          onChange={(e) => setShortReason(e.target.value)}
+          placeholder="VD: NCC hết hàng, không giao thêm phần còn lại"
+        />
+      </Modal>
     </Modal>
   );
 }

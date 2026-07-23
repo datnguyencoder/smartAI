@@ -19,6 +19,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/purchase-orders")
@@ -86,5 +87,17 @@ public class PurchaseOrderController {
     @Operation(summary = "Hủy phiếu nhập chưa nhận hàng")
     public ResponseEntity<ApiResponse<PurchaseOrderResponse>> cancel(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success("Hủy phiếu nhập thành công", purchaseOrderService.cancel(id)));
+    }
+
+    @PostMapping("/{id}/finalize-short")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
+    @Operation(summary = "Đóng phiếu đang nhận thiếu — NCC xác nhận không giao thêm phần còn lại")
+    public ResponseEntity<ApiResponse<PurchaseOrderResponse>> finalizeShort(
+            @PathVariable Long id,
+            @RequestBody(required = false) Map<String, String> body) {
+        String reason = body != null ? body.get("reason") : null;
+        return ResponseEntity.ok(ApiResponse.success(
+                "Đã đóng phiếu nhập — công nợ tính theo số lượng đã nhận thực tế",
+                purchaseOrderService.finalizeShortShipment(id, reason)));
     }
 }

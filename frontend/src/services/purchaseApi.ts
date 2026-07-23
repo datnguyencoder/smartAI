@@ -39,6 +39,13 @@ export function cancelPurchaseOrder(purchaseId: number) {
   return apiRequest<PurchaseOrderDto>(`/api/v1/purchase-orders/${purchaseId}/cancel`, { method: 'POST' });
 }
 
+export function finalizeShortPurchaseOrder(purchaseId: number, reason?: string) {
+  return apiRequest<PurchaseOrderDto>(`/api/v1/purchase-orders/${purchaseId}/finalize-short`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  });
+}
+
 export async function fetchPurchaseOrders() {
   const result = await apiRequest<PageResponseDto<PurchaseOrderDto>>('/api/v1/purchase-orders?page=0&size=200&sort=id,desc');
   return result.content;

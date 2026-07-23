@@ -306,6 +306,49 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     }
 
     @Override
+    @CacheEvict(value = { "items", "itemsPage", "purchaseOrders" }, allEntries = true)
+    public PurchaseOrderResponse finalizeShortShipment(Long purchaseId, String reason) {
+        PurchaseOrder po = purchaseOrderRepository.findWithDetailsById(purchaseId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy phiếu nhập"));
+
+        if (po.getStatus() != PurchaseStatus.PARTIALLY_RECEIVED) {
+            throw new BadRequestException(
+                    "Chỉ đóng được phiếu đang ở trạng thái Nhận thiếu (PARTIALLY_RECEIVED).");
+        }
+
+        // Tính lại tổng tiền theo ĐÚNG số lượng đã nhận thực tế — không phải số lượng đặt ban
+        // đầu, để công nợ (nếu ghi nợ NCC) không bị tính thừa cho phần hàng chưa từng về kho.
+        BigDecimal actualTotal = po.getItems().stream()
+                .map(i -> i.getReceivedQty().multiply(i.getUnitPrice()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        String beforeData = AuditData.of("status", po.getStatus(), "totalAmount", po.getTotalAmount());
+
+        po.setTotalAmount(actualTotal);
+        po.setStatus(PurchaseStatus.COMPLETED);
+        po.setCompletedAt(LocalDateTime.now());
+        po.setShortShipped(true);
+        po.setShortReason(reason != null && !reason.isBlank() ? reason.trim() : "NCC xác nhận không giao thêm phần còn thiếu");
+
+        purchaseOrderRepository.save(po);
+
+        auditLogService.log(
+                AuditAction.PURCHASE_RECEIVE,
+                "PURCHASE_ORDER",
+                po.getId().toString(),
+                "Đóng phiếu nhập #" + po.getId() + " do giao thiếu: " + po.getShortReason(),
+                beforeData,
+                AuditData.of("status", po.getStatus(), "totalAmount", po.getTotalAmount(), "shortShipped", true));
+
+        if (po.isPaymentDeferred()) {
+            supplierDebtService.createFromPurchaseOrder(po.getId(), LocalDate.now().plusDays(30));
+        }
+        applicationEventPublisher.publishEvent(new PurchaseOrderStatusEvent(this, po.getId(), "PURCHASE_RECEIVED"));
+
+        return toResponse(po);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public Page<PurchaseOrderResponse> list(Long supplierId, Long locationId, String search, PurchaseStatus status,
             LocalDate fromDate, LocalDate toDate, Pageable pageable) {
@@ -434,6 +477,8 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                 .purchaseDate(po.getPurchaseDate())
                 .completedAt(po.getCompletedAt())
                 .totalAmount(po.getTotalAmount())
+                .shortShipped(po.isShortShipped())
+                .shortReason(po.getShortReason())
                 .items(itemResponses)
                 .build();
     }
