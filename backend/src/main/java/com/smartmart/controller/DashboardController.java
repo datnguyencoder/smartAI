@@ -16,7 +16,10 @@ import java.util.Map;
 @RequestMapping("/api/v1/dashboard")
 @Tag(name = "Dashboard", description = "Báo cáo tổng quan")
 @SecurityRequirement(name = "bearerAuth")
-@PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+// STAFF có trang "dashboard" trong ROLE_PAGES (frontend/src/lib/permissions.ts) và đây thường
+// là trang mặc định ngay sau khi đăng nhập — @PreAuthorize class-level trước đây chỉ cho
+// ADMIN/MANAGER khiến STAFF luôn nhận 403 ngay khi vào hệ thống.
+@PreAuthorize("hasAnyRole('ADMIN','MANAGER','STAFF')")
 public class DashboardController {
 
     private final DashboardService dashboardService;

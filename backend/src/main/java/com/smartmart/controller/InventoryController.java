@@ -40,8 +40,11 @@ public class InventoryController {
         this.stockMovementService = stockMovementService;
     }
 
+    // STAFF cần đọc endpoint này ở POS để tính tồn kho theo "Kho bán" cho từng sản phẩm —
+    // trước đây chỉ ADMIN/MANAGER/WAREHOUSE được gọi nên STAFF luôn nhận 403, lỗi bị nuốt âm
+    // thầm ở FE (catch(() => [])) khiến toàn bộ catalog POS hiện "Hết hàng" và biến mất.
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','WAREHOUSE','STAFF')")
     @Operation(summary = "Tồn kho hiện tại")
     public ResponseEntity<ApiResponse<List<InventoryResponse>>> list() {
         return ResponseEntity.ok(ApiResponse.success(

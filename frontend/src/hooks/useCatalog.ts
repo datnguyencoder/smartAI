@@ -56,7 +56,10 @@ export function useCatalog(authUser: UserDto | null) {
         authUser && canAccessPage(authUser.role, 'suppliers') ? fetchSuppliers().catch(() => []) : Promise.resolve([]),
         authUser && canAccessPage(authUser.role, 'locations') ? fetchLocations().catch(() => []) : Promise.resolve([]),
         fetchUoms().catch(() => []),
-        authUser && canAccessPage(authUser.role, 'inventory') ? fetchInventory().catch(() => []) : Promise.resolve([]),
+        // Luôn gọi (không gate theo trang 'inventory') — STAFF không có trang quản lý tồn kho
+        // riêng nhưng vẫn cần SỐ TỒN THẬT để hiện đúng ở POS/Sản phẩm, nếu không productsList
+        // dùng chung sẽ luôn có stock=0 cho STAFF dù backend đã cho phép gọi endpoint này.
+        fetchInventory().catch(() => []),
       ]);
 
       const stockMap: Record<number, number> = {};
