@@ -1,10 +1,8 @@
 import * as React from 'react';
 
-// Lightweight Markdown renderer (headings, bold, lists, bảng) — không dùng thư viện ngoài.
-// Duyệt theo BLOCK (không phải từng dòng riêng lẻ) vì bảng Markdown cần gộp nhiều dòng liên
-// tiếp lại — trước đây mỗi dòng "| a | b |" bị render như 1 đoạn văn riêng, hiện nguyên ký tự
-// "|" và dòng phân cách "---" ra màn hình thay vì thành bảng, dữ liệu doanh thu/top SP AI hay
-// trả về dạng bảng nhìn rất lỗi.
+// Markdown renderer nhẹ cho khung chat AI (headings, bảng, code block, hr, danh sách, in đậm,
+// gạch ngang, link) — không dùng thư viện ngoài. Duyệt theo BLOCK (không phải từng dòng riêng
+// lẻ) vì bảng và code block cần gộp nhiều dòng liên tiếp lại thành 1 phần tử.
 export function MarkdownMessage({ text }: { text: string }) {
   const lines = text.split('\n');
   const blocks: React.ReactNode[] = [];
@@ -21,6 +19,27 @@ export function MarkdownMessage({ text }: { text: string }) {
       continue;
     }
 
+    // Fenced code block ```...``` — trước đây không xử lý nên AI trả code/JSON mẫu bị hiện
+    // nguyên 3 dấu backtick ra màn hình thay vì khối code có nền riêng.
+    if (trimmed.startsWith('```')) {
+      const lang = trimmed.slice(3).trim();
+      const codeLines: string[] = [];
+      i += 1;
+      while (i < lines.length && !lines[i].trim().startsWith('```')) {
+        codeLines.push(lines[i]);
+        i += 1;
+      }
+      i += 1; // bỏ qua dòng ``` đóng
+      blocks.push(
+        <pre key={key++} className="overflow-x-auto rounded-lg bg-slate-900 px-3.5 py-3 text-[13px] leading-6 text-slate-100">
+          {lang && <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">{lang}</div>}
+          <code>{codeLines.join('\n')}</code>
+        </pre>
+      );
+      continue;
+    }
+
+    // Bảng Markdown "| a | b |" + dòng phân cách "| --- | --- |" ngay dưới.
     if (isTableRow(trimmed) && i + 1 < lines.length && isTableSeparator(lines[i + 1].trim())) {
       const headerCells = splitTableRow(trimmed);
       i += 2;
@@ -33,16 +52,30 @@ export function MarkdownMessage({ text }: { text: string }) {
       continue;
     }
 
-    if (trimmed.startsWith('## ')) {
-      blocks.push(<h3 key={key++} className="mt-4 text-base font-bold text-slate-950">{trimmed.slice(3)}</h3>);
+    // Dòng kẻ ngang "---" / "***" / "___" dùng để ngăn cách các phần — trước đây hiện nguyên
+    // ký tự gạch ra vì không khớp bất kỳ pattern nào, rơi xuống đoạn văn thường.
+    if (/^([-*_])\1{2,}$/.test(trimmed)) {
+      blocks.push(<hr key={key++} className="my-2 border-slate-200" />);
       i += 1;
       continue;
     }
-    if (trimmed.startsWith('# ')) {
-      blocks.push(<h2 key={key++} className="mt-4 text-lg font-black text-slate-950">{trimmed.slice(2)}</h2>);
+
+    const heading = trimmed.match(/^(#{1,4})\s+(.+)$/);
+    if (heading) {
+      const level = heading[1].length;
+      const content = heading[2];
+      const headingClass =
+        level === 1
+          ? 'mt-4 text-lg font-black text-slate-950'
+          : level === 2
+            ? 'mt-4 text-base font-bold text-slate-950'
+            : 'mt-3 text-sm font-bold text-slate-900';
+      const Tag = level === 1 ? 'h2' : level === 2 ? 'h3' : 'h4';
+      blocks.push(React.createElement(Tag, { key: key++, className: headingClass }, content));
       i += 1;
       continue;
     }
+
     if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
       blocks.push(
         <div key={key++} className="flex gap-2 pl-1">
@@ -53,7 +86,7 @@ export function MarkdownMessage({ text }: { text: string }) {
       i += 1;
       continue;
     }
-    const numbered = trimmed.match(/^(\d+)\.\s+(.+)$/);
+    const numbered = trimmed.match(/^(\d+)[.)]\s+(.+)$/);
     if (numbered) {
       blocks.push(
         <div key={key++} className="flex gap-2 pl-1">
@@ -116,14 +149,29 @@ function MarkdownTable({ headers, rows }: { headers: string[]; rows: string[][] 
   );
 }
 
+// Thứ tự các pattern quan trọng: link phải tách trước bold/code để "[**a**](url)" không bị
+// formatInline con xử lý lệch; strikethrough ~~..~~ tách trước để không đụng dấu * của bold.
+const INLINE_PATTERN = /(\[[^\]]+\]\([^)]+\)|\*\*[^*]+\*\*|~~[^~]+~~|`[^`]+`)/g;
+
 function formatInline(text: string): React.ReactNode {
-  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+  const parts = text.split(INLINE_PATTERN);
   return parts.map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**')) {
       return <strong key={i}>{part.slice(2, -2)}</strong>;
     }
+    if (part.startsWith('~~') && part.endsWith('~~')) {
+      return <span key={i} className="text-slate-400 line-through">{part.slice(2, -2)}</span>;
+    }
     if (part.startsWith('`') && part.endsWith('`')) {
       return <code key={i} className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[0.92em] font-semibold text-slate-700">{part.slice(1, -1)}</code>;
+    }
+    const link = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+    if (link) {
+      return (
+        <a key={i} href={link[2]} target="_blank" rel="noreferrer" className="text-emerald-700 underline underline-offset-2">
+          {link[1]}
+        </a>
+      );
     }
     return <span key={i}>{part}</span>;
   });

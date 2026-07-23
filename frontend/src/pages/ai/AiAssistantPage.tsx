@@ -238,9 +238,9 @@ function normalizeAiResponse(rawText: string) {
     return 'Chưa có nội dung phản hồi từ AI. Thử hỏi lại ngắn gọn hơn hoặc kiểm tra kết nối/quyền truy cập.';
   }
 
-  // Bao gồm cả cú pháp bảng "| a | b |" — nếu không, câu trả lời dạng bảng sẽ bị coi là văn
-  // xuôi và đi qua bước tách câu bên dưới, phá vỡ hoàn toàn cấu trúc bảng.
-  const hasMarkdownStructure = /(^|\n)\s{0,3}(#{1,3}\s|[-*]\s|\d+\.\s|\|.*\|)/.test(text);
+  // Bao gồm cả bảng "| a | b |", code block ``` và numbered list dạng "1)" — nếu không, câu trả
+  // lời có cấu trúc này bị coi là văn xuôi và đi qua bước tách câu bên dưới, phá vỡ cấu trúc gốc.
+  const hasMarkdownStructure = /(^|\n)\s{0,3}(#{1,4}\s|[-*]\s|\d+[.)]\s|\|.*\||```)/.test(text);
   if (hasMarkdownStructure) {
     return text;
   }

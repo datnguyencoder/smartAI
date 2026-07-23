@@ -15,8 +15,9 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class PromotionUsage extends LongAuditableEntity {
 
+    /** Nullable: mã KM có thể bị xoá sau này (ON DELETE SET NULL) — lịch sử vẫn giữ discountAmount. */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "promotion_id", nullable = false)
+    @JoinColumn(name = "promotion_id")
     private Promotion promotion;
 
     @ManyToOne(fetch = FetchType.LAZY)
