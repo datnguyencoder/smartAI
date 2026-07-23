@@ -134,14 +134,12 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
       startDate: row.startDate ? dayjs(row.startDate) : undefined,
       endDate: row.endDate ? dayjs(row.endDate) : undefined,
       active: row.active,
-      priority: row.priority ?? 0,
       isFlashSale: !!(row.startTime && row.endTime),
       timeRange: row.startTime && row.endTime
         ? [dayjs(row.startTime, 'HH:mm:ss'), dayjs(row.endTime, 'HH:mm:ss')]
         : undefined,
       maxUsage: row.maxUsage ?? undefined,
       bundleItems: row.bundleItems?.map((bi) => ({ itemId: bi.itemId, requiredQty: bi.requiredQty })),
-      customerSegment: row.customerSegment ?? 'ALL',
     });
     setModalOpen(true);
   };
@@ -185,7 +183,6 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
       startDate: values.startDate?.format('YYYY-MM-DD'),
       endDate: values.endDate?.format('YYYY-MM-DD'),
       active: values.active,
-      priority: values.priority !== undefined ? Number(values.priority) : undefined,
       startTime: values.isFlashSale && values.timeRange?.[0] ? values.timeRange[0].format('HH:mm:ss') : undefined,
       endTime: values.isFlashSale && values.timeRange?.[1] ? values.timeRange[1].format('HH:mm:ss') : undefined,
       maxUsage: values.maxUsage !== undefined && values.maxUsage !== null ? Number(values.maxUsage) : undefined,
@@ -197,7 +194,6 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
               requiredQty: Number(b.requiredQty ?? 1),
             }))
         : undefined,
-      customerSegment: values.customerSegment ?? 'ALL',
     };
     try {
       if (editing) {
@@ -727,29 +723,6 @@ export default function DiscountPlansPage({ productsList = [] }: Props) {
             tooltip="Để trống = không giới hạn số lần chiến dịch được áp dụng"
           >
             <InputNumber className="w-full" min={1} placeholder="Không giới hạn" />
-          </Form.Item>
-          <Form.Item
-            name="priority"
-            label="Độ ưu tiên"
-            tooltip="Khi 1 sản phẩm khớp nhiều chiến dịch cùng lúc, chiến dịch có độ ưu tiên cao hơn sẽ thắng. Để mặc định 0 nếu không có xung đột."
-            initialValue={0}
-          >
-            <InputNumber className="w-full" min={0} max={100} />
-          </Form.Item>
-          <Form.Item
-            name="customerSegment"
-            label="Đối tượng khách áp dụng"
-            initialValue="ALL"
-            tooltip="MEMBER: chỉ khách có tài khoản (đã lưu SĐT). VIP: khách hạng SILVER/GOLD trở lên."
-          >
-            <Segmented
-              block
-              options={[
-                { label: 'Tất cả khách', value: 'ALL' },
-                { label: 'Khách thành viên', value: 'MEMBER' },
-                { label: 'Khách VIP', value: 'VIP' },
-              ]}
-            />
           </Form.Item>
           {editing && <Form.Item name="active" label="Kích hoạt" valuePropName="checked"><Switch /></Form.Item>}
         </Form>
