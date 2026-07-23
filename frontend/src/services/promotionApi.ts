@@ -63,3 +63,7 @@ export function rejectPromotionRecommendation(id: number) {
 export function autoSuggestPromotions() {
   return apiRequest<{ created: number }>('/api/v1/promotions/recommendations/auto-suggest', { method: 'POST' });
 }
+
+export function deletePromotionRecommendation(id: number) {
+  return apiRequest<void>(`/api/v1/promotions/recommendations/${id}`, { method: 'DELETE' });
+}

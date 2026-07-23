@@ -59,4 +59,12 @@ public class PromotionRecommendationController {
     public ResponseEntity<ApiResponse<PromotionRecommendationResponse>> reject(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success("Đã từ chối đề xuất", promotionRecommendationService.reject(id)));
     }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @Operation(summary = "Xoá đề xuất KM khỏi danh sách (không xoá mã KM đã tạo nếu đã duyệt)")
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
+        promotionRecommendationService.delete(id);
+        return ResponseEntity.ok(ApiResponse.success("Đã xoá đề xuất", null));
+    }
 }

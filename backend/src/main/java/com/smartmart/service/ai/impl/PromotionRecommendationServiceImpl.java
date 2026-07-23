@@ -176,6 +176,14 @@ public class PromotionRecommendationServiceImpl implements PromotionRecommendati
         return toResponse(rec, null);
     }
 
+    @Override
+    public void delete(Long id) {
+        PromotionRecommendation rec = findById(id);
+        String itemCode = rec.getItem() != null ? rec.getItem().getItemCode() : String.valueOf(id);
+        promotionRepository.delete(rec);
+        auditLogService.log("PROMO_SUGGEST_DELETE", "Xoá đề xuất KM AI #" + id + " (" + itemCode + ")");
+    }
+
     private PromotionRecommendation findById(Long id) {
         return promotionRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy đề xuất khuyến mãi"));

@@ -1,11 +1,12 @@
 import React from 'react';
-import { Alert, Button, Table, Tag, Tooltip, message as antdMessage } from 'antd';
-import { Radar, Sparkles, WandSparkles } from 'lucide-react';
+import { Alert, Button, Modal, Table, Tag, Tooltip, message as antdMessage } from 'antd';
+import { Radar, Sparkles, Trash2, WandSparkles } from 'lucide-react';
 import { Card, CardHeader , Select } from '@/components/ui';
 import {
   aiSuggestPromotion,
   approvePromotionRecommendation,
   autoSuggestPromotions,
+  deletePromotionRecommendation,
   fetchItems,
   fetchNearExpiry,
   fetchPromotionRecommendations,
@@ -42,12 +43,16 @@ export default function PromotionsSuggestPage({ setPage }: Props) {
     const loadItemOptions = async () => {
       try {
         const near = await fetchNearExpiry();
-        if (near.length > 0) {
-          setNearExpiry(near.map((i) => ({ itemId: i.itemId, itemName: i.itemName })));
+        // Chỉ hiện SP còn hàng để tạo đề xuất — SP đã bán hết (dù đúng lô cận date) không thể
+        // lên khuyến mãi xả hàng vì không còn gì để bán, chọn vào chỉ gây nhầm lẫn.
+        const nearInStock = near.filter((i) => (i.availableQuantity ?? 0) > 0);
+        if (nearInStock.length > 0) {
+          setNearExpiry(nearInStock.map((i) => ({ itemId: i.itemId, itemName: i.itemName })));
           return;
         }
         const all = await fetchItems();
-        setNearExpiry(all.slice(0, 20).map((i) => ({ itemId: i.id, itemName: i.itemName })));
+        const allInStock = all.filter((i) => (i.totalAvailableQty ?? 0) > 0);
+        setNearExpiry(allInStock.slice(0, 20).map((i) => ({ itemId: i.id, itemName: i.itemName })));
       } catch {
         setNearExpiry([]);
       }
@@ -113,6 +118,27 @@ export default function PromotionsSuggestPage({ setPage }: Props) {
     }
   };
 
+  const handleDelete = (row: PromotionRecommendationDto) => {
+    Modal.confirm({
+      title: 'Xoá đề xuất khuyến mãi?',
+      content: row.status === 'APPROVED'
+        ? `Chỉ xoá khỏi danh sách đề xuất — mã KM ${row.promotionCode ?? ''} đã tạo vẫn giữ nguyên, không bị ảnh hưởng.`
+        : `Xoá đề xuất cho "${row.itemName}" khỏi danh sách.`,
+      okText: 'Xoá',
+      okButtonProps: { danger: true },
+      cancelText: 'Huỷ',
+      onOk: async () => {
+        try {
+          await deletePromotionRecommendation(row.id);
+          antdMessage.success('Đã xoá đề xuất');
+          await load();
+        } catch (e) {
+          antdMessage.error(e instanceof Error ? e.message : 'Xoá thất bại');
+        }
+      },
+    });
+  };
+
   const columns = [
     { title: 'SKU', dataIndex: 'itemCode', key: 'itemCode' },
     { title: 'Sản phẩm', dataIndex: 'itemName', key: 'itemName' },
@@ -139,40 +165,45 @@ export default function PromotionsSuggestPage({ setPage }: Props) {
     {
       title: 'Hành động',
       key: 'action',
-      render: (_: unknown, row: PromotionRecommendationDto) =>
-        row.status === 'PENDING' ? (
-          <div className="flex gap-2">
-            <Button size="small" type="primary" onClick={() => handleApprove(row.id)}>
-              Duyệt
-            </Button>
-            <Button size="small" danger onClick={() => handleReject(row.id)}>
-              Từ chối
-            </Button>
-          </div>
-        ) : row.promotionCode ? (
-          <div className="flex gap-2">
-            <Button
-              size="small"
-              onClick={() => {
-                navigator.clipboard?.writeText(row.promotionCode || '');
-                antdMessage.success(`Đã copy mã ${row.promotionCode}`);
-              }}
-            >
-              Copy mã
-            </Button>
-            <Button
-              size="small"
-              ghost
-              type="primary"
-              onClick={() => {
-                sessionStorage.setItem('smartmart_pending_promo_code', row.promotionCode || '');
-                setPage('pos');
-              }}
-            >
-              Dùng tại POS
-            </Button>
-          </div>
-        ) : null,
+      render: (_: unknown, row: PromotionRecommendationDto) => (
+        <div className="flex flex-wrap gap-2">
+          {row.status === 'PENDING' && (
+            <>
+              <Button size="small" type="primary" onClick={() => handleApprove(row.id)}>
+                Duyệt
+              </Button>
+              <Button size="small" onClick={() => handleReject(row.id)}>
+                Từ chối
+              </Button>
+            </>
+          )}
+          {row.status !== 'PENDING' && row.promotionCode && (
+            <>
+              <Button
+                size="small"
+                onClick={() => {
+                  navigator.clipboard?.writeText(row.promotionCode || '');
+                  antdMessage.success(`Đã copy mã ${row.promotionCode}`);
+                }}
+              >
+                Copy mã
+              </Button>
+              <Button
+                size="small"
+                ghost
+                type="primary"
+                onClick={() => {
+                  sessionStorage.setItem('smartmart_pending_promo_code', row.promotionCode || '');
+                  setPage('pos');
+                }}
+              >
+                Dùng tại POS
+              </Button>
+            </>
+          )}
+          <Button size="small" danger icon={<Trash2 size={13} />} onClick={() => handleDelete(row)} />
+        </div>
+      ),
     },
   ];
 

@@ -20,6 +20,9 @@ public interface PromotionRecommendationService {
 
     PromotionRecommendationResponse reject(Long id);
 
+    /** Xoá đề xuất khỏi danh sách — không đụng tới mã KM đã tạo (nếu đã duyệt trước đó). */
+    void delete(Long id);
+
     /**
      * Quét forecast gần nhất của từng SP: nếu dự báo bán 7 ngày tới thấp hơn nhiều so với tồn kho
      * hiện tại (nguy cơ ứ đọng), tự động tạo đề xuất KM (bỏ qua SP đã LOW_STOCK/HIGH_RISK hoặc đã
