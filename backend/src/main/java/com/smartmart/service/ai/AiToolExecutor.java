@@ -6,10 +6,14 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.smartmart.dto.response.InventoryAlertResponse;
 import com.smartmart.entity.*;
+import com.smartmart.enums.CustomerDebtStatus;
+import com.smartmart.enums.ShiftStatus;
+import com.smartmart.enums.SupplierDebtStatus;
 import com.smartmart.repository.*;
 import com.smartmart.service.DashboardService;
 import com.smartmart.service.DiscountPlanService;
 import com.smartmart.service.InventoryAlertService;
+import com.smartmart.service.PromotionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -49,6 +53,13 @@ public class AiToolExecutor {
     private final CategoryRepository categoryRepository;
     private final AiActionService aiActionService;
     private final ObjectMapper objectMapper;
+    private final SupplierRepository supplierRepository;
+    private final PurchaseOrderRepository purchaseOrderRepository;
+    private final CustomerDebtRepository customerDebtRepository;
+    private final SupplierDebtRepository supplierDebtRepository;
+    private final ShiftRepository shiftRepository;
+    private final FinanceTransactionRepository financeTransactionRepository;
+    private final PromotionService promotionService;
 
     public AiToolExecutor(
             ItemRepository itemRepository,
@@ -65,7 +76,14 @@ public class AiToolExecutor {
             DiscountPlanService discountPlanService,
             CategoryRepository categoryRepository,
             AiActionService aiActionService,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            SupplierRepository supplierRepository,
+            PurchaseOrderRepository purchaseOrderRepository,
+            CustomerDebtRepository customerDebtRepository,
+            SupplierDebtRepository supplierDebtRepository,
+            ShiftRepository shiftRepository,
+            FinanceTransactionRepository financeTransactionRepository,
+            PromotionService promotionService) {
         this.itemRepository = itemRepository;
         this.forecastResultRepository = forecastResultRepository;
         this.inventoryAlertService = inventoryAlertService;
@@ -81,6 +99,13 @@ public class AiToolExecutor {
         this.categoryRepository = categoryRepository;
         this.aiActionService = aiActionService;
         this.objectMapper = objectMapper;
+        this.supplierRepository = supplierRepository;
+        this.purchaseOrderRepository = purchaseOrderRepository;
+        this.customerDebtRepository = customerDebtRepository;
+        this.supplierDebtRepository = supplierDebtRepository;
+        this.shiftRepository = shiftRepository;
+        this.financeTransactionRepository = financeTransactionRepository;
+        this.promotionService = promotionService;
     }
 
     public ArrayNode buildToolDeclarations() {
@@ -169,6 +194,46 @@ public class AiToolExecutor {
                 "Tìm kiếm khách hàng theo tên hoặc số điện thoại. Trả về điểm tích lũy, hạng thẻ.",
                 Map.of("query", "Tên hoặc số điện thoại khách hàng")));
 
+        // ── Đơn hàng / hoá đơn ──────────────────────────────────────────────
+        functions.add(declaration("get_order_detail",
+                "Tra cứu chi tiết 1 hoá đơn bán hàng theo mã đơn (orderCode, vd 'HD-1234567'): " +
+                "danh sách sản phẩm, số lượng, giảm giá, tổng tiền, phương thức thanh toán.",
+                Map.of("orderCode", "Mã hoá đơn cần tra, ví dụ HD-1234567890")));
+
+        // ── Nhà cung cấp & nhập hàng ──────────────────────────────────────────
+        functions.add(declaration("search_suppliers",
+                "Tìm nhà cung cấp theo tên, SĐT hoặc email. Trả về id, tên, người liên hệ, SĐT.",
+                Map.of("query", "Từ khóa tên/SĐT/email nhà cung cấp")));
+
+        ObjectNode getPurchaseOrders = declarationTyped("get_purchase_orders",
+                "Lấy danh sách phiếu nhập hàng gần đây, có thể lọc theo trạng thái.");
+        addParam(getPurchaseOrders, "status", "STRING",
+                "Trạng thái lọc: PENDING, PARTIALLY_RECEIVED, COMPLETED, CANCELLED — bỏ trống để lấy tất cả (mới nhất trước)", false);
+        functions.add(getPurchaseOrders);
+
+        functions.add(declarationNoParams("get_supplier_debts",
+                "Lấy danh sách công nợ đang nợ nhà cung cấp (chưa thanh toán hết), sắp theo mới nhất."));
+
+        // ── Khách hàng & công nợ ────────────────────────────────────────────
+        functions.add(declarationNoParams("get_customer_debts",
+                "Lấy danh sách công nợ khách hàng (bán ghi nợ) chưa thanh toán hết."));
+
+        // ── Ca làm việc ─────────────────────────────────────────────────────
+        functions.add(declarationNoParams("get_open_shifts",
+                "Lấy danh sách ca làm việc đang mở (chưa đóng ca) của thu ngân — dùng khi hỏi " +
+                "'ai đang trực', 'ca nào chưa đóng'."));
+
+        // ── Tài chính ───────────────────────────────────────────────────────
+        functions.add(declaration("get_finance_transactions",
+                "Lấy các khoản thu/chi tài chính (ngoài doanh thu bán hàng) trong N ngày gần nhất, " +
+                "vd tiền điện nước, lương, chi phí vận hành.",
+                Map.of("days", "Số ngày gần nhất cần xem (ví dụ 30)")));
+
+        // ── Hiệu quả khuyến mãi ─────────────────────────────────────────────
+        functions.add(declarationNoParams("get_promotion_effectiveness",
+                "Thống kê hiệu quả TẤT CẢ chiến dịch khuyến mãi và mã KM: tổng tiền đã giảm, " +
+                "số đơn/lượt đã dùng — dùng khi hỏi 'chiến dịch nào hiệu quả nhất', 'mã KM nào bán chạy'."));
+
         // ── Chính sách & nghiệp vụ ───────────────────────────────────────────
         functions.add(declaration("search_store_policy",
                 "Tìm kiếm ngữ nghĩa (RAG) trong tài liệu quy tắc nghiệp vụ và chính sách cửa hàng " +
@@ -247,6 +312,14 @@ public class AiToolExecutor {
                 case "create_discount_campaign" -> createDiscountCampaign(args);
                 case "create_promo_code"        -> createPromoCode(args);
                 case "search_customers"         -> searchCustomers(args.path("query").asText(""));
+                case "get_order_detail"         -> getOrderDetail(args.path("orderCode").asText(""));
+                case "search_suppliers"         -> searchSuppliers(args.path("query").asText(""));
+                case "get_purchase_orders"      -> getPurchaseOrders(args.path("status").asText(""));
+                case "get_supplier_debts"       -> getSupplierDebts();
+                case "get_customer_debts"       -> getCustomerDebts();
+                case "get_open_shifts"          -> getOpenShifts();
+                case "get_finance_transactions" -> getFinanceTransactions(args.path("days").asInt(30));
+                case "get_promotion_effectiveness" -> getPromotionEffectiveness();
                 case "search_store_policy"      -> searchStorePolicy(args.path("query").asText(""));
                 default -> Map.of("error", "Không hỗ trợ tool: " + toolName);
             };
@@ -441,5 +514,140 @@ public class AiToolExecutor {
         return chunks.stream()
                 .map(c -> Map.of("source", c.sourceRef(), "content", c.content(), "relevance", c.score()))
                 .toList();
+    }
+
+    private Object getOrderDetail(String orderCode) {
+        if (orderCode.isBlank()) {
+            return Map.of("error", "Thiếu mã hoá đơn cần tra cứu.");
+        }
+        return orderRepository.findByOrderCode(orderCode.trim())
+                .<Object>map(order -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("orderCode", order.getOrderCode());
+                    m.put("orderDate", order.getOrderDate());
+                    m.put("customerName", order.getCustomerName());
+                    m.put("status", order.getStatus());
+                    m.put("paymentMethod", order.getPaymentMethod());
+                    m.put("discountAmount", order.getDiscountAmount());
+                    m.put("totalAmount", order.getTotalAmount());
+                    m.put("promotionCode", order.getPromotion() != null ? order.getPromotion().getCode() : null);
+                    m.put("items", order.getItems().stream().map(oi -> {
+                        Map<String, Object> im = new LinkedHashMap<>();
+                        im.put("itemName", oi.getItem().getItemName());
+                        im.put("quantity", oi.getQuantity());
+                        im.put("unitPrice", oi.getUnitPrice());
+                        im.put("discountAmount", oi.getDiscountAmount());
+                        im.put("discountReason", oi.getDiscountReason());
+                        return im;
+                    }).toList());
+                    return m;
+                })
+                .orElse(Map.of("error", "Không tìm thấy hoá đơn mã " + orderCode));
+    }
+
+    private List<Map<String, Object>> searchSuppliers(String query) {
+        return supplierRepository.findFiltered(query == null ? "" : query, null).stream()
+                .limit(8)
+                .map(s -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("supplierId", s.getId());
+                    m.put("supplierName", s.getSupplierName());
+                    m.put("contactPerson", s.getContactPerson());
+                    m.put("phone", s.getPhone());
+                    m.put("active", s.isActive());
+                    return m;
+                }).toList();
+    }
+
+    private List<Map<String, Object>> getPurchaseOrders(String statusText) {
+        List<PurchaseOrder> orders;
+        if (statusText != null && !statusText.isBlank()) {
+            try {
+                var status = com.smartmart.enums.PurchaseStatus.valueOf(statusText.trim().toUpperCase());
+                orders = purchaseOrderRepository.findByStatusOrderByPurchaseDateDesc(
+                        status, org.springframework.data.domain.PageRequest.of(0, 10)).getContent();
+            } catch (IllegalArgumentException ex) {
+                return List.of(Map.of("error", "Trạng thái không hợp lệ: " + statusText));
+            }
+        } else {
+            orders = purchaseOrderRepository.findAllByOrderByPurchaseDateDesc().stream().limit(10).toList();
+        }
+        return orders.stream().map(po -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("purchaseDate", po.getPurchaseDate());
+            m.put("supplierName", po.getSupplier() != null ? po.getSupplier().getSupplierName() : null);
+            m.put("status", po.getStatus());
+            m.put("totalAmount", po.getTotalAmount());
+            m.put("paymentDeferred", po.isPaymentDeferred());
+            m.put("itemCount", po.getItems() != null ? po.getItems().size() : 0);
+            return m;
+        }).toList();
+    }
+
+    private List<Map<String, Object>> getSupplierDebts() {
+        return supplierDebtRepository.findByStatusOrderByIdDesc(SupplierDebtStatus.UNPAID).stream()
+                .limit(15)
+                .map(d -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("supplierName", d.getSupplier() != null ? d.getSupplier().getSupplierName() : null);
+                    m.put("amount", d.getAmount());
+                    m.put("paidAmount", d.getPaidAmount());
+                    m.put("remaining", d.getAmount().subtract(
+                            d.getPaidAmount() != null ? d.getPaidAmount() : BigDecimal.ZERO));
+                    m.put("dueDate", d.getDueDate());
+                    return m;
+                }).toList();
+    }
+
+    private List<Map<String, Object>> getCustomerDebts() {
+        return customerDebtRepository.findByStatusOrderByIdDesc(CustomerDebtStatus.UNPAID).stream()
+                .limit(15)
+                .map(d -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("customerName", d.getCustomer() != null ? d.getCustomer().getFullName() : null);
+                    m.put("customerPhone", d.getCustomer() != null ? d.getCustomer().getPhone() : null);
+                    m.put("amount", d.getAmount());
+                    m.put("paidAmount", d.getPaidAmount());
+                    m.put("remaining", d.getAmount().subtract(
+                            d.getPaidAmount() != null ? d.getPaidAmount() : BigDecimal.ZERO));
+                    m.put("dueDate", d.getDueDate());
+                    return m;
+                }).toList();
+    }
+
+    private List<Map<String, Object>> getOpenShifts() {
+        return shiftRepository.findByStatusOrderByClosedAtDesc(ShiftStatus.OPEN).stream()
+                .limit(10)
+                .map(s -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("cashierId", s.getCashierId());
+                    m.put("openedAt", s.getOpenedAt());
+                    m.put("openingCash", s.getOpeningCash());
+                    m.put("totalOrders", s.getTotalOrders());
+                    m.put("totalRevenue", s.getTotalRevenue());
+                    return m;
+                }).toList();
+    }
+
+    private List<Map<String, Object>> getFinanceTransactions(int days) {
+        LocalDate from = LocalDate.now().minusDays(Math.max(1, Math.min(days, 365)));
+        return financeTransactionRepository.findByTransactionDateGreaterThanEqualOrderByTransactionDateDescIdDesc(from)
+                .stream().limit(20)
+                .map(t -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("transactionDate", t.getTransactionDate());
+                    m.put("type", t.getType());
+                    m.put("category", t.getCategory());
+                    m.put("amount", t.getAmount());
+                    m.put("note", t.getNote());
+                    return m;
+                }).toList();
+    }
+
+    private Map<String, Object> getPromotionEffectiveness() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("discountPlans", discountPlanService.getAnalytics().stream().limit(10).toList());
+        result.put("promotionCodes", promotionService.getAnalytics().stream().limit(10).toList());
+        return result;
     }
 }

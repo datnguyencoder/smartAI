@@ -27,7 +27,9 @@ import java.util.Iterator;
 public class GeminiAgentServiceImpl implements GeminiAgentService {
 
     private static final Logger log = LoggerFactory.getLogger(GeminiAgentServiceImpl.class);
-    private static final int MAX_TOOL_ROUNDS = 6;
+    // Tăng từ 6 lên 8: hệ thống tool đã mở rộng ra nhiều mảng (đơn hàng, NCC, công nợ, ca trực,
+    // tài chính, hiệu quả KM...) — câu hỏi tổng hợp nhiều mảng cần gọi nhiều tool hơn trong 1 lượt.
+    private static final int MAX_TOOL_ROUNDS = 8;
     // gemini-2.5-flash bật thinking mặc định; giới hạn budget để agent loop không bị timeout.
     private static final int THINKING_BUDGET = 1024;
 
@@ -52,7 +54,21 @@ public class GeminiAgentServiceImpl implements GeminiAgentService {
             - **get_active_promotions**: "khuyến mãi đang chạy", "mã giảm giá", "kế hoạch KM"
             - **list_categories**: lấy id + tên danh mục (gọi trước khi tạo KM theo danh mục)
             - **search_customers**: "tìm khách hàng", "điểm tích lũy", "hạng thẻ khách"
+            - **get_order_detail**: "tra hoá đơn HD-xxx", "đơn này có gì", "khách mua gì hôm đó"
+            - **search_suppliers**: "tìm nhà cung cấp", "NCC nào bán mặt hàng X"
+            - **get_purchase_orders**: "phiếu nhập hàng gần đây", "đã nhập gì tuần này"
+            - **get_supplier_debts**: "còn nợ NCC nào", "công nợ phải trả"
+            - **get_customer_debts**: "khách nào còn nợ", "công nợ phải thu"
+            - **get_open_shifts**: "ai đang trực ca", "ca nào chưa đóng"
+            - **get_finance_transactions**: "chi phí vận hành", "thu chi ngoài bán hàng"
+            - **get_promotion_effectiveness**: "chiến dịch nào hiệu quả nhất", "mã KM nào bán chạy"
             - **search_store_policy**: "chính sách đổi trả", "quy định", "phân quyền", "quy trình"
+
+            Nếu câu hỏi liên quan tới nhiều mảng (vd "tổng quan vận hành hôm nay" gồm cả bán hàng,
+            công nợ, ca trực), hãy gọi NHIỀU tool liên quan trong cùng 1 lượt trả lời thay vì chỉ
+            trả lời 1 phần rồi dừng. Nếu không có tool nào khớp câu hỏi, trả lời dựa trên hiểu biết
+            chung về nghiệp vụ bán lẻ, nói rõ đây là góc nhìn chung chứ không phải số liệu thật của
+            cửa hàng — đừng từ chối trả lời chỉ vì thiếu tool.
 
             ## Tool HÀNH ĐỘNG - tạo mới dữ liệu (WRITE, dùng cẩn thận)
             - **create_discount_campaign**: TẠO chiến dịch giảm giá tự động (giảm %, hoặc mua X tặng Y)
